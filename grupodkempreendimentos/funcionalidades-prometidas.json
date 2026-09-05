@@ -704,7 +704,7 @@
     },
     {
       "id": "fin-ceo-painel-simulacao",
-      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Receita = só o aluguel, pago na sexta-feira, acumulando no mês da compra (1 moto = R$ 330/semana, 2 motos = R$ 660/semana). Despesa = aporte (uma vez na compra de cada moto) + prestação (acumula conforme entram motos) + manutenção (R$ 80/semana por moto alugada, acumula). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação. Os gráficos são os mesmos do Painel executivo (Saldo mês a mês em barras verde/vermelho e Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada), somando a simulação.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, crescimento 1.1 (motos a mais e a cada N meses), aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Ex.: 1 moto/mês e +2 a cada 3 meses → meses 1–3 compram 1/mês, 4–6 compram 3/mês, 7–9 compram 5/mês. Receita = só o aluguel, pago na sexta-feira, acumulando no mês da compra (1 moto = R$ 330/semana, 2 motos = R$ 660/semana). Despesa = aporte (uma vez na compra de cada moto) + prestação (acumula conforme entram motos) + manutenção (R$ 80/semana por moto alugada, acumula). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação. Os gráficos são os mesmos do Painel executivo (Saldo mês a mês em barras verde/vermelho e Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada), somando a simulação.",
       "ficheiros": {
         "index.html": [
           "btn-fin-ceo-simulacao",
@@ -713,6 +713,9 @@
           "finCeoSimCompraInicio",
           "finCeoSimCompraFim",
           "finCeoSimQtdMotos",
+          "1.1 — Crescimento na quantidade",
+          "finCeoSimCrescQtd",
+          "finCeoSimCrescMeses",
           "finCeoSimAporte",
           "finCeoSimPrestacao",
           "finCeoSimQtdPrest",
@@ -730,6 +733,7 @@
         ],
         "portal-financeiro-ceo.js": [
           "lotesSimulacaoCeo",
+          "qtyCompraMesSimulacaoCeo",
           "renderResumoSimulacaoCeo",
           "aplicarSimulacaoNaProjecao",
           "svgSaldoMesChart",
@@ -748,6 +752,7 @@
         ],
         "styles.css": [
           "fin-ceo-sim-regras",
+          "fin-ceo-sim-cresc",
           "fin-kpi__duo",
           "fin-ceo-sim-graf-row",
           "fin-kpi__duo-sim"

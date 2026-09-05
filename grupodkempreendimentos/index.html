@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260905sim-stack">
+  <link rel="stylesheet" href="styles.css?v=20260905sim-cresc">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3563,6 +3563,20 @@
                     <span>1 — Quantidade de motos compradas a cada mês</span>
                     <input type="text" id="finCeoSimQtdMotos" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0" aria-label="Quantidade de motos compradas a cada mês">
                   </label>
+                  <div class="fin-ceo-sim-cresc" id="finCeoSimCrescBox">
+                    <p class="fin-ceo-sim-cresc__titulo">1.1 — Crescimento na quantidade</p>
+                    <div class="fin-ceo-sim-cresc__caixas">
+                      <label class="portal-field">
+                        <span>Motos a mais</span>
+                        <input type="text" id="finCeoSimCrescQtd" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0" aria-label="Quantas motos aumentam além da quantidade do item 1">
+                      </label>
+                      <label class="portal-field">
+                        <span>A cada (meses)</span>
+                        <input type="text" id="finCeoSimCrescMeses" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" aria-label="De quantos em quantos meses a quantidade cresce">
+                      </label>
+                    </div>
+                    <span class="subtext">Ex.: 1 no item 1, +2 a cada 3 meses → meses 1–3 compram 1/mês (3); meses 4–6 compram 3/mês (9); meses 7–9 compram 5/mês (15).</span>
+                  </div>
                   <label class="portal-field">
                     <span>2 — Aporte feito por moto (valor único na aquisição)</span>
                     <input type="text" id="finCeoSimAporte" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" aria-label="Aporte feito por moto">
@@ -4301,7 +4315,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260905sim-stack" defer></script>
+  <script src="app.js?v=20260905sim-cresc" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4309,11 +4323,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260905sim-stack" defer></script>
+  <script src="portal-locadora-ui.js?v=20260905sim-cresc" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260905sim-stack" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260905sim-cresc" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

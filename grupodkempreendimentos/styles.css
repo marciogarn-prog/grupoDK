@@ -11304,6 +11304,35 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0.45rem 0 0.65rem;
 }
 
+.fin-ceo-sim-cresc {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.6rem 0.6rem;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.fin-ceo-sim-cresc__titulo {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #bfdbfe;
+}
+
+.fin-ceo-sim-cresc__caixas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+}
+
+.fin-ceo-sim-cresc__caixas .portal-field {
+  flex: 1 1 7rem;
+  min-width: 6.5rem;
+  margin-bottom: 0.35rem;
+}
+
 .fin-ceo-sim-regras__filtros .portal-field {
   flex: 1 1 8.5rem;
   min-width: 8.2rem;

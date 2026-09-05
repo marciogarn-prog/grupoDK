@@ -1618,6 +1618,8 @@
       d1 = t;
     }
     const qty = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimQtdMotos")?.value || "").replace(/\D/g, "")) || 0));
+    const crescQtd = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimCrescQtd")?.value || "").replace(/\D/g, "")) || 0));
+    const crescMeses = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimCrescMeses")?.value || "").replace(/\D/g, "")) || 0));
     const aporte = parseValor(document.getElementById("finCeoSimAporte")?.value);
     const prestacao = parseValor(document.getElementById("finCeoSimPrestacao")?.value);
     const nPrest = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimQtdPrest")?.value || "").replace(/\D/g, "")) || 0));
@@ -1625,7 +1627,15 @@
       100,
       Math.max(0, Number(String(document.getElementById("finCeoSimOciosidade")?.value || "0").replace("%", "").replace(",", ".")) || 0)
     );
-    return { d0, d1, qty, aporte, prestacao, nPrest, ociosa };
+    return { d0, d1, qty, crescQtd, crescMeses, aporte, prestacao, nPrest, ociosa };
+  }
+
+  function qtyCompraMesSimulacaoCeo(qtyBase, acrescimo, aCadaMeses, mesIndex0) {
+    const base = Math.max(0, Number(qtyBase) || 0);
+    const extra = Math.max(0, Number(acrescimo) || 0);
+    const passo = Math.max(0, Number(aCadaMeses) || 0);
+    if (!extra || !passo) return base;
+    return base + extra * Math.floor(Math.max(0, mesIndex0) / passo);
   }
 
   function datasCompraSimulacaoCeo(dIni, dFim) {
@@ -1644,19 +1654,22 @@
 
   function lotesSimulacaoCeo(regras) {
     if (!regras?.qty || !regras.d0 || !regras.d1) return [];
-    const idle = Math.round((regras.qty * regras.ociosa) / 100);
-    const alugadas = Math.max(0, regras.qty - idle);
-    return datasCompraSimulacaoCeo(regras.d0, regras.d1).map((compra) => ({
-      compra,
-      qty: regras.qty,
-      idle,
-      alugadas,
-      aporte: regras.aporte,
-      prestacao: regras.prestacao,
-      nPrest: regras.nPrest,
-      iniAluguel: addDaysCeo(compra, SIM_DIAS_ATE_ALUGUEL),
-      prestacoes: Array.from({ length: regras.nPrest }, (_, i) => addMonths(addDaysCeo(compra, SIM_DIAS_ATE_PRESTACAO), i)),
-    }));
+    return datasCompraSimulacaoCeo(regras.d0, regras.d1).map((compra, mesIndex0) => {
+      const qty = qtyCompraMesSimulacaoCeo(regras.qty, regras.crescQtd, regras.crescMeses, mesIndex0);
+      const idle = Math.round((qty * regras.ociosa) / 100);
+      const alugadas = Math.max(0, qty - idle);
+      return {
+        compra,
+        qty,
+        idle,
+        alugadas,
+        aporte: regras.aporte,
+        prestacao: regras.prestacao,
+        nPrest: regras.nPrest,
+        iniAluguel: addDaysCeo(compra, SIM_DIAS_ATE_ALUGUEL),
+        prestacoes: Array.from({ length: regras.nPrest }, (_, i) => addMonths(addDaysCeo(compra, SIM_DIAS_ATE_PRESTACAO), i)),
+      };
+    });
   }
 
   function totaisSimulacaoNoPeriodo(lotes, periodo) {
@@ -1838,9 +1851,12 @@
         regrasHint.textContent = "Preencha a quantidade de motos e o intervalo de compra para simular.";
       } else {
         const meses = lotes.length;
-        const idle = lotes[0].idle;
-        const alug = lotes[0].alugadas;
-        regrasHint.textContent = `${meses} compra(s) de ${regras.qty} moto(s) · ${alug} alugada(s) e ${idle} ociosa(s) por lote · +${brl(extra.rec)} de receita e +${brl(extra.desp)} de despesa no período.`;
+        const totalMotos = lotes.reduce((s, l) => s + (l.qty || 0), 0);
+        const crescTxt =
+          regras.crescQtd && regras.crescMeses
+            ? ` · crescimento +${regras.crescQtd} a cada ${regras.crescMeses} mês(es)`
+            : "";
+        regrasHint.textContent = `${meses} mês(es) de compra · ${totalMotos} moto(s) no total${crescTxt} · +${brl(extra.rec)} de receita e +${brl(extra.desp)} de despesa no período.`;
       }
     }
     renderGraficoSimulacaoCeo(lotes);
@@ -4113,6 +4129,8 @@
       "finCeoSimCompraInicio",
       "finCeoSimCompraFim",
       "finCeoSimQtdMotos",
+      "finCeoSimCrescQtd",
+      "finCeoSimCrescMeses",
       "finCeoSimAporte",
       "finCeoSimPrestacao",
       "finCeoSimQtdPrest",
