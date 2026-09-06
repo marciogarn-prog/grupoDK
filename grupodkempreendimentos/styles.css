@@ -52,6 +52,11 @@ body.portal-body--admin-ceo {
   --bg: #36454f;
   --bg-elevated: rgba(44, 53, 57, 0.92);
   --bg-glass: rgba(54, 69, 79, 0.9);
+  --accent: #ffd54f;
+  --accent-bright: #ffe082;
+  --accent-dim: rgba(255, 213, 79, 0.16);
+  --accent-glow: rgba(255, 213, 79, 0.35);
+  --border-accent: rgba(255, 213, 79, 0.45);
   background-color: #36454f;
   background-image: none;
 }
