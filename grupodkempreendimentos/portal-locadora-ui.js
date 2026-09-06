@@ -12719,6 +12719,54 @@
     return texto;
   }
 
+  function portalDataIsoKeyFromBr(raw) {
+    const d = typeof parseBrDate === "function" ? parseBrDate(String(raw || "").trim()) : null;
+    if (!d || Number.isNaN(d.getTime())) return "";
+    return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function portalTotalPagoAteDataBr(loc, dataBr) {
+    const lim = portalDataIsoKeyFromBr(dataBr);
+    const lancs =
+      typeof getPortalLancamentosAluguelContabilizaveisDoContrato === "function"
+        ? getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
+        : [];
+    let total = 0;
+    for (const lan of lancs) {
+      if (typeof portalLancamentoEhDevolucaoInvestimento === "function" && portalLancamentoEhDevolucaoInvestimento(lan)) {
+        continue;
+      }
+      const k = portalDataIsoKeyFromBr(lan.data);
+      if (!k || (lim && k > lim)) continue;
+      const v = Number(lan.valor) || 0;
+      if (v > 0) total += v;
+    }
+    return total;
+  }
+
+  function portalRenderReciboLancamentoHtml(p) {
+    const esc = portalEscapeHtml;
+    const fmt = (x) =>
+      Number(x || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const linha = (lab, val) =>
+      `<div class="portal-recibo-doc__linha"><dt>${esc(lab)}</dt><dd>${esc(val)}</dd></div>`;
+    const dataBr = String(p.dataPagamentoBr || "").trim() || "—";
+    return `<div class="portal-recibo-doc">
+      <p class="portal-recibo-doc__marca">Grupo DK Empreendimentos — DK Locadora</p>
+      <dl class="portal-recibo-doc__lista">
+        ${linha("Valor", fmt(p.totalNum))}
+        ${linha("Data", dataBr)}
+        ${linha("Recebedor", p.recebedor || "Grupo DK Empreendimentos — DK Locadora")}
+        ${linha("Cliente", p.nome || "—")}
+        ${p.cpfExib ? linha("CPF", p.cpfExib) : ""}
+        ${p.protocolo ? linha("Protocolo", p.protocolo) : ""}
+        ${p.placa ? linha("Placa", p.placa) : ""}
+        ${linha(`Valor total já pago até ${dataBr}`, fmt(p.totalPagoAteDataNum))}
+      </dl>
+      <p class="portal-recibo-doc__texto">${esc(portalMontarTextoReciboPagamentoAluguel(p))}</p>
+    </div>`;
+  }
+
   function closePortalReciboModal() {
     const modal = document.getElementById("portalReciboModal");
     if (modal) {
@@ -12737,33 +12785,16 @@
     document.getElementById("portalReciboPrintBtn")?.addEventListener("click", () => {
       window.print();
     });
-    document.getElementById("portalReciboShareBtn")?.addEventListener("click", async () => {
+    document.getElementById("portalReciboShareBtn")?.addEventListener("click", () => {
       const corpo = document.getElementById("portalReciboCorpo");
       const texto = corpo ? String(corpo.innerText || "").trim() : "";
       if (!texto) return;
-      try {
-        if (typeof navigator.share === "function") {
-          const payload = { title: "Recibo de pagamento", text: texto };
-          const file = window.__dkUltimoComprovanteShareFile;
-          if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-            payload.files = [file];
-          }
-          await navigator.share(payload);
-          return;
-        }
-      } catch {
-        /* utilizador cancelou ou share indisponível */
-      }
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(texto);
-          window.alert("Texto do recibo copiado.");
-          return;
-        }
-      } catch {
-        /* ignore */
-      }
-      window.prompt("Copie o texto do recibo:", texto);
+      const wa = String(window.__dkReciboWhatsApp || "").replace(/\D/g, "");
+      const dest = wa.length >= 12 ? wa : "";
+      const url = dest
+        ? `https://wa.me/${dest}?text=${encodeURIComponent(texto)}`
+        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
     });
   }
 
@@ -12771,14 +12802,52 @@
   function portalOpenReciboPagamentoWindow(payload) {
     if (!payload || typeof payload !== "object") return;
     portalInitReciboModalOnce();
-    const texto = portalMontarTextoReciboPagamentoAluguel(payload);
     const corpo = document.getElementById("portalReciboCorpo");
     const modal = document.getElementById("portalReciboModal");
-    if (corpo) corpo.textContent = texto;
+    window.__dkReciboWhatsApp = String(payload.celularWa || "").replace(/\D/g, "");
+    if (corpo) {
+      if (payload.modo === "lancamento") {
+        corpo.innerHTML = portalRenderReciboLancamentoHtml(payload);
+      } else {
+        corpo.textContent = portalMontarTextoReciboPagamentoAluguel(payload);
+      }
+    }
     if (modal) {
       modal.classList.remove("hidden");
       modal.setAttribute("aria-hidden", "false");
     }
+  }
+
+  function portalAbrirReciboAposLancamentoAvulso(opts) {
+    const loc = opts?.loc;
+    const valor = Number(opts?.valor) || 0;
+    const dataBr = String(opts?.dataBr || "").trim();
+    const nome = String(opts?.nome || "").trim() || "—";
+    const cpfDigits = String(opts?.cpfDigits || "").replace(/\D/g, "");
+    const protocolo = String(opts?.protocolo || "").trim();
+    const placaRaw = loc?.placa || opts?.placa || "";
+    const placa =
+      typeof normalizePlate === "function" ? normalizePlate(String(placaRaw || "")) : String(placaRaw || "").trim();
+    const cpfFmt = typeof formatCpf === "function" ? formatCpf(cpfDigits) : cpfDigits;
+    const cli =
+      typeof findClienteByCpfCadastro === "function" && cpfDigits.length === 11
+        ? findClienteByCpfCadastro(cpfDigits)
+        : null;
+    const celularWa =
+      typeof portalWaDigitsForWaMe === "function" ? portalWaDigitsForWaMe(cli?.celular || "") : "";
+    portalOpenReciboPagamentoWindow({
+      modo: "lancamento",
+      nome,
+      cpfExib: cpfFmt,
+      dataPagamentoBr: dataBr,
+      totalNum: valor,
+      totalPagoAteDataNum: portalTotalPagoAteDataBr(loc, dataBr),
+      recebedor: "Grupo DK Empreendimentos — DK Locadora",
+      protocolo,
+      placa,
+      celularWa,
+      partes: [{ valor, tipo: "espécie", tipoOrder: 0 }],
+    });
   }
 
   if (!window.__dkPortalReciboMsgBound) {
@@ -23625,6 +23694,14 @@
         refreshOperacaoLancAluguelResumoCompacto();
         refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
         if (inpComentario) inpComentario.value = "";
+        portalAbrirReciboAposLancamentoAvulso({
+          loc: locAtual || res.loc,
+          valor: valorNum,
+          dataBr: dataStr,
+          nome: nomeExibir,
+          cpfDigits: digits,
+          protocolo: proto,
+        });
         if (msg) msg.textContent = "A enviar aviso ao cliente…";
         const notify = await portalNotificarClientePagamentosLancados(
           res.cpfDigits,

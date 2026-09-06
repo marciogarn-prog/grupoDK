@@ -1272,6 +1272,30 @@
       }
     },
     {
+      "id": "lanc-aluguel-recibo-apos-confirmar",
+      "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK), Cliente e Valor total já pago até aquela data. No recibo há Imprimir e Compartilhar (WhatsApp).",
+      "ficheiros": {
+        "index.html": [
+          "portalReciboModal",
+          "Recibo de pagamento",
+          "Compartilhar (WhatsApp)",
+          "portalReciboPrintBtn",
+          "portalReciboShareBtn"
+        ],
+        "portal-locadora-ui.js": [
+          "portalAbrirReciboAposLancamentoAvulso",
+          "portalTotalPagoAteDataBr",
+          "portalRenderReciboLancamentoHtml",
+          "Valor total já pago até",
+          "wa.me/"
+        ],
+        "styles.css": [
+          "portal-recibo-doc",
+          "portal-recibo-doc__linha"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-pagamentos-do-dia",
       "descricao": "No Lançamento avulso, no final da tela: tabela PAGAMENTOS DO DIA com PROTOCOLO, NOME DO CLIENTE, PLACA, VALOR REGISTRADO e HORA DO REGISTRO. Grava o que o operador confirmou hoje (mesmo pagamento com data antiga; independente do cliente filtrado). Último em cima. À meia-noite o histórico zera.",
       "ficheiros": {

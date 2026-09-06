@@ -3651,6 +3651,54 @@ body.portal-body--admin-ceo {
   white-space: pre-wrap;
 }
 
+.portal-recibo-doc {
+  white-space: normal;
+  text-align: left;
+}
+.portal-recibo-doc__marca {
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+  color: #fecaca;
+}
+.portal-recibo-doc__lista {
+  display: grid;
+  gap: 0.45rem 0.85rem;
+  margin: 0 0 0.85rem;
+}
+.portal-recibo-doc__linha {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+}
+.portal-recibo-doc__linha dt {
+  margin: 0;
+  color: #fecaca;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.portal-recibo-doc__linha dd {
+  margin: 0;
+  font-weight: 700;
+}
+.portal-recibo-doc__texto {
+  margin: 0.65rem 0 0;
+  text-align: justify;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #e5e7eb;
+}
+
+@media print {
+  .portal-recibo-doc__marca,
+  .portal-recibo-doc__linha dt,
+  .portal-recibo-doc__texto {
+    color: #111 !important;
+  }
+}
+
 @media print {
   body * {
     visibility: hidden !important;
