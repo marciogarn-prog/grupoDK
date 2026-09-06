@@ -12699,6 +12699,10 @@
     const comValor = partes.filter((x) => Number(x.valor) > 0);
     const discriminadas = comValor.filter((x) => x.tipo && String(x.tipo) !== "—");
     let texto = `Recebemos de "${nome}" CPF "${cpf}" a importância de "${fmtMoney(total)} (${extTotal})" no dia "${dia}"`;
+    if (p.omitirFormaPagamento) {
+      texto += ".";
+      return texto;
+    }
     if (discriminadas.length >= 2) {
       const ord = [...discriminadas].sort((a, b) => (a.tipoOrder ?? 0) - (b.tipoOrder ?? 0));
       const frag = ord.map((seg) => {
@@ -12835,6 +12839,14 @@
         : null;
     const celularWa =
       typeof portalWaDigitsForWaMe === "function" ? portalWaDigitsForWaMe(cli?.celular || "") : "";
+    const sessao =
+      typeof getPortalSessaoParaRegistroLancamentoAluguel === "function"
+        ? getPortalSessaoParaRegistroLancamentoAluguel()
+        : null;
+    const operador = portalFormatOperadorNomeXxx(sessao?.nome || opts?.operadorNome, sessao?.cpf || opts?.operadorCpf);
+    const recebedor = operador && operador !== "—"
+      ? `Grupo DK Empreendimentos — DK Locadora · ${operador}`
+      : "Grupo DK Empreendimentos — DK Locadora";
     portalOpenReciboPagamentoWindow({
       modo: "lancamento",
       nome,
@@ -12842,11 +12854,12 @@
       dataPagamentoBr: dataBr,
       totalNum: valor,
       totalPagoAteDataNum: portalTotalPagoAteDataBr(loc, dataBr),
-      recebedor: "Grupo DK Empreendimentos — DK Locadora",
+      recebedor,
       protocolo,
       placa,
       celularWa,
-      partes: [{ valor, tipo: "espécie", tipoOrder: 0 }],
+      omitirFormaPagamento: true,
+      partes: [{ valor, tipo: "—", tipoOrder: 0 }],
     });
   }
 
