@@ -982,7 +982,7 @@
     const resumo = document.getElementById("finCeoDespPagoResumo");
     if (resumo) {
       resumo.innerHTML = `<dl class="fin-ceo-desp-confirm-dl">
-        <div><dt>Data</dt><dd>${esc(row.dataLabel)}</dd></div>
+        <div><dt>Vencimento</dt><dd>${esc(row.dataLabel)}</dd></div>
         <div><dt>Valor</dt><dd>${esc(row.valorLabel)}</dd></div>
         <div><dt>Categoria</dt><dd>${esc(row.categoria)}</dd></div>
         <div><dt>Rubrica / tipo</dt><dd>${esc(row.rubrica)}</dd></div>
@@ -2745,11 +2745,11 @@
         : `<button type="button" class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" data-ceo-desp-marcar-pago="1" aria-label="Marcar como pago">A PAGAR</button>`;
     return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
           <td><strong>${esc(row.pagamentoLabel)}</strong></td>
-          <td>${esc(row.dataLabel)}</td>
-          <td>${esc(row.valorLabel)}</td>
           <td>${esc(row.categoria)}</td>
           <td>${esc(row.rubrica)}</td>
           <td>${esc(row.detalhe)}</td>
+          <td>${esc(row.dataLabel)}</td>
+          <td>${esc(row.valorLabel)}</td>
           <td class="fin-ceo-desp-lista__cel-situacao">${situacaoHtml}</td>
           <td>${acoes}</td>
         </tr>`;
@@ -3130,7 +3130,12 @@
   const CEO_REL_COLS = CEO_PAG_COLS;
 
   const CEO_LISTA_COLS = [
-    ...CEO_PAG_COLS,
+    { key: "pagamento", label: "Pagamento", type: "num" },
+    { key: "categoria", label: "Categoria", type: "text" },
+    { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
+    { key: "detalhe", label: "Detalhe", type: "text" },
+    { key: "data", label: "VENCIMENTO", type: "date" },
+    { key: "valor", label: "Valor", type: "num" },
     { key: "situacao", label: "Situação", type: "text" },
   ];
 

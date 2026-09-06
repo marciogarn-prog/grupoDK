@@ -620,7 +620,8 @@
           "data-ceo-lista-excel-col",
           "buildCeoListaHeadHtml",
           "coletarLinhasExcelListaDespesas",
-          "ceoListaExcelState"
+          "ceoListaExcelState",
+          "label: \"VENCIMENTO\""
         ],
         "index.html": [
           "finCeoDespesasHead",
