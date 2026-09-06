@@ -666,7 +666,7 @@
     },
     {
       "id": "fin-ceo-painel-resumo-periodo",
-      "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e gráfico Saldo mês a mês / dia a dia (mesmas linhas azul/verde/vermelho do Painel executivo) que atualiza com as datas.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e os mesmos dois gráficos do Painel executivo (Saldo mês a mês / dia a dia em barras verde/vermelho com linhas de receita e despesa; Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada) que atualizam com as datas.",
       "ficheiros": {
         "index.html": [
           "btn-fin-ceo-periodo",
@@ -686,7 +686,9 @@
           "finCeoPeriodoSaldoReal",
           "finCeoPeriodoChartSaldo",
           "finCeoPeriodoLegendaSaldo",
-          "finCeoPeriodoChartTitulo"
+          "finCeoPeriodoChartTitulo",
+          "finCeoPeriodoChartSaldoAcc",
+          "finCeoPeriodoLegendaAcc"
         ],
         "portal-financeiro-ceo.js": [
           "calcResumoPeriodoCeo",
@@ -696,7 +698,9 @@
           "id === \"periodo\"",
           "buildProjecaoPeriodoCeo",
           "renderGraficoPeriodoCeo",
-          "acumularSeriesPeriodoCeo"
+          "acumularSeriesPeriodoCeo",
+          "svgSaldoMesChart",
+          "svgSaldoAccChart"
         ],
         "styles.css": [
           "fin-ceo-periodo",

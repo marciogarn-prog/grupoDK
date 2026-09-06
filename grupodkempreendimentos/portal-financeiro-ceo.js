@@ -1518,13 +1518,35 @@
     return { ...raw, receita, despesa };
   }
 
-  /** Série do gráfico do período: valores acumulados (receita, despesa e saldo). */
+  /** Série do gráfico do período: mesmos formatos do Painel executivo (mês a mês + acumulado). */
   function buildProjecaoPeriodoCeo(periodo, lotesSim) {
-    const vazio = { labels: [], saldo: [], receita: [], despesaNeg: [], datas: [], modo: "mes", n: 0 };
+    const vazio = {
+      labels: [],
+      saldo: [],
+      receita: [],
+      despesaNeg: [],
+      datas: [],
+      modo: "mes",
+      n: 0,
+      meses: [],
+      recPorMes: new Map(),
+      debPorMes: new Map(),
+      saldoMes: [],
+      saldoAcc: [],
+    };
     const raw = seriesPeriodoBrutasCeo(periodo);
     if (!raw.labels.length) return { ...vazio, modo: raw.modo };
     const merged = somarSimNasSeriesBrutasCeo(periodo, raw, lotesSim);
     const acum = acumularSeriesPeriodoCeo(merged.receita, merged.despesa);
+    const recPorMes = new Map();
+    const debPorMes = new Map();
+    const meses = (merged.datas || []).map((dt, i) => {
+      const key = merged.modo === "dia" ? chaveDiaCeo(dt) : monthKey(dt);
+      recPorMes.set(key, merged.receita[i] || 0);
+      debPorMes.set(key, merged.despesa[i] || 0);
+      return { key, label: merged.labels[i], date: dt };
+    });
+    const saldoMes = meses.map((m) => (recPorMes.get(m.key) || 0) - (debPorMes.get(m.key) || 0));
     return {
       labels: merged.labels,
       datas: merged.datas,
@@ -1533,54 +1555,74 @@
       despesaNeg: acum.despesaNeg,
       modo: merged.modo,
       n: merged.labels.length,
+      meses,
+      recPorMes,
+      debPorMes,
+      saldoMes,
+      saldoAcc: acum.saldo,
     };
   }
 
   function renderGraficoPeriodoCeo() {
     const chart = document.getElementById("finCeoPeriodoChartSaldo");
+    const chartAcc = document.getElementById("finCeoPeriodoChartSaldoAcc");
     const leg = document.getElementById("finCeoPeriodoLegendaSaldo");
+    const legAcc = document.getElementById("finCeoPeriodoLegendaAcc");
     const tit = document.getElementById("finCeoPeriodoChartTitulo");
     const hint = document.getElementById("finCeoPeriodoChartHint");
     if (!chart) return;
     const periodo = obterPeriodoCeoDash();
-    if (!periodo.ok) {
-      chart.innerHTML = `<p class="subtext">Informe início e fim do período para ver o gráfico.</p>`;
+    const limpar = (msg) => {
+      chart.innerHTML = `<p class="subtext">${msg}</p>`;
+      if (chartAcc) chartAcc.innerHTML = `<p class="subtext">—</p>`;
       if (leg) leg.innerHTML = "";
-      if (tit) tit.textContent = "Saldo acumulado no período";
+      if (legAcc) {
+        legAcc.innerHTML = `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>`;
+      }
+    };
+    if (tit) tit.textContent = "Saldo mês a mês";
+    if (hint) {
+      hint.textContent =
+        "Despesa na mesma escala da receita (positiva): a linha vermelha acima da verde mostra despesa maior que a receita. O saldo é barra: verde para cima quando positivo, vermelho para baixo quando negativo. O tom muda em cada ano. O gráfico acompanha o início e o fim do período seleccionados acima.";
+    }
+    if (!periodo.ok) {
+      limpar("Informe início e fim do período para ver o gráfico.");
       return;
     }
     const view = buildProjecaoPeriodoCeo(periodo);
-    if (tit) {
-      tit.textContent =
-        view.modo === "dia" ? "Saldo acumulado dia a dia" : "Saldo acumulado mês a mês";
-    }
-    if (hint) {
-      hint.textContent =
-        view.modo === "dia"
-          ? "Valores acumulados: cada dia soma a receita e a despesa desde o início do período (ex.: dia 1 = 8.000; dia 2 = 16.000 de receita)."
-          : "Valores acumulados: cada mês soma receita e despesa desde o início do período seleccionado.";
-    }
-    if (!view.labels.length) {
-      chart.innerHTML = `<p class="subtext">Sem dados no período.</p>`;
-      if (leg) leg.innerHTML = "";
+    if (tit) tit.textContent = view.modo === "dia" ? "Saldo dia a dia" : "Saldo mês a mês";
+    if (!view.meses.length) {
+      limpar("Sem dados no período.");
       return;
     }
-    chart.innerHTML = svgLineChart(view.labels, [
-      { color: "#5eb8ff", values: view.saldo },
-      { color: "#6ee7a0", values: view.receita },
-      { color: "#ff6b6b", values: view.despesaNeg },
-    ]);
+    chart.innerHTML = svgSaldoMesChart(view.meses, view.recPorMes, view.debPorMes, view.saldoMes);
+    if (chartAcc) chartAcc.innerHTML = svgSaldoAccChart(view.meses, view.saldoAcc);
+
+    const anos = [...new Set(view.meses.map((m) => m.date.getFullYear()))].sort();
     if (leg) {
-      leg.innerHTML = [
-        { c: "#5eb8ff", t: "Saldo acumulado (receita − despesas)" },
-        { c: "#6ee7a0", t: "Receita acumulada" },
-        { c: "#ff6b6b", t: "Despesas acumuladas (negativo)" },
-      ]
+      const itens = [
+        { c: "#6ee7a0", t: "Receita prevista" },
+        { c: "#ff6b6b", t: "Despesas (escala positiva)" },
+      ];
+      anos.forEach((y) => {
+        const t = CEO_ANO_SALDO_TONS[y] || CEO_ANO_SALDO_TONS[2026];
+        itens.push({ c: t.pos, t: `Saldo + ${y}` });
+        itens.push({ c: t.neg, t: `Saldo − ${y}` });
+      });
+      leg.innerHTML = itens
         .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
         .join("");
       leg.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">${esc(fmtBrDate(periodo.d0))} a ${esc(
         fmtBrDate(periodo.d1)
       )} · ${view.n} ${view.modo === "dia" ? "dia(s)" : "mês(es)"}</span>`;
+    }
+    if (legAcc) {
+      const ult = view.saldoAcc[view.saldoAcc.length - 1] || 0;
+      legAcc.innerHTML = `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>
+           <span class="fin-legenda__item">Ponto branco: data da virada</span>
+           <span class="fin-legenda__item fin-legenda__item--anos">Saldo acumulado no período · ${esc(brl(ult))}</span>`;
     }
   }
 
