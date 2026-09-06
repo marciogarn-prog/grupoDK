@@ -1270,6 +1270,29 @@
       }
     },
     {
+      "id": "lanc-aluguel-pagamentos-do-dia",
+      "descricao": "No Lançamento avulso, no final da tela: tabela PAGAMENTOS DO DIA com PROTOCOLO, NOME DO CLIENTE, PLACA, VALOR REGISTRADO e HORA DO REGISTRO. Grava o que o operador confirmou hoje (mesmo pagamento com data antiga; independente do cliente filtrado). Último em cima. À meia-noite o histórico zera.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancAluguelDiaLog",
+          "PAGAMENTOS DO DIA",
+          "HORA DO REGISTRO",
+          "operacaoLancAluguelDiaLogBody",
+          "À meia-noite este histórico zera"
+        ],
+        "portal-locadora-ui.js": [
+          "PORTAL_LANC_PAG_DIA_KEY",
+          "registrarPortalLancPagamentoDoDia",
+          "renderPortalLancPagamentosDoDia",
+          "portalLancPagDiaChaveHoje",
+          "dk_lanc_aluguel_pagamentos_dia_v1"
+        ],
+        "styles.css": [
+          "portal-lanc-dia-log"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {

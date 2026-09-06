@@ -14518,6 +14518,11 @@
         window.__DK_refreshComprovantesOperadorLista();
       }
     }
+    const diaLog = document.getElementById("operacaoLancAluguelDiaLog");
+    if (diaLog) {
+      diaLog.classList.toggle("hidden", sub !== "avulso");
+      if (sub === "avulso") renderPortalLancPagamentosDoDia();
+    }
   }
 
   function openOperacaoLancamentoAluguel(subRaw) {
@@ -20611,6 +20616,77 @@
     return true;
   }
 
+  const PORTAL_LANC_PAG_DIA_KEY = "dk_lanc_aluguel_pagamentos_dia_v1";
+
+  function portalLancPagDiaChaveHoje() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function portalLancPagDiaHoraAgora() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  }
+
+  function loadPortalLancPagamentosDoDia() {
+    const dia = portalLancPagDiaChaveHoje();
+    try {
+      const raw = JSON.parse(localStorage.getItem(PORTAL_LANC_PAG_DIA_KEY) || "null");
+      if (!raw || raw.dia !== dia || !Array.isArray(raw.itens)) {
+        const vazio = { dia, itens: [] };
+        localStorage.setItem(PORTAL_LANC_PAG_DIA_KEY, JSON.stringify(vazio));
+        return vazio;
+      }
+      return raw;
+    } catch {
+      return { dia, itens: [] };
+    }
+  }
+
+  function registrarPortalLancPagamentoDoDia(item) {
+    const state = loadPortalLancPagamentosDoDia();
+    state.itens.unshift({
+      protocolo: String(item?.protocolo || "").trim() || "—",
+      nome: String(item?.nome || "").trim() || "—",
+      placa: String(item?.placa || "").trim() || "—",
+      valor: Number(item?.valor) || 0,
+      hora: portalLancPagDiaHoraAgora(),
+      ts: Date.now(),
+    });
+    try {
+      localStorage.setItem(PORTAL_LANC_PAG_DIA_KEY, JSON.stringify(state));
+    } catch {
+      /* ignore quota */
+    }
+    renderPortalLancPagamentosDoDia();
+  }
+
+  function renderPortalLancPagamentosDoDia() {
+    const body = document.getElementById("operacaoLancAluguelDiaLogBody");
+    if (!body) return;
+    const state = loadPortalLancPagamentosDoDia();
+    const fmt =
+      typeof currencyBRL === "function"
+        ? currencyBRL
+        : (n) =>
+            Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (!state.itens.length) {
+      body.innerHTML = `<tr><td colspan="5" class="subtext">Nenhum pagamento registado hoje.</td></tr>`;
+      return;
+    }
+    body.innerHTML = state.itens
+      .map(
+        (row) => `<tr>
+          <td>${portalEscapeHtml(row.protocolo)}</td>
+          <td>${portalEscapeHtml(row.nome)}</td>
+          <td>${portalEscapeHtml(row.placa)}</td>
+          <td>${portalEscapeHtml(fmt(row.valor))}</td>
+          <td>${portalEscapeHtml(row.hora)}</td>
+        </tr>`
+      )
+      .join("");
+  }
+
   function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -20661,6 +20737,25 @@
     loc.portalLancamentosAluguel.push(entry);
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
+    if (!ehDevolucao) {
+      const nome =
+        (typeof findClienteByCpfCadastro === "function"
+          ? String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim()
+          : "") ||
+        resolveOperacaoLancAluguelNomePorCpf(cpfDigits) ||
+        String(loc.nome || loc.cliente || "").trim() ||
+        "—";
+      const placa =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(loc.placa || "")) || "—"
+          : String(loc.placa || "").trim() || "—";
+      registrarPortalLancPagamentoDoDia({
+        protocolo: nc,
+        nome,
+        placa,
+        valor: valorFinal,
+      });
+    }
     return { ok: true, entry, cpfDigits, nc, loc };
   }
 
@@ -24238,6 +24333,13 @@
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
   window.__DK_computePortalDiasAteHoje = computePortalDiasAteHoje;
   window.__DK_refreshLancAluguelSituacao = refreshOperacaoLancAluguelSituacaoAposPagamento;
+  window.__DK_renderPortalLancPagamentosDoDia = renderPortalLancPagamentosDoDia;
+  if (!window.__DK_portalLancPagDiaWatch) {
+    window.__DK_portalLancPagDiaWatch = window.setInterval(() => {
+      const box = document.getElementById("operacaoLancAluguelDiaLog");
+      if (box && !box.classList.contains("hidden")) renderPortalLancPagamentosDoDia();
+    }, 30000);
+  }
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;

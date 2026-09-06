@@ -12439,3 +12439,26 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 #finCeoGraficoDespesasTable.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
   color: #ffd54f;
 }
+
+.portal-lanc-dia-log {
+  margin-top: 1.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(248, 113, 113, 0.35);
+}
+.portal-lanc-dia-log__hint {
+  margin: 0.25rem 0 0.75rem;
+}
+.portal-lanc-dia-log__table-wrap {
+  overflow-x: auto;
+}
+.portal-lanc-dia-log__table th,
+.portal-lanc-dia-log__table td {
+  white-space: nowrap;
+}
+.portal-lanc-dia-log__table td:nth-child(2) {
+  white-space: normal;
+}
+.portal-lanc-dia-log__table td:nth-child(4) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
