@@ -14499,8 +14499,13 @@
     }
     const hist = document.getElementById("operacaoLancAluguelHistorico");
     const trava = document.getElementById("operacaoLancAluguelTravaAviso");
+    const saldos = document.getElementById("operacaoLancAluguelSaldosHojeBox");
     if (hist) hist.classList.toggle("hidden", sub !== "avulso");
     if (trava) trava.classList.toggle("hidden", sub !== "avulso");
+    if (saldos && sub !== "avulso") {
+      saldos.classList.add("hidden");
+      saldos.setAttribute("hidden", "");
+    }
     syncPortalOperadorComprovanteSection();
     const lead = document.getElementById("operacao-lanc-aluguel-subtitulo");
     if (lead) lead.textContent = OPERACAO_LANC_ALUGUEL_SUB_LEADS[sub] || OPERACAO_LANC_ALUGUEL_SUB_LEADS.avulso;
@@ -19405,6 +19410,12 @@
         preencherLancAluguelFormSimples();
         refreshOperacaoLancAluguelSaldosHoje();
       } else pag.setAttribute("hidden", "");
+    }
+    const saldos = document.getElementById("operacaoLancAluguelSaldosHojeBox");
+    if (saldos) {
+      saldos.classList.toggle("hidden", !showPag);
+      if (showPag) saldos.removeAttribute("hidden");
+      else saldos.setAttribute("hidden", "");
     }
     esconderOperacaoLancAluguelSituacao();
     syncPortalOperadorComprovanteSection();

@@ -8998,8 +8998,13 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   overflow: hidden;
 }
 
+.portal-lanc-avulso-workspace__hist > .portal-lanc-aluguel-pagamento-saldos {
+  flex: 0 0 auto;
+  margin: 0.7rem 0.75rem 0.15rem;
+}
+
 .portal-lanc-avulso-workspace__hist .operacao-lanc-historico {
-  margin-top: 0;
+  margin-top: 0.55rem;
   padding: 0.65rem 0.75rem;
   overflow-x: auto;
   overflow-y: auto;
