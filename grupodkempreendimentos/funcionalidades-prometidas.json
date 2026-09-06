@@ -621,7 +621,9 @@
           "buildCeoListaHeadHtml",
           "coletarLinhasExcelListaDespesas",
           "ceoListaExcelState",
-          "label: \"VENCIMENTO\""
+          "label: \"VENCIMENTO\"",
+          "label: \"LANÇAMENTO\"",
+          "dataLancamentoDespesa"
         ],
         "index.html": [
           "finCeoDespesasHead",

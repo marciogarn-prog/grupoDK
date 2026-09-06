@@ -890,6 +890,16 @@
     return ts ? new Date(ts).toISOString() : "";
   }
 
+  function dataLancamentoDespesa(d) {
+    const iso = String(d?.cadastradoEm || "").trim();
+    if (iso) {
+      const dt = new Date(iso);
+      if (!Number.isNaN(dt.getTime())) return dt;
+    }
+    const ts = extrairTsDoId(d?.id);
+    return ts ? new Date(ts) : null;
+  }
+
   function ordenarDespesasRecentes(list) {
     return [...list].sort((a, b) => {
       const ta = Date.parse(a.cadastradoEm) || extrairTsDoId(a.id) || 0;
@@ -2635,11 +2645,14 @@
 
   function ceoListaLinhaFromPagamento(d, p, tipo, desc, primeiro) {
     const situacao = getSituacaoPagamentoLinha(d.id, p.numero, p.data);
+    const lancamento = dataLancamentoDespesa(d);
     return {
       pagamento: p.numero,
       pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
       data: p.data,
       dataLabel: fmtBrDate(p.data),
+      lancamento,
+      lancamentoLabel: fmtBrDate(lancamento) || "—",
       valor: p.valor,
       valorLabel: brl(p.valor),
       categoria: labelCategoria(d.categoria),
@@ -2748,6 +2761,7 @@
           <td>${esc(row.categoria)}</td>
           <td>${esc(row.rubrica)}</td>
           <td>${esc(row.detalhe)}</td>
+          <td>${esc(row.lancamentoLabel)}</td>
           <td>${esc(row.dataLabel)}</td>
           <td>${esc(row.valorLabel)}</td>
           <td class="fin-ceo-desp-lista__cel-situacao">${situacaoHtml}</td>
@@ -2768,7 +2782,7 @@
     const linhasBase = coletarLinhasExcelListaDespesas();
     if (!linhasBase.length) {
       body.innerHTML =
-        '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
+        '<tr><td colspan="9" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
       wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
       renderTotaisEndividamentoLista([], []);
       return;
@@ -2777,7 +2791,7 @@
     const linhas = aplicarCeoListaExcelFiltroSort(linhasBase);
     if (!linhas.length) {
       body.innerHTML =
-        '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
+        '<tr><td colspan="9" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
       renderTotaisEndividamentoLista([], linhasBase);
       return;
     }
@@ -3134,6 +3148,7 @@
     { key: "categoria", label: "Categoria", type: "text" },
     { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
     { key: "detalhe", label: "Detalhe", type: "text" },
+    { key: "lancamento", label: "LANÇAMENTO", type: "date" },
     { key: "data", label: "VENCIMENTO", type: "date" },
     { key: "valor", label: "Valor", type: "num" },
     { key: "situacao", label: "Situação", type: "text" },
@@ -3191,6 +3206,7 @@
     if (!col) return "";
     if (key === "pagamento") return row.pagamentoLabel;
     if (key === "data") return row.dataLabel;
+    if (key === "lancamento") return row.lancamentoLabel || "—";
     if (key === "valor") return row.valorLabel;
     if (key === "situacao") return row.situacaoLabel || labelSituacaoPagamento(row.situacao);
     if (key === "despesa") return String(row.despesa ?? row.label ?? "—");
@@ -3207,6 +3223,7 @@
     if (key === "situacao") return row.situacao === "PAGO" ? 1 : 0;
     if (key === "inicio") return row.inicio?.getTime?.() || 0;
     if (key === "fim") return row.fim?.getTime?.() || 0;
+    if (key === "lancamento") return row.lancamento?.getTime?.() || 0;
     if (key === "valorMensal") return Number(row.valorMensal) || 0;
     if (key === "totalSerie") return Number(row.totalSerie) || 0;
     if (col?.type === "num") return Number(row[key]) || 0;
