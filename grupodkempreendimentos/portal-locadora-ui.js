@@ -15083,6 +15083,7 @@
     root.addEventListener(
       "wheel",
       (event) => {
+        if (portalAndroidSomenteLeitura()) return;
         if (event.ctrlKey) return;
         if (root.classList.contains("hidden")) return;
         const nested = event.target?.closest?.(

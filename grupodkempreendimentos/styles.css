@@ -12689,26 +12689,60 @@ body.portal-plataforma-android .portal-android-banner span {
   line-height: 1.35;
 }
 
-body.portal-plataforma-android #view-unit.view--active,
-body.portal-plataforma-android #view-financeiro.view--active,
-body.portal-plataforma-android #view-financeiro-ceo.view--active {
-  overflow: auto;
-  height: auto;
-  max-height: none;
+/* Dedo para cima e para baixo: um único scroll na tela Android (Windows inalterado). */
+html.portal-html--android:has(body.portal-android-dentro),
+body.portal-plataforma-android.portal-android-dentro {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background-attachment: scroll;
 }
-body.portal-plataforma-android #view-unit.view--active > .subpage--wide {
-  display: block;
+body.portal-plataforma-android.portal-android-dentro .view.view--active {
+  position: fixed;
+  top: 3.15rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
   height: auto;
+  min-height: 0;
   max-height: none;
-  overflow: visible;
+  margin: 0;
+  padding: 0.55rem 0.7rem 2rem;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
-body.portal-plataforma-android #panel-operacao-locadora:not(.hidden),
-body.portal-plataforma-android #panel-manutencao-locadora:not(.hidden),
-body.portal-plataforma-android #panel-financeiro-locadora:not(.hidden),
-body.portal-plataforma-android #panel-financeiro-ceo-locadora:not(.hidden) {
-  height: auto;
-  max-height: none;
-  overflow: visible;
+body.portal-plataforma-android.portal-android-dentro #view-unit.view--active > .subpage--wide,
+body.portal-plataforma-android.portal-android-dentro #view-financeiro .subpage.fin-pptx,
+body.portal-plataforma-android.portal-android-dentro #view-financeiro-ceo .subpage.fin-pptx,
+body.portal-plataforma-android.portal-android-dentro .fin-pptx__layout,
+body.portal-plataforma-android.portal-android-dentro .portal-operacao-layout,
+body.portal-plataforma-android.portal-android-dentro #panel-financeiro-ceo-locadora:not(.hidden),
+body.portal-plataforma-android.portal-android-dentro #panel-financeiro-locadora:not(.hidden),
+body.portal-plataforma-android.portal-android-dentro #panel-operacao-locadora:not(.hidden),
+body.portal-plataforma-android.portal-android-dentro #panel-manutencao-locadora:not(.hidden),
+body.portal-plataforma-android.portal-android-dentro #panel-documentos-locadora:not(.hidden),
+body.portal-plataforma-android.portal-android-dentro #panel-localizacao-locadora:not(.hidden) {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  position: static !important;
+}
+body.portal-plataforma-android.portal-android-dentro .fin-pptx__slide,
+body.portal-plataforma-android.portal-android-dentro .portal-operacao-layout__main,
+body.portal-plataforma-android.portal-android-dentro .operacao-inline-form,
+body.portal-plataforma-android.portal-android-dentro .fin-ceo-pane,
+body.portal-plataforma-android.portal-android-dentro .operacao-inline-form--rodar-mouse {
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
 }
 
 body.portal-plataforma-android.portal-android-dentro .portal-panel__title,

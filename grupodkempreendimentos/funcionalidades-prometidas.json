@@ -1371,7 +1371,9 @@
           "body.portal-plataforma-android",
           "somente visualização",
           "portal-android-nav",
-          "portal-android-tela-modulo"
+          "portal-android-tela-modulo",
+          "Dedo para cima e para baixo",
+          "-webkit-overflow-scrolling: touch"
         ],
         "cliente.html": [
           "App Android · DK Locadora"

@@ -4130,6 +4130,9 @@
     pane.addEventListener(
       "wheel",
       (ev) => {
+        if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+          return;
+        }
         const body = document.getElementById("finCeoGraficoDespesasBody");
         if (!body) return;
         ev.preventDefault();
