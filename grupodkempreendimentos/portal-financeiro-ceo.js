@@ -4167,6 +4167,7 @@
     if (id === "despesas") renderCadastroDespesas();
     if (id === "grafico-despesas") renderGraficoDespesas();
     if (id === "relatorio") renderRelatorio();
+    if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
   }
 
   function bindOnce() {
@@ -4355,7 +4356,17 @@
     bindOnce();
     migrarFontesLegadoParaCartoes();
     panel.classList.remove("hidden");
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      window.__DK_financeiroCeoReset();
+      if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
+      return;
+    }
     abrirPane("dashboard");
+  };
+
+  window.__DK_financeiroCeoFecharPainel = function __DK_financeiroCeoFecharPainel() {
+    window.__DK_financeiroCeoReset();
+    if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
   };
 
   window.__DK_financeiroCeoReset = function __DK_financeiroCeoReset() {

@@ -12595,18 +12595,86 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   display: none;
 }
 
+.portal-android-nav {
+  display: none;
+}
+
 /* ——— Versão Android (celular): somente visualização. Isolada — não altera Windows. ——— */
-body.portal-plataforma-android .portal-android-banner {
-  display: block;
-  position: sticky;
-  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px));
-  z-index: 40;
-  margin: 0 0 0.75rem;
-  padding: 0.65rem 0.85rem;
-  border-radius: 10px;
+body.portal-plataforma-android.portal-android-dentro {
+  --portal-admin-banner-h: 0px;
+  padding-top: 3.15rem;
+}
+body.portal-plataforma-android.portal-android-dentro #portal-admin-banner,
+body.portal-plataforma-android.portal-android-dentro .portal-unit-bar,
+body.portal-plataforma-android.portal-android-dentro .portal-unit-heading,
+body.portal-plataforma-android.portal-android-dentro .portal-android-banner,
+body.portal-plataforma-android.portal-android-dentro .fin-pptx__top,
+body.portal-plataforma-android.portal-android-dentro .fin-pptx__page-title,
+body.portal-plataforma-android.portal-android-dentro .fin-pptx__page-lead,
+body.portal-plataforma-android.portal-android-dentro .dk-demo-env-banner {
+  display: none !important;
+}
+body.portal-plataforma-android.portal-android-tela-modulo .dk-pwa-update-bar {
+  display: none !important;
+}
+body.portal-plataforma-android.portal-android-tela-modulo {
+  padding-bottom: 0 !important;
+}
+
+body.portal-plataforma-android.portal-android-dentro #portalAndroidNavBar {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 3.1rem;
+  padding: 0.35rem 0.5rem;
   background: #36454f;
   color: #ffd54f;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+body.portal-plataforma-android.portal-android-dentro #portalAndroidNavBar.hidden {
+  display: none;
+}
+.portal-android-nav__voltar,
+.portal-android-nav__sair {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid rgba(255, 213, 79, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: #ffd54f;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+.portal-android-nav__mid {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+.portal-android-nav__mid strong {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.portal-android-nav__hint,
+#portalAndroidNavHint {
+  display: block;
+  font-size: 0.68rem;
+  color: #f3f4f6;
+  letter-spacing: 0.02em;
+}
+
+body.portal-plataforma-android .portal-android-banner {
+  display: none;
 }
 body.portal-plataforma-android .portal-android-banner strong {
   display: block;
@@ -12621,7 +12689,9 @@ body.portal-plataforma-android .portal-android-banner span {
   line-height: 1.35;
 }
 
-body.portal-plataforma-android #view-unit.view--active {
+body.portal-plataforma-android #view-unit.view--active,
+body.portal-plataforma-android #view-financeiro.view--active,
+body.portal-plataforma-android #view-financeiro-ceo.view--active {
   overflow: auto;
   height: auto;
   max-height: none;
@@ -12641,6 +12711,11 @@ body.portal-plataforma-android #panel-financeiro-ceo-locadora:not(.hidden) {
   overflow: visible;
 }
 
+body.portal-plataforma-android.portal-android-dentro .portal-panel__title,
+body.portal-plataforma-android.portal-android-dentro #portal-cloud-sync-bar {
+  display: none !important;
+}
+
 body.portal-plataforma-android .logado-actions {
   flex-direction: column;
   align-items: stretch;
@@ -12655,7 +12730,7 @@ body.portal-plataforma-android .portal-operacao-layout,
 body.portal-plataforma-android .fin-pptx__layout {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 body.portal-plataforma-android .portal-operacao-layout__sidebar,
 body.portal-plataforma-android .fin-pptx__rail {
@@ -12663,20 +12738,33 @@ body.portal-plataforma-android .fin-pptx__rail {
   max-height: none;
   width: 100%;
 }
+body.portal-plataforma-android.portal-android-dentro:not(.portal-android-tela-modulo) .portal-operacao-layout__main,
+body.portal-plataforma-android.portal-android-dentro:not(.portal-android-tela-modulo) .fin-pptx__slide {
+  display: none !important;
+}
+body.portal-plataforma-android.portal-android-tela-modulo .portal-operacao-layout__sidebar,
+body.portal-plataforma-android.portal-android-tela-modulo .fin-pptx__rail {
+  display: none !important;
+}
 body.portal-plataforma-android .portal-operacao-layout__sidebar .operacao-comandos,
 body.portal-plataforma-android .fin-pptx__rail .operacao-comandos {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 0.5rem;
-  padding: 0.15rem 0 0.45rem;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
+  gap: 0.55rem;
+  padding: 0;
 }
 body.portal-plataforma-android .btn-operacao-cmd {
   flex: 0 0 auto;
-  min-width: 10.5rem;
-  max-width: 14rem;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 3.1rem;
+}
+body.portal-plataforma-android .portal-operacao-layout__sidebar-voltar,
+body.portal-plataforma-android .portal-manutencao-panel-head {
+  display: none !important;
 }
 body.portal-plataforma-android .operacao-inline-form__grid {
   grid-template-columns: 1fr;

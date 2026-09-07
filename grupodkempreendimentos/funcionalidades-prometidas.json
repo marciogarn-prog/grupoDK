@@ -1349,7 +1349,9 @@
           "btn-plataforma-android",
           "portalAndroidSomenteLeituraBanner",
           "ANDROID · somente visualização",
-          "Área do Cliente"
+          "Área do Cliente",
+          "portalAndroidNavBar",
+          "portalAndroidNavVoltar"
         ],
         "portal-locadora-ui.js": [
           "portalMostrarEscolhaPlataforma",
@@ -1358,13 +1360,18 @@
           "portalAndroidBloquearEscrita",
           "plataforma: plat",
           "Pelo celular, o app da empresa é exclusivo do Administrador CEO",
-          "portal-plataforma-android"
+          "portal-plataforma-android",
+          "portalAndroidVoltar",
+          "portalAndroidSyncNavegacao",
+          "portal-android-tela-modulo"
         ],
         "styles.css": [
           "portal-plataforma-pick",
           "portal-plataforma-card",
           "body.portal-plataforma-android",
-          "somente visualização"
+          "somente visualização",
+          "portal-android-nav",
+          "portal-android-tela-modulo"
         ],
         "cliente.html": [
           "App Android · DK Locadora"

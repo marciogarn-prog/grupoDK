@@ -75,8 +75,9 @@
 
   function portalSyncAdminBannerLayout() {
     const banner = document.getElementById("portal-admin-banner");
+    const androidMenu = document.body.classList.contains("portal-plataforma-android");
     const h =
-      banner && !banner.classList.contains("hidden") ? `${banner.offsetHeight}px` : "0px";
+      androidMenu || !banner || banner.classList.contains("hidden") ? "0px" : `${banner.offsetHeight}px`;
     try {
       document.documentElement.style.setProperty("--portal-admin-banner-h", h);
     } catch {
@@ -1745,6 +1746,7 @@
 
   /** Se só existir um cadastro permitido, abre-o automaticamente (painel ainda no placeholder). */
   function portalOperacaoAutoAbrirSeUnicoPermitido() {
+    if (portalAndroidSomenteLeitura()) return;
     const ids = [
       "btn-operacao-cadastro-cliente",
       "btn-operacao-cadastro-veiculo",
@@ -1812,6 +1814,123 @@
     portalAplicarPlataformaUi("windows");
     document.body.classList.remove("portal-plataforma-windows");
     document.documentElement.classList.remove("portal-html--android");
+    document.body.classList.remove("portal-android-hub", "portal-android-dentro", "portal-android-tela-modulo");
+    const nav = document.getElementById("portalAndroidNavBar");
+    if (nav) {
+      nav.hidden = true;
+      nav.classList.add("hidden");
+    }
+    portalSyncAdminBannerLayout();
+  }
+
+  function portalAndroidPainelAreaVisivel() {
+    return [panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].some(
+      (p) => p && !p.classList.contains("hidden")
+    );
+  }
+
+  function portalAndroidTemModuloAberto() {
+    const pares = [
+      ["#panel-operacao-locadora", ".operacao-inline-form:not(.hidden)"],
+      ["#panel-manutencao-locadora", ".operacao-inline-form:not(.hidden)"],
+      ["#panel-financeiro-locadora", ".operacao-inline-form:not(.hidden)"],
+      ["#panel-financeiro-ceo-locadora", ".fin-ceo-pane:not(.hidden)"],
+    ];
+    for (const [rootSel, innerSel] of pares) {
+      const root = document.querySelector(rootSel);
+      if (!root || root.classList.contains("hidden")) continue;
+      if (root.querySelector(innerSel)) return true;
+    }
+    if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) return true;
+    if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return true;
+    return false;
+  }
+
+  function portalAndroidTituloAtual() {
+    const ativo = document.querySelector(
+      "#panel-operacao-locadora:not(.hidden) .btn-operacao-cmd.is-active .btn-operacao-cmd__title, #panel-manutencao-locadora:not(.hidden) .btn-operacao-cmd.is-active .btn-operacao-cmd__title, #finCeoModulosNav .btn-operacao-cmd.is-active .btn-operacao-cmd__title, #panel-financeiro-locadora:not(.hidden) .btn-operacao-cmd.is-active .btn-operacao-cmd__title"
+    );
+    if (ativo) return String(ativo.textContent || "").trim();
+    if (panelOperacao && !panelOperacao.classList.contains("hidden")) return "Operação";
+    if (panelManutencao && !panelManutencao.classList.contains("hidden")) return "Manutenção";
+    if (panelFinanceiroCeo && !panelFinanceiroCeo.classList.contains("hidden")) return "FINANCEIRO CEO";
+    if (panelFinanceiro && !panelFinanceiro.classList.contains("hidden")) return "FINANCEIRO";
+    if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) return "Documentos";
+    if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return "Localização";
+    return "Empresa";
+  }
+
+  function portalAndroidSyncNavegacao() {
+    const nav = document.getElementById("portalAndroidNavBar");
+    const tit = document.getElementById("portalAndroidNavTitulo");
+    const voltar = document.getElementById("portalAndroidNavVoltar");
+    if (!portalAndroidSomenteLeitura()) {
+      document.body.classList.remove("portal-android-hub", "portal-android-dentro", "portal-android-tela-modulo");
+      if (nav) {
+        nav.hidden = true;
+        nav.classList.add("hidden");
+      }
+      portalSyncAdminBannerLayout();
+      return;
+    }
+    const loginAberto =
+      (panelLogin && !panelLogin.classList.contains("hidden")) ||
+      (panelPlataforma && !panelPlataforma.classList.contains("hidden")) ||
+      (panelSenha && !panelSenha.classList.contains("hidden"));
+    const area = portalAndroidPainelAreaVisivel();
+    const hub = Boolean(panelLogado && !panelLogado.classList.contains("hidden") && !area);
+    const modulo = area && portalAndroidTemModuloAberto();
+    const dentro = !loginAberto && (hub || area);
+    document.body.classList.toggle("portal-android-hub", hub);
+    document.body.classList.toggle("portal-android-dentro", dentro);
+    document.body.classList.toggle("portal-android-tela-modulo", Boolean(modulo));
+    if (nav) {
+      nav.hidden = !dentro;
+      nav.classList.toggle("hidden", !dentro);
+    }
+    if (tit) tit.textContent = portalAndroidTituloAtual();
+    if (voltar) voltar.classList.toggle("hidden", hub);
+    portalSyncAdminBannerLayout();
+  }
+
+  function portalAndroidFecharModuloAberto() {
+    if (panelFinanceiroCeo && !panelFinanceiroCeo.classList.contains("hidden")) {
+      if (typeof window.__DK_financeiroCeoFecharPainel === "function") window.__DK_financeiroCeoFecharPainel();
+      return;
+    }
+    if (panelFinanceiro && !panelFinanceiro.classList.contains("hidden")) {
+      if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
+      return;
+    }
+    if (panelOperacao && !panelOperacao.classList.contains("hidden")) {
+      hideInlineForms();
+      return;
+    }
+    if (panelManutencao && !panelManutencao.classList.contains("hidden")) {
+      hideManutencaoInlineFormsCore();
+      setManutencaoFormPlaceholderVisible(true);
+      syncManutencaoSidebarButtons(null);
+    }
+  }
+
+  function portalAndroidVoltar() {
+    if (!portalAndroidSomenteLeitura()) return false;
+    if (portalAndroidPainelAreaVisivel() && portalAndroidTemModuloAberto()) {
+      if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) {
+        portalVoltarEquipaLocadora();
+      } else if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) {
+        portalVoltarEquipaLocadora();
+      } else {
+        portalAndroidFecharModuloAberto();
+        portalAndroidSyncNavegacao();
+      }
+      return true;
+    }
+    if (portalAndroidPainelAreaVisivel()) {
+      portalVoltarEquipaLocadora();
+      return true;
+    }
+    return false;
   }
 
   function portalMostrarEscolhaPlataforma(funcionario) {
@@ -1908,6 +2027,7 @@
     if (typeof window.__DK_iniciarAvisoHorarioFimColab === "function") {
       window.__DK_iniciarAvisoHorarioFimColab(funcionario);
     }
+    portalAndroidSyncNavegacao();
   }
 
   function portalAplicarVisibilidadeEquipaPorPerfil() {
@@ -2291,6 +2411,7 @@
     if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
     portalPersistirAreaAtiva("financeiro");
     portalAtualizarBannerAdmin();
+    portalAndroidSyncNavegacao();
   }
 
   function openLocadoraFinanceiroCeo() {
@@ -2312,6 +2433,7 @@
     if (typeof window.__DK_financeiroCeoOnShow === "function") window.__DK_financeiroCeoOnShow();
     portalPersistirAreaAtiva("financeiro-ceo");
     portalAtualizarBannerAdmin();
+    portalAndroidSyncNavegacao();
   }
 
   function hideAllPanels() {
@@ -2322,6 +2444,7 @@
       }
     );
     portalSyncAuthAutofillState();
+    portalAndroidSyncNavegacao();
   }
 
   /** Enquanto o login não está visível, remove type=password/username da DOM — senão o Chrome sugere CPF+senha em outros campos (ex.: busca de placa). */
@@ -2656,6 +2779,7 @@
     }
     panelLogado?.classList.remove("hidden");
     portalPersistirAreaAtiva("equipa");
+    portalAndroidSyncNavegacao();
   }
 
   /** Área da equipa (logado) → hub (admin) ou ecrã de login (colaborador). */
@@ -3241,6 +3365,17 @@
     portalSyncAuthAutofillState();
   });
 
+  document.getElementById("portalAndroidNavVoltar")?.addEventListener("click", () => {
+    portalAndroidVoltar();
+  });
+  document.getElementById("portalAndroidNavSair")?.addEventListener("click", () => {
+    btnSair?.click();
+  });
+  document.addEventListener("click", () => {
+    if (!portalAndroidSomenteLeitura()) return;
+    window.requestAnimationFrame(() => portalAndroidSyncNavegacao());
+  });
+
   formNovaSenha?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const sf = document.getElementById("senha-feedback");
@@ -3307,6 +3442,7 @@
     if (!el) return;
     el.classList.toggle("hidden", !visible);
     el.setAttribute("aria-hidden", visible ? "false" : "true");
+    portalAndroidSyncNavegacao();
   }
 
   const MANUT_SIDEBAR_PARENT_IDS = [
@@ -15004,6 +15140,7 @@
     if (!el) return;
     el.classList.toggle("hidden", !visible);
     el.setAttribute("aria-hidden", visible ? "false" : "true");
+    portalAndroidSyncNavegacao();
   }
 
   function syncOperacaoCadastroButtons(activeButtonId) {
@@ -24682,6 +24819,8 @@
   window.__DK_portalAndroidSomenteLeitura = portalAndroidSomenteLeitura;
   window.__DK_portalAndroidBloquearEscrita = portalAndroidBloquearEscrita;
   window.__DK_portalLerPlataformaSessao = portalLerPlataformaSessao;
+  window.__DK_portalAndroidSyncNavegacao = portalAndroidSyncNavegacao;
+  window.__DK_portalAndroidVoltar = portalAndroidVoltar;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
