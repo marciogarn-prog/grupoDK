@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260907rel-ao">
+  <link rel="stylesheet" href="styles.css?v=20260907rel-23">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -625,7 +625,7 @@
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-rel-pag" aria-expanded="false" aria-controls="operacaoLancAluguelRelPagSubnav">
                   <span class="btn-operacao-cmd__title">2 — Relatório de pagamento</span>
-                  <span class="btn-operacao-cmd__hint">Por dia ou por período — protocolo, cliente e valores</span>
+                  <span class="btn-operacao-cmd__hint">Por dia, por período ou quem não pagou</span>
                 </button>
                 <nav id="operacaoLancAluguelRelPagSubnav" class="portal-manutencao-subnav-nested operacao-lanc-aluguel-rel-subnav hidden" aria-label="Relatórios de pagamento" hidden>
                   <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-dia" data-lanc-aluguel-sub="rel-dia">
@@ -635,6 +635,10 @@
                   <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-periodo" data-lanc-aluguel-sub="rel-periodo">
                     <span class="btn-operacao-cmd__title">2.2 — Relatório por período</span>
                     <span class="btn-operacao-cmd__hint">Escolha início e fim nos calendários</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-inad" data-lanc-aluguel-sub="rel-inadimplentes">
+                    <span class="btn-operacao-cmd__title">2.3 — Relação de clientes que não pagaram</span>
+                    <span class="btn-operacao-cmd__hint">Em um período — dois calendários</span>
                   </button>
                 </nav>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub hidden" id="btn-lanc-aluguel-comprovante" data-lanc-aluguel-sub="comprovante" hidden aria-hidden="true" tabindex="-1">
@@ -1907,6 +1911,51 @@
                 </thead>
                 <tbody id="portalRelPagPeriodoBody">
                   <tr><td colspan="5" class="subtext">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelInadimplentes" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relação de clientes que não pagaram em um determinado período">
+            <h4 class="portal-lanc-aluguel-section__title">2.3 — Relação de clientes que não pagaram em um determinado período</h4>
+            <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários — a lista atualiza na hora. Aparecem os contratos vigentes no intervalo que <strong>não tiveram nenhum pagamento</strong> nessas datas.</p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Colunas: <strong>PROTOCOLO — NOME DO CLIENTE — PLACA — MODELO — VALOR DO ALUGUEL — VALOR EM ATRASO DO CONTRATO</strong>
+              (atraso = total pago − total devido, iguais às caixas do lançamento avulso; azul = positivo / vermelho = negativo).
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>Data início</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelInadInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início da relação de quem não pagou" title="Clique para abrir o calendário">
+                </span>
+              </label>
+              <label class="portal-field">
+                <span>Data fim</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelInadFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim da relação de quem não pagou" title="Clique para abrir o calendário">
+                </span>
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary" id="portalRelInadGerarBtn">Gerar relatório</button>
+            </div>
+            <div id="portalRelInadKpis" class="portal-rel-pag-agg-kpis hidden" aria-live="polite"></div>
+            <p id="portalRelInadResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o período no calendário — os dados atualizam na hora.</p>
+            <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
+              <table class="fin-table portal-rel-pag-agg__table" id="portalRelInadTable">
+                <thead>
+                  <tr>
+                    <th>Protocolo</th>
+                    <th>Nome do cliente</th>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Valor do aluguel</th>
+                    <th>Valor em atraso do contrato</th>
+                  </tr>
+                </thead>
+                <tbody id="portalRelInadBody">
+                  <tr><td colspan="6" class="subtext">—</td></tr>
                 </tbody>
               </table>
             </div>
@@ -4603,7 +4652,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260907rel-ao" defer></script>
+  <script src="app.js?v=20260907rel-23" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4611,11 +4660,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260907rel-ao" defer></script>
+  <script src="portal-locadora-ui.js?v=20260907rel-23" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260907rel-ao" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260907rel-23" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

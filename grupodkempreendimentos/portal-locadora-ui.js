@@ -14634,6 +14634,353 @@
     });
   });
 
+  function portalRelInadPeriodoMs(inicioBr, fimBr) {
+    const parse = typeof parseBrDate === "function" ? parseBrDate : null;
+    const sIn = String(inicioBr || "").trim();
+    const sFi = String(fimBr || "").trim();
+    if (!parse || !sIn || !sFi) return null;
+    const d0 = parse(sIn);
+    const d1 = parse(sFi);
+    if (!d0 || !d1 || Number.isNaN(d0.getTime()) || Number.isNaN(d1.getTime())) return null;
+    let startMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+    let endMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate(), 23, 59, 59, 999).getTime();
+    if (startMs > endMs) {
+      const t = startMs;
+      startMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate()).getTime();
+      endMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), 23, 59, 59, 999).getTime();
+    }
+    return {
+      startMs,
+      endMs,
+      inicioFmt: formatPortalDataBr(new Date(startMs)),
+      fimFmt: formatPortalDataBr(new Date(endMs)),
+      parse,
+    };
+  }
+
+  function portalRelInadLocacaoVigenteNoPeriodo(loc, parse, startMs, endMs) {
+    if (!loc || typeof loc !== "object") return false;
+    if (isPortalLocacaoCancelada(loc)) return false;
+    const iniBr = String(loc.inicio || loc.dataInicio || "").trim();
+    const dIni = iniBr && parse ? parse(iniBr) : null;
+    if (dIni && !Number.isNaN(dIni.getTime())) {
+      const iniMs = new Date(dIni.getFullYear(), dIni.getMonth(), dIni.getDate()).getTime();
+      if (iniMs > endMs) return false;
+    }
+    const fimBr = String(loc.fim || loc.dataFim || loc.dataFinalizacao || "").trim();
+    const dFim = fimBr && parse ? parse(fimBr) : null;
+    if (dFim && !Number.isNaN(dFim.getTime())) {
+      const fimMs = new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate(), 23, 59, 59, 999).getTime();
+      if (fimMs < startMs) return false;
+    }
+    return true;
+  }
+
+  function portalRelInadTemPagamentoNoPeriodo(loc, parse, startMs, endMs) {
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc).filter(
+      (lan) => !portalLancamentoEhDevolucaoInvestimento(lan)
+    );
+    for (const lan of lancs) {
+      const v = Number(lan.valor || 0);
+      if (!Number.isFinite(v) || v <= 0) continue;
+      const dp = parse(String(lan.data || "").trim());
+      if (!dp || Number.isNaN(dp.getTime())) continue;
+      const payMs = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate()).getTime();
+      if (payMs >= startMs && payMs <= endMs) return true;
+    }
+    return false;
+  }
+
+  /** Atraso do contrato = total pago − total devido (mesmas caixas do lançamento avulso). */
+  function portalRelInadValorAtrasoContrato(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? (v) => Number(parseCurrencyBR(String(v ?? "")))
+        : (v) => Number(parsePortalLancamentoValorRaw(v));
+    const valLoc = portalValorAluguelNumFromLoc(loc);
+    const valInv = parseCur(loc?.valorInvestimento ?? "0");
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
+    const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
+    const diasAteHoje = computePortalDiasAteHoje(loc);
+    const temDataFim = portalLocacaoTemDataFim(loc);
+    const devido = temDataFim ? diasAteHoje * (valLoc / 7) : diasAteHoje * (plano / 7);
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+    const pago = sumPortalLancamentosAluguelTotal(lancs);
+    const atraso = Number(pago || 0) - Number(devido || 0);
+    return {
+      valorAluguel: Number.isFinite(valLoc) ? valLoc : 0,
+      devido: Number.isFinite(devido) ? devido : 0,
+      pago: Number.isFinite(pago) ? pago : 0,
+      atraso: Number.isFinite(atraso) ? atraso : 0,
+    };
+  }
+
+  function collectPortalRelInadimplentesPeriodo(inicioBr, fimBr) {
+    const fmtBrl = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const sIn = String(inicioBr || "").trim();
+    const sFi = String(fimBr || "").trim();
+    const empty = {
+      ok: false,
+      rows: [],
+      qtdClientes: 0,
+      somaAtraso: 0,
+      fmtBrl,
+      inicioFmt: sIn,
+      fimFmt: sFi,
+    };
+    const faixa = portalRelInadPeriodoMs(inicioBr, fimBr);
+    if (!faixa) return empty;
+    const { startMs, endMs, parse, inicioFmt, fimFmt } = faixa;
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
+    const dig =
+      typeof onlyDigits === "function"
+        ? (x) => onlyDigits(String(x || ""))
+        : (x) => String(x || "").replace(/\D/g, "");
+    const clientes = new Set();
+    const rows = [];
+    for (const loc of locs || []) {
+      if (isGhost(loc)) continue;
+      const proto = normPortalNumeroContrato(loc.numeroContrato || "");
+      if (!proto) continue;
+      if (!portalRelInadLocacaoVigenteNoPeriodo(loc, parse, startMs, endMs)) continue;
+      if (portalRelInadTemPagamentoNoPeriodo(loc, parse, startMs, endMs)) continue;
+      const cpfDigits = dig(loc.cpf).slice(0, 11);
+      let nome = String(loc.nome || loc.cliente || "").trim();
+      if (!nome && cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+      }
+      const placa = String(loc.placa || "").trim() || "—";
+      let modelo = String(loc.marcaModelo || loc.modelo || "").trim();
+      if (!modelo || modelo === "—") {
+        modelo = portalResolveModeloVeiculoPorPlaca(placa, null, null);
+      }
+      const fin = portalRelInadValorAtrasoContrato(loc);
+      if (cpfDigits.length === 11) clientes.add(cpfDigits);
+      rows.push({
+        proto,
+        nome: nome || "—",
+        placa,
+        modelo: modelo || "—",
+        valorAluguel: fin.valorAluguel,
+        atraso: fin.atraso,
+      });
+    }
+    rows.sort((a, b) => {
+      const da = Number(a.atraso) || 0;
+      const db = Number(b.atraso) || 0;
+      if (da !== db) return da - db;
+      return String(a.proto).localeCompare(String(b.proto), "pt-BR");
+    });
+    const somaAtraso = rows.reduce((s, r) => s + (Number(r.atraso) || 0), 0);
+    return {
+      ok: true,
+      rows,
+      qtdClientes: clientes.size || rows.length,
+      somaAtraso,
+      fmtBrl,
+      inicioFmt,
+      fimFmt,
+    };
+  }
+
+  function buildPortalRelInadimplentesContext(inicioBr, fimBr) {
+    const agg = collectPortalRelInadimplentesPeriodo(inicioBr, fimBr);
+    const title = "2.3 — Relação de clientes que não pagaram em um determinado período";
+    const periodoLabel = `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
+    const headers = [
+      "Protocolo",
+      "Nome do cliente",
+      "Placa",
+      "Modelo",
+      "Valor do aluguel",
+      "Valor em atraso do contrato",
+    ];
+    const fmtSaldo = (n) => formatPortalSaldoDevolucaoBrl(n);
+    const rows = agg.rows.map((r) => [
+      r.proto,
+      r.nome,
+      r.placa,
+      r.modelo,
+      agg.fmtBrl(r.valorAluguel),
+      fmtSaldo(r.atraso),
+    ]);
+    const saldoNums = agg.rows.map((r) => Number(r.atraso) || 0);
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const summaryHtml = agg.ok
+      ? `<div class="portal-rel-resumo" role="region" aria-label="Resumo do relatório">
+      <h2>Resumo</h2>
+      <p>1 — Contratos sem pagamento no período: <strong>${eh(String(rows.length))}</strong></p>
+      <p>2 — Clientes: <strong>${eh(String(agg.qtdClientes || 0))}</strong></p>
+      <p>3 — Soma do valor em atraso: <strong>${eh(fmtSaldo(agg.somaAtraso))}</strong></p>
+      <p>4 — Período: <strong>${eh(periodoLabel)}</strong></p>
+    </div>`
+      : "";
+    const previewHtml = agg.ok
+      ? buildPortalRelatorioHtml(title, headers, rows, {
+          headerSubtitleLines: [`Período: ${periodoLabel}`],
+          summaryHtml,
+          saldoColumnIndex: 5,
+          saldoNums,
+        })
+      : "";
+    return {
+      title,
+      fileSlug: "relacao-clientes-nao-pagaram-periodo",
+      headers,
+      rows,
+      textColumns: [0, 1, 2, 3],
+      saldoColumnIndex: 5,
+      saldoNums,
+      preserveRowOrder: true,
+      qtdClientes: agg.qtdClientes,
+      somaAtraso: agg.somaAtraso,
+      ok: agg.ok,
+      periodoLabel,
+      summaryHtml,
+      previewHtml,
+      headerSubtitleLines: [`Período: ${periodoLabel}`],
+      excelMetaPairs: [
+        ["Período", periodoLabel],
+        ["Contratos sem pagamento", String(rows.length)],
+        ["Clientes", String(agg.qtdClientes || 0)],
+        ["Soma do valor em atraso", fmtSaldo(agg.somaAtraso)],
+        ["Ordenação", "Valor em atraso (menor → maior)"],
+      ],
+      stats: {
+        protocolos: rows.length,
+        clientes: agg.qtdClientes || 0,
+      },
+    };
+  }
+
+  function renderPortalRelInadimplentesKpis(ctx) {
+    const box = document.getElementById("portalRelInadKpis");
+    if (!box) return;
+    if (!ctx?.ok || !ctx.rows?.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="portal-rel-pag-agg-kpis__grid" role="list">
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">1 — Contratos sem pagamento</span>
+          <strong>${portalEscapeHtml(String(ctx.rows.length))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">2 — Clientes</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdClientes || 0))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi portal-rel-pag-agg-kpi--valor" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">3 — Soma do valor em atraso</span>
+          <strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(ctx.somaAtraso))}</strong>
+        </div>
+      </div>`;
+  }
+
+  function renderPortalRelInadimplentesTela(ctx) {
+    const body = document.getElementById("portalRelInadBody");
+    const resumo = document.getElementById("portalRelInadResumo");
+    if (!ctx?.ok) {
+      if (body) body.innerHTML = `<tr><td colspan="6" class="subtext">Informe data de início e data de fim no formato DD/MM/AAAA.</td></tr>`;
+      if (resumo) resumo.textContent = "Datas inválidas.";
+      renderPortalRelInadimplentesKpis(ctx);
+      return;
+    }
+    if (!ctx.rows.length) {
+      if (body) {
+        body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum contrato vigente sem pagamento neste período.</td></tr>`;
+      }
+      if (resumo) resumo.textContent = `Período ${ctx.periodoLabel}: todos os contratos vigentes pagaram.`;
+      renderPortalRelInadimplentesKpis(ctx);
+      return;
+    }
+    if (body) {
+      body.innerHTML = ctx.rows
+        .map((row, ri) => {
+          const atrasoN = Number(ctx.saldoNums?.[ri] ?? 0);
+          const atrasoCls =
+            atrasoN > 0
+              ? "portal-rel-pag-agg__saldo--pos"
+              : atrasoN < 0
+                ? "portal-rel-pag-agg__saldo--neg"
+                : "";
+          return `<tr><td>${portalEscapeHtml(String(row[0] || ""))}</td><td>${portalEscapeHtml(
+            String(row[1] || "")
+          )}</td><td>${portalEscapeHtml(String(row[2] || ""))}</td><td>${portalEscapeHtml(
+            String(row[3] || "")
+          )}</td><td>${portalEscapeHtml(String(row[4] || ""))}</td><td class="${atrasoCls}">${portalEscapeHtml(
+            String(row[5] || "")
+          )}</td></tr>`;
+        })
+        .join("");
+    }
+    if (resumo) {
+      resumo.textContent = `${ctx.rows.length} contrato(s) sem pagamento · ${
+        ctx.qtdClientes || 0
+      } cliente(s) · Soma do atraso: ${formatPortalSaldoDevolucaoBrl(ctx.somaAtraso)} · Período: ${
+        ctx.periodoLabel
+      }`;
+    }
+    renderPortalRelInadimplentesKpis(ctx);
+  }
+
+  function atualizarPortalRelInadimplentesTela(opts = {}) {
+    const abrirModal = opts.abrirModal === true;
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const inicio = String(document.getElementById("portalRelInadInicio")?.value || "").trim();
+    const fim = String(document.getElementById("portalRelInadFim")?.value || "").trim();
+    if (!inicio || !fim) {
+      if (abrirModal && msg) msg.textContent = "Informe a data de início e a data de fim (DD/MM/AAAA).";
+      renderPortalRelInadimplentesTela({ ok: false, rows: [] });
+      return null;
+    }
+    const ctx = buildPortalRelInadimplentesContext(inicio, fim);
+    renderPortalRelInadimplentesTela(ctx);
+    if (!ctx.ok) {
+      if (abrirModal && msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
+      return ctx;
+    }
+    if (msg) {
+      msg.textContent = ctx.rows.length
+        ? `${ctx.title}: ${ctx.rows.length} contrato(s) sem pagamento, ${ctx.qtdClientes || 0} cliente(s).`
+        : `${ctx.title}: todos os contratos vigentes pagaram no período.`;
+    }
+    if (abrirModal) openPortalRelatorioModal(ctx);
+    return ctx;
+  }
+
+  function tentarAtualizarPortalRelInadimplentesAoMudarData() {
+    const a = String(document.getElementById("portalRelInadInicio")?.value || "").trim();
+    const b = String(document.getElementById("portalRelInadFim")?.value || "").trim();
+    if (!dataBrRelPagValida(a) || !dataBrRelPagValida(b)) return;
+    atualizarPortalRelInadimplentesTela();
+  }
+
+  document.getElementById("portalRelInadGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    atualizarPortalRelInadimplentesTela({ abrirModal: true });
+  });
+  ["input", "change"].forEach((evName) => {
+    document.getElementById("portalRelInadInicio")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelInadimplentesAoMudarData();
+    });
+    document.getElementById("portalRelInadFim")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelInadimplentesAoMudarData();
+    });
+  });
+
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     portalLocacaoRelatorioModo = "ativas";
@@ -14766,7 +15113,7 @@
   });
 
   /** Submenus visíveis em «Lançamento de aluguel» — reactivar comprovante/validacao/relatorios quando necessário. */
-  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso", "rel-dia", "rel-periodo"]);
+  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso", "rel-dia", "rel-periodo", "rel-inadimplentes"]);
 
   const OPERACAO_LANC_ALUGUEL_SUB_IDS = {
     avulso: "operacaoLancAluguelPaneAvulso",
@@ -14775,6 +15122,7 @@
     relatorios: "operacaoLancAluguelPaneRelatorios",
     "rel-dia": "operacaoLancAluguelPaneRelDia",
     "rel-periodo": "operacaoLancAluguelPaneRelPeriodo",
+    "rel-inadimplentes": "operacaoLancAluguelPaneRelInadimplentes",
   };
 
   const OPERACAO_LANC_ALUGUEL_SUB_LEADS = {
@@ -14789,6 +15137,8 @@
       "2.1 — Relatório por dia: escolha a data no calendário. Lista protocolo, cliente, valor do dia e valor total do protocolo.",
     "rel-periodo":
       "2.2 — Relatório por período: escolha início e fim. Lista protocolo, cliente, valor no período e valor total do protocolo.",
+    "rel-inadimplentes":
+      "2.3 — Relação de clientes que não pagaram: escolha início e fim. Lista protocolo, nome, placa, modelo, valor do aluguel e valor em atraso (pago − devido).",
   };
 
   let operacaoLancAluguelSubAtivo = "avulso";
@@ -14810,7 +15160,8 @@
     const show =
       operacaoLancAluguelRelPagSubnavAberto ||
       operacaoLancAluguelSubAtivo === "rel-dia" ||
-      operacaoLancAluguelSubAtivo === "rel-periodo";
+      operacaoLancAluguelSubAtivo === "rel-periodo" ||
+      operacaoLancAluguelSubAtivo === "rel-inadimplentes";
     operacaoLancAluguelRelPagSubnavAberto = show;
     nav.classList.toggle("hidden", !show);
     if (show) nav.removeAttribute("hidden");
@@ -14818,7 +15169,10 @@
     parent?.setAttribute("aria-expanded", show ? "true" : "false");
     parent?.classList.toggle(
       "is-active",
-      show || operacaoLancAluguelSubAtivo === "rel-dia" || operacaoLancAluguelSubAtivo === "rel-periodo"
+      show ||
+        operacaoLancAluguelSubAtivo === "rel-dia" ||
+        operacaoLancAluguelSubAtivo === "rel-periodo" ||
+        operacaoLancAluguelSubAtivo === "rel-inadimplentes"
     );
   }
 
@@ -14830,6 +15184,7 @@
       "btn-lanc-aluguel-relatorios",
       "btn-lanc-aluguel-rel-dia",
       "btn-lanc-aluguel-rel-periodo",
+      "btn-lanc-aluguel-rel-inad",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -14844,7 +15199,9 @@
     const parentRel = document.getElementById("btn-lanc-aluguel-rel-pag");
     if (parentRel) {
       const showParent =
-        operacaoLancAluguelSubPermitido("rel-dia") || operacaoLancAluguelSubPermitido("rel-periodo");
+        operacaoLancAluguelSubPermitido("rel-dia") ||
+        operacaoLancAluguelSubPermitido("rel-periodo") ||
+        operacaoLancAluguelSubPermitido("rel-inadimplentes");
       parentRel.classList.toggle("hidden", !showParent);
       parentRel.toggleAttribute("hidden", !showParent);
       parentRel.setAttribute("aria-hidden", showParent ? "false" : "true");
@@ -14900,6 +15257,7 @@
       "btn-lanc-aluguel-relatorios",
       "btn-lanc-aluguel-rel-dia",
       "btn-lanc-aluguel-rel-periodo",
+      "btn-lanc-aluguel-rel-inad",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -14908,7 +15266,7 @@
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
     syncOperacaoLancAluguelRelPagSubnavVisible(
-      sub === "rel-dia" || sub === "rel-periodo"
+      sub === "rel-dia" || sub === "rel-periodo" || sub === "rel-inadimplentes"
     );
     const main = document.getElementById("btn-operacao-lancamento-aluguel");
     if (main) {
@@ -14973,6 +15331,7 @@
     }
     if (sub === "rel-dia") tentarAtualizarPortalRelPagAggAoMudarData("dia");
     if (sub === "rel-periodo") tentarAtualizarPortalRelPagAggAoMudarData("periodo");
+    if (sub === "rel-inadimplentes") tentarAtualizarPortalRelInadimplentesAoMudarData();
   }
 
   function openOperacaoLancamentoAluguel(subRaw) {
@@ -23594,6 +23953,7 @@
     "btn-lanc-aluguel-relatorios",
     "btn-lanc-aluguel-rel-dia",
     "btn-lanc-aluguel-rel-periodo",
+    "btn-lanc-aluguel-rel-inad",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       const sub = document.getElementById(id)?.getAttribute("data-lanc-aluguel-sub") || "avulso";

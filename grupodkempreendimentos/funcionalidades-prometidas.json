@@ -182,6 +182,28 @@
       }
     },
     {
+      "id": "lanc-aluguel-relatorio-2-3-nao-pagaram",
+      "descricao": "Em Lançamento de aluguel: 2.3 Relação de clientes que não pagaram em um determinado período, com dois calendários; lista protocolo, nome, placa, modelo, valor do aluguel e valor em atraso (total pago − total devido das caixas do lançamento avulso). Atualiza ao mudar as datas.",
+      "ficheiros": {
+        "index.html": [
+          "btn-lanc-aluguel-rel-inad",
+          "operacaoLancAluguelPaneRelInadimplentes",
+          "portalRelInadInicio",
+          "portalRelInadFim",
+          "Valor em atraso do contrato",
+          "rel-inadimplentes"
+        ],
+        "portal-locadora-ui.js": [
+          "collectPortalRelInadimplentesPeriodo",
+          "portalRelInadValorAtrasoContrato",
+          "atualizarPortalRelInadimplentesTela",
+          "tentarAtualizarPortalRelInadimplentesAoMudarData",
+          "rel-inadimplentes",
+          "Valor em atraso do contrato"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {
