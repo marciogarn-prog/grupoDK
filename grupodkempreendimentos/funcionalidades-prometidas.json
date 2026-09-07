@@ -153,6 +153,19 @@
       }
     },
     {
+      "id": "rel-pag-periodo-total-por-dia",
+      "descricao": "No relatório 2.2 de pagamento por período, o RESUMO mostra o total por dia (Dia 01 = R$ …) no espaço em branco à direita, sem alterar a formatação da tabela nem os cinco itens da esquerda.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portal-rel-resumo__dias",
+          "portal-rel-resumo__cols",
+          "Total por dia",
+          "porDia",
+          "Dia ${String(dia).padStart(2, \"0\")}"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

@@ -11637,6 +11637,12 @@
       .portal-rel-resumo ul{margin:0.2rem 0 0.35rem 1.1rem;padding:0}
       .portal-rel-resumo li,.portal-rel-resumo p{margin:0.12rem 0}
       .portal-rel-resumo strong{font-weight:700}
+      .portal-rel-resumo__cols{display:flex;gap:0.45rem 1.15rem;align-items:flex-start}
+      .portal-rel-resumo__esq{flex:0 1 22rem;min-width:0}
+      .portal-rel-resumo__dias{flex:1 1 12rem;min-width:0}
+      .portal-rel-resumo__dias-tit{margin:0 0 0.25rem;font-weight:700}
+      .portal-rel-resumo__dias-lista{display:flex;flex-wrap:wrap;gap:0.12rem 0.85rem}
+      .portal-rel-resumo__dia{margin:0;white-space:nowrap}
       ${compact ? "@media print{@page{size:landscape;margin:8mm}body{margin:0.5rem}}" : ""}
     </style></head><body>
       <h1>${eh(title)}</h1>
@@ -14196,6 +14202,7 @@
       qtdPagamentos: 0,
       qtdClientes: 0,
       porPlano: porPlanoVazio(),
+      porDia: [],
       fmtBrl,
       inicioFmt: sIn,
       fimFmt: sFi,
@@ -14222,6 +14229,7 @@
     const clientes = new Set();
     let qtdPagamentos = 0;
     const porPlano = porPlanoVazio();
+    const totaisDia = new Map();
 
     for (const loc of locs || []) {
       const proto = normPortalNumeroContrato(loc.numeroContrato || "");
@@ -14243,6 +14251,8 @@
         if (payMs >= startMs && payMs <= endMs) {
           valorFaixa += v;
           qtdNaFaixa += 1;
+          const diaKey = `${dp.getFullYear()}-${String(dp.getMonth() + 1).padStart(2, "0")}-${String(dp.getDate()).padStart(2, "0")}`;
+          totaisDia.set(diaKey, (totaisDia.get(diaKey) || 0) + v);
         }
       }
       if (!qtdNaFaixa) continue;
@@ -14289,6 +14299,22 @@
     });
     const totalFaixa = rows.reduce((s, r) => s + r.valorFaixa, 0);
     const totalGeral = rows.reduce((s, r) => s + r.valorTotal, 0);
+    const porDia = [];
+    const cursor = new Date(startMs);
+    cursor.setHours(0, 0, 0, 0);
+    const last = new Date(endMs);
+    last.setHours(0, 0, 0, 0);
+    while (cursor.getTime() <= last.getTime()) {
+      const dia = cursor.getDate();
+      const diaKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+      porDia.push({
+        key: diaKey,
+        dia,
+        label: `Dia ${String(dia).padStart(2, "0")}`,
+        valor: totaisDia.get(diaKey) || 0,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
     return {
       ok: true,
       rows,
@@ -14297,6 +14323,7 @@
       qtdPagamentos,
       qtdClientes: clientes.size,
       porPlano,
+      porDia,
       fmtBrl,
       inicioFmt: formatPortalDataBr(new Date(startMs)),
       fimFmt: formatPortalDataBr(new Date(endMs)),
@@ -14310,14 +14337,30 @@
     const linhasPlano = PORTAL_REL_PAG_PLANOS.map(
       (p) => `<li>${eh(p)}: <strong>${eh(String(agg.porPlano?.[p] || 0))}</strong></li>`
     ).join("");
-    return `<div class="portal-rel-resumo" role="region" aria-label="Resumo do relatório">
-      <h2>Resumo</h2>
-      <p>1 — Quantidade de pagamentos: <strong>${eh(String(agg.qtdPagamentos || 0))}</strong></p>
+    const blocoEsquerdo = `<p>1 — Quantidade de pagamentos: <strong>${eh(String(agg.qtdPagamentos || 0))}</strong></p>
       <p>2 — Quantidade de clientes: <strong>${eh(String(agg.qtdClientes || 0))}</strong></p>
       <p>3 — Quantidade de pagamento por plano:</p>
       <ul>${linhasPlano}</ul>
       <p>4 — ${eh(labelFaixa)}: <strong>${eh(agg.fmtBrl(agg.totalFaixa || 0))}</strong></p>
-      <p>5 — Soma dos valores totais: <strong>${eh(agg.fmtBrl(agg.totalGeral || 0))}</strong></p>
+      <p>5 — Soma dos valores totais: <strong>${eh(agg.fmtBrl(agg.totalGeral || 0))}</strong></p>`;
+    const dias = !isDia && Array.isArray(agg.porDia) ? agg.porDia : [];
+    const blocoDias = dias.length
+      ? `<div class="portal-rel-resumo__dias" aria-label="Total por dia">
+      <p class="portal-rel-resumo__dias-tit">Total por dia</p>
+      <div class="portal-rel-resumo__dias-lista">${dias
+        .map(
+          (d) =>
+            `<span class="portal-rel-resumo__dia">${eh(d.label)} = <strong>${eh(agg.fmtBrl(d.valor || 0))}</strong></span>`
+        )
+        .join("")}</div>
+    </div>`
+      : "";
+    const corpo = blocoDias
+      ? `<div class="portal-rel-resumo__cols"><div class="portal-rel-resumo__esq">${blocoEsquerdo}</div>${blocoDias}</div>`
+      : blocoEsquerdo;
+    return `<div class="portal-rel-resumo" role="region" aria-label="Resumo do relatório">
+      <h2>Resumo</h2>
+      ${corpo}
     </div>`;
   }
 
