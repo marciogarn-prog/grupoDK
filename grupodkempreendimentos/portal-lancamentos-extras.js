@@ -911,7 +911,7 @@
     const placaQ = normPlate(filtros.placaRaw || "");
     return linhas.filter((row) => {
       if (cpfPrefix.length && !row.cpf.startsWith(cpfPrefix)) return false;
-      if (nomeKey.length >= 2 && !nomeChave(row.nome).includes(nomeKey)) return false;
+      if (nomeKey.length >= 1 && !nomeChave(row.nome).includes(nomeKey)) return false;
       if (protoQ.length && !row.proto.includes(protoQ)) return false;
       if (placaQ.length >= 3 && !(row.placa || "").includes(placaQ)) return false;
       return true;
@@ -927,7 +927,7 @@
       if (porPlaca.length) return porPlaca;
     }
     const nomeKey = nomeChave(nomeRaw || "");
-    if (nomeKey.length < 2) return [];
+    if (nomeKey.length < 1) return [];
     const cpfs = [...new Set(filtradas.map((r) => r.cpf))];
     if (cpfs.length === 1) return filtradas.filter((r) => r.cpf === cpfs[0]);
     const exatos = filtradas.filter((r) => nomeChave(r.nome) === nomeKey);
@@ -1158,14 +1158,19 @@
     const prevProto = String(inpProto?.value || "").trim();
     const prevPlaca = String(inpPlaca?.value || "").trim();
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const semAutopreencher = opts.semAutopreencher === true;
+    const valoresCampo =
+      typeof window.__DK_portalPesquisaValoresFiltroPorOrigem === "function"
+        ? window.__DK_portalPesquisaValoresFiltroPorOrigem(source, {
+            cpfRaw: prevCpf,
+            nomeRaw: prevNome,
+            protoRaw: prevProto,
+            placaRaw: prevPlaca,
+          })
+        : { cpfRaw: prevCpf, nomeRaw: prevNome, protoRaw: prevProto, placaRaw: prevPlaca };
 
     const todas = collectPesquisaLinhas();
-    const filtradas = filterPesquisaLinhas(todas, {
-      cpfRaw: prevCpf,
-      nomeRaw: prevNome,
-      protoRaw: prevProto,
-      placaRaw: prevPlaca,
-    });
+    const filtradas = filterPesquisaLinhas(todas, valoresCampo);
 
     const cpfsMap = new Map();
     const nomesMap = new Map();
@@ -1248,7 +1253,8 @@
       if (document.activeElement !== inpProto) hideProtoLista(cfg);
     }
 
-    renderPesquisaLista(cfg, protosParaDatalist);
+    renderPesquisaLista(cfg, filtradas);
+    if (semAutopreencher) return;
 
     const cpfsUnicos = [...cpfsMap.keys()];
     const nomesUnicos = [...nomesMap.values()];
@@ -1435,17 +1441,22 @@
     $(cfg, "Cpf")?.addEventListener("input", () => {
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
-      refreshPesquisaAvancada(cfg, { source: "cpf" });
+      refreshPesquisaAvancada(cfg, { source: "cpf", semAutopreencher: true });
       hideDetalhe(cfg);
     });
     $(cfg, "Cpf")?.addEventListener("focus", () => {
-      refreshPesquisaAvancada(cfg, { source: "cpf", openCpfLista: true });
+      refreshPesquisaAvancada(cfg, { source: "cpf", openCpfLista: true, semAutopreencher: true });
     });
     $(cfg, "Cpf")?.addEventListener("blur", () => {
       window.setTimeout(() => {
         if (document.activeElement?.closest?.(`#${cfg.prefix}CpfLista`)) return;
         hideCpfLista(cfg);
-        refreshPesquisaAvancada(cfg, { source: "cpf", skipCpfLista: true, skipProtoLista: true });
+        refreshPesquisaAvancada(cfg, {
+          source: "cpf",
+          skipCpfLista: true,
+          skipProtoLista: true,
+          semAutopreencher: true,
+        });
       }, 150);
     });
     document.getElementById(`${cfg.prefix}CpfLista`)?.addEventListener("mousedown", (e) => {
@@ -1455,30 +1466,89 @@
       escolherCpfLista(cfg, btn.getAttribute("data-cpf"), btn.getAttribute("data-nome"));
     });
 
+    function confirmarSugestaoUnicaExtras(ev) {
+      if (!ev || ev.key !== "Enter") return;
+      const cpfPanel = document.getElementById(`${cfg.prefix}CpfLista`);
+      const protoPanel = document.getElementById(`${cfg.prefix}ProtoLista`);
+      const lista = document.getElementById(`${cfg.prefix}PesquisaLista`);
+      const visivel = (el) => el && !el.classList.contains("hidden") && !el.hidden;
+      if (visivel(cpfPanel)) {
+        const opts = cpfPanel.querySelectorAll("button[data-cpf]");
+        if (opts.length === 1) {
+          ev.preventDefault();
+          escolherCpfLista(cfg, opts[0].getAttribute("data-cpf"), opts[0].getAttribute("data-nome"));
+          return;
+        }
+      }
+      if (visivel(protoPanel)) {
+        const opts = protoPanel.querySelectorAll("button[data-proto]");
+        if (opts.length === 1) {
+          ev.preventDefault();
+          escolherProtoLista(
+            cfg,
+            opts[0].getAttribute("data-proto"),
+            opts[0].getAttribute("data-cpf"),
+            opts[0].getAttribute("data-nome"),
+            opts[0].getAttribute("data-placa")
+          );
+          return;
+        }
+      }
+      if (visivel(lista)) {
+        const btns = lista.querySelectorAll("[data-lanc-pesquisa-key]");
+        if (btns.length === 1) {
+          ev.preventDefault();
+          aplicarPesquisaLinha(
+            cfg,
+            btns[0].getAttribute("data-cpf"),
+            btns[0].getAttribute("data-nome"),
+            btns[0].getAttribute("data-proto"),
+            btns[0].getAttribute("data-placa")
+          );
+        }
+      }
+    }
+
     $(cfg, "NomeBusca")?.addEventListener("input", () => {
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
-      refreshPesquisaAvancada(cfg, { source: "nome", skipCpfLista: true, skipProtoLista: true });
+      refreshPesquisaAvancada(cfg, {
+        source: "nome",
+        skipCpfLista: true,
+        skipProtoLista: true,
+        semAutopreencher: true,
+      });
       hideDetalhe(cfg);
     });
     $(cfg, "NomeBusca")?.addEventListener("change", () =>
-      refreshPesquisaAvancada(cfg, { source: "nome", skipCpfLista: true, skipProtoLista: true })
+      refreshPesquisaAvancada(cfg, {
+        source: "nome",
+        skipCpfLista: true,
+        skipProtoLista: true,
+        semAutopreencher: true,
+      })
     );
+    $(cfg, "NomeBusca")?.addEventListener("keydown", confirmarSugestaoUnicaExtras);
 
     $(cfg, "ProtocoloBusca")?.addEventListener("input", () => {
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
-      refreshPesquisaAvancada(cfg, { source: "proto" });
+      refreshPesquisaAvancada(cfg, { source: "proto", semAutopreencher: true });
       hideDetalhe(cfg);
     });
     $(cfg, "ProtocoloBusca")?.addEventListener("focus", () => {
-      refreshPesquisaAvancada(cfg, { source: "proto", openProtoLista: true });
+      refreshPesquisaAvancada(cfg, { source: "proto", openProtoLista: true, semAutopreencher: true });
     });
     $(cfg, "ProtocoloBusca")?.addEventListener("blur", () => {
       window.setTimeout(() => {
         if (document.activeElement?.closest?.(`#${cfg.prefix}ProtoLista`)) return;
         hideProtoLista(cfg);
-        refreshPesquisaAvancada(cfg, { source: "proto", skipCpfLista: true, skipProtoLista: true });
+        refreshPesquisaAvancada(cfg, {
+          source: "proto",
+          skipCpfLista: true,
+          skipProtoLista: true,
+          semAutopreencher: true,
+        });
       }, 150);
     });
     document.getElementById(`${cfg.prefix}ProtoLista`)?.addEventListener("mousedown", (e) => {
@@ -1494,17 +1564,24 @@
       );
     });
     $(cfg, "ProtocoloBusca")?.addEventListener("change", () =>
-      refreshPesquisaAvancada(cfg, { source: "proto", skipProtoLista: true })
+      refreshPesquisaAvancada(cfg, { source: "proto", skipProtoLista: true, semAutopreencher: true })
     );
+    $(cfg, "ProtocoloBusca")?.addEventListener("keydown", confirmarSugestaoUnicaExtras);
 
     $(cfg, "PlacaBusca")?.addEventListener("input", () => {
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
-      refreshPesquisaAvancada(cfg, { source: "placa" });
+      refreshPesquisaAvancada(cfg, { source: "placa", semAutopreencher: true });
       hideDetalhe(cfg);
     });
-    $(cfg, "PlacaBusca")?.addEventListener("change", () => refreshPesquisaAvancada(cfg, { source: "placa" }));
-    $(cfg, "PlacaBusca")?.addEventListener("blur", () => refreshPesquisaAvancada(cfg, { source: "placa" }));
+    $(cfg, "PlacaBusca")?.addEventListener("change", () =>
+      refreshPesquisaAvancada(cfg, { source: "placa", semAutopreencher: true })
+    );
+    $(cfg, "PlacaBusca")?.addEventListener("blur", () =>
+      refreshPesquisaAvancada(cfg, { source: "placa", semAutopreencher: true })
+    );
+    $(cfg, "PlacaBusca")?.addEventListener("keydown", confirmarSugestaoUnicaExtras);
+    $(cfg, "Cpf")?.addEventListener("keydown", confirmarSugestaoUnicaExtras);
 
     $(cfg, "ProtocoloSelect")?.addEventListener("change", () => {
       const sel = $(cfg, "ProtocoloSelect");

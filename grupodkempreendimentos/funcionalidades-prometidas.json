@@ -935,6 +935,22 @@
       }
     },
     {
+      "id": "lista-suspensa-reabre-ao-apagar",
+      "descricao": "Nas listas suspensas de pesquisa (lançamento de aluguel, cadastros e restantes telas), o filtro reabre ao apagar ou trocar a letra; a pesquisa só conclui ao clicar na linha ou ao premir Enter quando resta uma única opção.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalPesquisaValoresFiltroPorOrigem",
+          "portalSugestoesEnterConfirmaUnica",
+          "semAutopreencher",
+          "confirmarOperacaoLancAluguelSugestaoUnicaEnter"
+        ],
+        "portal-lancamentos-extras.js": [
+          "semAutopreencher",
+          "confirmarSugestaoUnicaExtras"
+        ]
+      }
+    },
+    {
       "id": "codigo-cliente-unico",
       "descricao": "No Cadastro de locação, o Cód. do cliente é único: pesquisar pelo Cód. traz um cliente; locação de outra pessoa não inventa segundo cliente; não existe a mensagem «Há 2 clientes com o código»; Limpar esvazia o Cód.",
       "ficheiros": {
