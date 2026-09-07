@@ -11257,6 +11257,61 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0.35rem 0 0 !important;
 }
 
+.fin-ceo-periodo-unidades {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.fin-ceo-periodo-unidade {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem 0.8rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.fin-ceo-periodo-unidade--total {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.fin-ceo-periodo-unidade__tit {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.fin-ceo-periodo-unidade__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.fin-ceo-periodo-unidade__grid .fin-kpi {
+  min-width: 0;
+  width: 100%;
+}
+
+.fin-ceo-periodo-unidades .fin-kpi--periodo-rec-prev.fin-kpi--duo .fin-kpi__duo-sim strong {
+  color: #93c5fd;
+}
+
+.fin-ceo-periodo-unidades .fin-kpi--periodo-desp-prev.fin-kpi--duo .fin-kpi__duo-sim strong {
+  color: #f87171;
+}
+
+@media (max-width: 900px) {
+  .fin-ceo-periodo-unidade__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .view--fin-ceo .fin-kpi--periodo-rec-prev {
   border-color: rgba(110, 231, 160, 0.45);
 }

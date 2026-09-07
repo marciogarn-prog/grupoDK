@@ -1311,7 +1311,53 @@
     return { ok: true, d0, d1, startMs, endMs, dias: diasInclusiveEntre(d0, d1) };
   }
 
+  function blocoResumoUnidadeCeo() {
+    return {
+      receitaPrevista: 0,
+      receitaReal: 0,
+      despesaPrevista: 0,
+      despesaPaga: 0,
+      saldoPrevisto: 0,
+      saldoReal: 0,
+    };
+  }
+
+  function fecharBlocoResumoUnidadeCeo(bloco) {
+    const b = bloco || blocoResumoUnidadeCeo();
+    b.saldoPrevisto = (Number(b.receitaPrevista) || 0) - (Number(b.despesaPrevista) || 0);
+    b.saldoReal = (Number(b.receitaReal) || 0) - (Number(b.despesaPaga) || 0);
+    return b;
+  }
+
+  function chaveUnidadeDespesaCeo(catId) {
+    const c = String(catId || "");
+    if (c === "DK_CONSTRUTORA") return "construtora";
+    if (c === "DK_CENTRO_AUTOMOTIVO" || c === "DK_OFICINA") return "centro";
+    if (c === "PARTICULARES" || c === "PESSOAIS") return "particular";
+    return "locadora";
+  }
+
+  function receitaUnidadesPorUnitNoPeriodo(uniRows, startMs, endMs) {
+    const out = { centro: 0, construtora: 0, particular: 0 };
+    (uniRows || []).forEach((r) => {
+      if (r?.tipo !== "receita") return;
+      const dt = parseBrDate(r.data);
+      if (!dataNoIntervaloMs(dt, startMs, endMs)) return;
+      const v = Math.abs(parseValor(r.valor));
+      const u = String(r.unit || "").toLowerCase();
+      if (u === "construtora") out.construtora += v;
+      else if (u === "particular" || u === "particulares") out.particular += v;
+      else out.centro += v;
+    });
+    return out;
+  }
+
   function calcResumoPeriodoCeo(periodo) {
+    const locadora = blocoResumoUnidadeCeo();
+    const construtora = blocoResumoUnidadeCeo();
+    const centro = blocoResumoUnidadeCeo();
+    const particular = blocoResumoUnidadeCeo();
+    const porUnidadeVazio = { locadora, construtora, centro, particular, total: blocoResumoUnidadeCeo() };
     const vazio = {
       receitaPrevista: 0,
       receitaReal: 0,
@@ -1320,39 +1366,60 @@
       saldoPrevisto: 0,
       saldoReal: 0,
       dias: 0,
+      porUnidade: porUnidadeVazio,
     };
     if (!periodo?.ok) return vazio;
-    const { startMs, endMs, dias, d0, d1 } = periodo;
+    const { startMs, endMs, dias } = periodo;
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
     const despesas = loadDespesasCeo().map(normalizeDespesa);
 
-    const recLocPrev = (receitaSemanalLocadora(locs) / 7) * dias;
-    const recUni = receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
-    const receitaPrevista = recLocPrev + recUni;
-    const receitaReal = receitaRealLocadoraNoPeriodo(locs, startMs, endMs) + recUni;
+    locadora.receitaPrevista = (receitaSemanalLocadora(locs) / 7) * dias;
+    locadora.receitaReal = receitaRealLocadoraNoPeriodo(locs, startMs, endMs);
 
-    let despesaPrevista = 0;
-    let despesaPaga = 0;
+    const recPorUnit = receitaUnidadesPorUnitNoPeriodo(uniRows, startMs, endMs);
+    construtora.receitaPrevista = recPorUnit.construtora;
+    construtora.receitaReal = recPorUnit.construtora;
+    centro.receitaPrevista = recPorUnit.centro;
+    centro.receitaReal = recPorUnit.centro;
+    particular.receitaPrevista = recPorUnit.particular;
+    particular.receitaReal = recPorUnit.particular;
+
+    const blocos = { locadora, construtora, centro, particular };
     despesas.forEach((d) => {
+      const key = chaveUnidadeDespesaCeo(d.categoria);
+      const bloco = blocos[key] || locadora;
       const pagos = expandirPagamentosDespesa(d, d.repeticoes);
       pagos.forEach((p) => {
         if (!dataNoIntervaloMs(p.data, startMs, endMs)) return;
         const v = Number(p.valor) || 0;
         if (v <= 0) return;
-        despesaPrevista += v;
-        if (getSituacaoPagamentoLinha(d.id, p.numero, p.data) === "PAGO") despesaPaga += v;
+        bloco.despesaPrevista += v;
+        if (getSituacaoPagamentoLinha(d.id, p.numero, p.data) === "PAGO") bloco.despesaPaga += v;
       });
     });
 
+    fecharBlocoResumoUnidadeCeo(locadora);
+    fecharBlocoResumoUnidadeCeo(construtora);
+    fecharBlocoResumoUnidadeCeo(centro);
+    fecharBlocoResumoUnidadeCeo(particular);
+
+    const total = fecharBlocoResumoUnidadeCeo({
+      receitaPrevista: locadora.receitaPrevista + construtora.receitaPrevista + centro.receitaPrevista + particular.receitaPrevista,
+      receitaReal: locadora.receitaReal + construtora.receitaReal + centro.receitaReal + particular.receitaReal,
+      despesaPrevista: locadora.despesaPrevista + construtora.despesaPrevista + centro.despesaPrevista + particular.despesaPrevista,
+      despesaPaga: locadora.despesaPaga + construtora.despesaPaga + centro.despesaPaga + particular.despesaPaga,
+    });
+
     return {
-      receitaPrevista,
-      receitaReal,
-      despesaPrevista,
-      despesaPaga,
-      saldoPrevisto: receitaPrevista - despesaPrevista,
-      saldoReal: receitaReal - despesaPaga,
+      receitaPrevista: total.receitaPrevista,
+      receitaReal: total.receitaReal,
+      despesaPrevista: total.despesaPrevista,
+      despesaPaga: total.despesaPaga,
+      saldoPrevisto: total.saldoPrevisto,
+      saldoReal: total.saldoReal,
       dias,
+      porUnidade: { locadora, construtora, centro, particular, total },
     };
   }
 
@@ -1632,33 +1699,88 @@
     }
   }
 
+  const PERIODO_UNIDADE_KPI_IDS = [
+    {
+      key: "locadora",
+      recPrev: "finCeoPeriodoLocRecPrev",
+      recReal: "finCeoPeriodoLocRecReal",
+      despPrev: "finCeoPeriodoLocDespPrev",
+      despPaga: "finCeoPeriodoLocDespPaga",
+      salPrev: "finCeoPeriodoLocSaldoPrev",
+      salReal: "finCeoPeriodoLocSaldoReal",
+    },
+    {
+      key: "construtora",
+      recPrev: "finCeoPeriodoConRecPrev",
+      recReal: "finCeoPeriodoConRecReal",
+      despPrev: "finCeoPeriodoConDespPrev",
+      despPaga: "finCeoPeriodoConDespPaga",
+      salPrev: "finCeoPeriodoConSaldoPrev",
+      salReal: "finCeoPeriodoConSaldoReal",
+    },
+    {
+      key: "centro",
+      recPrev: "finCeoPeriodoCenRecPrev",
+      recReal: "finCeoPeriodoCenRecReal",
+      despPrev: "finCeoPeriodoCenDespPrev",
+      despPaga: "finCeoPeriodoCenDespPaga",
+      salPrev: "finCeoPeriodoCenSaldoPrev",
+      salReal: "finCeoPeriodoCenSaldoReal",
+    },
+    {
+      key: "particular",
+      recPrev: "finCeoPeriodoParRecPrev",
+      recReal: "finCeoPeriodoParRecReal",
+      despPrev: "finCeoPeriodoParDespPrev",
+      despPaga: "finCeoPeriodoParDespPaga",
+      salPrev: "finCeoPeriodoParSaldoPrev",
+      salReal: "finCeoPeriodoParSaldoReal",
+    },
+    {
+      key: "total",
+      recPrev: "finCeoPeriodoRecPrevista",
+      recReal: "finCeoPeriodoRecReal",
+      despPrev: "finCeoPeriodoDespPrevista",
+      despPaga: "finCeoPeriodoDespPaga",
+      salPrev: "finCeoPeriodoSaldoPrevisto",
+      salReal: "finCeoPeriodoSaldoReal",
+    },
+  ];
+
   function renderResumoPeriodoCeo() {
     const hint = document.getElementById("finCeoPeriodoHint");
     const setVal = (id, n) => {
       const el = document.getElementById(id);
       if (el) el.textContent = brl(n);
     };
-    const periodo = obterPeriodoCeoDash();
-    if (!periodo.ok) {
-      ["finCeoPeriodoRecPrevista", "finCeoPeriodoRecReal", "finCeoPeriodoDespPrevista", "finCeoPeriodoDespPaga", "finCeoPeriodoSaldoPrevisto", "finCeoPeriodoSaldoReal"].forEach(
-        (id) => {
+    const limparUnidades = () => {
+      PERIODO_UNIDADE_KPI_IDS.forEach((ids) => {
+        [ids.recPrev, ids.recReal, ids.despPrev, ids.despPaga, ids.salPrev, ids.salReal].forEach((id) => {
           const el = document.getElementById(id);
           if (el) el.textContent = "—";
-        }
-      );
+        });
+        aplicarClasseSaldoPeriodo(document.getElementById(ids.salPrev)?.closest(".fin-kpi"), 0);
+      });
+    };
+    const periodo = obterPeriodoCeoDash();
+    if (!periodo.ok) {
+      limparUnidades();
       if (hint) hint.textContent = "Informe data de início e fim válidas (DD/MM/AAAA).";
       renderGraficoPeriodoCeo();
       return;
     }
     const r = calcResumoPeriodoCeo(periodo);
-    setVal("finCeoPeriodoRecPrevista", r.receitaPrevista);
-    setVal("finCeoPeriodoRecReal", r.receitaReal);
-    setVal("finCeoPeriodoDespPrevista", r.despesaPrevista);
-    setVal("finCeoPeriodoDespPaga", r.despesaPaga);
-    setVal("finCeoPeriodoSaldoPrevisto", r.saldoPrevisto);
-    setVal("finCeoPeriodoSaldoReal", r.saldoReal);
-    aplicarClasseSaldoPeriodo(document.getElementById("finCeoPeriodoSaldoPrevisto")?.closest(".fin-kpi"), r.saldoPrevisto);
-    aplicarClasseSaldoPeriodo(document.getElementById("finCeoPeriodoSaldoReal")?.closest(".fin-kpi"), r.saldoReal);
+    const por = r.porUnidade || {};
+    PERIODO_UNIDADE_KPI_IDS.forEach((ids) => {
+      const b = por[ids.key] || blocoResumoUnidadeCeo();
+      setVal(ids.recPrev, b.receitaPrevista);
+      setVal(ids.recReal, b.receitaReal);
+      setVal(ids.despPrev, b.despesaPrevista);
+      setVal(ids.despPaga, b.despesaPaga);
+      setVal(ids.salPrev, b.saldoPrevisto);
+      setVal(ids.salReal, b.saldoReal);
+      aplicarClasseSaldoPeriodo(document.getElementById(ids.salPrev)?.closest(".fin-kpi"), b.saldoPrevisto);
+    });
     if (hint) {
       hint.textContent = `Período ${fmtBrDate(periodo.d0)} a ${fmtBrDate(periodo.d1)} · ${r.dias} dia(s) · saldo previsto ${brl(
         r.saldoPrevisto

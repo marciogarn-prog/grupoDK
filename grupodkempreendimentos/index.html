@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260907and-scr">
+  <link rel="stylesheet" href="styles.css?v=20260907per-uni">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3428,37 +3428,242 @@
                   </div>
                 </div>
                 <p id="finCeoPeriodoHint" class="fin-ceo-periodo__hint subtext" role="status">—</p>
-                <div class="fin-ceo-kpis fin-kpis fin-ceo-periodo-kpis" id="finCeoPeriodoKpis">
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev">
-                    <span class="fin-kpi__lab">Receita prevista no período</span>
-                    <strong id="finCeoPeriodoRecPrevista">—</strong>
-                    <span class="fin-kpi__hint">locadora (semanal ÷ 7 × dias) + unidades</span>
-                  </div>
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-real">
-                    <span class="fin-kpi__lab">Receita real ocorrida no período</span>
-                    <strong id="finCeoPeriodoRecReal">—</strong>
-                    <span class="fin-kpi__hint">pagamentos de aluguel + receitas das unidades</span>
-                  </div>
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev">
-                    <span class="fin-kpi__lab">Despesas previstas no período</span>
-                    <strong id="finCeoPeriodoDespPrevista">—</strong>
-                    <span class="fin-kpi__hint">parcelas com vencimento no intervalo</span>
-                  </div>
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-paga">
-                    <span class="fin-kpi__lab">Despesas pagas no período</span>
-                    <strong id="finCeoPeriodoDespPaga">—</strong>
-                    <span class="fin-kpi__hint">parcelas do intervalo marcadas PAGO</span>
-                  </div>
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev">
-                    <span class="fin-kpi__lab">Saldo previsto</span>
-                    <strong id="finCeoPeriodoSaldoPrevisto">—</strong>
-                    <span class="fin-kpi__hint">receita prevista − despesa prevista</span>
-                  </div>
-                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-real">
-                    <span class="fin-kpi__lab">Saldo real</span>
-                    <strong id="finCeoPeriodoSaldoReal">—</strong>
-                    <span class="fin-kpi__hint">receita real − despesas pagas</span>
-                  </div>
+                <div class="fin-ceo-kpis fin-kpis fin-ceo-periodo-kpis fin-ceo-periodo-unidades" id="finCeoPeriodoKpis">
+                  <section class="fin-ceo-periodo-unidade" data-unidade="locadora" aria-labelledby="finCeoPeriodoTitLoc">
+                    <h5 class="fin-ceo-periodo-unidade__tit" id="finCeoPeriodoTitLoc">Caixa 01 · DK Locadora</h5>
+                    <div class="fin-ceo-periodo-unidade__grid">
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Receita no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Receita prevista no período</span>
+                            <strong id="finCeoPeriodoLocRecPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Receita real no período</span>
+                            <strong id="finCeoPeriodoLocRecReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">semanal ÷ 7 × dias · aluguéis pagos</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Despesa no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Despesa prevista no período</span>
+                            <strong id="finCeoPeriodoLocDespPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Despesa real no período</span>
+                            <strong id="finCeoPeriodoLocDespPaga">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">parcelas da DK Locadora · paga = PAGO</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Saldo</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Saldo previsto</span>
+                            <strong id="finCeoPeriodoLocSaldoPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Saldo real</span>
+                            <strong id="finCeoPeriodoLocSaldoReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receita − despesa desta unidade</span>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="fin-ceo-periodo-unidade" data-unidade="construtora" aria-labelledby="finCeoPeriodoTitCon">
+                    <h5 class="fin-ceo-periodo-unidade__tit" id="finCeoPeriodoTitCon">Caixa 02 · DK Construtora</h5>
+                    <div class="fin-ceo-periodo-unidade__grid">
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Receita no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Receita prevista no período</span>
+                            <strong id="finCeoPeriodoConRecPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Receita real no período</span>
+                            <strong id="finCeoPeriodoConRecReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receitas cadastradas da Construtora</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Despesa no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Despesa prevista no período</span>
+                            <strong id="finCeoPeriodoConDespPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Despesa real no período</span>
+                            <strong id="finCeoPeriodoConDespPaga">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">parcelas da DK Construtora · paga = PAGO</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Saldo</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Saldo previsto</span>
+                            <strong id="finCeoPeriodoConSaldoPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Saldo real</span>
+                            <strong id="finCeoPeriodoConSaldoReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receita − despesa desta unidade</span>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="fin-ceo-periodo-unidade" data-unidade="centro" aria-labelledby="finCeoPeriodoTitCen">
+                    <h5 class="fin-ceo-periodo-unidade__tit" id="finCeoPeriodoTitCen">Caixa 03 · DK Centro Automotivo</h5>
+                    <div class="fin-ceo-periodo-unidade__grid">
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Receita no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Receita prevista no período</span>
+                            <strong id="finCeoPeriodoCenRecPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Receita real no período</span>
+                            <strong id="finCeoPeriodoCenRecReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receitas cadastradas do Centro Automotivo</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Despesa no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Despesa prevista no período</span>
+                            <strong id="finCeoPeriodoCenDespPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Despesa real no período</span>
+                            <strong id="finCeoPeriodoCenDespPaga">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">parcelas do Centro Automotivo · paga = PAGO</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Saldo</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Saldo previsto</span>
+                            <strong id="finCeoPeriodoCenSaldoPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Saldo real</span>
+                            <strong id="finCeoPeriodoCenSaldoReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receita − despesa desta unidade</span>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="fin-ceo-periodo-unidade" data-unidade="particular" aria-labelledby="finCeoPeriodoTitPar">
+                    <h5 class="fin-ceo-periodo-unidade__tit" id="finCeoPeriodoTitPar">Caixa 04 · Particular</h5>
+                    <div class="fin-ceo-periodo-unidade__grid">
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Receita no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Receita prevista no período</span>
+                            <strong id="finCeoPeriodoParRecPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Receita real no período</span>
+                            <strong id="finCeoPeriodoParRecReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">Particular não tem receita operacional cadastrada</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Despesa no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Despesa prevista no período</span>
+                            <strong id="finCeoPeriodoParDespPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Despesa real no período</span>
+                            <strong id="finCeoPeriodoParDespPaga">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">parcelas Particulares · paga = PAGO</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Saldo</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Saldo previsto</span>
+                            <strong id="finCeoPeriodoParSaldoPrev">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Saldo real</span>
+                            <strong id="finCeoPeriodoParSaldoReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receita − despesa desta unidade</span>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="fin-ceo-periodo-unidade fin-ceo-periodo-unidade--total" data-unidade="total" aria-labelledby="finCeoPeriodoTitTot">
+                    <h5 class="fin-ceo-periodo-unidade__tit" id="finCeoPeriodoTitTot">Caixa 05 · Total</h5>
+                    <div class="fin-ceo-periodo-unidade__grid">
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Receita prevista total no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Receita prevista total no período</span>
+                            <strong id="finCeoPeriodoRecPrevista">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Receita real total no período</span>
+                            <strong id="finCeoPeriodoRecReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">soma das quatro unidades</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Despesa prevista total no período</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Despesa prevista total no período</span>
+                            <strong id="finCeoPeriodoDespPrevista">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Despesa real total no período</span>
+                            <strong id="finCeoPeriodoDespPaga">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">soma das quatro unidades · paga = PAGO</span>
+                      </div>
+                      <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                        <span class="fin-kpi__lab">Saldo total</span>
+                        <div class="fin-kpi__duo">
+                          <div class="fin-kpi__duo-real">
+                            <span class="fin-kpi__duo-tag">Saldo previsto</span>
+                            <strong id="finCeoPeriodoSaldoPrevisto">—</strong>
+                          </div>
+                          <div class="fin-kpi__duo-sim">
+                            <span class="fin-kpi__duo-tag">Saldo real</span>
+                            <strong id="finCeoPeriodoSaldoReal">—</strong>
+                          </div>
+                        </div>
+                        <span class="fin-kpi__hint">receita total − despesa total</span>
+                      </div>
+                    </div>
+                  </section>
                 </div>
               </section>
               <h4 class="fin-subh" id="finCeoPeriodoChartTitulo">Saldo mês a mês</h4>
@@ -4374,7 +4579,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260907and-scr" defer></script>
+  <script src="app.js?v=20260907per-uni" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4382,11 +4587,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260907and-scr" defer></script>
+  <script src="portal-locadora-ui.js?v=20260907per-uni" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260907and-scr" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260907per-uni" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
