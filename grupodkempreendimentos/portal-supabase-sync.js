@@ -3583,6 +3583,9 @@
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
   async function pushCloudSnapshotNow(opts) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return { ok: true, skipped: true, reason: "android_somente_leitura" };
+    }
     if (window.__DK_IS_OFFLINE_MODE__ === true && !(opts && opts.force)) {
       if (typeof window.__DK_offlineOnLocalChange === "function") {
         window.__DK_offlineOnLocalChange();
@@ -3840,6 +3843,9 @@
   }
 
   function pushToCloudAfterSave() {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return Promise.resolve();
+    }
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return Promise.resolve();
     return window.__DK_pushCloudSnapshotNow({ force: true }).catch((e) => {
       console.warn("[DK cloud] push após guardar", e);

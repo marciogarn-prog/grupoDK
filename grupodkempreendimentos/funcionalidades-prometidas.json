@@ -1337,6 +1337,39 @@
           "Estas opções da nuvem são só para administrador."
         ]
       }
+    },
+    {
+      "id": "plataforma-windows-android",
+      "descricao": "No login da empresa o sistema pergunta a plataforma: Windows (computador, área completa) ou Android (celular, somente visualização). Uma versão não altera a outra. No Android celular nada é lançado nem cadastrado. Só o Administrador CEO entra no app da empresa pelo celular. Fora o CEO, os clientes só acessam a versão App Android (Área do Cliente).",
+      "ficheiros": {
+        "index.html": [
+          "panel-plataforma",
+          "Qual plataforma?",
+          "btn-plataforma-windows",
+          "btn-plataforma-android",
+          "portalAndroidSomenteLeituraBanner",
+          "ANDROID · somente visualização",
+          "Área do Cliente"
+        ],
+        "portal-locadora-ui.js": [
+          "portalMostrarEscolhaPlataforma",
+          "portalConfirmarPlataformaLogin",
+          "portalAndroidSomenteLeitura",
+          "portalAndroidBloquearEscrita",
+          "plataforma: plat",
+          "Pelo celular, o app da empresa é exclusivo do Administrador CEO",
+          "portal-plataforma-android"
+        ],
+        "styles.css": [
+          "portal-plataforma-pick",
+          "portal-plataforma-card",
+          "body.portal-plataforma-android",
+          "somente visualização"
+        ],
+        "cliente.html": [
+          "App Android · DK Locadora"
+        ]
+      }
     }
   ]
 }

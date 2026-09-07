@@ -631,6 +631,7 @@
   const loginUnit = document.getElementById("login-unit");
   const loginRole = document.getElementById("login-role");
   const panelLogin = document.getElementById("panel-login");
+  const panelPlataforma = document.getElementById("panel-plataforma");
   const panelSenha = document.getElementById("panel-senha");
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
@@ -664,6 +665,8 @@
   let currentUnit = "";
   /** Referência ao funcionário em `funcionariosAccess` à espera de troca de senha (1.º acesso colaborador). */
   let portalColaboradorSenhaPendente = null;
+  /** Após CPF/senha ok, espera a escolha Windows ou Android. */
+  let portalLoginPendentePlataforma = null;
   /** Comprimento anterior do CPF (só dígitos) para limpar campos ao sair de 11 dígitos. */
   let portalColabCpfPrevLen = 0;
   let portalColabListaCpfAtivo = "";
@@ -1759,7 +1762,113 @@
     document.getElementById(visiveis[0])?.dispatchEvent(new Event("click", { bubbles: true }));
   }
 
-  function finalizarLoginEquipaPortal(funcionario) {
+  function portalFuncionarioEhCeo(funcionario) {
+    const cpf = onlyDigits(String(funcionario?.cpf || "")).slice(0, 11);
+    return cpf === DK_LOCADORA_ADMIN_CPF && String(funcionario?.role || "").trim() === "owner";
+  }
+
+  function portalLerPlataformaSessao() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return "windows";
+      const s = JSON.parse(raw);
+      return String(s?.plataforma || "windows").toLowerCase() === "android" ? "android" : "windows";
+    } catch {
+      return "windows";
+    }
+  }
+
+  function portalAndroidSomenteLeitura() {
+    return portalLerPlataformaSessao() === "android";
+  }
+
+  function portalAvisoAndroidSomenteLeitura() {
+    const t =
+      "Versão Android: somente visualização. Nada é lançado ou cadastrado pelo celular. Para gravar, saia e entre em Windows (computador).";
+    window.alert(t);
+    return t;
+  }
+
+  function portalAndroidBloquearEscrita(msgEl) {
+    if (!portalAndroidSomenteLeitura()) return false;
+    const t = portalAvisoAndroidSomenteLeitura();
+    if (msgEl && typeof msgEl === "object") msgEl.textContent = t;
+    return true;
+  }
+
+  function portalAplicarPlataformaUi(plat) {
+    const android = plat === "android";
+    document.documentElement.classList.toggle("portal-html--android", android);
+    document.body.classList.toggle("portal-plataforma-android", android);
+    document.body.classList.toggle("portal-plataforma-windows", !android);
+    const banner = document.getElementById("portalAndroidSomenteLeituraBanner");
+    if (banner) {
+      banner.hidden = !android;
+      banner.classList.toggle("hidden", !android);
+    }
+  }
+
+  function portalLimparPlataformaUi() {
+    portalAplicarPlataformaUi("windows");
+    document.body.classList.remove("portal-plataforma-windows");
+    document.documentElement.classList.remove("portal-html--android");
+  }
+
+  function portalMostrarEscolhaPlataforma(funcionario) {
+    portalLoginPendentePlataforma = funcionario;
+    hideAllPanels();
+    panelPlataforma?.classList.remove("hidden");
+    const quem = document.getElementById("plataforma-quem");
+    if (quem) {
+      const ceo = portalFuncionarioEhCeo(funcionario);
+      quem.textContent = `${String(funcionario.nome || "").trim() || "Equipa"} · ${
+        ceo ? "Administrador CEO" : funcionario.role === "owner" ? "Administrador" : "Colaborador"
+      }`;
+    }
+    const fb = document.getElementById("login-plataforma-feedback");
+    if (fb) fb.textContent = "";
+    portalSyncAuthAutofillState();
+  }
+
+  function portalConfirmarPlataformaLogin(plat) {
+    const funcionario = portalLoginPendentePlataforma;
+    const fb = document.getElementById("login-plataforma-feedback");
+    if (!funcionario) {
+      if (fb) fb.textContent = "Sessão inválida. Volte ao login.";
+      return;
+    }
+    if (plat === "android" && !portalFuncionarioEhCeo(funcionario)) {
+      if (fb) {
+        fb.textContent =
+          "Pelo celular, o app da empresa é exclusivo do Administrador CEO. Colaboradores e outros administradores usam Windows (computador). Clientes entram na Área do Cliente.";
+      }
+      return;
+    }
+    portalLoginPendentePlataforma = null;
+    finalizarLoginEquipaPortal(funcionario, plat);
+    portalPersistirAreaAtiva("equipa");
+  }
+
+  function finalizarLoginEquipaPortal(funcionario, plataforma) {
+    const platRaw = plataforma || portalLerPlataformaSessao();
+    const plat = platRaw === "android" ? "android" : "windows";
+    if (plat === "android" && !portalFuncionarioEhCeo(funcionario)) {
+      portalLimparPlataformaUi();
+      try {
+        localStorage.removeItem("dk_sessao_cliente");
+      } catch {
+        /* ignore */
+      }
+      hideAllPanels();
+      panelLogin?.classList.remove("hidden");
+      if (loginFeedback) {
+        loginFeedback.textContent =
+          "Pelo celular, o app da empresa é exclusivo do Administrador CEO. Use Windows (computador) ou a Área do Cliente.";
+        loginFeedback.classList.add("portal-feedback--error");
+      }
+      portalSyncAuthAutofillState();
+      return;
+    }
     localStorage.setItem(
       "dk_sessao_cliente",
       JSON.stringify({
@@ -1767,6 +1876,7 @@
         cpf: funcionario.cpf,
         nome: funcionario.nome,
         role: funcionario.role,
+        plataforma: plat,
         loginAt: Date.now(),
       })
     );
@@ -1775,16 +1885,19 @@
     } catch {
       /* ignore */
     }
+    portalAplicarPlataformaUi(plat);
     hideAllPanels();
     panelLogado?.classList.remove("hidden");
-    if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
+    if (logadoTitulo) {
+      logadoTitulo.textContent = plat === "android" ? "Área da empresa · Android" : "Área da equipa";
+    }
     if (logadoTexto) {
       const titularCeo =
         onlyDigits(String(funcionario.cpf || "")) === DK_LOCADORA_ADMIN_CPF &&
         funcionario.role === "owner";
       logadoTexto.textContent = `${funcionario.nome} · ${
         titularCeo ? "Administrador CEO" : funcionario.role === "owner" ? "Administrador" : funcionario.role
-      }`;
+      }${plat === "android" ? " · somente visualização" : ""}`;
     }
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
@@ -2145,6 +2258,8 @@
     }
 
     portalResetSessaoSeNaoAdmin();
+    portalLimparPlataformaUi();
+    portalLoginPendentePlataforma = null;
     if (unitLead) unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
     resetPortalLoginFormularioETipoAcesso();
@@ -2201,7 +2316,7 @@
 
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].forEach(
+    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -3108,10 +3223,22 @@
         if (sf) sf.textContent = "";
         return;
       }
-      finalizarLoginEquipaPortal(funcionario);
-      portalPersistirAreaAtiva("equipa");
+      portalMostrarEscolhaPlataforma(funcionario);
       return;
     }
+  });
+
+  document.getElementById("btn-plataforma-windows")?.addEventListener("click", () => {
+    portalConfirmarPlataformaLogin("windows");
+  });
+  document.getElementById("btn-plataforma-android")?.addEventListener("click", () => {
+    portalConfirmarPlataformaLogin("android");
+  });
+  document.getElementById("btn-plataforma-voltar-login")?.addEventListener("click", () => {
+    portalLoginPendentePlataforma = null;
+    hideAllPanels();
+    panelLogin?.classList.remove("hidden");
+    portalSyncAuthAutofillState();
   });
 
   formNovaSenha?.addEventListener("submit", (ev) => {
@@ -3143,8 +3270,7 @@
       void window.__DK_pushToCloudAfterSave();
     }
     portalColaboradorSenhaPendente = null;
-    finalizarLoginEquipaPortal(f);
-    portalPersistirAreaAtiva("equipa");
+    portalMostrarEscolhaPlataforma(f);
   });
 
   btnOperacao?.addEventListener("click", () => {
@@ -9204,6 +9330,8 @@
 
   btnSair?.addEventListener("click", () => {
     portalColaboradorSenhaPendente = null;
+    portalLoginPendentePlataforma = null;
+    portalLimparPlataformaUi();
     portalLimparAreaAtiva();
     if (typeof clearSession === "function") clearSession();
     try {
@@ -9616,6 +9744,7 @@
 
     function persistOperacaoClienteAtualizacao(cpfDigits, fonte) {
       const msg = document.getElementById("operacaoClienteInlineMsg");
+      if (portalAndroidBloquearEscrita(msg)) return false;
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
       const nomeDigitado = getVal("operacaoClienteNome");
       const nomeFinal = nomeDigitado || String(fonte?.nome || "").trim();
@@ -10029,6 +10158,7 @@
     });
 
     function persistOperacaoClienteNovo(digits) {
+      if (portalAndroidBloquearEscrita(msg)) return false;
       if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
         if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
         return false;
@@ -16046,6 +16176,7 @@
 
   function persistPortalLancamentoCaucao() {
     const msg = document.getElementById("portalCaucaoMsg");
+    if (portalAndroidBloquearEscrita(msg)) return;
     if (!getPortalSessaoAdminRole()) {
       if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registrar a caução.";
       return;
@@ -17238,6 +17369,7 @@
 
   function executarAlteracaoNumeroProtocolo(oldNcRaw, newNcRaw) {
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (portalAndroidBloquearEscrita(msg)) return { ok: false };
     if (!portalPodeAlterarNumeroProtocoloAdmin()) {
       if (msg) msg.textContent = "Apenas o administrador CPF 030.378.974-30 pode alterar o número do protocolo.";
       return { ok: false };
@@ -17334,6 +17466,7 @@
   }
 
   function iniciarSalvarAlteracaoProtocolo() {
+    if (portalAndroidBloquearEscrita()) return;
     if (!portalPodeAlterarNumeroProtocoloAdmin()) {
       openPortalAlterarProtocoloModal({
         mode: "aviso",
@@ -17495,6 +17628,7 @@
   }
 
   function persistPortalLocacaoFinalizar() {
+    if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (!isPortalTitularAdministrador()) {
       portalLocacaoFeedback("Apenas o administrador pode encerrar (finalizar) uma locação.");
@@ -17636,6 +17770,7 @@
   }
 
   function persistPortalLocacaoCancelar() {
+    if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     if (!isPortalTitularAdministrador()) {
       portalLocacaoFeedback("Apenas o administrador pode cancelar um contrato.");
       return;
@@ -17807,6 +17942,7 @@
   function persistPortalOperacaoVeiculoInlineSubmit(ev) {
     ev.preventDefault();
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (portalAndroidBloquearEscrita(msg)) return;
     if (
       typeof loadCadastro !== "function" ||
       typeof saveCadastro !== "function" ||
@@ -17989,6 +18125,7 @@
   /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
   function persistPortalOperacaoLocacaoInlineSubmit(ev) {
     ev.preventDefault();
+    if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
@@ -20481,6 +20618,7 @@
   }
 
   async function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
+    if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -20781,6 +20919,7 @@
   }
 
   function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
+    if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -24540,6 +24679,9 @@
   window.__DK_portalRefreshMielAcesso = refreshPortalMielHomeAcesso;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
+  window.__DK_portalAndroidSomenteLeitura = portalAndroidSomenteLeitura;
+  window.__DK_portalAndroidBloquearEscrita = portalAndroidBloquearEscrita;
+  window.__DK_portalLerPlataformaSessao = portalLerPlataformaSessao;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
@@ -24656,5 +24798,76 @@
     if (loc) applyOperacaoLancamentoAluguelFromLoc(loc);
     refreshOperacaoLancAluguelResumoCompacto();
   };
+
+  const PORTAL_ANDROID_ESCRITA_IDS = new Set([
+    "btn-dk-cloud-push",
+    "btn-dk-backup-import",
+    "btn-dk-backup-email",
+    "operacaoClienteAtualizarBtn",
+    "operacaoClienteApagarBtn",
+    "operacaoClienteSenhaResetBtn",
+    "operacaoVeiculoApagarBtn",
+    "operacaoLocacaoProtocoloSalvarAlteracaoBtn",
+    "operacaoLocacaoDocBuscarContratoBtn",
+    "operacaoLocacaoDocBuscarCrlvBtn",
+    "operacaoLocacaoSubmitBtn",
+    "operacaoLocacaoApagarProtocoloBtn",
+    "operacaoLocacaoFinalizarBtn",
+    "operacaoLocacaoCancelarBtn",
+    "operacaoLancAluguelConfirmarPagamentoBtn",
+    "operacaoLancAluguelConfirmarDevolucaoBtn",
+    "operacaoLancAluguelLancBlocoBtn",
+    "portalOperadorComprovanteConfirmarBtn",
+    "portalComprovanteClienteBtnConfirmar",
+    "operacaoLancMultasOcrSalvarBtn",
+    "operacaoLancMultasOcrExcluirBtn",
+    "operacaoLancMultasCadastrarBtn",
+    "operacaoLancMultasDocImportBtn",
+    "portalColabBtnCadastrar",
+    "portalColabBtnSalvarAlteracoes",
+    "portalAdminBtnCadastrar",
+    "operacaoLancManutencaoCadastrarBtn",
+    "portalClienteConfirmSalvarBtn",
+    "portalClienteConfirmAtualizarBtn",
+    "portalDevolverClienteConfirmarBtn",
+    "portalLancAluguelCalSalvarBtn",
+    "portalLancAluguelEditSalvarBtn",
+    "portalAlterarProtocoloSimBtn",
+    "finCeoDespConfirmSimBtn",
+    "finCeoDespPagoSimBtn",
+  ]);
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!portalAndroidSomenteLeitura()) return;
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      const btn = t.closest("button, [data-dk-escrita]");
+      if (!btn) return;
+      if (btn.closest("#form-login") || btn.closest("#form-nova-senha") || btn.closest("#panel-plataforma")) return;
+      const id = btn.id || "";
+      const isSubmit = btn.matches('button[type="submit"], input[type="submit"]');
+      if (!PORTAL_ANDROID_ESCRITA_IDS.has(id) && !btn.hasAttribute("data-dk-escrita") && !isSubmit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      portalAvisoAndroidSomenteLeitura();
+    },
+    true
+  );
+
+  document.addEventListener(
+    "submit",
+    (e) => {
+      if (!portalAndroidSomenteLeitura()) return;
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (form.id === "form-login" || form.id === "form-nova-senha") return;
+      e.preventDefault();
+      e.stopPropagation();
+      portalAvisoAndroidSomenteLeitura();
+    },
+    true
+  );
 })();
 

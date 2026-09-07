@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260906ceo-am">
+  <link rel="stylesheet" href="styles.css?v=20260907plat-and">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -469,6 +469,11 @@
         </div>
       </header>
 
+      <div id="portalAndroidSomenteLeituraBanner" class="portal-android-banner hidden" hidden role="status">
+        <strong>ANDROID · somente visualização</strong>
+        <span>Nada é lançado ou cadastrado pelo celular. Para gravar, saia e entre em Windows (computador).</span>
+      </div>
+
       <div class="portal-unit-heading">
         <h1 id="unit-page-title">Unidade</h1>
         <p class="subpage__lead portal-unit-heading__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigatória no primeiro login).</p>
@@ -491,6 +496,29 @@
           <p id="login-feedback" class="portal-feedback" role="status"></p>
           <button type="submit" class="btn-primary">Entrar</button>
         </form>
+      </section>
+
+      <section id="panel-plataforma" class="portal-panel portal-panel--auth portal-plataforma-pick hidden" aria-live="polite">
+        <h2 class="portal-panel__title" id="plataforma-panel-title">Qual plataforma?</h2>
+        <p class="subtext" id="plataforma-panel-lead">Windows é o computador (lançamentos e cadastros). Android é o celular (somente visualização). As duas versões mostram os mesmos dados e uma não altera a outra.</p>
+        <p id="plataforma-quem" class="portal-plataforma-pick__quem"></p>
+        <p id="login-plataforma-feedback" class="portal-feedback portal-feedback--error" role="status"></p>
+        <div class="portal-plataforma-pick__grid">
+          <button type="button" class="portal-plataforma-card" id="btn-plataforma-windows" data-plataforma="windows">
+            <span class="portal-plataforma-card__icon" aria-hidden="true">🖥️</span>
+            <span class="portal-plataforma-card__title">Windows</span>
+            <span class="portal-plataforma-card__sub">Computador</span>
+            <span class="portal-plataforma-card__desc">Área completa da empresa: cadastros, lançamentos e FINANCEIRO CEO.</span>
+          </button>
+          <button type="button" class="portal-plataforma-card" id="btn-plataforma-android" data-plataforma="android">
+            <span class="portal-plataforma-card__icon" aria-hidden="true">📱</span>
+            <span class="portal-plataforma-card__title">Android</span>
+            <span class="portal-plataforma-card__sub">Celular</span>
+            <span class="portal-plataforma-card__desc">Somente visualização. Só o Administrador CEO entra no app da empresa pelo celular. Clientes usam a Área do Cliente.</span>
+          </button>
+        </div>
+        <p class="subtext portal-plataforma-pick__cliente">É cliente? <a href="/cliente">Abra o app Android da Área do Cliente</a>.</p>
+        <button type="button" class="btn-primary btn-secondary-outline" id="btn-plataforma-voltar-login">Voltar ao login</button>
       </section>
 
       <section id="panel-senha" class="portal-panel portal-panel--auth hidden" aria-live="polite">
@@ -4338,7 +4366,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260906ceo-am" defer></script>
+  <script src="app.js?v=20260907plat-and" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4346,11 +4374,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260906ceo-am" defer></script>
+  <script src="portal-locadora-ui.js?v=20260907plat-and" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260906ceo-am" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260907plat-and" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -4388,14 +4416,14 @@
   <script src="portal-contrato-pacote.js?v=20260901cnh-pares" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="dk-parse-autuacao-transito.js?v=20260904placa-ocr" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260904admin-priv" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260907plat-and" defer></script>
   <script src="portal-multas-ocr.js?v=20260904placa-frota" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260904admin-priv" defer></script>
-  <script src="portal-supabase-sync.js?v=20260904avisos-fix" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
+  <script src="portal-supabase-sync.js?v=20260907plat-and" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

@@ -2766,6 +2766,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function persistirPagamentosDirecionados(rec, direcionamento, regCpf, regNome) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return { ok: false, msg: "Versão Android: somente visualização. Nada é lançado pelo celular." };
+    }
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, msg: "Cadastro indisponível." };
     }
@@ -2845,6 +2848,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function persistirPagamentoNaLocacao(rec, valorRegisto) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return { ok: false, msg: "Versão Android: somente visualização. Nada é lançado pelo celular." };
+    }
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, msg: "Cadastro indisponível." };
     }

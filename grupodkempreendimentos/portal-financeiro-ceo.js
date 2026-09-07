@@ -974,6 +974,9 @@
   }
 
   function marcarPagamentoLinhaComoPago(despesaId, pagNum, data) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return;
+    }
     const map = loadSituacaoPagamentosMap();
     const chave = chaveSituacaoPagamento(despesaId, pagNum, data);
     map.set(chave, { chave, situacao: "PAGO", pagoEm: new Date().toISOString() });
@@ -1012,6 +1015,9 @@
   }
 
   function confirmarPagoDespesaModal() {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return;
+    }
     const pending = finCeoDespPagoPending;
     if (!pending) return;
     marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data);
@@ -3007,6 +3013,11 @@
   }
 
   function persistirDespesaEdicao(entry, editMeta) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      const fbBlock = document.getElementById("finCeoDespFeedback");
+      if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
+      return;
+    }
     const fb = document.getElementById("finCeoDespFeedback");
     let list = loadDespesasCeo();
     const result =
@@ -3044,6 +3055,11 @@
   }
 
   function persistirDespesaEntry(entry) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      const fbBlock = document.getElementById("finCeoDespFeedback");
+      if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
+      return;
+    }
     const fb = document.getElementById("finCeoDespFeedback");
     const list = loadDespesasCeo();
     list.push({
@@ -3929,6 +3945,9 @@
 
   /** Excluir some da lista: cada linha (PAGAMENTO 01, 02…) tem o próprio Excluir. */
   function excluirDespesa(id, pagNum) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return;
+    }
     const result = aplicarExcluirPagamentoDespesa(loadDespesasCeo(), id, pagNum || 1);
     if (!result.ok) return;
     saveDespesasCeo(result.list);

@@ -725,6 +725,9 @@
   }
 
   function persistLancamentos(cfg, locs, loc, cpfDigits, nc) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return false;
+    }
     if (isParcelado(cfg)) {
       const normArr = getRegistrosParcelados(loc, cfg);
       loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));

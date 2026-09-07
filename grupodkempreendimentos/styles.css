@@ -12520,3 +12520,211 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
+
+/* ——— Escolha Windows / Android no login (não mexe na sessão Windows) ——— */
+.portal-plataforma-pick__quem {
+  margin: 0.35rem 0 0.75rem;
+  font-weight: 700;
+  color: var(--text, #1a1a1a);
+}
+.portal-plataforma-pick__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  margin: 0.5rem 0 1rem;
+}
+@media (min-width: 640px) {
+  .portal-plataforma-pick__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.portal-plataforma-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: left;
+  padding: 1.05rem 1.1rem 1.15rem;
+  min-height: 9.5rem;
+  border: 2px solid rgba(54, 69, 79, 0.22);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.portal-plataforma-card:hover,
+.portal-plataforma-card:focus-visible {
+  border-color: #36454f;
+  outline: 2px solid #ffd54f;
+  outline-offset: 2px;
+}
+.portal-plataforma-card__icon {
+  font-size: 1.65rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+.portal-plataforma-card__title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.portal-plataforma-card__sub {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #36454f;
+}
+.portal-plataforma-card__desc {
+  margin-top: 0.35rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: #444;
+}
+#btn-plataforma-android {
+  background: #f4f7f5;
+}
+.portal-plataforma-pick__cliente {
+  margin: 0 0 0.85rem;
+}
+.portal-plataforma-pick__cliente a {
+  font-weight: 700;
+}
+
+.portal-android-banner {
+  display: none;
+}
+
+/* ——— Versão Android (celular): somente visualização. Isolada — não altera Windows. ——— */
+body.portal-plataforma-android .portal-android-banner {
+  display: block;
+  position: sticky;
+  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px));
+  z-index: 40;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #36454f;
+  color: #ffd54f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+body.portal-plataforma-android .portal-android-banner strong {
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+body.portal-plataforma-android .portal-android-banner span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  color: #f3f4f6;
+  line-height: 1.35;
+}
+
+body.portal-plataforma-android #view-unit.view--active {
+  overflow: auto;
+  height: auto;
+  max-height: none;
+}
+body.portal-plataforma-android #view-unit.view--active > .subpage--wide {
+  display: block;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+body.portal-plataforma-android #panel-operacao-locadora:not(.hidden),
+body.portal-plataforma-android #panel-manutencao-locadora:not(.hidden),
+body.portal-plataforma-android #panel-financeiro-locadora:not(.hidden),
+body.portal-plataforma-android #panel-financeiro-ceo-locadora:not(.hidden) {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+body.portal-plataforma-android .logado-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+body.portal-plataforma-android .logado-actions .btn-primary {
+  width: 100%;
+  min-height: 3rem;
+  font-size: 1.02rem;
+}
+
+body.portal-plataforma-android .portal-operacao-layout,
+body.portal-plataforma-android .fin-pptx__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+body.portal-plataforma-android .portal-operacao-layout__sidebar,
+body.portal-plataforma-android .fin-pptx__rail {
+  position: static;
+  max-height: none;
+  width: 100%;
+}
+body.portal-plataforma-android .portal-operacao-layout__sidebar .operacao-comandos,
+body.portal-plataforma-android .fin-pptx__rail .operacao-comandos {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding: 0.15rem 0 0.45rem;
+  -webkit-overflow-scrolling: touch;
+}
+body.portal-plataforma-android .btn-operacao-cmd {
+  flex: 0 0 auto;
+  min-width: 10.5rem;
+  max-width: 14rem;
+}
+body.portal-plataforma-android .operacao-inline-form__grid {
+  grid-template-columns: 1fr;
+}
+
+body.portal-plataforma-android #btn-dk-cloud-push,
+body.portal-plataforma-android #btn-dk-backup-import,
+body.portal-plataforma-android #btn-dk-backup-email,
+body.portal-plataforma-android #operacaoClienteAtualizarBtn,
+body.portal-plataforma-android #operacaoClienteApagarBtn,
+body.portal-plataforma-android #operacaoClienteSenhaResetBtn,
+body.portal-plataforma-android #operacaoVeiculoApagarBtn,
+body.portal-plataforma-android #operacaoLocacaoProtocoloSalvarAlteracaoBtn,
+body.portal-plataforma-android #operacaoLocacaoDocBuscarContratoBtn,
+body.portal-plataforma-android #operacaoLocacaoDocBuscarCrlvBtn,
+body.portal-plataforma-android #operacaoLocacaoSubmitBtn,
+body.portal-plataforma-android #operacaoLocacaoApagarProtocoloBtn,
+body.portal-plataforma-android #operacaoLocacaoFinalizarBtn,
+body.portal-plataforma-android #operacaoLocacaoCancelarBtn,
+body.portal-plataforma-android #operacaoLancAluguelConfirmarPagamentoBtn,
+body.portal-plataforma-android #operacaoLancAluguelConfirmarDevolucaoBtn,
+body.portal-plataforma-android #operacaoLancAluguelLancBlocoBtn,
+body.portal-plataforma-android #portalOperadorComprovanteConfirmarBtn,
+body.portal-plataforma-android #portalComprovanteClienteBtnConfirmar,
+body.portal-plataforma-android #operacaoLancMultasOcrSalvarBtn,
+body.portal-plataforma-android #operacaoLancMultasOcrExcluirBtn,
+body.portal-plataforma-android #operacaoLancMultasCadastrarBtn,
+body.portal-plataforma-android #operacaoLancMultasDocImportBtn,
+body.portal-plataforma-android #portalColabBtnCadastrar,
+body.portal-plataforma-android #portalColabBtnSalvarAlteracoes,
+body.portal-plataforma-android #portalAdminBtnCadastrar,
+body.portal-plataforma-android #operacaoLancManutencaoCadastrarBtn,
+body.portal-plataforma-android #portalClienteConfirmSalvarBtn,
+body.portal-plataforma-android #portalClienteConfirmAtualizarBtn,
+body.portal-plataforma-android #portalDevolverClienteConfirmarBtn,
+body.portal-plataforma-android #portalLancAluguelCalSalvarBtn,
+body.portal-plataforma-android #portalLancAluguelEditSalvarBtn,
+body.portal-plataforma-android #finCeoDespForm,
+body.portal-plataforma-android #finCeoDespConfirmModal,
+body.portal-plataforma-android #finCeoDespPagoModal,
+body.portal-plataforma-android .fin-ceo-desp-editar-evento,
+body.portal-plataforma-android button[type="submit"],
+body.portal-plataforma-android input[type="file"],
+body.portal-plataforma-android .portal-cliente-docs__drop {
+  display: none !important;
+}
+
+body.portal-plataforma-android #portal-cloud-sync-bar__actions #btn-dk-cloud-pull,
+body.portal-plataforma-android #btn-dk-cloud-pull {
+  display: inline-flex !important;
+}
