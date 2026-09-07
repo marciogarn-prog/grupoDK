@@ -1240,10 +1240,11 @@
     return ms >= startMs && ms <= endMs;
   }
 
-  function receitaUnidadesNoPeriodo(uniRows, startMs, endMs) {
+  function receitaUnidadesNoPeriodo(uniRows, startMs, endMs, filtro) {
     let total = 0;
     (uniRows || []).forEach((r) => {
       if (r?.tipo !== "receita") return;
+      if (filtro && !unidadePermitidaCeo(filtro, chaveUnidadeReceitaCeo(r))) return;
       const dt = parseBrDate(r.data);
       if (!dataNoIntervaloMs(dt, startMs, endMs)) return;
       total += Math.abs(parseValor(r.valor));
@@ -1337,6 +1338,38 @@
     return "locadora";
   }
 
+  function chaveUnidadeReceitaCeo(row) {
+    const u = String(row?.unit || "").toLowerCase();
+    if (u === "construtora") return "construtora";
+    if (u === "particular" || u === "particulares") return "particular";
+    return "centro";
+  }
+
+  function filtroUnidadesPeriodoCeoPadrao() {
+    return { locadora: true, centro: true, construtora: true, particular: true };
+  }
+
+  function unidadePermitidaCeo(filtro, key) {
+    if (!filtro) return true;
+    return Boolean(filtro[key]);
+  }
+
+  function obterFiltroUnidadesPeriodoCeo() {
+    const box = document.getElementById("finCeoPeriodoUnidFiltro");
+    const out = filtroUnidadesPeriodoCeoPadrao();
+    if (!box) return out;
+    box.querySelectorAll("[data-ceo-unid]").forEach((inp) => {
+      const k = inp.getAttribute("data-ceo-unid");
+      if (k && Object.prototype.hasOwnProperty.call(out, k)) out[k] = Boolean(inp.checked);
+    });
+    return out;
+  }
+
+  function filtroUnidadesPeriodoTemAlgumaCeo(filtro) {
+    const f = filtro || filtroUnidadesPeriodoCeoPadrao();
+    return Boolean(f.locadora || f.centro || f.construtora || f.particular);
+  }
+
   function receitaUnidadesPorUnitNoPeriodo(uniRows, startMs, endMs) {
     const out = { centro: 0, construtora: 0, particular: 0 };
     (uniRows || []).forEach((r) => {
@@ -1344,9 +1377,9 @@
       const dt = parseBrDate(r.data);
       if (!dataNoIntervaloMs(dt, startMs, endMs)) return;
       const v = Math.abs(parseValor(r.valor));
-      const u = String(r.unit || "").toLowerCase();
-      if (u === "construtora") out.construtora += v;
-      else if (u === "particular" || u === "particulares") out.particular += v;
+      const key = chaveUnidadeReceitaCeo(r);
+      if (key === "construtora") out.construtora += v;
+      else if (key === "particular") out.particular += v;
       else out.centro += v;
     });
     return out;
@@ -1454,16 +1487,18 @@
   }
 
   /** Séries brutas (não acumuladas) do período: receita e despesa por dia ou mês. */
-  function seriesPeriodoBrutasCeo(periodo) {
+  function seriesPeriodoBrutasCeo(periodo, filtroUnidades) {
     const vazio = { labels: [], receita: [], despesa: [], datas: [], modo: "mes" };
     if (!periodo?.ok) return vazio;
+    const filtro = filtroUnidades || filtroUnidadesPeriodoCeoPadrao();
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
     const despesas = loadDespesasCeo().map(normalizeDespesa);
-    const recDiaLoc = receitaSemanalLocadora(locs) / 7;
+    const recDiaLoc = unidadePermitidaCeo(filtro, "locadora") ? receitaSemanalLocadora(locs) / 7 : 0;
 
     const debPorDia = new Map();
     despesas.forEach((d) => {
+      if (!unidadePermitidaCeo(filtro, chaveUnidadeDespesaCeo(d.categoria))) return;
       expandirPagamentosDespesa(d, d.repeticoes).forEach((p) => {
         if (!dataNoIntervaloMs(p.data, periodo.startMs, periodo.endMs)) return;
         const v = Number(p.valor) || 0;
@@ -1477,6 +1512,7 @@
     const recUniPorDia = new Map();
     (uniRows || []).forEach((r) => {
       if (r?.tipo !== "receita") return;
+      if (!unidadePermitidaCeo(filtro, chaveUnidadeReceitaCeo(r))) return;
       const dt = parseBrDate(r.data);
       if (!dataNoIntervaloMs(dt, periodo.startMs, periodo.endMs)) return;
       const k = chaveDiaCeo(dt);
@@ -1521,7 +1557,7 @@
       for (let t = slice0.getTime(); t <= slice1.getTime(); t += 86400000) {
         deb += debPorDia.get(chaveDiaCeo(startOfDay(new Date(t)))) || 0;
       }
-      const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
+      const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs, filtro);
       labels.push(`${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`);
       datas.push(new Date(slice0));
       receita.push(rec);
@@ -1592,7 +1628,7 @@
   }
 
   /** Série do gráfico do período: mesmos formatos do Painel executivo (mês a mês + acumulado). */
-  function buildProjecaoPeriodoCeo(periodo, lotesSim) {
+  function buildProjecaoPeriodoCeo(periodo, lotesSim, filtroUnidades) {
     const vazio = {
       labels: [],
       saldo: [],
@@ -1607,7 +1643,7 @@
       saldoMes: [],
       saldoAcc: [],
     };
-    const raw = seriesPeriodoBrutasCeo(periodo);
+    const raw = seriesPeriodoBrutasCeo(periodo, filtroUnidades);
     if (!raw.labels.length) return { ...vazio, modo: raw.modo };
     const merged = somarSimNasSeriesBrutasCeo(periodo, raw, lotesSim);
     const acum = acumularSeriesPeriodoCeo(merged.receita, merged.despesa);
@@ -1663,7 +1699,12 @@
       limpar("Informe início e fim do período para ver o gráfico.");
       return;
     }
-    const view = buildProjecaoPeriodoCeo(periodo);
+    const filtro = obterFiltroUnidadesPeriodoCeo();
+    if (!filtroUnidadesPeriodoTemAlgumaCeo(filtro)) {
+      limpar("Marque pelo menos uma unidade para ver o gráfico.");
+      return;
+    }
+    const view = buildProjecaoPeriodoCeo(periodo, null, filtro);
     if (tit) tit.textContent = view.modo === "dia" ? "Saldo dia a dia" : "Saldo mês a mês";
     if (!view.meses.length) {
       limpar("Sem dados no período.");
@@ -4318,6 +4359,9 @@
 
     document.getElementById("finCeoPeriodoAtualizarBtn")?.addEventListener("click", () => {
       renderResumoPeriodoCeo();
+    });
+    document.getElementById("finCeoPeriodoUnidFiltro")?.addEventListener("change", () => {
+      renderGraficoPeriodoCeo();
     });
     ["finCeoPeriodoInicio", "finCeoPeriodoFim"].forEach((id) => {
       const inp = document.getElementById(id);
