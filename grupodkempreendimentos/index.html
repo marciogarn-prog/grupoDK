@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260907sug-bk">
+  <link rel="stylesheet" href="styles.css?v=20260907rel-ao">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -1832,7 +1832,7 @@
 
           <div id="operacaoLancAluguelPaneRelDia" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatório de pagamento por dia">
             <h4 class="portal-lanc-aluguel-section__title">2.1 — Relatório por dia</h4>
-            <p class="subtext">Escolha o dia no calendário. O sistema lista os protocolos que <strong>pagaram nesse dia</strong>.</p>
+            <p class="subtext">Escolha o dia no calendário — os dados atualizam na hora. O sistema lista os protocolos que <strong>pagaram nesse dia</strong>.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
               Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO DIA — VALOR TOTAL — SALDO</strong>
               (saldo = mesmo valor de «SALDO / VALOR DEVOLVIDO» no lançamento: pago − devido só de aluguel; azul positivo / vermelho negativo; ordenado do menor ao maior).
@@ -1849,7 +1849,7 @@
               <button type="button" class="btn-primary" id="portalRelPagDiaGerarBtn">Gerar relatório</button>
             </div>
             <div id="portalRelPagDiaKpis" class="portal-rel-pag-agg-kpis hidden" aria-live="polite"></div>
-            <p id="portalRelPagDiaResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o dia e clique em Gerar relatório.</p>
+            <p id="portalRelPagDiaResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o dia no calendário — os dados atualizam na hora.</p>
             <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
               <table class="fin-table portal-rel-pag-agg__table" id="portalRelPagDiaTable">
                 <thead>
@@ -1870,7 +1870,7 @@
 
           <div id="operacaoLancAluguelPaneRelPeriodo" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatório de pagamento por período">
             <h4 class="portal-lanc-aluguel-section__title">2.2 — Relatório de pagamento por período</h4>
-            <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários. Para cada protocolo que pagou no intervalo, mostra o valor do período e o total do protocolo.</p>
+            <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários — os dados atualizam na hora. Para cada protocolo que pagou no intervalo, mostra o valor do período e o total do protocolo.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
               Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO PERÍODO — VALOR TOTAL — SALDO</strong>
               (saldo = pago − devido aluguel sem investimento; azul = positivo / vermelho = negativo; ordenado do menor ao maior).
@@ -1893,7 +1893,7 @@
               <button type="button" class="btn-primary" id="portalRelPagPeriodoGerarBtn">Gerar relatório</button>
             </div>
             <div id="portalRelPagPeriodoKpis" class="portal-rel-pag-agg-kpis hidden" aria-live="polite"></div>
-            <p id="portalRelPagPeriodoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o período e clique em Gerar relatório.</p>
+            <p id="portalRelPagPeriodoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o período no calendário — os dados atualizam na hora.</p>
             <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
               <table class="fin-table portal-rel-pag-agg__table" id="portalRelPagPeriodoTable">
                 <thead>
@@ -4603,7 +4603,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260907sug-bk" defer></script>
+  <script src="app.js?v=20260907rel-ao" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4611,11 +4611,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260907sug-bk" defer></script>
+  <script src="portal-locadora-ui.js?v=20260907rel-ao" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260907sug-bk" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260907rel-ao" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

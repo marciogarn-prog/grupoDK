@@ -14552,7 +14552,16 @@
     renderPortalRelPagAggKpis(modo, ctx);
   }
 
-  function gerarPortalRelPagAgg(modo) {
+  function dataBrRelPagValida(br) {
+    const t = String(br || "").trim();
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(t)) return false;
+    const parse = typeof parseBrDate === "function" ? parseBrDate : null;
+    const d = parse ? parse(t) : null;
+    return Boolean(d && !Number.isNaN(d.getTime()));
+  }
+
+  function atualizarPortalRelPagAggTela(modo, opts = {}) {
+    const abrirModal = opts.abrirModal === true;
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     let inicio = "";
     let fim = "";
@@ -14560,31 +14569,49 @@
       inicio = String(document.getElementById("portalRelPagDiaData")?.value || "").trim();
       fim = inicio;
       if (!inicio) {
-        if (msg) msg.textContent = "Informe o dia do pagamento (DD/MM/AAAA).";
+        if (abrirModal && msg) msg.textContent = "Informe o dia do pagamento (DD/MM/AAAA).";
         renderPortalRelPagAggTable("dia", { ok: false, rows: [] });
-        return;
+        return null;
       }
     } else {
       inicio = String(document.getElementById("portalRelPagPeriodoInicio")?.value || "").trim();
       fim = String(document.getElementById("portalRelPagPeriodoFim")?.value || "").trim();
       if (!inicio || !fim) {
-        if (msg) msg.textContent = "Informe a data de início e a data de fim (DD/MM/AAAA).";
+        if (abrirModal && msg) msg.textContent = "Informe a data de início e a data de fim (DD/MM/AAAA).";
         renderPortalRelPagAggTable("periodo", { ok: false, rows: [] });
-        return;
+        return null;
       }
     }
     const ctx = buildPortalRelPagAggContext(modo, inicio, fim);
     renderPortalRelPagAggTable(modo, ctx);
     if (!ctx.ok) {
-      if (msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
-      return;
+      if (abrirModal && msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
+      return ctx;
     }
     if (msg) {
       msg.textContent = ctx.rows.length
         ? `${ctx.title}: ${ctx.qtdPagamentos || 0} pagamento(s), ${ctx.qtdClientes || 0} cliente(s).`
         : `${ctx.title}: nenhum pagamento no intervalo.`;
     }
-    openPortalRelatorioModal(ctx);
+    if (abrirModal) openPortalRelatorioModal(ctx);
+    return ctx;
+  }
+
+  function gerarPortalRelPagAgg(modo) {
+    atualizarPortalRelPagAggTela(modo, { abrirModal: true });
+  }
+
+  function tentarAtualizarPortalRelPagAggAoMudarData(modo) {
+    if (modo === "dia") {
+      const v = String(document.getElementById("portalRelPagDiaData")?.value || "").trim();
+      if (!dataBrRelPagValida(v)) return;
+      atualizarPortalRelPagAggTela("dia");
+      return;
+    }
+    const a = String(document.getElementById("portalRelPagPeriodoInicio")?.value || "").trim();
+    const b = String(document.getElementById("portalRelPagPeriodoFim")?.value || "").trim();
+    if (!dataBrRelPagValida(a) || !dataBrRelPagValida(b)) return;
+    atualizarPortalRelPagAggTela("periodo");
   }
 
   document.getElementById("portalRelPagDiaGerarBtn")?.addEventListener("click", (e) => {
@@ -14594,6 +14621,17 @@
   document.getElementById("portalRelPagPeriodoGerarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     gerarPortalRelPagAgg("periodo");
+  });
+  ["input", "change"].forEach((evName) => {
+    document.getElementById("portalRelPagDiaData")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelPagAggAoMudarData("dia");
+    });
+    document.getElementById("portalRelPagPeriodoInicio")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelPagAggAoMudarData("periodo");
+    });
+    document.getElementById("portalRelPagPeriodoFim")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelPagAggAoMudarData("periodo");
+    });
   });
 
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
@@ -14933,6 +14971,8 @@
       diaLog.classList.toggle("hidden", sub !== "avulso");
       if (sub === "avulso") renderPortalLancPagamentosDoDia();
     }
+    if (sub === "rel-dia") tentarAtualizarPortalRelPagAggAoMudarData("dia");
+    if (sub === "rel-periodo") tentarAtualizarPortalRelPagAggAoMudarData("periodo");
   }
 
   function openOperacaoLancamentoAluguel(subRaw) {

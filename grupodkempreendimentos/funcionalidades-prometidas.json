@@ -153,6 +153,22 @@
       }
     },
     {
+      "id": "rel-pag-dia-atualiza-no-calendario",
+      "descricao": "No relatório 2.1 por dia (e 2.2 por período), ao mudar a data no calendário as caixas e a tabela atualizam na hora, sem precisar clicar em Gerar relatório. Gerar relatório continua a abrir o documento para imprimir/PDF.",
+      "ficheiros": {
+        "index.html": [
+          "os dados atualizam na hora",
+          "portalRelPagDiaData",
+          "portalRelPagPeriodoInicio"
+        ],
+        "portal-locadora-ui.js": [
+          "atualizarPortalRelPagAggTela",
+          "tentarAtualizarPortalRelPagAggAoMudarData",
+          "dataBrRelPagValida"
+        ]
+      }
+    },
+    {
       "id": "rel-pag-periodo-total-por-dia",
       "descricao": "No relatório 2.2 de pagamento por período, o RESUMO mostra o total por dia (Dia 01 = R$ …) no espaço em branco à direita, sem alterar a formatação da tabela nem os cinco itens da esquerda.",
       "ficheiros": {
