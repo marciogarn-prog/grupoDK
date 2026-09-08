@@ -13039,6 +13039,23 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   width: 100%;
 }
 
+#estoqueTableEntrada th:first-child,
+#estoqueTableEntrada td:first-child {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#estoqueTableEntrada .estoque-entrada-editar-btn {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.55rem;
+  white-space: nowrap;
+}
+
+#estoqueTableEntrada tr.estoque-entrada-em-edicao td {
+  background: rgba(248, 113, 113, 0.14);
+}
+
 #estoquePaneRelPlaca .portal-estoque-rel-filtros,
 #estoquePaneRelProduto .portal-estoque-rel-filtros,
 #estoquePaneRelCusto .portal-estoque-rel-filtros {

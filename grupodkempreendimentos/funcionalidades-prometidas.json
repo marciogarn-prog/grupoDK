@@ -459,6 +459,23 @@
       }
     },
     {
+      "id": "estoque-entrada-editar-linha",
+      "descricao": "Na tela Entrada do Controle de Estoque, cada linha da tabela tem o botão Editar na frente do código de barras. Abre os dados nas caixas para alterar e gravar com Salvar alterações.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueTableEntrada",
+          "estoqueEntradaCancelarBtn",
+          "Cancelar edição"
+        ],
+        "portal-estoque.js": [
+          "data-estoque-editar",
+          "iniciarEdicaoEntrada",
+          "Salvar alterações",
+          "estoque-entrada-editar-btn"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

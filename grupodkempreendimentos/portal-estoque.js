@@ -315,15 +315,71 @@
     }
   }
 
-  function entradasTodas() {
+  function gravarExtrasEntradas(list) {
+    localStorage.setItem("dk_estoque_entradas_v1", JSON.stringify(Array.isArray(list) ? list : []));
+  }
+
+  function novoIdEntrada() {
+    return `ent-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function chavePlanilhaEntrada(r, i) {
+    return `planilha:${i}:${nkBar(r?.codigo)}:${String(r?.data || "")}:${String(r?.quantidade ?? "")}:${String(r?.notaFiscal || "")}`;
+  }
+
+  function planilhaEntradaPorChave(chave) {
+    const alvo = String(chave || "");
+    if (!alvo) return null;
     const base = Array.isArray(planilha().entradas) ? planilha().entradas : [];
-    return extrasEntradas().concat(base).filter((r) => codigoValido(r.codigo) || String(r.descricao || "").trim());
+    for (let i = 0; i < base.length; i += 1) {
+      if (chavePlanilhaEntrada(base[i], i) === alvo) return base[i];
+    }
+    return null;
+  }
+
+  function garantirIdsExtrasEntradas() {
+    const extra = extrasEntradas();
+    let mudou = false;
+    extra.forEach((r) => {
+      if (!r || typeof r !== "object") return;
+      if (!String(r.id || "").trim()) {
+        r.id = r.gravadoEm ? `g-${String(r.gravadoEm)}` : novoIdEntrada();
+        mudou = true;
+      }
+    });
+    if (mudou) gravarExtrasEntradas(extra);
+    return extra;
+  }
+
+  function entradasTodas() {
+    const extra = garantirIdsExtrasEntradas();
+    const substituidos = new Set(extra.map((e) => String(e?.substitui || "")).filter(Boolean));
+    const base = Array.isArray(planilha().entradas) ? planilha().entradas : [];
+    const baseVisivel = [];
+    base.forEach((r, i) => {
+      const chave = chavePlanilhaEntrada(r, i);
+      if (substituidos.has(chave)) return;
+      baseVisivel.push({ ...r, _chavePlanilha: chave });
+    });
+    return extra.concat(baseVisivel).filter((r) => codigoValido(r.codigo) || String(r.descricao || "").trim());
   }
 
   function qtdExtraEntrada(codigo) {
     const key = nkBar(codigo);
     if (!key) return 0;
-    return extrasEntradas().reduce((acc, r) => acc + (nkBar(r.codigo) === key ? parseQtd(r.quantidade) : 0), 0);
+    return extrasEntradas().reduce((acc, r) => {
+      if (r?.substitui) {
+        const orig = planilhaEntradaPorChave(r.substitui);
+        const origKey = orig ? nkBar(orig.codigo) : "";
+        const origQtd = orig ? parseQtd(orig.quantidade) : 0;
+        const newKey = nkBar(r.codigo);
+        const newQtd = parseQtd(r.quantidade);
+        if (newKey === key) acc += newQtd;
+        if (origKey === key) acc -= origQtd;
+        return acc;
+      }
+      return acc + (nkBar(r.codigo) === key ? parseQtd(r.quantidade) : 0);
+    }, 0);
   }
 
   function estoqueAndroidSomenteLeitura() {
@@ -1051,6 +1107,85 @@
       .join("");
   }
 
+  function chaveDaLinhaEntrada(r) {
+    return String(r?.id || r?._chavePlanilha || "");
+  }
+
+  function formatMoneyInput(n) {
+    if (!(Number(n) > 0)) return "";
+    return Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  let entradaEdicaoId = "";
+  let entradaEdicaoChavePlanilha = "";
+
+  function entradaEmEdicao() {
+    return Boolean(entradaEdicaoId || entradaEdicaoChavePlanilha);
+  }
+
+  function atualizarUiEdicaoEntrada() {
+    const editando = entradaEmEdicao();
+    const salvar = $("estoqueEntradaSalvarBtn");
+    const cancelar = $("estoqueEntradaCancelarBtn");
+    if (salvar) salvar.textContent = editando ? "Salvar alterações" : "Dar entrada";
+    cancelar?.classList.toggle("hidden", !editando);
+  }
+
+  function limparFormularioEntrada({ manterData = true } = {}) {
+    if ($("estoqueEntradaCodigo")) $("estoqueEntradaCodigo").value = "";
+    if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = "";
+    if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = "";
+    if ($("estoqueEntradaQtd")) $("estoqueEntradaQtd").value = "1";
+    if ($("estoqueEntradaValorUnitario")) $("estoqueEntradaValorUnitario").value = "";
+    if ($("estoqueEntradaFornecedor")) $("estoqueEntradaFornecedor").value = "";
+    if (!manterData && $("estoqueEntradaData")) $("estoqueEntradaData").value = hojeBr();
+    if ($("estoqueEntradaNota")) $("estoqueEntradaNota").value = "";
+    if ($("estoqueEntradaValorNota")) $("estoqueEntradaValorNota").value = "";
+    if ($("estoqueEntradaFormaPagamento")) $("estoqueEntradaFormaPagamento").value = "";
+  }
+
+  function sairEdicaoEntrada({ limpar = true } = {}) {
+    entradaEdicaoId = "";
+    entradaEdicaoChavePlanilha = "";
+    atualizarUiEdicaoEntrada();
+    if (limpar) limparFormularioEntrada({ manterData: true });
+    renderTabelaEntradas();
+  }
+
+  function carregarEntradaNoForm(row) {
+    if (!row) return;
+    const preco = precoUnitarioDaEntrada(row) || precoDoCodigo(row.codigo);
+    if ($("estoqueEntradaCodigo")) $("estoqueEntradaCodigo").value = String(row.codigo || "");
+    if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = String(row.descricao || "");
+    if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = String(row.referencia || "");
+    if ($("estoqueEntradaQtd")) $("estoqueEntradaQtd").value = String(row.quantidade ?? "");
+    if ($("estoqueEntradaValorUnitario")) $("estoqueEntradaValorUnitario").value = formatMoneyInput(preco);
+    if ($("estoqueEntradaFornecedor")) $("estoqueEntradaFornecedor").value = String(row.fornecedor || "");
+    if ($("estoqueEntradaData")) $("estoqueEntradaData").value = String(row.data || "").replace(/-/g, "/") || hojeBr();
+    if ($("estoqueEntradaNota")) $("estoqueEntradaNota").value = String(row.notaFiscal || "");
+    if ($("estoqueEntradaValorNota")) {
+      const vn = parsePreco(row.valorNota);
+      $("estoqueEntradaValorNota").value = vn > 0 ? formatMoneyInput(vn) : String(row.valorNota || "");
+    }
+    if ($("estoqueEntradaFormaPagamento")) $("estoqueEntradaFormaPagamento").value = String(row.formaPagamento || "");
+  }
+
+  function iniciarEdicaoEntrada(chave) {
+    if (estoqueAndroidSomenteLeitura()) return;
+    const id = String(chave || "");
+    if (!id) return;
+    const row = entradasTodas().find((r) => chaveDaLinhaEntrada(r) === id);
+    if (!row) return;
+    entradaEdicaoId = String(row.id || "");
+    entradaEdicaoChavePlanilha = String(row._chavePlanilha || row.substitui || "");
+    carregarEntradaNoForm(row);
+    atualizarUiEdicaoEntrada();
+    const msg = $("estoqueEntradaFormMsg");
+    if (msg) msg.textContent = "Altere os dados e clique em Salvar alterações.";
+    renderTabelaEntradas();
+    $("estoqueEntradaForm")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
   function renderTabelaEntradas() {
     const body = $("estoqueBodyEntrada");
     if (!body) return;
@@ -1062,24 +1197,34 @@
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
       });
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="10" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="11" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
       return;
     }
+    const chaveAtiva = entradaEdicaoId || entradaEdicaoChavePlanilha;
+    const soLeitura = estoqueAndroidSomenteLeitura();
     body.innerHTML = rows
-      .map(
-        (r) =>
-          `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
-            r.referencia || ""
-          )}</td><td>${escapeHtml(String(r.quantidade ?? ""))}</td><td>${
-            (precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo)) > 0
-              ? formatMoney(precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo))
-              : "—"
-          }</td><td>${escapeHtml(r.fornecedor || "")}</td><td>${escapeHtml(r.data || "")}</td><td>${escapeHtml(
-            r.notaFiscal || ""
-          )}</td><td>${
-            parsePreco(r.valorNota) > 0 ? formatMoney(parsePreco(r.valorNota)) : escapeHtml(r.valorNota || "")
-          }</td><td>${escapeHtml(r.formaPagamento || "")}</td></tr>`
-      )
+      .map((r) => {
+        const chave = chaveDaLinhaEntrada(r);
+        const ativa = chave && chave === chaveAtiva;
+        const btn = soLeitura
+          ? ""
+          : `<button type="button" class="btn-primary btn-secondary-outline estoque-entrada-editar-btn" data-estoque-editar="${escapeHtml(
+              chave
+            )}" aria-label="Editar entrada ${escapeHtml(r.codigo || r.descricao || "")}">Editar</button>`;
+        return `<tr class="${ativa ? "estoque-entrada-em-edicao" : ""}"><td>${btn}</td><td>${escapeHtml(
+          r.codigo || ""
+        )}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(r.referencia || "")}</td><td>${escapeHtml(
+          String(r.quantidade ?? "")
+        )}</td><td>${
+          (precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo)) > 0
+            ? formatMoney(precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo))
+            : "—"
+        }</td><td>${escapeHtml(r.fornecedor || "")}</td><td>${escapeHtml(r.data || "")}</td><td>${escapeHtml(
+          r.notaFiscal || ""
+        )}</td><td>${
+          parsePreco(r.valorNota) > 0 ? formatMoney(parsePreco(r.valorNota)) : escapeHtml(r.valorNota || "")
+        }</td><td>${escapeHtml(r.formaPagamento || "")}</td></tr>`;
+      })
       .join("");
   }
 
@@ -1276,9 +1421,34 @@
       gravadoEm: new Date().toISOString(),
     };
     const jaCadastrado = materialJaCadastrado(codigo, descricao);
-    const extra = extrasEntradas();
-    extra.unshift(row);
-    localStorage.setItem("dk_estoque_entradas_v1", JSON.stringify(extra));
+    const extra = garantirIdsExtrasEntradas();
+    const editando = entradaEmEdicao();
+    if (entradaEdicaoId) {
+      const i = extra.findIndex((x) => String(x?.id || "") === entradaEdicaoId);
+      if (i >= 0) {
+        const prev = extra[i];
+        extra[i] = {
+          ...prev,
+          ...row,
+          id: prev.id,
+          substitui: prev.substitui || undefined,
+          gravadoEm: prev.gravadoEm || row.gravadoEm,
+          editadoEm: row.gravadoEm,
+        };
+      } else {
+        extra.unshift({ ...row, id: entradaEdicaoId });
+      }
+    } else if (entradaEdicaoChavePlanilha) {
+      extra.unshift({
+        ...row,
+        id: novoIdEntrada(),
+        substitui: entradaEdicaoChavePlanilha,
+        editadoEm: row.gravadoEm,
+      });
+    } else {
+      extra.unshift({ ...row, id: novoIdEntrada() });
+    }
+    gravarExtrasEntradas(extra);
     const precoRecente = precoUnitarioDaEntrada(row);
     if (precoRecente > 0) gravarPrecoRecente(codigo, precoRecente);
     let avisoCad = "";
@@ -1292,12 +1462,9 @@
       if (precoRecente > 0) gravarPrecoRecente(codigo, precoRecente);
       avisoCad = "Material cadastrado automaticamente. ";
     }
-    if (msg) msg.textContent = `${avisoCad}Entrada gravada: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
-    if ($("estoqueEntradaCodigo")) $("estoqueEntradaCodigo").value = "";
-    if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = "";
-    if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = "";
-    if ($("estoqueEntradaQtd")) $("estoqueEntradaQtd").value = "1";
-    if ($("estoqueEntradaValorUnitario")) $("estoqueEntradaValorUnitario").value = "";
+    const acao = editando ? "Entrada atualizada" : "Entrada gravada";
+    sairEdicaoEntrada({ limpar: true });
+    if (msg) msg.textContent = `${avisoCad}${acao}: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
     carregarPlanilhaNasTelas();
     return true;
   }
@@ -1305,6 +1472,7 @@
   function aoAbrirEntrada() {
     const dataEl = $("estoqueEntradaData");
     if (dataEl && !String(dataEl.value || "").trim()) dataEl.value = hojeBr();
+    atualizarUiEdicaoEntrada();
     carregarPlanilhaNasTelas();
   }
 
@@ -2073,6 +2241,18 @@
     $("estoqueEntradaSalvarBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       gravarEntradaMaterial();
+    });
+    $("estoqueEntradaCancelarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sairEdicaoEntrada({ limpar: true });
+      const msg = $("estoqueEntradaFormMsg");
+      if (msg) msg.textContent = "Edição cancelada.";
+    });
+    $("estoqueBodyEntrada")?.addEventListener("click", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest("[data-estoque-editar]") : null;
+      if (!btn) return;
+      e.preventDefault();
+      iniciarEdicaoEntrada(btn.getAttribute("data-estoque-editar"));
     });
     $("estoqueEntradaForm")?.addEventListener("submit", (e) => {
       e.preventDefault();
