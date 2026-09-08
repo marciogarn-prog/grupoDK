@@ -4437,6 +4437,9 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
+    if (sub === "saida" && typeof window.__DK_estoqueAoAbrirSaida === "function") {
+      window.__DK_estoqueAoAbrirSaida();
+    }
   }
 
   btnEstoque?.addEventListener("click", () => {

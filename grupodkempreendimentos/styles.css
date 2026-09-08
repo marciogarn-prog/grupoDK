@@ -12965,3 +12965,20 @@ body.portal-plataforma-android #portal-cloud-sync-bar__actions #btn-dk-cloud-pul
 body.portal-plataforma-android #btn-dk-cloud-pull {
   display: inline-flex !important;
 }
+
+.portal-modal__card--estoque-saida-resumo {
+  max-width: min(560px, 94vw);
+}
+
+.portal-estoque-saida-resumo {
+  display: grid;
+  gap: 0.85rem;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.portal-estoque-saida-resumo__durou {
+  color: #f5d76e;
+  font-weight: 700;
+}

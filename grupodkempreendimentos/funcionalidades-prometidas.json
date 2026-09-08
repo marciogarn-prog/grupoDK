@@ -237,6 +237,24 @@
       }
     },
     {
+      "id": "estoque-saida-resumo-ultima-aplicacao",
+      "descricao": "Na tela Saída do Controle de Estoque não existe coluna REPETIÇÃO DE ITEM. O operador informa placa e km antes do lançamento; se o produto já foi aplicado numa placa, abre janela com o último resumo (data, placa, km) e quanto o item durou em dias e km.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueSaidaPlaca",
+          "estoqueSaidaKm",
+          "estoqueSaidaResumoModal",
+          "Conferir última aplicação"
+        ],
+        "portal-estoque.js": [
+          "ESTE PRODUTO FOI APLICADO",
+          "ESTE ITEM DUROU",
+          "ultimaAplicacao",
+          "montarResumo"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-nf">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-sai">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3054,7 +3054,7 @@
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-estoque-saida" data-estoque-sub="saida" aria-expanded="false" aria-controls="estoquePaneSaida">
                 <span class="btn-operacao-cmd__title">Saída</span>
-                <span class="btn-operacao-cmd__hint">Movimentos de saída</span>
+                <span class="btn-operacao-cmd__hint">Placa e km primeiro — resumo se o item já foi aplicado</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-estoque-entrada" data-estoque-sub="entrada" aria-expanded="false" aria-controls="estoquePaneEntrada">
                 <span class="btn-operacao-cmd__title">Entrada</span>
@@ -3101,19 +3101,64 @@
             </div>
             <div id="estoquePaneSaida" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Saída">
               <h3 class="operacao-inline-form__title">Saída</h3>
-              <p class="subtext">Saídas lançadas na planilha.</p>
+              <p class="subtext">Informe primeiro a <strong>placa</strong> e o <strong>km</strong>. Se o produto já tiver sido aplicado nessa placa, abre o resumo da última aplicação (dias e km que o item durou).</p>
+              <form id="estoqueSaidaForm" class="operacao-inline-form__grid" novalidate>
+                <label class="portal-field">
+                  <span>PLACA</span>
+                  <input type="text" id="estoqueSaidaPlaca" maxlength="10" autocomplete="off" placeholder="ABC1D23" aria-label="Placa do veículo">
+                </label>
+                <label class="portal-field">
+                  <span>KM</span>
+                  <input type="text" id="estoqueSaidaKm" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="0" aria-label="Quilometragem atual">
+                </label>
+                <label class="portal-field">
+                  <span>DATA</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueSaidaData" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data da saída" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>CÓDIGO DE BARRAS</span>
+                  <input type="text" id="estoqueSaidaCodigo" list="estoqueSaidaCodigoList" maxlength="20" autocomplete="off" placeholder="0-000000-000000" aria-label="Código de barras do produto">
+                  <datalist id="estoqueSaidaCodigoList"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>QUANTIDADE</span>
+                  <input type="text" id="estoqueSaidaQtd" inputmode="decimal" maxlength="8" autocomplete="off" value="1" aria-label="Quantidade">
+                </label>
+                <label class="portal-field">
+                  <span>VEÍCULO</span>
+                  <input type="text" id="estoqueSaidaVeiculo" maxlength="40" autocomplete="off" placeholder="MOTO" aria-label="Tipo de veículo">
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRIÇÃO DO MATERIAL</span>
+                  <input type="text" id="estoqueSaidaDescricao" maxlength="160" autocomplete="off" readonly aria-label="Descrição do material">
+                </label>
+                <label class="portal-field">
+                  <span>REFERENCIA</span>
+                  <input type="text" id="estoqueSaidaReferencia" maxlength="40" autocomplete="off" readonly aria-label="Referência">
+                </label>
+              </form>
+              <p id="estoqueSaidaFormMsg" class="portal-feedback" role="status"></p>
+              <div class="operacao-inline-form__actions">
+                <button type="button" class="btn-primary" id="estoqueSaidaConferirBtn">Conferir última aplicação</button>
+              </div>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableSaida">
                   <thead>
                     <tr>
-                      <th>Data</th>
-                      <th>Código de barras</th>
-                      <th>Material</th>
-                      <th>Quantidade</th>
+                      <th>CÓDIGO DE BARRAS</th>
+                      <th>DESCRIÇÃO DO MATERIAL</th>
+                      <th>REFERENCIA</th>
+                      <th>QUANTIDADE</th>
+                      <th>PLACA</th>
+                      <th>VEÍCULO</th>
+                      <th>KM</th>
+                      <th>DATA</th>
                     </tr>
                   </thead>
                   <tbody id="estoqueBodySaida">
-                    <tr><td colspan="4" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
+                    <tr><td colspan="8" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -4274,6 +4319,17 @@
     </div>
   </div>
 
+  <div id="estoqueSaidaResumoModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="estoqueSaidaResumoTitulo">
+    <div class="portal-modal__backdrop" data-close-estoque-saida-resumo></div>
+    <div class="portal-modal__card portal-modal__card--estoque-saida-resumo">
+      <h3 id="estoqueSaidaResumoTitulo" class="portal-modal__title">Última aplicação</h3>
+      <div id="estoqueSaidaResumoCorpo" class="portal-modal__text portal-estoque-saida-resumo"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="estoqueSaidaResumoOkBtn">Continuar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalReciboModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalReciboTitulo">
     <div class="portal-modal__backdrop" data-close-recibo></div>
     <div class="portal-modal__card portal-recibo-modal__card">
@@ -4781,7 +4837,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-nf" defer></script>
+  <script src="app.js?v=20260908estq-sai" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4789,11 +4845,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-nf" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-sai" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-sai" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-sai" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-nf" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-sai" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
