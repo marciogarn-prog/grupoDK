@@ -155,6 +155,7 @@
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente");
     portalSyncAmbienteCadastroAdminUi();
     refreshPortalMielHomeAcesso();
+    refreshPortalEstoqueAcesso();
     requestAnimationFrame(() => portalSyncAdminBannerLayout());
   }
 
@@ -683,6 +684,7 @@
     { key: "lancamentoAluguel", label: "Lançamento de aluguel" },
     { key: "lancamentoMultas", label: "Lançamento de multas" },
     { key: "lancamentoManutencao", label: "Movimentações da manutenção" },
+    { key: "estoque", label: "Estoque" },
     { key: "sistemaMiel", label: "Acesso ao sistema MIEL" },
   ];
 
@@ -693,6 +695,7 @@
     lancamentoAluguel: "portalColabAceLancAluguel",
     lancamentoMultas: "portalColabAceLancMultas",
     lancamentoManutencao: "portalColabAceLancManutencao",
+    estoque: "portalColabAceEstoque",
     sistemaMiel: "portalColabAceSistemaMiel",
   };
 
@@ -704,6 +707,7 @@
       lancamentoAluguel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoAluguel)?.checked),
       lancamentoMultas: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoMultas)?.checked),
       lancamentoManutencao: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoManutencao)?.checked),
+      estoque: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.estoque)?.checked),
       sistemaMiel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.sistemaMiel)?.checked),
       manutencao: false,
       lancamentoDespesa: false,
@@ -726,6 +730,7 @@
         a.lancamentoAluguel ||
         a.lancamentoMultas ||
         a.lancamentoManutencao ||
+        a.estoque ||
         a.sistemaMiel
     );
   }
@@ -1588,6 +1593,7 @@
         manutencao: false,
         lancamentoDespesa: false,
         funcionario: false,
+        estoque: true,
         sistemaMiel: false,
       };
     }
@@ -1606,6 +1612,7 @@
             comunicacaoVendas: true,
             comunicacaoManutencao: true,
             funcionario: true,
+            estoque: true,
             sistemaMiel: mielAdmin,
           }
         : {
@@ -1620,6 +1627,7 @@
             comunicacaoManutencao: true,
             lancamentoDespesa: true,
             funcionario: true,
+            estoque: true,
             sistemaMiel: mielAdmin,
           };
     }
@@ -1637,6 +1645,7 @@
           manutencao: false,
           lancamentoDespesa: false,
           funcionario: false,
+          estoque: false,
           sistemaMiel: false,
         };
   }
@@ -1665,6 +1674,28 @@
     if (!f || f.blocked) return false;
     const acessos = getPortalOperacaoAcessosEfetivos(f);
     return Boolean(acessos?.sistemaMiel);
+  }
+
+  function portalPodeAcessarEstoque() {
+    if (currentUnit !== "locadora") return false;
+    if (portalTitularVerComo() === "cliente") return false;
+    const s = portalLerSessaoPortal();
+    if (!s || s.tipo === "cliente") return false;
+    const role = getPortalSessaoAdminRole();
+    if (role === "owner") return true;
+    if (role !== "operacao") return false;
+    const f = getPortalSessaoEquipaFuncionario();
+    if (!f || f.blocked) return false;
+    return Boolean(getPortalOperacaoAcessosEfetivos(f)?.estoque);
+  }
+
+  function refreshPortalEstoqueAcesso() {
+    const allow = portalPodeAcessarEstoque();
+    const btn = document.getElementById("btn-locadora-estoque");
+    const pane = document.getElementById("panel-estoque-locadora");
+    btn?.classList.toggle("hidden", !allow);
+    btn?.setAttribute("aria-hidden", allow ? "false" : "true");
+    if (!allow) pane?.classList.add("hidden");
   }
 
   function refreshPortalMielHomeAcesso() {
@@ -2046,7 +2077,7 @@
     const allowFin = currentUnit === "locadora" && modo !== "cliente" && roleEfetivo === "owner";
     btnFinanceiro?.classList.toggle("hidden", !allowFin);
     btnFinanceiroCeo?.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
-    btnEstoque?.classList.toggle("hidden", !allowOp);
+    refreshPortalEstoqueAcesso();
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
@@ -4461,6 +4492,7 @@
   }
 
   btnEstoque?.addEventListener("click", () => {
+    if (!portalPodeAcessarEstoque()) return;
     hideAllPanels();
     panelEstoque?.classList.remove("hidden");
     if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
@@ -8982,6 +9014,7 @@
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
     const c6 = document.getElementById("portalColabAceLancManutencao");
+    const cEst = document.getElementById("portalColabAceEstoque");
     const c7 = document.getElementById("portalColabAceSistemaMiel");
     if (c1) c1.checked = true;
     if (c2) c2.checked = true;
@@ -8989,6 +9022,7 @@
     if (c4) c4.checked = true;
     if (c5) c5.checked = true;
     if (c6) c6.checked = true;
+    if (cEst) cEst.checked = false;
     if (c7) c7.checked = false;
     if (typeof window.__DK_aplicarHorarioColabPadrao === "function") {
       window.__DK_aplicarHorarioColabPadrao();
@@ -9149,6 +9183,7 @@
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
     const c6 = document.getElementById("portalColabAceLancManutencao");
+    const cEst = document.getElementById("portalColabAceEstoque");
     const c7 = document.getElementById("portalColabAceSistemaMiel");
     if (c1) c1.checked = Boolean(a.cliente);
     if (c2) c2.checked = Boolean(a.veiculo);
@@ -9156,6 +9191,7 @@
     if (c4) c4.checked = Boolean(a.lancamentoAluguel);
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
     if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
+    if (cEst) cEst.checked = Boolean(a.estoque);
     if (c7) c7.checked = Boolean(a.sistemaMiel);
     if (typeof window.__DK_aplicarHorarioColab === "function") {
       window.__DK_aplicarHorarioColab(f.horarioAcesso);
@@ -9295,6 +9331,7 @@
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();
     refreshPortalMielHomeAcesso();
+    refreshPortalEstoqueAcesso();
     formPortalCadastroColaborador.reset();
     portalColabCpfPrevLen = 0;
     portalColabListaCpfAtivo = "";
@@ -9363,18 +9400,20 @@
       lancamentoAluguel: portalNormDiffVal(f.acessos?.lancamentoAluguel ? "sim" : "não"),
       lancamentoMultas: portalNormDiffVal(f.acessos?.lancamentoMultas ? "sim" : "não"),
       lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
+      estoque: portalNormDiffVal(f.acessos?.estoque ? "sim" : "não"),
     };
     const depoisColab = {
       cpf: portalColabFormatCpfExibicao(cpfNovo),
       nome,
       funcao,
       dataIngresso,
-      cliente: aceCliente ? "sim" : "não",
-      veiculo: aceVeiculo ? "sim" : "não",
-      locacao: aceLocacao ? "sim" : "não",
-      lancamentoAluguel: aceLanc ? "sim" : "não",
-      lancamentoMultas: aceMultas ? "sim" : "não",
-      lancamentoManutencao: aceManut ? "sim" : "não",
+      cliente: acessos.cliente ? "sim" : "não",
+      veiculo: acessos.veiculo ? "sim" : "não",
+      locacao: acessos.locacao ? "sim" : "não",
+      lancamentoAluguel: acessos.lancamentoAluguel ? "sim" : "não",
+      lancamentoMultas: acessos.lancamentoMultas ? "sim" : "não",
+      lancamentoManutencao: acessos.lancamentoManutencao ? "sim" : "não",
+      estoque: acessos.estoque ? "sim" : "não",
     };
     const COLAB_LABELS = {
       cpf: "CPF",
@@ -9387,6 +9426,7 @@
       lancamentoAluguel: "Lanç. aluguel",
       lancamentoMultas: "Lanç. multas",
       lancamentoManutencao: "Mov. manutenção",
+      estoque: "Estoque",
     };
     const doSaveColab = () => {
       f.cpf = cpfNovo;
@@ -9398,6 +9438,7 @@
       saveFuncionariosAccess();
       portalPushCloudSnapshotAfterPersist();
       refreshPortalMielHomeAcesso();
+    refreshPortalEstoqueAcesso();
       portalColabCpfEdicaoOriginal = cpfNovo;
       portalColabListaCpfAtivo = cpfNovo;
       portalColabCpfPrevLen = 11;

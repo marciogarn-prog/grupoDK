@@ -1475,6 +1475,25 @@
       }
     },
     {
+      "id": "colaborador-permissao-estoque",
+      "descricao": "No Cadastro de colaborador, em Operações permitidas, existe a caixa Estoque. Só o colaborador com essa permissão vê o botão Controle de Estoque. O administrador CEO sempre tem acesso.",
+      "ficheiros": {
+        "index.html": [
+          "portalColabAceEstoque",
+          "Operações permitidas",
+          "Estoque"
+        ],
+        "portal-locadora-ui.js": [
+          "portalColabAceEstoque",
+          "portalPodeAcessarEstoque",
+          "refreshPortalEstoqueAcesso"
+        ],
+        "app.js": [
+          "estoque: Boolean(acessos?.estoque)"
+        ]
+      }
+    },
+    {
       "id": "colab-horario-acesso",
       "descricao": "No Cadastro de colaborador: dias segunda a domingo com caixinha; Hora de início e Hora fim. Novos cadastros já vêm com seg a sex marcados, 08:00 a 18:00. Colaborador só entra no horário marcado. Em qualquer tela, 30 minutos antes do fim abre a janela O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS com botão ok.",
       "ficheiros": {
