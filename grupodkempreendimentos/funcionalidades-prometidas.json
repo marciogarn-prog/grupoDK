@@ -309,6 +309,20 @@
       }
     },
     {
+      "id": "estoque-saida-limpar-dados",
+      "descricao": "Na Saída do Controle de Estoque existe o botão Limpar dados, ao lado de Conferir última aplicação, que esvazia as caixas do lançamento.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueSaidaLimparBtn",
+          "Limpar dados"
+        ],
+        "portal-estoque.js": [
+          "limparDadosSaida",
+          "estoqueSaidaLimparBtn"
+        ]
+      }
+    },
+    {
       "id": "estoque-relatorios-aplicacao-custo",
       "descricao": "No Controle de Estoque os dados da planilha já estão carregados. Há relatório de aplicação por placa (produtos de cada placa no período, calendário início e fim), relatório de aplicação por produto (placas, duração em km e tempo, médias) e relatório de custo de manutenção por veículo (itens, valor de cada item e total do período, com calendário de início e fim).",
       "ficheiros": {

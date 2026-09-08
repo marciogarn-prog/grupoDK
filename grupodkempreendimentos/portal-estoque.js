@@ -1926,6 +1926,22 @@
     if (listProd) listProd.innerHTML = produtosDatalistHtml();
   }
 
+  function limparDadosSaida() {
+    if ($("estoqueSaidaPlaca")) $("estoqueSaidaPlaca").value = "";
+    if ($("estoqueSaidaModelo")) $("estoqueSaidaModelo").value = "";
+    if ($("estoqueSaidaKm")) $("estoqueSaidaKm").value = "";
+    if ($("estoqueSaidaData")) $("estoqueSaidaData").value = hojeBr();
+    if ($("estoqueSaidaCodigo")) $("estoqueSaidaCodigo").value = "";
+    if ($("estoqueSaidaQtd")) $("estoqueSaidaQtd").value = "1";
+    if ($("estoqueSaidaVeiculo")) $("estoqueSaidaVeiculo").value = "";
+    if ($("estoqueSaidaDescricao")) $("estoqueSaidaDescricao").value = "";
+    if ($("estoqueSaidaReferencia")) $("estoqueSaidaReferencia").value = "";
+    const msg = $("estoqueSaidaFormMsg");
+    if (msg) msg.textContent = "Formulário limpo.";
+    fecharResumo();
+    $("estoqueSaidaPlaca")?.focus();
+  }
+
   function aoAbrirSaida() {
     const dataEl = $("estoqueSaidaData");
     if (dataEl && !String(dataEl.value || "").trim()) dataEl.value = hojeBr();
@@ -1963,6 +1979,10 @@
     $("estoqueSaidaConferirBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       conferirUltimaAplicacao();
+    });
+    $("estoqueSaidaLimparBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      limparDadosSaida();
     });
     $("estoqueSaidaResumoOkBtn")?.addEventListener("click", () => fecharResumo());
     document.querySelectorAll("[data-close-estoque-saida-resumo]").forEach((el) => {
