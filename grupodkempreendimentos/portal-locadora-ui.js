@@ -1632,22 +1632,23 @@
           };
     }
     if (String(f.role || "").trim() !== "operacao") return null;
-    if (f.acessos && typeof f.acessos === "object") return f.acessos;
-    return typeof normalizeOperacaoAccess === "function"
-      ? normalizeOperacaoAccess(null, "operacao")
-      : {
-          cliente: true,
-          veiculo: true,
-          locacao: true,
-          lancamentoAluguel: true,
-          lancamentoMultas: true,
-          lancamentoManutencao: true,
-          manutencao: false,
-          lancamentoDespesa: false,
-          funcionario: false,
-          estoque: false,
-          sistemaMiel: false,
-        };
+    const rawAcessos = f.acessos && typeof f.acessos === "object" ? f.acessos : null;
+    if (typeof normalizeOperacaoAccess === "function") {
+      return normalizeOperacaoAccess(rawAcessos, "operacao");
+    }
+    return {
+      cliente: Boolean(rawAcessos?.cliente),
+      veiculo: Boolean(rawAcessos?.veiculo),
+      locacao: Boolean(rawAcessos?.locacao),
+      lancamentoAluguel: Boolean(rawAcessos?.lancamentoAluguel),
+      lancamentoMultas: Boolean(rawAcessos?.lancamentoMultas),
+      lancamentoManutencao: Boolean(rawAcessos?.lancamentoManutencao),
+      manutencao: false,
+      lancamentoDespesa: false,
+      funcionario: false,
+      estoque: Boolean(rawAcessos?.estoque),
+      sistemaMiel: Boolean(rawAcessos?.sistemaMiel),
+    };
   }
 
   function portalLerSessaoPortal() {
@@ -1734,6 +1735,7 @@
       ["btn-operacao-relatorio-inatividade", "operacaoInlineRelatorioInatividade", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
       ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
+      ["btn-operacao-estoque", "panel-estoque-locadora", "estoque"],
       ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
     ];
 
@@ -1786,6 +1788,7 @@
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
+      "btn-operacao-estoque",
     ];
     const visiveis = ids.filter((id) => {
       const el = document.getElementById(id);
@@ -1857,7 +1860,7 @@
   }
 
   function portalAndroidPainelAreaVisivel() {
-    return [panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].some(
+    return [panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelEstoque, panelFinanceiro, panelFinanceiroCeo].some(
       (p) => p && !p.classList.contains("hidden")
     );
   }
@@ -1890,6 +1893,7 @@
     if (panelFinanceiro && !panelFinanceiro.classList.contains("hidden")) return "FINANCEIRO";
     if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) return "Documentos";
     if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return "Localização";
+    if (panelEstoque && !panelEstoque.classList.contains("hidden")) return "Estoque";
     return "Empresa";
   }
 
@@ -4491,13 +4495,21 @@
     }
   }
 
-  btnEstoque?.addEventListener("click", () => {
+  function abrirPortalControleEstoque() {
     if (!portalPodeAcessarEstoque()) return;
     hideAllPanels();
     panelEstoque?.classList.remove("hidden");
     if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
     showPortalEstoqueSub("cadastro");
     portalPersistirAreaAtiva("estoque");
+  }
+
+  btnEstoque?.addEventListener("click", () => {
+    abrirPortalControleEstoque();
+  });
+
+  document.getElementById("btn-operacao-estoque")?.addEventListener("click", () => {
+    abrirPortalControleEstoque();
   });
 
   document.getElementById("btn-voltar-estoque-locadora")?.addEventListener("click", () => {
@@ -15732,6 +15744,7 @@
       "btn-operacao-relatorio-inatividade",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
+      "btn-operacao-estoque",
       "btn-operacao-cadastro-colaborador",
       "btn-operacao-cadastro-administrador",
     ].forEach((id) => {

@@ -1509,17 +1509,20 @@
     },
     {
       "id": "colaborador-permissao-estoque",
-      "descricao": "No Cadastro de colaborador, em Operações permitidas, existe a caixa Estoque. Só o colaborador com essa permissão vê o botão Controle de Estoque. O administrador CEO sempre tem acesso.",
+      "descricao": "No Cadastro de colaborador, em Operações permitidas, existe a caixa Estoque. O colaborador com essa permissão vê Estoque no menu Operação e o botão Controle de Estoque na área da equipa. O administrador CEO sempre tem acesso.",
       "ficheiros": {
         "index.html": [
           "portalColabAceEstoque",
           "Operações permitidas",
-          "Estoque"
+          "Estoque",
+          "btn-operacao-estoque"
         ],
         "portal-locadora-ui.js": [
           "portalColabAceEstoque",
           "portalPodeAcessarEstoque",
-          "refreshPortalEstoqueAcesso"
+          "refreshPortalEstoqueAcesso",
+          "btn-operacao-estoque",
+          "abrirPortalControleEstoque"
         ],
         "app.js": [
           "estoque: Boolean(acessos?.estoque)"
