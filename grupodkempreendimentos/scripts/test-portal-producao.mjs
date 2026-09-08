@@ -1737,8 +1737,9 @@ async function runSuite() {
           const relOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneRelacaoPagamento");
             const tab = document.getElementById("finRelacaoPagamentoTabela");
+            const colHead = document.getElementById("finRelacaoPagamentoColHead");
             const filtros = document.getElementById("finFiltrosRelacaoPagamento");
-            const txt = String(tab?.textContent || "");
+            const txt = String(tab?.textContent || "") + String(colHead?.textContent || "");
             return Boolean(
               pane &&
                 !pane.classList.contains("hidden") &&
