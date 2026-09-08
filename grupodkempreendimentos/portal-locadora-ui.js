@@ -641,6 +641,7 @@
   const panelLocalizacao = document.getElementById("panel-localizacao-locadora");
   const panelFinanceiro = document.getElementById("panel-financeiro-locadora");
   const panelFinanceiroCeo = document.getElementById("panel-financeiro-ceo-locadora");
+  const panelEstoque = document.getElementById("panel-estoque-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
@@ -650,6 +651,7 @@
   const btnDocumentos = document.getElementById("btn-locadora-documentos");
   const btnFinanceiro = document.getElementById("btn-locadora-financeiro");
   const btnFinanceiroCeo = document.getElementById("btn-locadora-financeiro-ceo");
+  const btnEstoque = document.getElementById("btn-locadora-estoque");
   const btnLocalizacao = document.getElementById("btn-locadora-localizacao");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
@@ -2044,6 +2046,7 @@
     const allowFin = currentUnit === "locadora" && modo !== "cliente" && roleEfetivo === "owner";
     btnFinanceiro?.classList.toggle("hidden", !allowFin);
     btnFinanceiroCeo?.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
+    btnEstoque?.classList.toggle("hidden", !allowOp);
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
@@ -2339,6 +2342,7 @@
       btnDocumentos?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
       btnFinanceiroCeo?.classList.add("hidden");
+      btnEstoque?.classList.add("hidden");
     }
     showView("hub");
     setPortalHash("locadora");
@@ -2438,7 +2442,7 @@
 
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].forEach(
+    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelEstoque, panelFinanceiro, panelFinanceiroCeo].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -2731,6 +2735,7 @@
       btnDocumentos?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
       btnFinanceiroCeo?.classList.add("hidden");
+      btnEstoque?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
     }
@@ -2771,6 +2776,7 @@
     panelManutencao?.classList.add("hidden");
     panelLocalizacao?.classList.add("hidden");
     panelDocumentos?.classList.add("hidden");
+    panelEstoque?.classList.add("hidden");
     panelFinanceiro?.classList.add("hidden");
     panelFinanceiroCeo?.classList.add("hidden");
     if (vinhaFinanceiro || vinhaFinanceiroCeo) {
@@ -2808,6 +2814,7 @@
     btnDocumentos?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
     btnFinanceiroCeo?.classList.add("hidden");
+    btnEstoque?.classList.add("hidden");
     panelLogin?.classList.remove("hidden");
     portalSyncAuthAutofillState();
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
@@ -2865,6 +2872,7 @@
     if (area === "financeiro" && viewFinanceiro?.classList.contains("view--active")) return;
     if (area === "financeiro-ceo" && viewFinanceiroCeo?.classList.contains("view--active")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
+    if (area === "estoque" && panelEstoque && !panelEstoque.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
     const func = portalObterFuncionarioDaSessaoRestauracao();
@@ -2893,6 +2901,9 @@
       portalOperacaoAutoAbrirSeUnicoPermitido();
     } else if (area === "manutencao") {
       panelManutencao?.classList.remove("hidden");
+    } else if (area === "estoque") {
+      panelEstoque?.classList.remove("hidden");
+      showPortalEstoqueSub("cadastro");
     } else {
       panelLogado?.classList.remove("hidden");
     }
@@ -4405,6 +4416,45 @@
 
   btnFinanceiroCeo?.addEventListener("click", () => {
     openLocadoraFinanceiroCeo();
+  });
+
+  function showPortalEstoqueSub(subRaw) {
+    const panes = {
+      cadastro: "estoquePaneCadastro",
+      estoque: "estoquePaneEstoque",
+      saida: "estoquePaneSaida",
+      entrada: "estoquePaneEntrada",
+    };
+    const sub = panes[subRaw] ? subRaw : "cadastro";
+    Object.entries(panes).forEach(([key, paneId]) => {
+      const pane = document.getElementById(paneId);
+      if (pane) pane.classList.toggle("hidden", key !== sub);
+    });
+    ["btn-estoque-cadastro", "btn-estoque-saldo", "btn-estoque-saida", "btn-estoque-entrada"].forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      const on = b.getAttribute("data-estoque-sub") === sub;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+  }
+
+  btnEstoque?.addEventListener("click", () => {
+    hideAllPanels();
+    panelEstoque?.classList.remove("hidden");
+    showPortalEstoqueSub("cadastro");
+    portalPersistirAreaAtiva("estoque");
+  });
+
+  document.getElementById("btn-voltar-estoque-locadora")?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
+  });
+
+  ["btn-estoque-cadastro", "btn-estoque-saldo", "btn-estoque-saida", "btn-estoque-entrada"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      const sub = document.getElementById(id)?.getAttribute("data-estoque-sub") || "cadastro";
+      showPortalEstoqueSub(sub);
+    });
   });
 
   document.getElementById("btn-voltar-financeiro-ceo-locadora")?.addEventListener("click", () => {
@@ -9484,6 +9534,7 @@
     btnDocumentos?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
     btnFinanceiroCeo?.classList.add("hidden");
+    btnEstoque?.classList.add("hidden");
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
