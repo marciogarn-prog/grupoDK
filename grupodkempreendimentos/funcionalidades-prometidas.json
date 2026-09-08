@@ -290,6 +290,25 @@
       }
     },
     {
+      "id": "estoque-saida-modelo-tipo-placa",
+      "descricao": "Na Saída do Controle de Estoque, entre a placa e o km existe a caixa MODELO. VEÍCULO é lista suspensa MOTO ou CARRO. Modelo e tipo ficam gravados com a placa; na próxima vez que a placa for informada, o modelo e MOTO/CARRO já vêm preenchidos.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueSaidaModelo",
+          "estoqueSaidaVeiculo",
+          "MODELO",
+          "MOTO",
+          "CARRO"
+        ],
+        "portal-estoque.js": [
+          "dk_estoque_placa_memoria_v1",
+          "gravarMemoriaPlaca",
+          "aplicarMemoriaPlacaNaSaida",
+          "estoqueSaidaModelo"
+        ]
+      }
+    },
+    {
       "id": "estoque-relatorios-aplicacao-custo",
       "descricao": "No Controle de Estoque os dados da planilha já estão carregados. Há relatório de aplicação por placa (produtos de cada placa no período, calendário início e fim), relatório de aplicação por produto (placas, duração em km e tempo, médias) e relatório de custo de manutenção por veículo (itens, valor de cada item e total do período, com calendário de início e fim).",
       "ficheiros": {

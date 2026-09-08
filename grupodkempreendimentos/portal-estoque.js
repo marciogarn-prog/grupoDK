@@ -34,6 +34,115 @@
     return String(v || "").trim() || n;
   }
 
+  const ESTOQUE_PLACA_MEMORIA_KEY = "dk_estoque_placa_memoria_v1";
+
+  function normalizarTipoMotoCarro(v) {
+    const t = String(v || "")
+      .trim()
+      .toUpperCase();
+    if (!t) return "";
+    if (t === "MOTO" || t === "CARRO") return t;
+    if (/\bMOTO\b|MOTOCICLETA|SCOOTER|DKMT|CG\s*\d|BROS|BIZ\b|TITAN|FAN\b|YBR|FACTOR|NXR|TWISTER|\bPOP\b/.test(t)) {
+      return "MOTO";
+    }
+    if (/\bCARRO\b|AUTOMOVEL|AUTOMÓVEL|DKCR|GOL\b|ONIX|CIVIC|KWID|UNO\b|PALIO|CORSA|FIESTA|SANDERO|STRADA/.test(t)) {
+      return "CARRO";
+    }
+    return "";
+  }
+
+  function lerMemoriaPlaca() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(ESTOQUE_PLACA_MEMORIA_KEY) || "{}");
+      return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function gravarMemoriaPlaca(placaRaw, patch) {
+    if (estoqueAndroidSomenteLeitura()) return;
+    const placa = nkPlate(placaRaw);
+    if (placa.length < 7) return;
+    const map = lerMemoriaPlaca();
+    const prev = map[placa] && typeof map[placa] === "object" ? map[placa] : {};
+    const modelo = String(patch?.modelo != null ? patch.modelo : prev.modelo || "").trim();
+    const tipo = normalizarTipoMotoCarro(patch?.tipo != null ? patch.tipo : prev.tipo || "");
+    if (!modelo && !tipo) return;
+    map[placa] = { modelo, tipo, atualizadoEm: new Date().toISOString() };
+    localStorage.setItem(ESTOQUE_PLACA_MEMORIA_KEY, JSON.stringify(map));
+    preencherDatalistModelosPlaca();
+  }
+
+  function veiculoFrotaPorPlaca(placaRaw) {
+    const placa = nkPlate(placaRaw);
+    if (!placa) return null;
+    try {
+      const rows = typeof loadAllVeiculosCadastro === "function" ? loadAllVeiculosCadastro() : [];
+      return (rows || []).find((v) => nkPlate(v?.placa) === placa) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function modeloFrotaPorPlaca(placaRaw) {
+    const v = veiculoFrotaPorPlaca(placaRaw);
+    return String(v?.marcaModelo || v?.modelo || "").trim();
+  }
+
+  function tipoFrotaPorPlaca(placaRaw) {
+    const v = veiculoFrotaPorPlaca(placaRaw);
+    if (!v) return "";
+    const tipo = normalizarTipoMotoCarro(v.tipo || v.tipoPlanilha || "");
+    if (tipo) return tipo;
+    return normalizarTipoMotoCarro(String(v.codigo || v.tag || ""));
+  }
+
+  function preencherDatalistModelosPlaca() {
+    const list = $("estoqueSaidaModeloList");
+    if (!list) return;
+    const seen = new Set();
+    const opts = [];
+    Object.values(lerMemoriaPlaca()).forEach((row) => {
+      const nome = String(row?.modelo || "").trim();
+      const k = nome.toUpperCase();
+      if (!nome || seen.has(k)) return;
+      seen.add(k);
+      opts.push(`<option value="${escapeHtml(nome)}"></option>`);
+    });
+    list.innerHTML = opts.join("");
+  }
+
+  function aplicarMemoriaPlacaNaSaida(placaRaw, veiculoHint) {
+    const placa = nkPlate(placaRaw);
+    const modeloEl = $("estoqueSaidaModelo");
+    const veicEl = $("estoqueSaidaVeiculo");
+    if (!placa) {
+      if (modeloEl) modeloEl.value = "";
+      if (veicEl) veicEl.value = "";
+      return;
+    }
+    const mem = lerMemoriaPlaca()[placa] || {};
+    const ult = saidasTodas().find((s) => nkPlate(s.placa) === placa);
+    const modeloSaida = String(ult?.modelo || "").trim();
+    const veiculoSaida = String(ult?.veiculo || "").trim();
+    const modeloHint = String(veiculoHint || "").trim();
+    const modelo =
+      String(mem.modelo || "").trim() ||
+      modeloFrotaPorPlaca(placa) ||
+      modeloSaida ||
+      (modeloHint && !/^(MOTO|CARRO)$/i.test(modeloHint) ? modeloHint : "") ||
+      (veiculoSaida && !/^(MOTO|CARRO)$/i.test(veiculoSaida) ? veiculoSaida : "");
+    const tipo =
+      normalizarTipoMotoCarro(mem.tipo) ||
+      tipoFrotaPorPlaca(placa) ||
+      normalizarTipoMotoCarro(veiculoHint) ||
+      (/^(MOTO|CARRO)$/i.test(veiculoSaida) ? veiculoSaida.toUpperCase() : normalizarTipoMotoCarro(veiculoSaida));
+    if (modeloEl) modeloEl.value = modelo;
+    if (veicEl) veicEl.value = tipo === "MOTO" || tipo === "CARRO" ? tipo : "";
+    if (modelo || tipo) gravarMemoriaPlaca(placa, { modelo, tipo });
+  }
+
   function parseKm(v) {
     const n = Number(String(v || "").replace(/\D/g, ""));
     return Number.isFinite(n) ? n : 0;
@@ -394,18 +503,13 @@
     if (desc) desc.value = cad ? String(cad.descricao || "") : "";
     if (ref) ref.value = cad ? String(cad.referencia || "") : "";
     const placa = nkPlate($("estoqueSaidaPlaca")?.value || "");
-    if (placa) {
-      const ultPlaca = saidasTodas()
-        .filter((s) => nkPlate(s.placa) === placa)
-        .sort((a, b) => {
-          const da = parseDataBr(a.data);
-          const db = parseDataBr(b.data);
-          return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
-        })[0];
-      const veic = $("estoqueSaidaVeiculo");
-      if (veic && !String(veic.value || "").trim() && ultPlaca?.veiculo) {
-        veic.value = String(ultPlaca.veiculo);
-      }
+    const veic = $("estoqueSaidaVeiculo");
+    const modeloEl = $("estoqueSaidaModelo");
+    if (
+      placa &&
+      ((veic && !String(veic.value || "").trim()) || (modeloEl && !String(modeloEl.value || "").trim()))
+    ) {
+      aplicarMemoriaPlacaNaSaida(placa);
     }
   }
 
@@ -1817,6 +1921,7 @@
     renderTabelaEntradas();
     renderTabelaSaidas();
     preencherDatalist();
+    preencherDatalistModelosPlaca();
     const listProd = $("estoqueRelProdutoList");
     if (listProd) listProd.innerHTML = produtosDatalistHtml();
   }
@@ -1874,10 +1979,8 @@
       }
     });
     function aoConfirmarPlacaSaida(placaRaw, veiculoHint) {
+      aplicarMemoriaPlacaNaSaida(placaRaw, veiculoHint);
       const placa = nkPlate(placaRaw);
-      const ult = saidasTodas().find((s) => nkPlate(s.placa) === placa);
-      const veic = $("estoqueSaidaVeiculo");
-      if (veic && (veiculoHint || ult?.veiculo)) veic.value = String(veiculoHint || ult.veiculo || "");
       if (nkBar($("estoqueSaidaCodigo")?.value || "") && placa && parseKm($("estoqueSaidaKm")?.value || "")) {
         conferirUltimaAplicacao({ silencioso: true });
       }
@@ -1885,6 +1988,22 @@
     $("estoqueSaidaPlaca")?.addEventListener("change", () => {
       aoConfirmarPlacaSaida($("estoqueSaidaPlaca")?.value || "");
     });
+    $("estoqueSaidaPlaca")?.addEventListener("blur", () => {
+      aoConfirmarPlacaSaida($("estoqueSaidaPlaca")?.value || "");
+    });
+    let placaMemoTimer = 0;
+    const gravarMemoTela = () => {
+      gravarMemoriaPlaca($("estoqueSaidaPlaca")?.value || "", {
+        modelo: $("estoqueSaidaModelo")?.value || "",
+        tipo: $("estoqueSaidaVeiculo")?.value || "",
+      });
+    };
+    $("estoqueSaidaModelo")?.addEventListener("input", () => {
+      clearTimeout(placaMemoTimer);
+      placaMemoTimer = setTimeout(gravarMemoTela, 350);
+    });
+    $("estoqueSaidaModelo")?.addEventListener("change", gravarMemoTela);
+    $("estoqueSaidaVeiculo")?.addEventListener("change", gravarMemoTela);
     bindEstoquePlacaDropdown({
       inputId: "estoqueSaidaPlaca",
       panelId: "estoqueSaidaPlacaLista",
