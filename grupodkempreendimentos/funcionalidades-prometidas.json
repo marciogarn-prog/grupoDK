@@ -225,6 +225,18 @@
       }
     },
     {
+      "id": "estoque-entrada-nota-fiscal",
+      "descricao": "Na tela Entrada do Controle de Estoque, além das colunas da planilha (código de barras, descrição, referência, quantidade, fornecedor e data), existem NÚMERO DA NOTA FISCAL, VALOR DA NOTA e FORMA DE PAGAMENTO.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueTableEntrada",
+          "NÚMERO DA NOTA FISCAL",
+          "VALOR DA NOTA",
+          "FORMA DE PAGAMENTO"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {
