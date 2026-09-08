@@ -205,7 +205,7 @@
     },
     {
       "id": "controle-estoque-area-equipa",
-      "descricao": "Na Área da equipa existe o botão Controle de Estoque (depois de FINANCEIRO CEO). Abre o painel com Cadastro de material, Estoque, Saída e Entrada; o controlo dos itens é pelo código de barras.",
+      "descricao": "Na Área da equipa existe o botão Controle de Estoque, entre Operação e Manutenção. Abre o painel com Cadastro de material, Estoque, Saída e Entrada; o controlo dos itens é pelo código de barras.",
       "ficheiros": {
         "index.html": [
           "btn-locadora-estoque",
