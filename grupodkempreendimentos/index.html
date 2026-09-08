@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-edt">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-ceoed">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3094,7 +3094,38 @@
           <div class="portal-operacao-layout__main">
             <div id="estoquePaneCadastro" class="operacao-inline-form operacao-inline-form--rodar-mouse" role="region" aria-label="Cadastro de material">
               <h3 class="operacao-inline-form__title">Cadastro de material</h3>
-              <p class="subtext">Lista dos materiais da planilha, identificados pelo código de barras. A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores).</p>
+              <p class="subtext">Lista dos materiais da planilha, identificados pelo código de barras. A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores). Só o <strong>Administrador CEO</strong> vê o botão Editar na frente do código de barras.</p>
+              <form id="estoqueCadastroForm" class="operacao-inline-form__grid hidden" novalidate>
+                <label class="portal-field">
+                  <span>CÓDIGO DE BARRAS</span>
+                  <input type="text" id="estoqueCadastroCodigo" maxlength="20" autocomplete="off" readonly aria-label="Código de barras do material">
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRIÇÃO</span>
+                  <input type="text" id="estoqueCadastroDescricao" maxlength="160" autocomplete="off" aria-label="Descrição do material">
+                </label>
+                <label class="portal-field">
+                  <span>REFERÊNCIA</span>
+                  <input type="text" id="estoqueCadastroReferencia" maxlength="40" autocomplete="off" aria-label="Referência">
+                </label>
+                <label class="portal-field">
+                  <span>FABRICANTE</span>
+                  <input type="text" id="estoqueCadastroFabricante" maxlength="80" autocomplete="off" aria-label="Fabricante">
+                </label>
+                <label class="portal-field">
+                  <span>VALOR UNITÁRIO DO PRODUTO</span>
+                  <input type="text" id="estoqueCadastroPreco" inputmode="decimal" maxlength="16" autocomplete="off" placeholder="0,00" aria-label="Valor unitário do produto">
+                </label>
+                <label class="portal-field">
+                  <span>SETOR</span>
+                  <input type="text" id="estoqueCadastroSetor" maxlength="40" autocomplete="off" aria-label="Setor">
+                </label>
+              </form>
+              <p id="estoqueCadastroFormMsg" class="portal-feedback" role="status"></p>
+              <div class="operacao-inline-form__actions hidden" id="estoqueCadastroEditarActions">
+                <button type="button" class="btn-primary" id="estoqueCadastroSalvarBtn">Salvar alterações</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="estoqueCadastroCancelarBtn">Cancelar edição</button>
+              </div>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table fin-table--excel-cols" id="estoqueTableCadastro">
                   <thead id="estoqueHeadCadastro">
@@ -3115,7 +3146,42 @@
             </div>
             <div id="estoquePaneEstoque" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Estoque">
               <h3 class="operacao-inline-form__title">Estoque</h3>
-              <p class="subtext">Saldo total de cada item da planilha (código de barras). A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores).</p>
+              <p class="subtext">Saldo total de cada item da planilha (código de barras). A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores). Só o <strong>Administrador CEO</strong> vê o botão Editar na frente do código de barras.</p>
+              <form id="estoqueSaldoForm" class="operacao-inline-form__grid hidden" novalidate>
+                <label class="portal-field">
+                  <span>CÓDIGO DE BARRAS</span>
+                  <input type="text" id="estoqueSaldoCodigo" maxlength="20" autocomplete="off" readonly aria-label="Código de barras do estoque">
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRIÇÃO</span>
+                  <input type="text" id="estoqueSaldoDescricao" maxlength="160" autocomplete="off" aria-label="Descrição do material em estoque">
+                </label>
+                <label class="portal-field">
+                  <span>REFERÊNCIA</span>
+                  <input type="text" id="estoqueSaldoReferencia" maxlength="40" autocomplete="off" aria-label="Referência">
+                </label>
+                <label class="portal-field">
+                  <span>FABRICANTE</span>
+                  <input type="text" id="estoqueSaldoFabricante" maxlength="80" autocomplete="off" aria-label="Fabricante">
+                </label>
+                <label class="portal-field">
+                  <span>QT</span>
+                  <input type="text" id="estoqueSaldoQt" inputmode="decimal" maxlength="8" autocomplete="off" aria-label="Quantidade em estoque">
+                </label>
+                <label class="portal-field">
+                  <span>PREÇO</span>
+                  <input type="text" id="estoqueSaldoPreco" inputmode="decimal" maxlength="16" autocomplete="off" placeholder="0,00" aria-label="Preço do material">
+                </label>
+                <label class="portal-field">
+                  <span>SETOR</span>
+                  <input type="text" id="estoqueSaldoSetor" maxlength="40" autocomplete="off" aria-label="Setor">
+                </label>
+              </form>
+              <p id="estoqueSaldoFormMsg" class="portal-feedback" role="status"></p>
+              <div class="operacao-inline-form__actions hidden" id="estoqueSaldoEditarActions">
+                <button type="button" class="btn-primary" id="estoqueSaldoSalvarBtn">Salvar alterações</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="estoqueSaldoCancelarBtn">Cancelar edição</button>
+              </div>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table fin-table--excel-cols" id="estoqueTableSaldo">
                   <thead id="estoqueHeadSaldo">
@@ -3195,11 +3261,14 @@
               <div class="operacao-inline-form__actions">
                 <button type="button" class="btn-primary" id="estoqueSaidaConferirBtn">Conferir última aplicação</button>
                 <button type="button" class="btn-primary btn-secondary-outline" id="estoqueSaidaLimparBtn">Limpar dados</button>
+                <button type="button" class="btn-primary hidden" id="estoqueSaidaSalvarBtn">Salvar alterações</button>
+                <button type="button" class="btn-primary btn-secondary-outline hidden" id="estoqueSaidaCancelarBtn">Cancelar edição</button>
               </div>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableSaida">
                   <thead>
                     <tr>
+                      <th>Editar</th>
                       <th>CÓDIGO DE BARRAS</th>
                       <th>DESCRIÇÃO DO MATERIAL</th>
                       <th>REFERENCIA</th>
@@ -3211,7 +3280,7 @@
                     </tr>
                   </thead>
                   <tbody id="estoqueBodySaida">
-                    <tr><td colspan="8" class="subtext">A carregar a planilha…</td></tr>
+                    <tr><td colspan="9" class="subtext">A carregar a planilha…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -5060,7 +5129,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-edt" defer></script>
+  <script src="app.js?v=20260908estq-ceoed" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5068,13 +5137,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-edt" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-edt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-edt" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-ceoed" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-ceoed" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-ceoed" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-edt" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-ceoed" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

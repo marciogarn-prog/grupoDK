@@ -233,15 +233,76 @@
       : { cadastro: [], estoque: [], entradas: [], saidas: [] };
   }
 
-  function saidasTodas() {
-    const base = Array.isArray(planilha().saidas) ? planilha().saidas : [];
-    let extra = [];
+  function extrasSaidas() {
     try {
-      extra = JSON.parse(localStorage.getItem("dk_estoque_saidas_v1") || "[]");
+      const extra = JSON.parse(localStorage.getItem("dk_estoque_saidas_v1") || "[]");
+      return Array.isArray(extra) ? extra : [];
     } catch {
-      extra = [];
+      return [];
     }
-    return base.concat(Array.isArray(extra) ? extra : []).filter((s) => codigoValido(s.codigo));
+  }
+
+  function gravarExtrasSaidas(list) {
+    localStorage.setItem("dk_estoque_saidas_v1", JSON.stringify(Array.isArray(list) ? list : []));
+  }
+
+  function chavePlanilhaSaida(r, i) {
+    return `planilha-sai:${i}:${nkBar(r?.codigo)}:${nkPlate(r?.placa)}:${String(r?.data || "")}:${String(r?.quantidade ?? "")}:${String(r?.km ?? "")}`;
+  }
+
+  function planilhaSaidaPorChave(chave) {
+    const alvo = String(chave || "");
+    if (!alvo) return null;
+    const base = Array.isArray(planilha().saidas) ? planilha().saidas : [];
+    for (let i = 0; i < base.length; i += 1) {
+      if (chavePlanilhaSaida(base[i], i) === alvo) return base[i];
+    }
+    return null;
+  }
+
+  function garantirIdsExtrasSaidas() {
+    const extra = extrasSaidas();
+    let mudou = false;
+    extra.forEach((r) => {
+      if (!r || typeof r !== "object") return;
+      if (!String(r.id || "").trim()) {
+        r.id = r.gravadoEm ? `sg-${String(r.gravadoEm)}` : `sai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        mudou = true;
+      }
+    });
+    if (mudou) gravarExtrasSaidas(extra);
+    return extra;
+  }
+
+  function saidasTodas() {
+    const extra = garantirIdsExtrasSaidas();
+    const substituidos = new Set(extra.map((e) => String(e?.substitui || "")).filter(Boolean));
+    const base = Array.isArray(planilha().saidas) ? planilha().saidas : [];
+    const vis = [];
+    base.forEach((r, i) => {
+      const chave = chavePlanilhaSaida(r, i);
+      if (substituidos.has(chave)) return;
+      vis.push({ ...r, _chavePlanilha: chave });
+    });
+    return extra.concat(vis).filter((s) => codigoValido(s.codigo) || String(s.descricao || "").trim());
+  }
+
+  function qtdExtraSaida(codigo) {
+    const key = nkBar(codigo);
+    if (!key) return 0;
+    return extrasSaidas().reduce((acc, r) => {
+      if (r?.substitui) {
+        const orig = planilhaSaidaPorChave(r.substitui);
+        const origKey = orig ? nkBar(orig.codigo) : "";
+        const origQtd = orig ? parseQtd(orig.quantidade) : 0;
+        const newKey = nkBar(r.codigo);
+        const newQtd = parseQtd(r.quantidade);
+        if (newKey === key) acc += newQtd;
+        if (origKey === key) acc -= origQtd;
+        return acc;
+      }
+      return acc + (nkBar(r.codigo) === key ? parseQtd(r.quantidade) : 0);
+    }, 0);
   }
 
   function extrasCadastro() {
@@ -265,25 +326,55 @@
       seen.add(k);
       out.push(r);
     };
+    extrasCadastro().forEach(add);
     for (const r of rows) {
       if (!codigoValido(r.codigo)) continue;
       add(r);
     }
-    extrasCadastro().forEach(add);
     return out;
   }
 
+  function extrasSaldo() {
+    try {
+      const extra = JSON.parse(localStorage.getItem("dk_estoque_saldo_v1") || "[]");
+      return Array.isArray(extra) ? extra : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function gravarExtrasSaldo(list) {
+    localStorage.setItem("dk_estoque_saldo_v1", JSON.stringify(Array.isArray(list) ? list : []));
+  }
+
+  function gravarExtrasCadastro(list) {
+    localStorage.setItem("dk_estoque_cadastro_v1", JSON.stringify(Array.isArray(list) ? list : []));
+  }
+
   function estoqueTodos() {
+    const extraBy = new Map();
+    extrasSaldo().forEach((r) => {
+      const k = nkBar(r?.codigo);
+      if (k) extraBy.set(k, r);
+    });
     const seen = new Set();
-    const rows = Array.isArray(planilha().estoque) ? planilha().estoque : [];
     const out = [];
+    const rows = Array.isArray(planilha().estoque) ? planilha().estoque : [];
     for (const r of rows) {
       if (!codigoValido(r.codigo)) continue;
       const k = nkBar(r.codigo);
       if (seen.has(k)) continue;
       seen.add(k);
-      out.push(r);
+      const ov = extraBy.get(k);
+      out.push(ov ? { ...r, ...ov, codigo: ov.codigo || r.codigo } : r);
     }
+    extrasSaldo().forEach((r) => {
+      if (!codigoValido(r.codigo)) return;
+      const k = nkBar(r.codigo);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(r);
+    });
     for (const r of extrasCadastro()) {
       if (!codigoValido(r.codigo)) continue;
       const k = nkBar(r.codigo);
@@ -384,6 +475,38 @@
 
   function estoqueAndroidSomenteLeitura() {
     return document.body.classList.contains("portal-plataforma-android");
+  }
+
+  function estoquePodeEditarLinha() {
+    if (estoqueAndroidSomenteLeitura()) return false;
+    if (typeof window.__DK_isPortalAdministradorTitularCeo === "function") {
+      return window.__DK_isPortalAdministradorTitularCeo();
+    }
+    if (typeof window.__DK_isPortalAdministradorTitularCpf === "function") {
+      return window.__DK_isPortalAdministradorTitularCpf();
+    }
+    try {
+      const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      if (!s || s.tipo !== "admin") return false;
+      const cpf = String(s.cpf || "").replace(/\D/g, "").slice(0, 11);
+      return cpf === "03037897430" && String(s.role || "").trim() === "owner";
+    } catch {
+      return false;
+    }
+  }
+
+  function htmlBotaoEditarLinha(chave, rotulo, attr) {
+    if (!estoquePodeEditarLinha() || !chave) return "";
+    return `<button type="button" class="btn-primary btn-secondary-outline estoque-linha-editar-btn estoque-entrada-editar-btn" ${attr}="${escapeHtml(
+      chave
+    )}" aria-label="Editar ${escapeHtml(rotulo || "")}">Editar</button>`;
+  }
+
+  function atualizarColunasEditarEstoque() {
+    const allow = estoquePodeEditarLinha();
+    ["estoqueTableEntrada", "estoqueTableSaida", "estoqueTableCadastro", "estoqueTableSaldo"].forEach((id) => {
+      $(id)?.classList.toggle("estoque-tabela-com-editar", allow);
+    });
   }
 
   function cadastroDoCodigo(codigo) {
@@ -569,9 +692,21 @@
     }
   }
 
+  let saidaEdicaoId = "";
+  let saidaEdicaoChavePlanilha = "";
+  let cadastroEdicaoChave = "";
+  let saldoEdicaoChave = "";
+
+  function chaveDaLinhaSaida(s) {
+    return String(s?.id || s?._chavePlanilha || "");
+  }
+
   function renderTabelaSaidas() {
     const body = $("estoqueBodySaida");
     if (!body) return;
+    atualizarColunasEditarEstoque();
+    const pode = estoquePodeEditarLinha();
+    const cols = pode ? 9 : 8;
     const rows = saidasTodas()
       .slice()
       .sort((a, b) => {
@@ -580,20 +715,27 @@
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
       });
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="8" class="subtext">Nenhuma saída registada.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${cols}" class="subtext">Nenhuma saída registada.</td></tr>`;
       return;
     }
+    const chaveAtiva = saidaEdicaoId || saidaEdicaoChavePlanilha;
     body.innerHTML = rows
-      .map(
-        (s) =>
-          `<tr><td>${escapeHtml(s.codigo || "")}</td><td>${escapeHtml(s.descricao || "")}</td><td>${escapeHtml(
-            s.referencia || ""
-          )}</td><td>${escapeHtml(String(s.quantidade ?? ""))}</td><td>${escapeHtml(
-            s.placa || ""
-          )}</td><td>${escapeHtml(s.veiculo || "")}</td><td>${escapeHtml(String(s.km ?? ""))}</td><td>${escapeHtml(
-            s.data || ""
-          )}</td></tr>`
-      )
+      .map((s) => {
+        const chave = chaveDaLinhaSaida(s);
+        const ativa = chave && chave === chaveAtiva;
+        const btnTd = `<td class="estoque-td-editar">${htmlBotaoEditarLinha(
+          chave,
+          s.codigo || s.descricao || "",
+          "data-estoque-editar-saida"
+        )}</td>`;
+        return `<tr class="${ativa ? "estoque-linha-em-edicao" : ""}">${btnTd}<td>${escapeHtml(
+          s.codigo || ""
+        )}</td><td>${escapeHtml(s.descricao || "")}</td><td>${escapeHtml(s.referencia || "")}</td><td>${escapeHtml(
+          String(s.quantidade ?? "")
+        )}</td><td>${escapeHtml(s.placa || "")}</td><td>${escapeHtml(s.veiculo || "")}</td><td>${escapeHtml(
+          String(s.km ?? "")
+        )}</td><td>${escapeHtml(s.data || "")}</td></tr>`;
+      })
       .join("");
   }
 
@@ -676,7 +818,8 @@
   function renderEstoqueCadHead() {
     const thead = $("estoqueHeadCadastro");
     if (!thead) return;
-    thead.innerHTML = `<tr>${ESTOQUE_CAD_COLS.map((col) => {
+    const editarTh = estoquePodeEditarLinha() ? `<th class="estoque-th-editar">Editar</th>` : "";
+    thead.innerHTML = `<tr>${editarTh}${ESTOQUE_CAD_COLS.map((col) => {
       const filtered = cadExcelState.cols[col.key] instanceof Set;
       const active = filtered || cadExcelState.sortKey === col.key;
       return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col"><span class="fin-excel-th__label">${escapeHtml(
@@ -851,23 +994,34 @@
     });
   }
 
+  function chaveCadastroLinha(r) {
+    return codigoValido(r?.codigo) ? nkBar(r.codigo) : `d:${String(r?.descricao || "").trim().toUpperCase()}`;
+  }
+
   function renderTabelaCadastro() {
     const body = $("estoqueBodyCadastro");
     if (!body) return;
+    atualizarColunasEditarEstoque();
     renderEstoqueCadHead();
+    const pode = estoquePodeEditarLinha();
     const rows = cadLinhasFiltradas();
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum material na planilha.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${pode ? 7 : 6}" class="subtext">Nenhum material na planilha.</td></tr>`;
       return;
     }
     body.innerHTML = rows
       .map((r) => {
         const preco = precoDoCodigo(r.codigo);
-        return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
-          r.referencia || ""
-        )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${preco > 0 ? formatMoney(preco) : "—"}</td><td>${escapeHtml(
-          r.setor || ""
-        )}</td></tr>`;
+        const chave = chaveCadastroLinha(r);
+        const ativa = chave && chave === cadastroEdicaoChave;
+        const btnTd = pode
+          ? `<td class="estoque-td-editar">${htmlBotaoEditarLinha(chave, r.codigo || r.descricao || "", "data-estoque-editar-cad")}</td>`
+          : "";
+        return `<tr class="${ativa ? "estoque-linha-em-edicao" : ""}">${btnTd}<td>${escapeHtml(
+          r.codigo || ""
+        )}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(r.referencia || "")}</td><td>${escapeHtml(
+          r.fabricante || ""
+        )}</td><td>${preco > 0 ? formatMoney(preco) : "—"}</td><td>${escapeHtml(r.setor || "")}</td></tr>`;
       })
       .join("");
   }
@@ -890,12 +1044,13 @@
 
   function saldoView(r) {
     const extraEnt = qtdExtraEntrada(r.codigo);
+    const extraSai = qtdExtraSaida(r.codigo);
     const preco = precoDoCodigo(r.codigo);
     const entradas = parseQtd(r.entradas) + extraEnt;
-    const saidas = parseQtd(r.saidas);
-    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    const saidas = parseQtd(r.saidas) + extraSai;
+    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt - extraSai;
     const total = preco > 0 ? preco * saldo : 0;
-    return { row: r, extraEnt, preco, total, entradas, saidas, saldo };
+    return { row: r, extraEnt, extraSai, preco, total, entradas, saidas, saldo };
   }
 
   function saldoCellDisplay(view, key) {
@@ -959,7 +1114,8 @@
   function renderEstoqueSaldoHead() {
     const thead = $("estoqueHeadSaldo");
     if (!thead) return;
-    thead.innerHTML = `<tr>${ESTOQUE_SALDO_COLS.map((col) => {
+    const editarTh = estoquePodeEditarLinha() ? `<th class="estoque-th-editar">Editar</th>` : "";
+    thead.innerHTML = `<tr>${editarTh}${ESTOQUE_SALDO_COLS.map((col) => {
       const filtered = saldoExcelState.cols[col.key] instanceof Set;
       const active = filtered || saldoExcelState.sortKey === col.key;
       return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col"><span class="fin-excel-th__label">${escapeHtml(
@@ -1087,18 +1243,27 @@
   function renderTabelaEstoque() {
     const body = $("estoqueBodySaldo");
     if (!body) return;
+    atualizarColunasEditarEstoque();
     renderEstoqueSaldoHead();
+    const pode = estoquePodeEditarLinha();
     const views = saldoLinhasFiltradas();
     if (!views.length) {
-      body.innerHTML = `<tr><td colspan="11" class="subtext">Nenhum saldo na planilha.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${pode ? 12 : 11}" class="subtext">Nenhum saldo na planilha.</td></tr>`;
       return;
     }
     body.innerHTML = views
       .map((v) => {
         const r = v.row;
-        return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
-          r.referencia || ""
-        )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${escapeHtml(String(r.qt ?? ""))}</td><td>${
+        const chave = nkBar(r.codigo);
+        const ativa = chave && chave === saldoEdicaoChave;
+        const btnTd = pode
+          ? `<td class="estoque-td-editar">${htmlBotaoEditarLinha(chave, r.codigo || r.descricao || "", "data-estoque-editar-saldo")}</td>`
+          : "";
+        return `<tr class="${ativa ? "estoque-linha-em-edicao" : ""}">${btnTd}<td>${escapeHtml(
+          r.codigo || ""
+        )}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(r.referencia || "")}</td><td>${escapeHtml(
+          r.fabricante || ""
+        )}</td><td>${escapeHtml(String(r.qt ?? ""))}</td><td>${
           v.preco > 0 ? formatMoney(v.preco) : "—"
         }</td><td>${v.total > 0 ? formatMoney(v.total) : "—"}</td><td>${escapeHtml(r.setor || "")}</td><td>${escapeHtml(
           String(v.entradas)
@@ -1171,7 +1336,7 @@
   }
 
   function iniciarEdicaoEntrada(chave) {
-    if (estoqueAndroidSomenteLeitura()) return;
+    if (!estoquePodeEditarLinha()) return;
     const id = String(chave || "");
     if (!id) return;
     const row = entradasTodas().find((r) => chaveDaLinhaEntrada(r) === id);
@@ -1189,6 +1354,7 @@
   function renderTabelaEntradas() {
     const body = $("estoqueBodyEntrada");
     if (!body) return;
+    atualizarColunasEditarEstoque();
     const rows = entradasTodas()
       .slice()
       .sort((a, b) => {
@@ -1197,21 +1363,16 @@
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
       });
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="11" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${estoquePodeEditarLinha() ? 11 : 10}" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
       return;
     }
     const chaveAtiva = entradaEdicaoId || entradaEdicaoChavePlanilha;
-    const soLeitura = estoqueAndroidSomenteLeitura();
     body.innerHTML = rows
       .map((r) => {
         const chave = chaveDaLinhaEntrada(r);
         const ativa = chave && chave === chaveAtiva;
-        const btn = soLeitura
-          ? ""
-          : `<button type="button" class="btn-primary btn-secondary-outline estoque-entrada-editar-btn" data-estoque-editar="${escapeHtml(
-              chave
-            )}" aria-label="Editar entrada ${escapeHtml(r.codigo || r.descricao || "")}">Editar</button>`;
-        return `<tr class="${ativa ? "estoque-entrada-em-edicao" : ""}"><td>${btn}</td><td>${escapeHtml(
+        const btn = htmlBotaoEditarLinha(chave, r.codigo || r.descricao || "", "data-estoque-editar");
+        return `<tr class="${ativa ? "estoque-entrada-em-edicao estoque-linha-em-edicao" : ""}"><td>${btn}</td><td>${escapeHtml(
           r.codigo || ""
         )}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(r.referencia || "")}</td><td>${escapeHtml(
           String(r.quantidade ?? "")
@@ -1228,13 +1389,291 @@
       .join("");
   }
 
+  function setSaidaCamposSomenteLeitura(ro) {
+    $("estoqueSaidaDescricao")?.toggleAttribute("readonly", ro);
+    $("estoqueSaidaReferencia")?.toggleAttribute("readonly", ro);
+  }
+
+  function atualizarUiEdicaoSaida() {
+    const editando = Boolean(saidaEdicaoId || saidaEdicaoChavePlanilha);
+    $("estoqueSaidaSalvarBtn")?.classList.toggle("hidden", !editando);
+    $("estoqueSaidaCancelarBtn")?.classList.toggle("hidden", !editando);
+    setSaidaCamposSomenteLeitura(!editando);
+  }
+
+  function sairEdicaoSaida({ limpar = true } = {}) {
+    saidaEdicaoId = "";
+    saidaEdicaoChavePlanilha = "";
+    atualizarUiEdicaoSaida();
+    if (limpar) limparDadosSaida({ silencioso: true, manterEdicao: true });
+    renderTabelaSaidas();
+  }
+
+  function carregarSaidaNoForm(row) {
+    if (!row) return;
+    if ($("estoqueSaidaPlaca")) $("estoqueSaidaPlaca").value = formatPlateOut(row.placa || "");
+    if ($("estoqueSaidaModelo")) $("estoqueSaidaModelo").value = String(row.modelo || "").trim();
+    if ($("estoqueSaidaKm")) $("estoqueSaidaKm").value = String(row.km ?? "");
+    if ($("estoqueSaidaData")) $("estoqueSaidaData").value = String(row.data || "").replace(/-/g, "/") || hojeBr();
+    if ($("estoqueSaidaCodigo")) $("estoqueSaidaCodigo").value = String(row.codigo || "");
+    if ($("estoqueSaidaQtd")) $("estoqueSaidaQtd").value = String(row.quantidade ?? "1");
+    const tipo = normalizarTipoMotoCarro(row.veiculo) || (/^(MOTO|CARRO)$/i.test(String(row.veiculo || "")) ? String(row.veiculo).toUpperCase() : "");
+    if ($("estoqueSaidaVeiculo")) $("estoqueSaidaVeiculo").value = tipo === "MOTO" || tipo === "CARRO" ? tipo : "";
+    if ($("estoqueSaidaDescricao")) $("estoqueSaidaDescricao").value = String(row.descricao || "");
+    if ($("estoqueSaidaReferencia")) $("estoqueSaidaReferencia").value = String(row.referencia || "");
+    if (!tipo && row.placa) aplicarMemoriaPlacaNaSaida(row.placa, row.veiculo);
+  }
+
+  function iniciarEdicaoSaida(chave) {
+    if (!estoquePodeEditarLinha()) return;
+    const id = String(chave || "");
+    if (!id) return;
+    const row = saidasTodas().find((r) => chaveDaLinhaSaida(r) === id);
+    if (!row) return;
+    saidaEdicaoId = String(row.id || "");
+    saidaEdicaoChavePlanilha = String(row._chavePlanilha || row.substitui || "");
+    carregarSaidaNoForm(row);
+    atualizarUiEdicaoSaida();
+    const msg = $("estoqueSaidaFormMsg");
+    if (msg) msg.textContent = "Altere os dados e clique em Salvar alterações.";
+    renderTabelaSaidas();
+    $("estoqueSaidaForm")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  function gravarSaidaEditada() {
+    const msg = $("estoqueSaidaFormMsg");
+    if (!estoquePodeEditarLinha()) {
+      if (msg) msg.textContent = "Só o Administrador CEO pode editar saídas.";
+      return false;
+    }
+    if (!(saidaEdicaoId || saidaEdicaoChavePlanilha)) {
+      if (msg) msg.textContent = "Escolha uma saída na tabela e clique em Editar.";
+      return false;
+    }
+    const codigo = String($("estoqueSaidaCodigo")?.value || "").trim();
+    const descricao = String($("estoqueSaidaDescricao")?.value || "").trim();
+    const referencia = String($("estoqueSaidaReferencia")?.value || "").trim();
+    const quantidade = parseQtd($("estoqueSaidaQtd")?.value);
+    const placa = formatPlateOut($("estoqueSaidaPlaca")?.value || "");
+    const modelo = String($("estoqueSaidaModelo")?.value || "").trim();
+    const veiculo = String($("estoqueSaidaVeiculo")?.value || "").trim();
+    const km = String($("estoqueSaidaKm")?.value || "").trim();
+    const data = String($("estoqueSaidaData")?.value || "").trim() || hojeBr();
+    if (!codigoValido(codigo) && !descricao) {
+      if (msg) msg.textContent = "Informe o código de barras ou a descrição.";
+      return false;
+    }
+    if (!(quantidade > 0)) {
+      if (msg) msg.textContent = "Informe a quantidade da saída.";
+      return false;
+    }
+    const row = {
+      codigo,
+      descricao,
+      referencia,
+      quantidade,
+      placa,
+      modelo,
+      veiculo,
+      km,
+      data,
+      gravadoEm: new Date().toISOString(),
+    };
+    const extra = garantirIdsExtrasSaidas();
+    if (saidaEdicaoId) {
+      const i = extra.findIndex((x) => String(x?.id || "") === saidaEdicaoId);
+      if (i >= 0) {
+        const prev = extra[i];
+        extra[i] = { ...prev, ...row, id: prev.id, substitui: prev.substitui || undefined, editadoEm: row.gravadoEm };
+      } else {
+        extra.unshift({ ...row, id: saidaEdicaoId });
+      }
+    } else {
+      extra.unshift({
+        ...row,
+        id: `sai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        substitui: saidaEdicaoChavePlanilha,
+        editadoEm: row.gravadoEm,
+      });
+    }
+    gravarExtrasSaidas(extra);
+    if (placa) gravarMemoriaPlaca(placa, { modelo, tipo: veiculo });
+    sairEdicaoSaida({ limpar: true });
+    if (msg) msg.textContent = `Saída atualizada: ${descricao || codigo} · ${quantidade} · ${placa || "sem placa"}.`;
+    carregarPlanilhaNasTelas();
+    return true;
+  }
+
+  function atualizarUiEdicaoCadastro() {
+    const editando = Boolean(cadastroEdicaoChave);
+    $("estoqueCadastroForm")?.classList.toggle("hidden", !editando);
+    $("estoqueCadastroEditarActions")?.classList.toggle("hidden", !editando);
+  }
+
+  function sairEdicaoCadastro() {
+    cadastroEdicaoChave = "";
+    atualizarUiEdicaoCadastro();
+    ["estoqueCadastroCodigo", "estoqueCadastroDescricao", "estoqueCadastroReferencia", "estoqueCadastroFabricante", "estoqueCadastroPreco", "estoqueCadastroSetor"].forEach((id) => {
+      if ($(id)) $(id).value = "";
+    });
+    renderTabelaCadastro();
+  }
+
+  function iniciarEdicaoCadastro(chave) {
+    if (!estoquePodeEditarLinha()) return;
+    const id = String(chave || "");
+    if (!id) return;
+    const row = cadastroTodos().find((r) => chaveCadastroLinha(r) === id);
+    if (!row) return;
+    cadastroEdicaoChave = id;
+    if ($("estoqueCadastroCodigo")) $("estoqueCadastroCodigo").value = String(row.codigo || "");
+    if ($("estoqueCadastroDescricao")) $("estoqueCadastroDescricao").value = String(row.descricao || "");
+    if ($("estoqueCadastroReferencia")) $("estoqueCadastroReferencia").value = String(row.referencia || "");
+    if ($("estoqueCadastroFabricante")) $("estoqueCadastroFabricante").value = String(row.fabricante || "");
+    if ($("estoqueCadastroPreco")) $("estoqueCadastroPreco").value = formatMoneyInput(precoDoCodigo(row.codigo));
+    if ($("estoqueCadastroSetor")) $("estoqueCadastroSetor").value = String(row.setor || "");
+    atualizarUiEdicaoCadastro();
+    const msg = $("estoqueCadastroFormMsg");
+    if (msg) msg.textContent = "Altere os dados e clique em Salvar alterações.";
+    renderTabelaCadastro();
+    $("estoqueCadastroForm")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  function gravarCadastroEditado() {
+    const msg = $("estoqueCadastroFormMsg");
+    if (!estoquePodeEditarLinha()) {
+      if (msg) msg.textContent = "Só o Administrador CEO pode editar o cadastro.";
+      return false;
+    }
+    if (!cadastroEdicaoChave) return false;
+    const codigo = String($("estoqueCadastroCodigo")?.value || "").trim();
+    const descricao = String($("estoqueCadastroDescricao")?.value || "").trim();
+    const referencia = String($("estoqueCadastroReferencia")?.value || "").trim();
+    const fabricante = String($("estoqueCadastroFabricante")?.value || "").trim();
+    const preco = parsePreco($("estoqueCadastroPreco")?.value);
+    const setor = String($("estoqueCadastroSetor")?.value || "").trim();
+    if (!codigoValido(codigo) && !descricao) {
+      if (msg) msg.textContent = "Informe o código de barras ou a descrição.";
+      return false;
+    }
+    const extra = extrasCadastro();
+    const keyOrig = cadastroEdicaoChave;
+    const i = extra.findIndex((r) => chaveCadastroLinha(r) === keyOrig || nkBar(r.codigo) === keyOrig);
+    const row = {
+      codigo,
+      descricao,
+      referencia,
+      fabricante,
+      preco: preco > 0 ? preco : "",
+      setor,
+      origem: "edicao-ceo",
+      gravadoEm: new Date().toISOString(),
+    };
+    if (i >= 0) extra[i] = { ...extra[i], ...row };
+    else extra.unshift(row);
+    gravarExtrasCadastro(extra);
+    if (preco > 0 && codigoValido(codigo)) gravarPrecoRecente(codigo, preco);
+    sairEdicaoCadastro();
+    if (msg) msg.textContent = `Cadastro atualizado: ${descricao || codigo}.`;
+    carregarPlanilhaNasTelas();
+    return true;
+  }
+
+  function atualizarUiEdicaoSaldo() {
+    const editando = Boolean(saldoEdicaoChave);
+    $("estoqueSaldoForm")?.classList.toggle("hidden", !editando);
+    $("estoqueSaldoEditarActions")?.classList.toggle("hidden", !editando);
+  }
+
+  function sairEdicaoSaldo() {
+    saldoEdicaoChave = "";
+    atualizarUiEdicaoSaldo();
+    ["estoqueSaldoCodigo", "estoqueSaldoDescricao", "estoqueSaldoReferencia", "estoqueSaldoFabricante", "estoqueSaldoQt", "estoqueSaldoPreco", "estoqueSaldoSetor"].forEach((id) => {
+      if ($(id)) $(id).value = "";
+    });
+    renderTabelaEstoque();
+  }
+
+  function iniciarEdicaoSaldo(chave) {
+    if (!estoquePodeEditarLinha()) return;
+    const id = nkBar(chave);
+    if (!id) return;
+    const row = estoqueTodos().find((r) => nkBar(r.codigo) === id);
+    if (!row) return;
+    const view = saldoView(row);
+    saldoEdicaoChave = id;
+    if ($("estoqueSaldoCodigo")) $("estoqueSaldoCodigo").value = String(row.codigo || "");
+    if ($("estoqueSaldoDescricao")) $("estoqueSaldoDescricao").value = String(row.descricao || "");
+    if ($("estoqueSaldoReferencia")) $("estoqueSaldoReferencia").value = String(row.referencia || "");
+    if ($("estoqueSaldoFabricante")) $("estoqueSaldoFabricante").value = String(row.fabricante || "");
+    if ($("estoqueSaldoQt")) $("estoqueSaldoQt").value = String(view.saldo ?? row.qt ?? "");
+    if ($("estoqueSaldoPreco")) $("estoqueSaldoPreco").value = formatMoneyInput(view.preco);
+    if ($("estoqueSaldoSetor")) $("estoqueSaldoSetor").value = String(row.setor || "");
+    atualizarUiEdicaoSaldo();
+    const msg = $("estoqueSaldoFormMsg");
+    if (msg) msg.textContent = "Altere os dados e clique em Salvar alterações.";
+    renderTabelaEstoque();
+    $("estoqueSaldoForm")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  function gravarSaldoEditado() {
+    const msg = $("estoqueSaldoFormMsg");
+    if (!estoquePodeEditarLinha()) {
+      if (msg) msg.textContent = "Só o Administrador CEO pode editar o estoque.";
+      return false;
+    }
+    if (!saldoEdicaoChave) return false;
+    const codigo = String($("estoqueSaldoCodigo")?.value || "").trim();
+    const descricao = String($("estoqueSaldoDescricao")?.value || "").trim();
+    const referencia = String($("estoqueSaldoReferencia")?.value || "").trim();
+    const fabricante = String($("estoqueSaldoFabricante")?.value || "").trim();
+    const qt = parseQtd($("estoqueSaldoQt")?.value);
+    const preco = parsePreco($("estoqueSaldoPreco")?.value);
+    const setor = String($("estoqueSaldoSetor")?.value || "").trim();
+    if (!codigoValido(codigo)) {
+      if (msg) msg.textContent = "Código de barras inválido.";
+      return false;
+    }
+    const extraEnt = qtdExtraEntrada(codigo);
+    const extraSai = qtdExtraSaida(codigo);
+    const baseQt = qt - extraEnt + extraSai;
+    const extra = extrasSaldo();
+    const i = extra.findIndex((r) => nkBar(r.codigo) === saldoEdicaoChave);
+    const row = {
+      codigo,
+      descricao,
+      referencia,
+      fabricante,
+      qt: baseQt,
+      saldo: baseQt,
+      preco: preco > 0 ? preco : 0,
+      setor,
+      gravadoEm: new Date().toISOString(),
+    };
+    if (i >= 0) extra[i] = { ...extra[i], ...row };
+    else extra.unshift(row);
+    gravarExtrasSaldo(extra);
+    if (preco > 0) gravarPrecoRecente(codigo, preco);
+    const cadExtra = extrasCadastro();
+    const ci = cadExtra.findIndex((r) => nkBar(r.codigo) === nkBar(codigo));
+    const cadRow = { codigo, descricao, referencia, fabricante, preco: preco > 0 ? preco : "", setor, origem: "edicao-ceo", gravadoEm: row.gravadoEm };
+    if (ci >= 0) cadExtra[ci] = { ...cadExtra[ci], ...cadRow };
+    else cadExtra.unshift(cadRow);
+    gravarExtrasCadastro(cadExtra);
+    sairEdicaoSaldo();
+    if (msg) msg.textContent = `Estoque atualizado: ${descricao || codigo} · QT ${qt}.`;
+    carregarPlanilhaNasTelas();
+    return true;
+  }
+
   function isMotoVeiculo(v) {
     return /\bMOTO\b|MOTOCICLETA|SCOOTER/.test(String(v || "").toUpperCase());
   }
 
   function valorLinhaEstoque(r) {
     const extraEnt = qtdExtraEntrada(r.codigo);
-    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    const extraSai = qtdExtraSaida(r.codigo);
+    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt - extraSai;
     return precoDoCodigo(r.codigo) * saldo;
   }
 
@@ -1381,6 +1820,10 @@
     const msg = $("estoqueEntradaFormMsg");
     if (estoqueAndroidSomenteLeitura()) {
       if (msg) msg.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
+      return false;
+    }
+    if (entradaEmEdicao() && !estoquePodeEditarLinha()) {
+      if (msg) msg.textContent = "Só o Administrador CEO pode editar entradas.";
       return false;
     }
     const codigo = String($("estoqueEntradaCodigo")?.value || "").trim();
@@ -2083,6 +2526,7 @@
 
   function carregarPlanilhaNasTelas() {
     extrasEntradas().forEach((r) => garantirCadastroDoMaterial(r));
+    atualizarColunasEditarEstoque();
     atualizarKpis();
     renderTabelaCadastro();
     renderTabelaEstoque();
@@ -2094,7 +2538,15 @@
     if (listProd) listProd.innerHTML = produtosDatalistHtml();
   }
 
-  function limparDadosSaida() {
+  function limparDadosSaida(opts) {
+    const silencioso = Boolean(opts && opts.silencioso);
+    const manterEdicao = Boolean(opts && opts.manterEdicao);
+    if (!manterEdicao && (saidaEdicaoId || saidaEdicaoChavePlanilha)) {
+      saidaEdicaoId = "";
+      saidaEdicaoChavePlanilha = "";
+      atualizarUiEdicaoSaida();
+      renderTabelaSaidas();
+    }
     if ($("estoqueSaidaPlaca")) $("estoqueSaidaPlaca").value = "";
     if ($("estoqueSaidaModelo")) $("estoqueSaidaModelo").value = "";
     if ($("estoqueSaidaKm")) $("estoqueSaidaKm").value = "";
@@ -2105,9 +2557,9 @@
     if ($("estoqueSaidaDescricao")) $("estoqueSaidaDescricao").value = "";
     if ($("estoqueSaidaReferencia")) $("estoqueSaidaReferencia").value = "";
     const msg = $("estoqueSaidaFormMsg");
-    if (msg) msg.textContent = "Formulário limpo.";
+    if (!silencioso && msg) msg.textContent = "Formulário limpo.";
     fecharResumo();
-    $("estoqueSaidaPlaca")?.focus();
+    if (!silencioso) $("estoqueSaidaPlaca")?.focus();
   }
 
   function aoAbrirSaida() {
@@ -2253,6 +2705,62 @@
       if (!btn) return;
       e.preventDefault();
       iniciarEdicaoEntrada(btn.getAttribute("data-estoque-editar"));
+    });
+    $("estoqueSaidaSalvarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      gravarSaidaEditada();
+    });
+    $("estoqueSaidaCancelarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sairEdicaoSaida({ limpar: true });
+      const msg = $("estoqueSaidaFormMsg");
+      if (msg) msg.textContent = "Edição cancelada.";
+    });
+    $("estoqueBodySaida")?.addEventListener("click", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest("[data-estoque-editar-saida]") : null;
+      if (!btn) return;
+      e.preventDefault();
+      iniciarEdicaoSaida(btn.getAttribute("data-estoque-editar-saida"));
+    });
+    $("estoqueCadastroSalvarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      gravarCadastroEditado();
+    });
+    $("estoqueCadastroCancelarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sairEdicaoCadastro();
+      const msg = $("estoqueCadastroFormMsg");
+      if (msg) msg.textContent = "Edição cancelada.";
+    });
+    $("estoqueCadastroForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      gravarCadastroEditado();
+    });
+    $("estoqueBodyCadastro")?.addEventListener("click", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest("[data-estoque-editar-cad]") : null;
+      if (!btn) return;
+      e.preventDefault();
+      iniciarEdicaoCadastro(btn.getAttribute("data-estoque-editar-cad"));
+    });
+    $("estoqueSaldoSalvarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      gravarSaldoEditado();
+    });
+    $("estoqueSaldoCancelarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sairEdicaoSaldo();
+      const msg = $("estoqueSaldoFormMsg");
+      if (msg) msg.textContent = "Edição cancelada.";
+    });
+    $("estoqueSaldoForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      gravarSaldoEditado();
+    });
+    $("estoqueBodySaldo")?.addEventListener("click", (e) => {
+      const btn = e.target instanceof Element ? e.target.closest("[data-estoque-editar-saldo]") : null;
+      if (!btn) return;
+      e.preventDefault();
+      iniciarEdicaoSaldo(btn.getAttribute("data-estoque-editar-saldo"));
     });
     $("estoqueEntradaForm")?.addEventListener("submit", (e) => {
       e.preventDefault();

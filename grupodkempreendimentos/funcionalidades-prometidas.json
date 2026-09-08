@@ -460,7 +460,7 @@
     },
     {
       "id": "estoque-entrada-editar-linha",
-      "descricao": "Na tela Entrada do Controle de Estoque, cada linha da tabela tem o botão Editar na frente do código de barras. Abre os dados nas caixas para alterar e gravar com Salvar alterações.",
+      "descricao": "Na tela Entrada do Controle de Estoque, cada linha da tabela tem o botão Editar na frente do código de barras. Só o Administrador CEO vê esse botão. Abre os dados nas caixas para alterar e gravar com Salvar alterações.",
       "ficheiros": {
         "index.html": [
           "estoqueTableEntrada",
@@ -472,6 +472,30 @@
           "iniciarEdicaoEntrada",
           "Salvar alterações",
           "estoque-entrada-editar-btn"
+        ]
+      }
+    },
+    {
+      "id": "estoque-editar-linha-ceo",
+      "descricao": "Na fase de adaptação, as telas Cadastro de material, Estoque, Saída e Entrada têm o botão Editar na frente do código de barras. Só o Administrador CEO vê e usa esse botão para abrir a linha e gravar com Salvar alterações.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueCadastroSalvarBtn",
+          "estoqueSaldoSalvarBtn",
+          "estoqueSaidaSalvarBtn",
+          "Administrador CEO"
+        ],
+        "portal-estoque.js": [
+          "estoquePodeEditarLinha",
+          "data-estoque-editar-saida",
+          "data-estoque-editar-cad",
+          "data-estoque-editar-saldo",
+          "iniciarEdicaoSaida",
+          "iniciarEdicaoCadastro",
+          "iniciarEdicaoSaldo"
+        ],
+        "portal-locadora-ui.js": [
+          "__DK_isPortalAdministradorTitularCeo"
         ]
       }
     },
