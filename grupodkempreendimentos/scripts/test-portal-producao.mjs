@@ -329,25 +329,16 @@ async function runSuite() {
         html.includes("btn-fin-mod-localizacao") &&
         html.includes("btn-fin-mod-dia-semana") &&
         html.includes("btn-fin-mod-intervalo") &&
-        html.includes("btn-fin-mod-despesas") &&
-        html.includes("financeiroPaneDespesas") &&
-        html.includes("05 Placa") &&
-        html.includes("finDespesaPlacasList") &&
-        html.includes("08-MANUTENÇÃO") &&
-        html.includes("btn-fin-mod-despesas-graf") &&
-        html.includes("financeiroPaneDespesasGraf") &&
-        html.includes("finDespOleoChart") &&
-        html.includes("dk-despesas-historico.js") &&
-        html.includes("btn-fin-mod-analise") &&
-        html.includes("financeiroPaneAnalise") &&
-        html.includes("01/09/2026") &&
-        html.includes("btn-fin-mod-previsao") &&
-        html.includes("financeiroPanePrevisao") &&
-        html.includes("btn-financeiro-santander") &&
-        html.includes("btn-financeiro-sicredi") &&
+        !html.includes('id="btn-fin-mod-despesas"') &&
+        !html.includes('id="btn-fin-mod-despesas-graf"') &&
+        !html.includes('id="btn-fin-mod-analise"') &&
+        !html.includes('id="btn-fin-mod-previsao"') &&
+        !html.includes('id="btn-financeiro-santander"') &&
+        !html.includes('id="btn-financeiro-sicredi"') &&
         html.includes("portal-financeiro.js") &&
         html.includes("portal-financeiro-modulos.js") &&
         html.includes("Teclas") &&
+        html.includes("0–6") &&
         html.includes("relação por cliente") &&
         html.indexOf("btn-locadora-documentos") < html.indexOf("btn-locadora-financeiro") &&
         html.indexOf("btn-locadora-financeiro") < html.indexOf("btn-locadora-preview-cliente")
@@ -1715,22 +1706,31 @@ async function runSuite() {
           const view = document.getElementById("view-financeiro");
           const unit = document.getElementById("view-unit");
           const el = document.getElementById("panel-financeiro-locadora");
-          const santander = document.getElementById("btn-financeiro-santander");
-          const sicredi = document.getElementById("btn-financeiro-sicredi");
           const titulo = document.getElementById("financeiro-page-title");
+          const nav = document.getElementById("financeiroModulosNav");
+          const navTxt = String(nav?.textContent || "");
           return Boolean(
             view?.classList.contains("view--active") &&
               unit &&
               !unit.classList.contains("view--active") &&
               el &&
               !el.classList.contains("hidden") &&
-              santander &&
-              sicredi &&
+              document.getElementById("btn-fin-mod-relacao-pagamento") &&
+              document.getElementById("btn-fin-mod-intervalo") &&
+              !document.getElementById("btn-fin-mod-despesas") &&
+              !document.getElementById("btn-fin-mod-despesas-graf") &&
+              !document.getElementById("btn-fin-mod-analise") &&
+              !document.getElementById("btn-fin-mod-previsao") &&
+              !document.getElementById("btn-financeiro-santander") &&
+              !document.getElementById("btn-financeiro-sicredi") &&
+              !/Lançamento de despesas/i.test(navTxt) &&
+              !/Extrato Santander/i.test(navTxt) &&
+              !/Extrato Sicredi/i.test(navTxt) &&
               String(titulo?.textContent || "").includes("FINANCEIRO") &&
               String(location.hash || "").toLowerCase().includes("locadora/financeiro")
           );
         });
-          record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
+          record("financeiro E2E: abre tela com módulos 0–6", finOk);
         if (finOk) {
           await pageE2e.keyboard.press("0").catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneRelacaoPagamento:not(.hidden)", { timeout: 8000 }).catch(() => null);
@@ -1820,190 +1820,39 @@ async function runSuite() {
               Boolean(frotaUi?.ok),
               `z1=${frotaUi?.z1} semOp=${frotaUi?.semOp} carros=${frotaUi?.carros} ${frotaUi?.reason || frotaUi?.kpiTxt || ""}`
             );
-          await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
-          await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
-          const pOk = await pageE2e.evaluate(() => {
-            const pane = document.getElementById("financeiroPanePrevisao");
-            const gran = document.querySelector('input[name="finPrevGran"]');
-            const modelo = document.getElementById("finPrevModeloSelect");
-            return Boolean(
-              pane &&
-                !pane.classList.contains("hidden") &&
-                gran &&
-                modelo &&
-                document.getElementById("finPrevPlanoMinhaMoto")
+          const removedOk = await pageE2e.evaluate(() => {
+            const ids = [
+              "btn-fin-mod-despesas",
+              "btn-fin-mod-despesas-graf",
+              "btn-fin-mod-analise",
+              "btn-fin-mod-previsao",
+              "btn-financeiro-santander",
+              "btn-financeiro-sicredi",
+            ];
+            const navTxt = String(document.getElementById("financeiroModulosNav")?.textContent || "");
+            return (
+              ids.every((id) => !document.getElementById(id)) &&
+              !/Lançamento de despesas/i.test(navTxt) &&
+              !/Gráficos de despesas/i.test(navTxt) &&
+              !/Análise inteligente/i.test(navTxt) &&
+              !/Previsão de receita/i.test(navTxt) &&
+              !/Extrato Santander/i.test(navTxt) &&
+              !/Extrato Sicredi/i.test(navTxt)
             );
           });
-          record("financeiro E2E: módulo Previsão de receita abre", pOk);
-          await pageE2e.locator("#btn-fin-mod-despesas").click().catch(() => null);
-          await pageE2e.waitForSelector("#financeiroPaneDespesas:not(.hidden)", { timeout: 8000 }).catch(() => null);
-          const dOk = await pageE2e.evaluate(() => {
-            const pane = document.getElementById("financeiroPaneDespesas");
-            const sel = pane?.querySelector(".fin-despesa-cat");
-            const hasManut = Boolean(sel && Array.from(sel.options).some((o) => o.value === "MANUTENCAO"));
-            const hasAluguel = Boolean(sel && Array.from(sel.options).some((o) => o.value === "ALUGUEL"));
-            const hasOleo = Boolean(
-              sel &&
-                Array.from(sel.options).some((o) => o.value === "COMPRA_OLEO") &&
-                Array.from(sel.options).some((o) => o.value === "TROCA_OLEO")
-            );
-            return Boolean(pane && !pane.classList.contains("hidden") && document.getElementById("finDespesaPlacasList") && hasManut && hasAluguel && hasOleo);
-          });
-          record("financeiro E2E: despesa manutenção pede placa", dOk);
-          const histOk = await pageE2e.evaluate(() => {
-            const seed = window.__DK_DESPESAS_HISTORICO;
-            const info = String(document.getElementById("finDespesaListaInfo")?.textContent || "");
-            const nInfo = Number((info.match(/de\s+(\d+)/i) || info.match(/(\d+)\s+lançamento/i) || [])[1] || 0);
-            const resumo = String(document.getElementById("finDespesasResumo")?.textContent || "");
-            const frota = new Set(window.__DK_FROTA_PLACAS || []);
-            const withPlacaSeed = Array.isArray(seed)
-              ? seed.filter((d) => String(d.placa || "").length >= 7).length
-              : 0;
-            const placasOk = Array.isArray(seed)
-              ? seed.every((d) => !String(d.placa || "").trim() || frota.has(String(d.placa).toUpperCase()))
-              : false;
-            return Boolean(
-              Array.isArray(seed) &&
-                seed.length >= 1980 &&
-                window.__DK_DESPESAS_HISTORICO_GERACAO &&
-                frota.size > 50 &&
-                withPlacaSeed > 500 &&
-                placasOk &&
-                nInfo >= 1980 &&
-                resumo.includes("08-MANUTENÇÃO") &&
-                resumo.includes("11-TROCA DE ÓLEO") &&
-                resumo.includes("(sem placa)")
-            );
-          });
-          record("financeiro E2E: histórico da planilha alimenta despesas", histOk);
-          if (dOk) {
-            await pageE2e.locator("#finDespesaAddBtn").click().catch(() => null);
-            await pageE2e.locator("#financeiroPaneDespesas .fin-despesa-cat").first().selectOption("MANUTENCAO").catch(() => null);
-            const placaPede = await pageE2e.evaluate(() => {
-              const tr = document.querySelector("#finDespesasBody tr");
-              const inp = tr?.querySelector(".fin-despesa-placa");
-              return Boolean(tr?.classList.contains("fin-despesa-row--manut") && inp && !inp.disabled);
-            });
-            record("financeiro E2E: categoria manutenção mostra campo placa", placaPede);
-            await pageE2e.locator("#finDespesasBody tr:first-child .fin-despesa-del").click().catch(() => null);
-          } else {
-            record("financeiro E2E: categoria manutenção mostra campo placa", false, "módulo despesas não abriu");
-          }
-          await pageE2e.locator("#btn-fin-mod-despesas-graf").click().catch(() => null);
-          await pageE2e.waitForSelector("#financeiroPaneDespesasGraf:not(.hidden)", { timeout: 8000 }).catch(() => null);
-          await pageE2e.waitForSelector("#finDespGrafChart svg, #finDespOleoChart svg", { timeout: 8000 }).catch(() => null);
-          const gOk = await pageE2e.evaluate(() => {
-            const pane = document.getElementById("financeiroPaneDespesasGraf");
-            const chart = document.getElementById("finDespGrafChart");
-            const oleo = document.getElementById("finDespOleoChart");
-            const cats = document.querySelectorAll("#finDespGrafCats input[type=checkbox]");
-            const gran = document.querySelector('input[name="finDespGrafGran"]');
-            return Boolean(
-              pane &&
-                !pane.classList.contains("hidden") &&
-                chart?.querySelector("svg") &&
-                oleo?.querySelector("svg") &&
-                cats.length >= 11 &&
-                gran
-            );
-          });
-          record("financeiro E2E: gráficos de despesas com filtros", gOk);
-          if (gOk) {
-            await pageE2e.evaluate(() => {
-              document.querySelectorAll("#finDespGrafCats input[type=checkbox]").forEach((el) => {
-                el.checked = el.value === "TROCA_OLEO";
-              });
-            });
-            await pageE2e.locator("#finDespGrafAplicar").click().catch(() => null);
-            await pageE2e.waitForTimeout(400);
-            const oleoPivot = await pageE2e.evaluate(() => {
-              const seed = Array.isArray(window.__DK_DESPESAS_HISTORICO) ? window.__DK_DESPESAS_HISTORICO : [];
-              const troca = seed.filter((d) => d.categoria === "TROCA_OLEO");
-              const expectedN = troca.length;
-              const expectedSum = troca.reduce((a, d) => a + (Number(d.valor) || 0), 0);
-              const expectedPer = new Set(
-                troca.map((d) => {
-                  const p = String(d.data || "").split("/");
-                  return p.length === 3 ? `${p[1]}/${p[2]}` : String(d.data || "").slice(3);
-                })
-              ).size;
-              const kpis = Array.from(document.querySelectorAll("#finDespGrafKpis .fin-kpi")).map((el) => ({
-                lab: String(el.querySelector(".fin-kpi__lab")?.textContent || ""),
-                val: String(el.querySelector("strong")?.textContent || ""),
-              }));
-              const lanc = kpis.find((k) => /lançamento/i.test(k.lab))?.val || "";
-              const tot = kpis.find((k) => /total/i.test(k.lab))?.val || "";
-              const per = kpis.find((k) => /per[ií]odo/i.test(k.lab))?.val || "";
-              const totNum = Number(String(tot).replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", "."));
-              const svg = document.querySelector("#finDespGrafChart svg");
-              const rects = svg?.querySelectorAll("rect").length || 0;
-              return {
-                lanc,
-                tot,
-                per,
-                expectedN,
-                expectedSum,
-                expectedPer,
-                rects,
-                ok:
-                  Number(lanc) === expectedN &&
-                  expectedN >= 700 &&
-                  Math.abs(totNum - expectedSum) < 0.05 &&
-                  Number(per) === expectedPer &&
-                  expectedPer >= 4 &&
-                  rects >= expectedPer,
-              };
-            });
-            record(
-              "financeiro E2E: troca de óleo bate com o histórico da planilha",
-              Boolean(oleoPivot.ok),
-              JSON.stringify(oleoPivot)
-            );
-          } else {
-            record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "gráficos não abriram");
-          }
-          await pageE2e.locator("#btn-fin-mod-analise").click().catch(() => null);
-          await pageE2e.waitForSelector("#financeiroPaneAnalise:not(.hidden)", { timeout: 8000 }).catch(() => null);
-          await pageE2e.waitForSelector("#finAnaliseChart svg", { timeout: 8000 }).catch(() => null);
-          const aOk = await pageE2e.evaluate(() => {
-            const pane = document.getElementById("financeiroPaneAnalise");
-            const kpis = document.getElementById("finAnaliseKpis");
-            const alertas = document.getElementById("finAnaliseAlertas");
-            const chart = document.getElementById("finAnaliseChart");
-            return Boolean(
-              pane &&
-                !pane.classList.contains("hidden") &&
-                chart?.querySelector("svg") &&
-                String(kpis?.textContent || "").includes("Viabilidade") &&
-                alertas &&
-                String(alertas.textContent || "").length > 10
-            );
-          });
-          record("financeiro E2E: análise inteligente com projeção e alertas", aOk);
+          record("financeiro E2E: comandos 7–10 e extratos removidos do menu", removedOk);
         } else {
           record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
-          record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
-          record("financeiro E2E: despesa manutenção pede placa", false, "tela financeiro não abriu");
-          record("financeiro E2E: histórico da planilha alimenta despesas", false, "tela financeiro não abriu");
-          record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
-          record("financeiro E2E: gráficos de despesas com filtros", false, "tela financeiro não abriu");
-          record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "tela financeiro não abriu");
-          record("financeiro E2E: análise inteligente com projeção e alertas", false, "tela financeiro não abriu");
+          record("financeiro E2E: comandos 7–10 e extratos removidos do menu", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
       } else {
-        record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: abre tela com módulos 0–6", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: módulo Previsão de receita abre", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: despesa manutenção pede placa", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: histórico da planilha alimenta despesas", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: gráficos de despesas com filtros", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: análise inteligente com projeção e alertas", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: comandos 7–10 e extratos removidos do menu", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();

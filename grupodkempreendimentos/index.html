@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-pos">
+  <link rel="stylesheet" href="styles.css?v=20260908fin-cut">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3498,14 +3498,14 @@
         </div>
       </header>
       <h1 id="financeiro-page-title" class="subpage__title fin-pptx__page-title">FINANCEIRO</h1>
-      <p class="subpage__lead fin-pptx__page-lead">Indicadores da frota, receitas, localização e despesas.</p>
+      <p class="subpage__lead fin-pptx__page-lead">Indicadores da frota, receitas e localização.</p>
 
       <section id="panel-financeiro-locadora" class="portal-panel hidden" aria-live="polite">
         <div class="portal-operacao-layout fin-pptx__layout">
           <aside class="portal-operacao-layout__sidebar fin-pptx__rail" aria-label="módulos financeiros">
             <p class="fin-pptx__brand">FINANCEIRO</p>
             <p class="subpage__lead">Módulos</p>
-            <p class="subtext">Teclas <strong>0–9</strong> abrem os módulos numerados (0 = relação por cliente; 1–9 = itens 1–9). Item 10 e extratos Santander/Sicredi só pelo clique.</p>
+            <p class="subtext">Teclas <strong>0–6</strong> abrem os módulos numerados (0 = relação por cliente; 1–6 = itens 1–6).</p>
             <div class="operacao-comandos" id="financeiroModulosNav">
               <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-relacao-pagamento" data-fin-mod="relacao-pagamento" aria-expanded="false" aria-controls="financeiroPaneRelacaoPagamento">
                 <span class="btn-operacao-cmd__title">0 — Relação de pagamento por cliente</span>
@@ -3534,30 +3534,6 @@
               <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-intervalo" data-fin-mod="intervalo" aria-expanded="false" aria-controls="financeiroPaneIntervalo">
                 <span class="btn-operacao-cmd__title">6 — Intervalo de pagamentos</span>
                 <span class="btn-operacao-cmd__hint">Frequência e projeções</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-despesas" data-fin-mod="despesas" aria-expanded="false" aria-controls="financeiroPaneDespesas">
-                <span class="btn-operacao-cmd__title">7 — Lançamento de despesas</span>
-                <span class="btn-operacao-cmd__hint">Valor, descrição, data, categoria e placa</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-despesas-graf" data-fin-mod="despesas-graf" aria-expanded="false" aria-controls="financeiroPaneDespesasGraf">
-                <span class="btn-operacao-cmd__title">8 — Gráficos de despesas</span>
-                <span class="btn-operacao-cmd__hint">Barras por categoria e óleo</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-analise" data-fin-mod="analise" aria-expanded="false" aria-controls="financeiroPaneAnalise">
-                <span class="btn-operacao-cmd__title">9 — Análise inteligente</span>
-                <span class="btn-operacao-cmd__hint">Receita vs despesa acumulada e viabilidade</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-previsao" data-fin-mod="previsao" aria-expanded="false" aria-controls="financeiroPanePrevisao">
-                <span class="btn-operacao-cmd__title">10 — Previsão de receita</span>
-                <span class="btn-operacao-cmd__hint">Contratos ativos, receita real e variação</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
-                <span class="btn-operacao-cmd__title">Extrato Santander</span>
-                <span class="btn-operacao-cmd__hint">IA de movimentação bancária</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-sicredi" aria-expanded="false" aria-controls="financeiroPaneBanco">
-                <span class="btn-operacao-cmd__title">Extrato Sicredi</span>
-                <span class="btn-operacao-cmd__hint">IA de movimentação bancária</span>
               </button>
             </div>
           </aside>
@@ -5129,7 +5105,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-pos" defer></script>
+  <script src="app.js?v=20260908fin-cut" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5137,13 +5113,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-pos" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-pos" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-pos" defer></script>
-  <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908fin-cut" defer></script>
+  <script src="portal-estoque.js?v=20260908fin-cut" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908fin-cut" defer></script>
+  <script src="portal-financeiro.js?v=20260908fin-cut" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-pos" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260908fin-cut"></script>
+  <script src="portal-financeiro-ceo.js?v=20260908fin-cut" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

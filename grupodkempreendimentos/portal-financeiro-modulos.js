@@ -2749,9 +2749,6 @@
     "4": "localizacao",
     "5": "dia-semana",
     "6": "intervalo",
-    "7": "despesas",
-    "8": "despesas-graf",
-    "9": "analise",
   };
 
   function financeiroModulosVisivel() {
