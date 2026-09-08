@@ -311,7 +311,25 @@
           "carregarPlanilhaNasTelas",
           "renderRelatorioPlaca",
           "renderRelatorioProduto",
-          "renderRelatorioCusto"
+          "renderRelatorioCusto",
+          "intervaloKmValido",
+          "soma dos intervalos"
+        ]
+      }
+    },
+    {
+      "id": "estoque-rel-placa-origem-filtros",
+      "descricao": "No Relatório de aplicação por placa as caixas ficam à esquerda. Há duas marcações: PLACAS CADASTRADAS NA DK LOCADORA e PLACAS DIVERSAS; a lista suspensa e o relatório só mostram as origens marcadas.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueRelPlacaLocadora",
+          "estoqueRelPlacaDiversas",
+          "PLACAS CADASTRADAS NA DK LOCADORA",
+          "PLACAS DIVERSAS"
+        ],
+        "portal-estoque.js": [
+          "filtroOrigemRelPlaca",
+          "aceitaOrigemPlaca"
         ]
       }
     },

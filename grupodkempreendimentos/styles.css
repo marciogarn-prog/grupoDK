@@ -13037,3 +13037,31 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 #estoqueEntradaForm .portal-field select {
   width: 100%;
 }
+
+#estoquePaneRelPlaca .portal-estoque-rel-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 0.65rem 0.85rem;
+}
+
+#estoquePaneRelPlaca .portal-estoque-rel-filtros > .portal-field {
+  flex: 0 0 11.2rem;
+  width: 11.2rem;
+  max-width: 11.2rem;
+}
+
+#estoquePaneRelPlaca .portal-estoque-rel-origem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.15rem;
+}
+
+#estoquePaneRelPlaca .portal-estoque-rel-origem .portal-check-label {
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}

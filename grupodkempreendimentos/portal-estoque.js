@@ -530,24 +530,58 @@
       .slice(0, 7);
   }
 
-  function coletarPlacasEstoque() {
+  function placasFrotaDkSet() {
+    const set = new Set();
+    try {
+      const rows = typeof loadAllVeiculosCadastro === "function" ? loadAllVeiculosCadastro() : [];
+      (rows || []).forEach((v) => {
+        const k = nkPlate(v?.placa);
+        if (k) set.add(k);
+      });
+    } catch {
+      /* frota opcional */
+    }
+    return set;
+  }
+
+  function origemPlaca(key) {
+    return placasFrotaDkSet().has(key) ? "locadora" : "diversa";
+  }
+
+  function filtroOrigemRelPlaca() {
+    return {
+      locadora: Boolean($("estoqueRelPlacaLocadora")?.checked),
+      diversas: Boolean($("estoqueRelPlacaDiversas")?.checked),
+    };
+  }
+
+  function aceitaOrigemPlaca(key, origem) {
+    const tipo = origemPlaca(key);
+    if (tipo === "locadora") return origem.locadora !== false;
+    return origem.diversas !== false;
+  }
+
+  function coletarPlacasEstoque(origem) {
     const by = new Map();
     const add = (placaRaw, veiculo, extra) => {
       const k = nkPlate(placaRaw);
       if (!k) return;
+      if (origem && !aceitaOrigemPlaca(k, origem)) return;
       if (by.has(k)) {
         const cur = by.get(k);
         if (!cur.veiculo && veiculo) cur.veiculo = String(veiculo || "");
         return;
       }
+      const tipo = origemPlaca(k);
       by.set(k, {
         placa: formatPlateOut(placaRaw) || k,
         key: k,
         veiculo: String(veiculo || "").trim(),
-        extra: String(extra || "").trim(),
+        extra: String(extra || "").trim() || (tipo === "locadora" ? "DK Locadora" : "placa diversa"),
+        origem: tipo,
       });
     };
-    saidasTodas().forEach((s) => add(s.placa, s.veiculo, s.descricao ? "já aplicada" : ""));
+    saidasTodas().forEach((s) => add(s.placa, s.veiculo, ""));
     try {
       if (typeof loadAllVeiculosCadastro === "function") {
         loadAllVeiculosCadastro().forEach((v) => add(v.placa, v.tipo || v.modelo, v.modelo || v.tag || ""));
@@ -558,8 +592,8 @@
     return [...by.values()].sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
   }
 
-  function filtrarPlacasEstoque(queryRaw) {
-    const lista = coletarPlacasEstoque();
+  function filtrarPlacasEstoque(queryRaw, origem) {
+    const lista = coletarPlacasEstoque(origem);
     const q = sanitizarPlacaDigitada(queryRaw);
     if (!q) return lista.slice(0, 80);
     return lista.filter((v) => v.key.includes(q) || String(v.veiculo || "").toUpperCase().includes(q)).slice(0, 80);
@@ -574,9 +608,9 @@
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
-  function renderEstoquePlacaDropdown(inp, panel, queryRaw) {
+  function renderEstoquePlacaDropdown(inp, panel, queryRaw, origem) {
     if (!inp || !panel) return;
-    const items = filtrarPlacasEstoque(queryRaw);
+    const items = filtrarPlacasEstoque(queryRaw, origem);
     if (!items.length) {
       panel.innerHTML = '<div class="portal-placa-dropdown__empty">Nenhuma placa com esse texto.</div>';
     } else {
@@ -602,8 +636,9 @@
     const combo = $(opts.comboId);
     if (!inp || !panel || !combo) return;
     const onPick = typeof opts.onPick === "function" ? opts.onPick : null;
+    const origemFn = typeof opts.origemFn === "function" ? opts.origemFn : null;
 
-    const abrir = () => renderEstoquePlacaDropdown(inp, panel, inp.value);
+    const abrir = () => renderEstoquePlacaDropdown(inp, panel, inp.value, origemFn ? origemFn() : null);
     const fechar = () => hideEstoquePlacaDropdown(panel, inp);
 
     inp.addEventListener("focus", abrir);
@@ -742,6 +777,15 @@
     );
   }
 
+  function intervaloKmValido(prevKm, curKm) {
+    if (!(prevKm > 0 && curKm > prevKm)) return null;
+    const intervalo = curKm - prevKm;
+    if (intervalo < 50) return null;
+    if (String(Math.round(curKm)).length > String(Math.round(prevKm)).length) return null;
+    if (intervalo > 15000) return null;
+    return intervalo;
+  }
+
   function ciclosDoProduto(bar) {
     const porPlaca = new Map();
     saidasComData()
@@ -758,7 +802,7 @@
         const prev = lista[i - 1];
         const cur = lista[i];
         const dias = diasEntre(prev._data, cur._data);
-        const km = prev._km > 0 && cur._km > 0 ? cur._km - prev._km : null;
+        const km = intervaloKmValido(prev._km, cur._km);
         ciclos.push({
           plate,
           placa: formatPlateOut(cur.placa || prev.placa),
@@ -780,7 +824,16 @@
     if (!box) return;
     const per = lerPeriodo("estoqueRelPlacaInicio", "estoqueRelPlacaFim");
     const filtro = nkPlate($("estoqueRelPlacaFiltro")?.value || "");
-    const rows = saidasComData().filter((s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro));
+    const origem = filtroOrigemRelPlaca();
+    if (!origem.locadora && !origem.diversas) {
+      if (kpis) kpis.innerHTML = "";
+      if (resumo) resumo.textContent = "Marque PLACAS CADASTRADAS NA DK LOCADORA e/ou PLACAS DIVERSAS.";
+      box.innerHTML = `<p class="subtext">Nenhuma origem de placa marcada.</p>`;
+      return;
+    }
+    const rows = saidasComData().filter(
+      (s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro) && aceitaOrigemPlaca(s._plate, origem)
+    );
     const porPlaca = new Map();
     rows.forEach((s) => {
       const k = s._plate || "SEM-PLACA";
@@ -853,7 +906,7 @@
             placas: placas.size,
             aplicacoes: lista.length,
             mediaDias: media(ciclosPer.map((c) => c.dias).filter((n) => n != null)),
-            mediaKm: media(ciclosPer.map((c) => c.km).filter((n) => n != null && n >= 0)),
+            mediaKm: media(ciclosPer.map((c) => c.km).filter((n) => n != null && n > 0)),
           };
         })
         .sort((a, b) => b.aplicacoes - a.aplicacoes || String(a.descricao).localeCompare(String(b.descricao), "pt"));
@@ -866,14 +919,14 @@
       }
       if (resumo) {
         resumo.textContent = linhas.length
-          ? `Selecione um produto para ver a duração em cada placa. Abaixo, todos os itens aplicados no período.`
+          ? `Média de km = soma dos intervalos (troca seguinte − troca anterior na mesma placa) ÷ quantidade de intervalos.`
           : "Nenhuma aplicação neste período.";
       }
       if (!linhas.length) {
         box.innerHTML = `<p class="subtext">Nenhum produto aplicado neste intervalo.</p>`;
         return;
       }
-      box.innerHTML = `<div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>CÓDIGO</th><th>PRODUTO</th><th>PLACAS</th><th>APLICAÇÕES</th><th>MÉDIA DIAS</th><th>MÉDIA KM</th></tr></thead><tbody>${linhas
+      box.innerHTML = `<div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>CÓDIGO</th><th>PRODUTO</th><th>PLACAS</th><th>APLICAÇÕES</th><th>MÉDIA DIAS</th><th>MÉDIA KM (intervalos)</th></tr></thead><tbody>${linhas
         .map(
           (r) =>
             `<tr data-estoque-prod="${escapeHtml(r.codigo)}"><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(
@@ -900,7 +953,7 @@
     const placasPer = new Set(aplicacoesPer.map((s) => s._plate).filter(Boolean));
     const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per) || placasPer.has(c.plate));
     const mediaDias = media(ciclosPer.map((c) => c.dias).filter((n) => n != null));
-    const mediaKm = media(ciclosPer.map((c) => c.km).filter((n) => n != null && n >= 0));
+    const mediaKm = media(ciclosPer.map((c) => c.km).filter((n) => n != null && n > 0));
 
     if (kpis) {
       kpis.innerHTML = kpisHtml([
@@ -911,7 +964,7 @@
       ]);
     }
     if (resumo) {
-      resumo.textContent = `${prod.descricao || prod.codigo}: aplicado em ${placasPer.size} placa(s) no período. Médias calculadas pelas reaplicações.`;
+      resumo.textContent = `${prod.descricao || prod.codigo}: aplicado em ${placasPer.size} placa(s). Média de km = soma dos intervalos na mesma placa ÷ quantidade de intervalos.`;
     }
 
     const placas = [...new Set([...placasPer, ...[...porPlaca.keys()].filter((p) => placasPer.has(p))])].sort();
@@ -930,7 +983,7 @@
         const dDias = ultimo && ultimo.dias != null ? ultimo.dias : null;
         const dKm = ultimo && ultimo.km != null ? ultimo.km : null;
         const mDias = media(ciclosPlaca.map((c) => c.dias).filter((n) => n != null));
-        const mKm = media(ciclosPlaca.map((c) => c.km).filter((n) => n != null && n >= 0));
+        const mKm = media(ciclosPlaca.map((c) => c.km).filter((n) => n != null && n > 0));
         const veic = (noInt[0] || hist[0] || {}).veiculo || "";
         return `<tr><td>${escapeHtml(formatPlateOut((noInt[0] || hist[0] || {}).placa || plate))}</td><td>${escapeHtml(
           veic
@@ -1097,6 +1150,10 @@
       panelId: "estoqueRelPlacaFiltroLista",
       comboId: "estoqueRelPlacaFiltroCombo",
       onPick: () => renderRelatorioPlaca(),
+      origemFn: filtroOrigemRelPlaca,
+    });
+    ["estoqueRelPlacaLocadora", "estoqueRelPlacaDiversas"].forEach((id) => {
+      $(id)?.addEventListener("change", () => renderRelatorioPlaca());
     });
     bindEstoquePlacaDropdown({
       inputId: "estoqueRelCustoFiltro",
