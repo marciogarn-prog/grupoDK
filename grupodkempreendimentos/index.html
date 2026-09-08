@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-rel">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-pla">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3126,9 +3126,12 @@
               <h3 class="operacao-inline-form__title">Saída</h3>
               <p class="subtext">Informe primeiro a <strong>placa</strong> e o <strong>km</strong>. Se o produto já tiver sido aplicado nessa placa, abre o resumo da última aplicação (dias e km que o item durou).</p>
               <form id="estoqueSaidaForm" class="operacao-inline-form__grid" novalidate>
-                <label class="portal-field">
+                <label class="portal-field portal-field--combobox">
                   <span>PLACA</span>
-                  <input type="text" id="estoqueSaidaPlaca" maxlength="10" autocomplete="off" placeholder="ABC1D23" aria-label="Placa do veículo">
+                  <div class="portal-combobox" id="estoqueSaidaPlacaCombo">
+                    <input type="text" id="estoqueSaidaPlaca" maxlength="8" autocomplete="off" placeholder="ABC1D23" aria-label="Placa do veículo" aria-autocomplete="list" aria-expanded="false" aria-controls="estoqueSaidaPlacaLista">
+                    <div id="estoqueSaidaPlacaLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Lista suspensa das placas" hidden></div>
+                  </div>
                 </label>
                 <label class="portal-field">
                   <span>KM</span>
@@ -3226,10 +3229,12 @@
                     <input type="text" id="estoqueRelPlacaFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de aplicação por placa" title="Clique para abrir o calendário">
                   </span>
                 </label>
-                <label class="portal-field">
+                <label class="portal-field portal-field--combobox">
                   <span>PLACA (opcional)</span>
-                  <input type="text" id="estoqueRelPlacaFiltro" list="estoqueRelPlacaList" maxlength="10" autocomplete="off" placeholder="Todas as placas" aria-label="Filtrar placa do relatório de aplicação">
-                  <datalist id="estoqueRelPlacaList"></datalist>
+                  <div class="portal-combobox" id="estoqueRelPlacaFiltroCombo">
+                    <input type="text" id="estoqueRelPlacaFiltro" maxlength="8" autocomplete="off" placeholder="Todas as placas" aria-label="Filtrar placa do relatório de aplicação" aria-autocomplete="list" aria-expanded="false" aria-controls="estoqueRelPlacaFiltroLista">
+                    <div id="estoqueRelPlacaFiltroLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Lista suspensa das placas" hidden></div>
+                  </div>
                 </label>
               </div>
               <div class="portal-relatorio-pagamentos-periodo__actions">
@@ -3284,10 +3289,12 @@
                     <input type="text" id="estoqueRelCustoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de custo de manutenção" title="Clique para abrir o calendário">
                   </span>
                 </label>
-                <label class="portal-field">
+                <label class="portal-field portal-field--combobox">
                   <span>PLACA (opcional)</span>
-                  <input type="text" id="estoqueRelCustoFiltro" list="estoqueRelCustoPlacaList" maxlength="10" autocomplete="off" placeholder="Todos os veículos" aria-label="Filtrar placa do relatório de custo">
-                  <datalist id="estoqueRelCustoPlacaList"></datalist>
+                  <div class="portal-combobox" id="estoqueRelCustoFiltroCombo">
+                    <input type="text" id="estoqueRelCustoFiltro" maxlength="8" autocomplete="off" placeholder="Todos os veículos" aria-label="Filtrar placa do relatório de custo" aria-autocomplete="list" aria-expanded="false" aria-controls="estoqueRelCustoFiltroLista">
+                    <div id="estoqueRelCustoFiltroLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Lista suspensa das placas" hidden></div>
+                  </div>
                 </label>
               </div>
               <div class="portal-relatorio-pagamentos-periodo__actions">
@@ -4947,7 +4954,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-rel" defer></script>
+  <script src="app.js?v=20260908estq-pla" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4955,13 +4962,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-rel" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-rel" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-rel" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-pla" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-pla" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-pla" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-rel" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-pla" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

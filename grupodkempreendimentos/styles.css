@@ -13014,3 +13014,22 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-size: 1.05rem;
   color: #fff;
 }
+
+#estoquePaneSaida .operacao-inline-form__grid,
+#estoquePaneRelPlaca .operacao-inline-form__grid,
+#estoquePaneRelCusto .operacao-inline-form__grid {
+  overflow: visible;
+}
+
+#estoquePaneSaida .portal-field--combobox,
+#estoquePaneRelPlaca .portal-field--combobox,
+#estoquePaneRelCusto .portal-field--combobox {
+  overflow: visible;
+  z-index: 6;
+}
+
+#estoquePaneSaida .portal-placa-dropdown,
+#estoquePaneRelPlaca .portal-placa-dropdown,
+#estoquePaneRelCusto .portal-placa-dropdown {
+  z-index: 80;
+}

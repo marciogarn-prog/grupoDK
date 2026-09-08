@@ -415,17 +415,131 @@
       .join("");
   }
 
-  function placasDatalistHtml() {
-    const seen = new Set();
-    const opts = [];
-    saidasTodas().forEach((s) => {
-      const p = formatPlateOut(s.placa);
-      const k = nkPlate(s.placa);
-      if (!k || seen.has(k)) return;
-      seen.add(k);
-      opts.push(`<option value="${escapeHtml(p)}"></option>`);
+  function sanitizarPlacaDigitada(raw) {
+    if (typeof portalSanitizePlacaInput === "function") return portalSanitizePlacaInput(raw);
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 7);
+  }
+
+  function coletarPlacasEstoque() {
+    const by = new Map();
+    const add = (placaRaw, veiculo, extra) => {
+      const k = nkPlate(placaRaw);
+      if (!k) return;
+      if (by.has(k)) {
+        const cur = by.get(k);
+        if (!cur.veiculo && veiculo) cur.veiculo = String(veiculo || "");
+        return;
+      }
+      by.set(k, {
+        placa: formatPlateOut(placaRaw) || k,
+        key: k,
+        veiculo: String(veiculo || "").trim(),
+        extra: String(extra || "").trim(),
+      });
+    };
+    saidasTodas().forEach((s) => add(s.placa, s.veiculo, s.descricao ? "já aplicada" : ""));
+    try {
+      if (typeof loadAllVeiculosCadastro === "function") {
+        loadAllVeiculosCadastro().forEach((v) => add(v.placa, v.tipo || v.modelo, v.modelo || v.tag || ""));
+      }
+    } catch {
+      /* frota opcional */
+    }
+    return [...by.values()].sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
+  }
+
+  function filtrarPlacasEstoque(queryRaw) {
+    const lista = coletarPlacasEstoque();
+    const q = sanitizarPlacaDigitada(queryRaw);
+    if (!q) return lista.slice(0, 80);
+    return lista.filter((v) => v.key.includes(q) || String(v.veiculo || "").toUpperCase().includes(q)).slice(0, 80);
+  }
+
+  function hideEstoquePlacaDropdown(panel, inp) {
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function renderEstoquePlacaDropdown(inp, panel, queryRaw) {
+    if (!inp || !panel) return;
+    const items = filtrarPlacasEstoque(queryRaw);
+    if (!items.length) {
+      panel.innerHTML = '<div class="portal-placa-dropdown__empty">Nenhuma placa com esse texto.</div>';
+    } else {
+      panel.innerHTML = items
+        .map((v) => {
+          const sub = [v.veiculo, v.extra].filter(Boolean).join(" · ");
+          return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${escapeHtml(
+            v.placa
+          )}" data-veiculo="${escapeHtml(v.veiculo)}"><span class="portal-placa-dropdown__plate">${escapeHtml(
+            v.placa
+          )}</span><span class="portal-placa-dropdown__model">${escapeHtml(sub || "placa da planilha")}</span></button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function bindEstoquePlacaDropdown(opts) {
+    const inp = $(opts.inputId);
+    const panel = $(opts.panelId);
+    const combo = $(opts.comboId);
+    if (!inp || !panel || !combo) return;
+    const onPick = typeof opts.onPick === "function" ? opts.onPick : null;
+
+    const abrir = () => renderEstoquePlacaDropdown(inp, panel, inp.value);
+    const fechar = () => hideEstoquePlacaDropdown(panel, inp);
+
+    inp.addEventListener("focus", abrir);
+    inp.addEventListener("input", () => {
+      inp.value = sanitizarPlacaDigitada(inp.value);
+      abrir();
     });
-    return opts.join("");
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") fechar();
+      if (typeof portalSugestoesEnterConfirmaUnica === "function") {
+        portalSugestoesEnterConfirmaUnica(e, panel, (btn) => btn.click());
+        return;
+      }
+      if (e.key === "Enter") {
+        const unicas = panel.querySelectorAll(".portal-placa-dropdown__opt");
+        if (unicas.length === 1) {
+          e.preventDefault();
+          unicas[0].click();
+        }
+      }
+    });
+    panel.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+    });
+    panel.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt");
+      if (!btn) return;
+      const placa = String(btn.getAttribute("data-placa") || "").trim();
+      const veiculo = String(btn.getAttribute("data-veiculo") || "").trim();
+      if (!placa) return;
+      inp.value = sanitizarPlacaDigitada(placa) || placa;
+      fechar();
+      if (onPick) onPick(placa, veiculo);
+    });
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (panel.classList.contains("hidden")) return;
+        if (combo.contains(e.target)) return;
+        fechar();
+      },
+      true
+    );
   }
 
   function produtosDatalistHtml() {
@@ -798,12 +912,7 @@
     renderTabelaEntradas();
     renderTabelaSaidas();
     preencherDatalist();
-    const listPlaca = $("estoqueRelPlacaList");
-    const listCusto = $("estoqueRelCustoPlacaList");
     const listProd = $("estoqueRelProdutoList");
-    const htmlP = placasDatalistHtml();
-    if (listPlaca) listPlaca.innerHTML = htmlP;
-    if (listCusto) listCusto.innerHTML = htmlP;
     if (listProd) listProd.innerHTML = produtosDatalistHtml();
   }
 
@@ -858,14 +967,35 @@
         conferirUltimaAplicacao({ silencioso: true });
       }
     });
-    $("estoqueSaidaPlaca")?.addEventListener("change", () => {
-      const placa = nkPlate($("estoqueSaidaPlaca")?.value || "");
+    function aoConfirmarPlacaSaida(placaRaw, veiculoHint) {
+      const placa = nkPlate(placaRaw);
       const ult = saidasTodas().find((s) => nkPlate(s.placa) === placa);
       const veic = $("estoqueSaidaVeiculo");
-      if (veic && ult?.veiculo && !String(veic.value || "").trim()) veic.value = String(ult.veiculo);
+      if (veic && (veiculoHint || ult?.veiculo)) veic.value = String(veiculoHint || ult.veiculo || "");
       if (nkBar($("estoqueSaidaCodigo")?.value || "") && placa && parseKm($("estoqueSaidaKm")?.value || "")) {
         conferirUltimaAplicacao({ silencioso: true });
       }
+    }
+    $("estoqueSaidaPlaca")?.addEventListener("change", () => {
+      aoConfirmarPlacaSaida($("estoqueSaidaPlaca")?.value || "");
+    });
+    bindEstoquePlacaDropdown({
+      inputId: "estoqueSaidaPlaca",
+      panelId: "estoqueSaidaPlacaLista",
+      comboId: "estoqueSaidaPlacaCombo",
+      onPick: aoConfirmarPlacaSaida,
+    });
+    bindEstoquePlacaDropdown({
+      inputId: "estoqueRelPlacaFiltro",
+      panelId: "estoqueRelPlacaFiltroLista",
+      comboId: "estoqueRelPlacaFiltroCombo",
+      onPick: () => renderRelatorioPlaca(),
+    });
+    bindEstoquePlacaDropdown({
+      inputId: "estoqueRelCustoFiltro",
+      panelId: "estoqueRelCustoFiltroLista",
+      comboId: "estoqueRelCustoFiltroCombo",
+      onPick: () => renderRelatorioCusto(),
     });
     $("estoqueSaidaKm")?.addEventListener("change", () => {
       if (nkBar($("estoqueSaidaCodigo")?.value || "") && nkPlate($("estoqueSaidaPlaca")?.value || "") && parseKm($("estoqueSaidaKm")?.value || "")) {

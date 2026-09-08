@@ -255,6 +255,22 @@
       }
     },
     {
+      "id": "estoque-saida-lista-suspensa-placa",
+      "descricao": "Na tela Saída do Controle de Estoque, ao começar a digitar a placa abre a lista suspensa das placas da planilha e da frota. Clique na linha ou Enter (se restar uma) confirma a placa.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueSaidaPlacaLista",
+          "estoqueSaidaPlacaCombo",
+          "Lista suspensa das placas"
+        ],
+        "portal-estoque.js": [
+          "bindEstoquePlacaDropdown",
+          "coletarPlacasEstoque",
+          "renderEstoquePlacaDropdown"
+        ]
+      }
+    },
+    {
       "id": "estoque-relatorios-aplicacao-custo",
       "descricao": "No Controle de Estoque os dados da planilha já estão carregados. Há relatório de aplicação por placa (produtos de cada placa no período, calendário início e fim), relatório de aplicação por produto (placas, duração em km e tempo, médias) e relatório de custo de manutenção por veículo (itens, valor de cada item e total do período, com calendário de início e fim).",
       "ficheiros": {
