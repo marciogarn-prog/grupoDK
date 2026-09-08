@@ -313,7 +313,9 @@
           "renderRelatorioProduto",
           "renderRelatorioCusto",
           "intervaloKmValido",
-          "soma dos intervalos"
+          "soma dos intervalos",
+          "familiaProduto",
+          "OLEO MOTOR"
         ]
       }
     },

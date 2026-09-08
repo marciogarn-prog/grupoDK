@@ -203,8 +203,9 @@
     const bar = nkBar(codigo);
     if (!bar) return null;
     const plate = nkPlate(placa);
+    const fam = familiaDeCodigo(codigo);
     const lista = saidasTodas()
-      .filter((s) => nkBar(s.codigo) === bar)
+      .filter((s) => (fam && familiaProduto(s) === fam) || nkBar(s.codigo) === bar)
       .map((s) => ({
         ...s,
         _data: parseDataBr(s.data),
@@ -690,6 +691,36 @@
       .join("");
   }
 
+  function nkTextoProduto(v) {
+    return String(v || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/\bDO\b/g, " ")
+      .replace(/\bDE\b/g, " ")
+      .replace(/\bDA\b/g, " ")
+      .replace(/(\d+)\s*W\s*(\d+)/g, "$1W$2")
+      .replace(/[^A-Z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function familiaProduto(row) {
+    const desc = nkTextoProduto(row?.descricao);
+    const ref = nkTextoProduto(row?.referencia);
+    const blob = `${desc} ${ref}`.trim();
+    const visc = blob.match(/\b(\d+W\d+)\b/);
+    if (/\bOLEO\b/.test(blob) && visc) return `OLEO MOTOR ${visc[1]}`;
+    return desc || nkBar(row?.codigo);
+  }
+
+  function familiaDeCodigo(codigo) {
+    const cad = cadastroDoCodigo(codigo);
+    if (cad) return familiaProduto(cad);
+    const sai = saidasTodas().find((s) => nkBar(s.codigo) === nkBar(codigo));
+    return familiaProduto(sai || { codigo });
+  }
+
   function saidasComData() {
     return saidasTodas()
       .map((s) => ({
@@ -697,10 +728,11 @@
         _data: parseDataBr(s.data),
         _plate: nkPlate(s.placa),
         _bar: nkBar(s.codigo),
+        _fam: familiaProduto(s),
         _km: parseKm(s.km),
         _qtd: parseQtd(s.quantidade) || 1,
       }))
-      .filter((s) => s._data && s._bar);
+      .filter((s) => s._data && (s._bar || s._fam));
   }
 
   function intervaloPlanilha() {
@@ -770,6 +802,9 @@
       if (sai) return { codigo: sai.codigo, descricao: sai.descricao, referencia: sai.referencia };
     }
     const q = raw.toUpperCase();
+    const famQ = familiaProduto({ descricao: raw, referencia: raw });
+    const porFam = saidasTodas().find((s) => familiaProduto(s) === famQ);
+    if (porFam && famQ && famQ.length > 4) return porFam;
     return (
       cadastroTodos().find((r) => String(r.descricao || "").toUpperCase().includes(q)) ||
       cadastroTodos().find((r) => String(r.referencia || "").toUpperCase() === q) ||
@@ -786,10 +821,10 @@
     return intervalo;
   }
 
-  function ciclosDoProduto(bar) {
+  function ciclosDoProduto(fam) {
     const porPlaca = new Map();
     saidasComData()
-      .filter((s) => s._bar === bar)
+      .filter((s) => s._fam === fam || s._bar === fam)
       .forEach((s) => {
         const k = s._plate || "?";
         if (!porPlaca.has(k)) porPlaca.set(k, []);
@@ -891,18 +926,19 @@
     if (!prod) {
       const porProd = new Map();
       saidasPer.forEach((s) => {
-        if (!porProd.has(s._bar)) porProd.set(s._bar, []);
-        porProd.get(s._bar).push(s);
+        const fam = s._fam || s._bar;
+        if (!porProd.has(fam)) porProd.set(fam, []);
+        porProd.get(fam).push(s);
       });
       const linhas = [...porProd.entries()]
-        .map(([bar, lista]) => {
-          const { ciclos } = ciclosDoProduto(bar);
+        .map(([fam, lista]) => {
+          const { ciclos } = ciclosDoProduto(fam);
           const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per));
           const placas = new Set(lista.map((s) => s._plate).filter(Boolean));
           return {
-            bar,
+            bar: fam,
             codigo: lista[0].codigo,
-            descricao: lista[0].descricao,
+            descricao: fam.startsWith("OLEO MOTOR") ? fam : lista[0].descricao,
             placas: placas.size,
             aplicacoes: lista.length,
             mediaDias: media(ciclosPer.map((c) => c.dias).filter((n) => n != null)),
@@ -947,13 +983,14 @@
       return;
     }
 
-    const bar = nkBar(prod.codigo);
-    const { porPlaca, ciclos } = ciclosDoProduto(bar);
-    const aplicacoesPer = saidasPer.filter((s) => s._bar === bar);
+    const fam = familiaProduto(prod);
+    const { porPlaca, ciclos } = ciclosDoProduto(fam);
+    const aplicacoesPer = saidasPer.filter((s) => s._fam === fam || s._bar === nkBar(prod.codigo));
     const placasPer = new Set(aplicacoesPer.map((s) => s._plate).filter(Boolean));
     const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per) || placasPer.has(c.plate));
     const mediaDias = media(ciclosPer.map((c) => c.dias).filter((n) => n != null));
     const mediaKm = media(ciclosPer.map((c) => c.km).filter((n) => n != null && n > 0));
+    const codigosFam = [...new Set(aplicacoesPer.map((s) => s.codigo).filter(Boolean))];
 
     if (kpis) {
       kpis.innerHTML = kpisHtml([
@@ -964,7 +1001,7 @@
       ]);
     }
     if (resumo) {
-      resumo.textContent = `${prod.descricao || prod.codigo}: aplicado em ${placasPer.size} placa(s). Média de km = soma dos intervalos na mesma placa ÷ quantidade de intervalos.`;
+      resumo.textContent = `${fam}: aplicado em ${placasPer.size} placa(s). Inclui ${codigosFam.length} código(s) da planilha do mesmo item. Média de km = soma dos intervalos na mesma placa ÷ quantidade de intervalos.`;
     }
 
     const placas = [...new Set([...placasPer, ...[...porPlaca.keys()].filter((p) => placasPer.has(p))])].sort();
