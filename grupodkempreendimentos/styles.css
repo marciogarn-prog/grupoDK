@@ -12982,3 +12982,35 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   color: #f5d76e;
   font-weight: 700;
 }
+
+.portal-estoque-rel-resultado {
+  display: grid;
+  gap: 1.1rem;
+  margin-top: 0.75rem;
+}
+
+.portal-estoque-rel-bloco {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem 0.9rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.portal-estoque-rel-bloco__tit {
+  margin: 0 0 0.55rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #f5d76e;
+}
+
+.portal-estoque-rel-total td {
+  font-weight: 700;
+  color: #fff;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.portal-estoque-rel-geral {
+  margin: 0.25rem 0 0;
+  font-size: 1.05rem;
+  color: #fff;
+}

@@ -255,6 +255,32 @@
       }
     },
     {
+      "id": "estoque-relatorios-aplicacao-custo",
+      "descricao": "No Controle de Estoque os dados da planilha já estão carregados. Há relatório de aplicação por placa (produtos de cada placa no período, calendário início e fim), relatório de aplicação por produto (placas, duração em km e tempo, médias) e relatório de custo de manutenção por veículo (itens, valor de cada item e total do período, com calendário de início e fim).",
+      "ficheiros": {
+        "index.html": [
+          "estoquePaneRelPlaca",
+          "estoqueRelPlacaInicio",
+          "estoqueRelPlacaFim",
+          "estoquePaneRelProduto",
+          "estoqueRelProdutoInicio",
+          "estoqueRelProdutoFim",
+          "estoquePaneRelCusto",
+          "estoqueRelCustoInicio",
+          "estoqueRelCustoFim",
+          "Relatório de aplicação por placa",
+          "Relatório de aplicação por produto",
+          "Relatório de custo de manutenção"
+        ],
+        "portal-estoque.js": [
+          "carregarPlanilhaNasTelas",
+          "renderRelatorioPlaca",
+          "renderRelatorioProduto",
+          "renderRelatorioCusto"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

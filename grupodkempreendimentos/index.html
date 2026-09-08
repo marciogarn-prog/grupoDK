@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-sai">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-rel">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3023,8 +3023,8 @@
 
       <section id="panel-estoque-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Controle de Estoque</h2>
-        <p class="subpage__lead">Cadastro de material, estoque, saídas e entradas — o controlo de cada item é pelo <strong>código de barras</strong>.</p>
-        <p id="estoquePlanilhaAviso" class="subtext">Para analisar a planilha, coloque o ficheiro <strong>.xlsx</strong> nesta pasta do projeto: <code>grupodkempreendimentos/data/estoque/</code> (abas: Cadastro de material, Estoque, Saída e Entrada).</p>
+        <p class="subpage__lead">Cadastro de material, estoque, saídas, entradas e relatórios — o controlo de cada item é pelo <strong>código de barras</strong>. Os dados da planilha já estão carregados.</p>
+        <p id="estoquePlanilhaAviso" class="subtext">Fonte: planilha de estoque (abas CADASTRO, ESTOQUE, ENTRADAS e SAIDAS).</p>
         <div id="estoqueResumoKpis" class="portal-rel-pag-agg-kpis" aria-live="polite">
           <div class="portal-rel-pag-agg-kpis__grid" role="list">
             <div class="portal-rel-pag-agg-kpi" role="listitem">
@@ -3060,41 +3060,64 @@
                 <span class="btn-operacao-cmd__title">Entrada</span>
                 <span class="btn-operacao-cmd__hint">Nota fiscal, valor e forma de pagamento</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-estoque-rel-placa" data-estoque-sub="rel-placa" aria-expanded="false" aria-controls="estoquePaneRelPlaca">
+                <span class="btn-operacao-cmd__title">Relatório de aplicação por placa</span>
+                <span class="btn-operacao-cmd__hint">Produtos aplicados em cada placa no período</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-estoque-rel-produto" data-estoque-sub="rel-produto" aria-expanded="false" aria-controls="estoquePaneRelProduto">
+                <span class="btn-operacao-cmd__title">Relatório de aplicação por produto</span>
+                <span class="btn-operacao-cmd__hint">Placas, duração em dias e km, médias</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-estoque-rel-custo" data-estoque-sub="rel-custo" aria-expanded="false" aria-controls="estoquePaneRelCusto">
+                <span class="btn-operacao-cmd__title">Relatório de custo de manutenção</span>
+                <span class="btn-operacao-cmd__hint">Itens, valor e total por veículo no período</span>
+              </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main">
             <div id="estoquePaneCadastro" class="operacao-inline-form operacao-inline-form--rodar-mouse" role="region" aria-label="Cadastro de material">
               <h3 class="operacao-inline-form__title">Cadastro de material</h3>
-              <p class="subtext">Lista dos materiais cadastrados na planilha, identificados pelo código de barras.</p>
+              <p class="subtext">Lista dos materiais da planilha, identificados pelo código de barras.</p>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableCadastro">
                   <thead>
                     <tr>
-                      <th>Código de barras</th>
-                      <th>Material</th>
-                      <th>Unidade</th>
+                      <th>CÓDIGO DE BARRAS</th>
+                      <th>DESCRIÇÃO</th>
+                      <th>REFERÊNCIA</th>
+                      <th>FABRICANTE</th>
+                      <th>PREÇO</th>
+                      <th>SETOR</th>
                     </tr>
                   </thead>
                   <tbody id="estoqueBodyCadastro">
-                    <tr><td colspan="3" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
+                    <tr><td colspan="6" class="subtext">A carregar a planilha…</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
             <div id="estoquePaneEstoque" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Estoque">
               <h3 class="operacao-inline-form__title">Estoque</h3>
-              <p class="subtext">Saldo total de cada item (código de barras).</p>
+              <p class="subtext">Saldo total de cada item da planilha (código de barras).</p>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableSaldo">
                   <thead>
                     <tr>
-                      <th>Código de barras</th>
-                      <th>Material</th>
-                      <th>Saldo total</th>
+                      <th>CÓDIGO DE BARRAS</th>
+                      <th>DESCRIÇÃO</th>
+                      <th>REFERÊNCIA</th>
+                      <th>FABRICANTE</th>
+                      <th>QT</th>
+                      <th>PREÇO</th>
+                      <th>TOTAL</th>
+                      <th>SETOR</th>
+                      <th>ENTRADAS</th>
+                      <th>SAIDAS</th>
+                      <th>SALDO</th>
                     </tr>
                   </thead>
                   <tbody id="estoqueBodySaldo">
-                    <tr><td colspan="3" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
+                    <tr><td colspan="11" class="subtext">A carregar a planilha…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -3158,7 +3181,7 @@
                     </tr>
                   </thead>
                   <tbody id="estoqueBodySaida">
-                    <tr><td colspan="8" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
+                    <tr><td colspan="8" class="subtext">A carregar a planilha…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -3182,10 +3205,97 @@
                     </tr>
                   </thead>
                   <tbody id="estoqueBodyEntrada">
-                    <tr><td colspan="9" class="subtext">Aguardando a planilha em data/estoque/.</td></tr>
+                    <tr><td colspan="9" class="subtext">A carregar a planilha…</td></tr>
                   </tbody>
                 </table>
               </div>
+            </div>
+            <div id="estoquePaneRelPlaca" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Relatório de aplicação por placa">
+              <h3 class="operacao-inline-form__title">Relatório de aplicação por placa</h3>
+              <p class="subtext">Informe o período nos calendários. Cada placa lista os produtos aplicados naquele intervalo. Os dados vêm da planilha (aba SAIDAS).</p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+                <label class="portal-field">
+                  <span>Data início</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelPlacaInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório de aplicação por placa" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelPlacaFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de aplicação por placa" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>PLACA (opcional)</span>
+                  <input type="text" id="estoqueRelPlacaFiltro" list="estoqueRelPlacaList" maxlength="10" autocomplete="off" placeholder="Todas as placas" aria-label="Filtrar placa do relatório de aplicação">
+                  <datalist id="estoqueRelPlacaList"></datalist>
+                </label>
+              </div>
+              <div class="portal-relatorio-pagamentos-periodo__actions">
+                <button type="button" class="btn-primary" id="estoqueRelPlacaGerarBtn">Gerar relatório</button>
+              </div>
+              <div id="estoqueRelPlacaKpis" class="portal-rel-pag-agg-kpis" aria-live="polite"></div>
+              <p id="estoqueRelPlacaResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">A carregar a planilha…</p>
+              <div id="estoqueRelPlacaResultado" class="portal-estoque-rel-resultado"></div>
+            </div>
+            <div id="estoquePaneRelProduto" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Relatório de aplicação por produto">
+              <h3 class="operacao-inline-form__title">Relatório de aplicação por produto</h3>
+              <p class="subtext">Informe o produto e o período nos calendários. O relatório mostra em quantas placas o item foi aplicado, quanto durou em dias e km em cada placa e as médias de tempo e km.</p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>PRODUTO</span>
+                  <input type="text" id="estoqueRelProdutoCodigo" list="estoqueRelProdutoList" maxlength="80" autocomplete="off" placeholder="Código ou descrição — vazio lista todos" aria-label="Produto do relatório de aplicação">
+                  <datalist id="estoqueRelProdutoList"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Data início</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelProdutoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório de aplicação por produto" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelProdutoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de aplicação por produto" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+              </div>
+              <div class="portal-relatorio-pagamentos-periodo__actions">
+                <button type="button" class="btn-primary" id="estoqueRelProdutoGerarBtn">Gerar relatório</button>
+              </div>
+              <div id="estoqueRelProdutoKpis" class="portal-rel-pag-agg-kpis" aria-live="polite"></div>
+              <p id="estoqueRelProdutoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">A carregar a planilha…</p>
+              <div id="estoqueRelProdutoResultado" class="portal-estoque-rel-resultado"></div>
+            </div>
+            <div id="estoquePaneRelCusto" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Relatório de custo de manutenção por veículo">
+              <h3 class="operacao-inline-form__title">Relatório de custo de manutenção por veículo</h3>
+              <p class="subtext">Informe o período nos calendários. Lista os veículos, os itens aplicados na placa, o valor de cada item e o total gasto no período selecionado.</p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+                <label class="portal-field">
+                  <span>Data início</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelCustoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório de custo de manutenção" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueRelCustoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de custo de manutenção" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>PLACA (opcional)</span>
+                  <input type="text" id="estoqueRelCustoFiltro" list="estoqueRelCustoPlacaList" maxlength="10" autocomplete="off" placeholder="Todos os veículos" aria-label="Filtrar placa do relatório de custo">
+                  <datalist id="estoqueRelCustoPlacaList"></datalist>
+                </label>
+              </div>
+              <div class="portal-relatorio-pagamentos-periodo__actions">
+                <button type="button" class="btn-primary" id="estoqueRelCustoGerarBtn">Gerar relatório</button>
+              </div>
+              <div id="estoqueRelCustoKpis" class="portal-rel-pag-agg-kpis" aria-live="polite"></div>
+              <p id="estoqueRelCustoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">A carregar a planilha…</p>
+              <div id="estoqueRelCustoResultado" class="portal-estoque-rel-resultado"></div>
             </div>
           </div>
         </div>
@@ -4837,7 +4947,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-sai" defer></script>
+  <script src="app.js?v=20260908estq-rel" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4845,13 +4955,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-sai" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-sai" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-sai" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-rel" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-rel" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-rel" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-sai" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-rel" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

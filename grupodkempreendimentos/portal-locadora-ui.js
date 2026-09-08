@@ -4424,27 +4424,43 @@
       estoque: "estoquePaneEstoque",
       saida: "estoquePaneSaida",
       entrada: "estoquePaneEntrada",
+      "rel-placa": "estoquePaneRelPlaca",
+      "rel-produto": "estoquePaneRelProduto",
+      "rel-custo": "estoquePaneRelCusto",
     };
     const sub = panes[subRaw] ? subRaw : "cadastro";
     Object.entries(panes).forEach(([key, paneId]) => {
       const pane = document.getElementById(paneId);
       if (pane) pane.classList.toggle("hidden", key !== sub);
     });
-    ["btn-estoque-cadastro", "btn-estoque-saldo", "btn-estoque-saida", "btn-estoque-entrada"].forEach((id) => {
+    [
+      "btn-estoque-cadastro",
+      "btn-estoque-saldo",
+      "btn-estoque-saida",
+      "btn-estoque-entrada",
+      "btn-estoque-rel-placa",
+      "btn-estoque-rel-produto",
+      "btn-estoque-rel-custo",
+    ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
       const on = b.getAttribute("data-estoque-sub") === sub;
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
+    if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
     if (sub === "saida" && typeof window.__DK_estoqueAoAbrirSaida === "function") {
       window.__DK_estoqueAoAbrirSaida();
+    }
+    if ((sub === "rel-placa" || sub === "rel-produto" || sub === "rel-custo") && typeof window.__DK_estoqueAoAbrirRelatorio === "function") {
+      window.__DK_estoqueAoAbrirRelatorio(sub);
     }
   }
 
   btnEstoque?.addEventListener("click", () => {
     hideAllPanels();
     panelEstoque?.classList.remove("hidden");
+    if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
     showPortalEstoqueSub("cadastro");
     portalPersistirAreaAtiva("estoque");
   });
@@ -4453,7 +4469,15 @@
     portalVoltarEquipaLocadora();
   });
 
-  ["btn-estoque-cadastro", "btn-estoque-saldo", "btn-estoque-saida", "btn-estoque-entrada"].forEach((id) => {
+  [
+    "btn-estoque-cadastro",
+    "btn-estoque-saldo",
+    "btn-estoque-saida",
+    "btn-estoque-entrada",
+    "btn-estoque-rel-placa",
+    "btn-estoque-rel-produto",
+    "btn-estoque-rel-custo",
+  ].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       const sub = document.getElementById(id)?.getAttribute("data-estoque-sub") || "cadastro";
       showPortalEstoqueSub(sub);

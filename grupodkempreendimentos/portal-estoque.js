@@ -1,5 +1,5 @@
 /**
- * Controle de Estoque — saída com resumo da última aplicação (sem coluna de repetição).
+ * Controle de Estoque — planilha, saída com resumo da última aplicação e relatórios.
  */
 (function portalEstoqueUi() {
   const $ = (id) => document.getElementById(id);
@@ -14,6 +14,11 @@
 
   function nkBar(v) {
     return String(v || "").replace(/\D/g, "");
+  }
+
+  function codigoValido(v) {
+    const d = nkBar(v);
+    return d.length >= 8;
   }
 
   function nkPlate(v) {
@@ -32,6 +37,40 @@
   function parseKm(v) {
     const n = Number(String(v || "").replace(/\D/g, ""));
     return Number.isFinite(n) ? n : 0;
+  }
+
+  function parseQtd(v) {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const s = String(v ?? "")
+      .replace(/\s/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function parsePreco(v) {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const s = String(v ?? "")
+      .replace(/R\$/gi, "")
+      .replace(/\s/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatMoney(n) {
+    if (n == null || !Number.isFinite(Number(n))) return "—";
+    return Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function formatNum(n, dec) {
+    if (n == null || !Number.isFinite(Number(n))) return "—";
+    return Number(n).toLocaleString("pt-BR", {
+      minimumFractionDigits: dec || 0,
+      maximumFractionDigits: dec || 0,
+    });
   }
 
   function parseDataBr(v) {
@@ -54,6 +93,13 @@
     return `${dd}-${mm}-${d.getFullYear()}`;
   }
 
+  function formatDataBarra(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
   function diasEntre(a, b) {
     if (!(a instanceof Date) || !(b instanceof Date)) return null;
     const x = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
@@ -63,7 +109,13 @@
 
   function hojeBr() {
     const d = new Date();
-    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    return formatDataBarra(d);
+  }
+
+  function media(lista) {
+    const nums = (lista || []).filter((n) => Number.isFinite(n));
+    if (!nums.length) return null;
+    return nums.reduce((a, b) => a + b, 0) / nums.length;
   }
 
   function planilha() {
@@ -80,14 +132,52 @@
     } catch {
       extra = [];
     }
-    return base.concat(Array.isArray(extra) ? extra : []);
+    return base.concat(Array.isArray(extra) ? extra : []).filter((s) => codigoValido(s.codigo));
+  }
+
+  function cadastroTodos() {
+    const rows = Array.isArray(planilha().cadastro) ? planilha().cadastro : [];
+    return rows.filter((r) => codigoValido(r.codigo));
+  }
+
+  function estoqueTodos() {
+    const seen = new Set();
+    const rows = Array.isArray(planilha().estoque) ? planilha().estoque : [];
+    const out = [];
+    for (const r of rows) {
+      if (!codigoValido(r.codigo)) continue;
+      const k = nkBar(r.codigo);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(r);
+    }
+    return out;
+  }
+
+  function entradasTodas() {
+    const rows = Array.isArray(planilha().entradas) ? planilha().entradas : [];
+    return rows.filter((r) => codigoValido(r.codigo) || String(r.descricao || "").trim());
   }
 
   function cadastroDoCodigo(codigo) {
     const key = nkBar(codigo);
     if (!key) return null;
-    const rows = Array.isArray(planilha().cadastro) ? planilha().cadastro : [];
-    return rows.find((r) => nkBar(r.codigo) === key) || null;
+    return cadastroTodos().find((r) => nkBar(r.codigo) === key) || null;
+  }
+
+  function estoqueDoCodigo(codigo) {
+    const key = nkBar(codigo);
+    if (!key) return null;
+    return estoqueTodos().find((r) => nkBar(r.codigo) === key) || null;
+  }
+
+  function precoDoCodigo(codigo) {
+    const cad = cadastroDoCodigo(codigo);
+    const pCad = parsePreco(cad?.preco);
+    if (pCad > 0) return pCad;
+    const est = estoqueDoCodigo(codigo);
+    const pEst = parsePreco(est?.preco);
+    return pEst > 0 ? pEst : 0;
   }
 
   function ultimaAplicacao(codigo, placa) {
@@ -228,11 +318,95 @@
       .join("");
   }
 
+  function renderTabelaCadastro() {
+    const body = $("estoqueBodyCadastro");
+    if (!body) return;
+    const rows = cadastroTodos().slice().sort((a, b) => String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt"));
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum material na planilha.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows
+      .map((r) => {
+        const preco = parsePreco(r.preco);
+        return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
+          r.referencia || ""
+        )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${preco > 0 ? formatMoney(preco) : "—"}</td><td>${escapeHtml(
+          r.setor || ""
+        )}</td></tr>`;
+      })
+      .join("");
+  }
+
+  function renderTabelaEstoque() {
+    const body = $("estoqueBodySaldo");
+    if (!body) return;
+    const rows = estoqueTodos().slice().sort((a, b) => String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt"));
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="11" class="subtext">Nenhum saldo na planilha.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows
+      .map((r) => {
+        const preco = parsePreco(r.preco);
+        const total = parsePreco(r.total) || preco * parseQtd(r.qt);
+        return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
+          r.referencia || ""
+        )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${escapeHtml(String(r.qt ?? ""))}</td><td>${
+          preco > 0 ? formatMoney(preco) : "—"
+        }</td><td>${total > 0 ? formatMoney(total) : "—"}</td><td>${escapeHtml(r.setor || "")}</td><td>${escapeHtml(
+          String(r.entradas ?? "")
+        )}</td><td>${escapeHtml(String(r.saidas ?? ""))}</td><td>${escapeHtml(String(r.saldo ?? r.qt ?? ""))}</td></tr>`;
+      })
+      .join("");
+  }
+
+  function renderTabelaEntradas() {
+    const body = $("estoqueBodyEntrada");
+    if (!body) return;
+    const rows = entradasTodas()
+      .slice()
+      .sort((a, b) => {
+        const da = parseDataBr(a.data);
+        const db = parseDataBr(b.data);
+        return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+      });
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="9" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows
+      .map(
+        (r) =>
+          `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
+            r.referencia || ""
+          )}</td><td>${escapeHtml(String(r.quantidade ?? ""))}</td><td>${escapeHtml(
+            r.fornecedor || ""
+          )}</td><td>${escapeHtml(r.data || "")}</td><td>${escapeHtml(r.notaFiscal || "")}</td><td>${
+            parsePreco(r.valorNota) > 0 ? formatMoney(parsePreco(r.valorNota)) : escapeHtml(r.valorNota || "")
+          }</td><td>${escapeHtml(r.formaPagamento || "")}</td></tr>`
+      )
+      .join("");
+  }
+
+  function atualizarKpis() {
+    const cad = $("estoqueKpiCadastros");
+    const sai = $("estoqueKpiSaidas");
+    const ent = $("estoqueKpiEntradas");
+    if (cad) cad.textContent = String(cadastroTodos().length);
+    if (sai) sai.textContent = String(saidasTodas().length);
+    if (ent) ent.textContent = String(entradasTodas().length);
+    const aviso = $("estoquePlanilhaAviso");
+    const fonte = planilha().fonte;
+    if (aviso && fonte) {
+      aviso.innerHTML = `Fonte carregada: <strong>${escapeHtml(fonte)}</strong> — ${cadastroTodos().length} materiais, ${estoqueTodos().length} saldos, ${entradasTodas().length} entradas e ${saidasTodas().length} saídas.`;
+    }
+  }
+
   function preencherDatalist() {
     const list = $("estoqueSaidaCodigoList");
     if (!list) return;
-    const rows = Array.isArray(planilha().cadastro) ? planilha().cadastro : [];
-    list.innerHTML = rows
+    list.innerHTML = cadastroTodos()
       .map((r) => {
         const cod = String(r.codigo || "");
         const desc = String(r.descricao || "");
@@ -241,11 +415,428 @@
       .join("");
   }
 
+  function placasDatalistHtml() {
+    const seen = new Set();
+    const opts = [];
+    saidasTodas().forEach((s) => {
+      const p = formatPlateOut(s.placa);
+      const k = nkPlate(s.placa);
+      if (!k || seen.has(k)) return;
+      seen.add(k);
+      opts.push(`<option value="${escapeHtml(p)}"></option>`);
+    });
+    return opts.join("");
+  }
+
+  function produtosDatalistHtml() {
+    return cadastroTodos()
+      .map((r) => `<option value="${escapeHtml(r.codigo || "")}" label="${escapeHtml(r.descricao || "")}"></option>`)
+      .join("");
+  }
+
+  function saidasComData() {
+    return saidasTodas()
+      .map((s) => ({
+        ...s,
+        _data: parseDataBr(s.data),
+        _plate: nkPlate(s.placa),
+        _bar: nkBar(s.codigo),
+        _km: parseKm(s.km),
+        _qtd: parseQtd(s.quantidade) || 1,
+      }))
+      .filter((s) => s._data && s._bar);
+  }
+
+  function intervaloPlanilha() {
+    const datas = saidasComData().map((s) => s._data.getTime());
+    if (!datas.length) {
+      const hoje = new Date();
+      return { inicio: hoje, fim: hoje };
+    }
+    return { inicio: new Date(Math.min(...datas)), fim: new Date(Math.max(...datas)) };
+  }
+
+  function garantirPeriodo(inicioId, fimId) {
+    const iniEl = $(inicioId);
+    const fimEl = $(fimId);
+    if (!iniEl || !fimEl) return;
+    if (!String(iniEl.value || "").trim() || !String(fimEl.value || "").trim()) {
+      const { inicio, fim } = intervaloPlanilha();
+      if (!String(iniEl.value || "").trim()) iniEl.value = formatDataBarra(inicio);
+      if (!String(fimEl.value || "").trim()) fimEl.value = formatDataBarra(fim);
+    }
+  }
+
+  function lerPeriodo(inicioId, fimId) {
+    garantirPeriodo(inicioId, fimId);
+    let ini = parseDataBr($(inicioId)?.value || "");
+    let fim = parseDataBr($(fimId)?.value || "");
+    if (!ini || !fim) {
+      const pad = intervaloPlanilha();
+      ini = ini || pad.inicio;
+      fim = fim || pad.fim;
+    }
+    if (ini.getTime() > fim.getTime()) {
+      const t = ini;
+      ini = fim;
+      fim = t;
+    }
+    const a = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()).getTime();
+    const b = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()).getTime();
+    return { ini, fim, a, b };
+  }
+
+  function noPeriodo(d, per) {
+    if (!(d instanceof Date)) return false;
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    return t >= per.a && t <= per.b;
+  }
+
+  function kpisHtml(itens) {
+    return `<div class="portal-rel-pag-agg-kpis__grid" role="list">${itens
+      .map(
+        (it) =>
+          `<div class="portal-rel-pag-agg-kpi${it.valor ? " portal-rel-pag-agg-kpi--valor" : ""}" role="listitem"><span class="portal-rel-pag-agg-kpi__lab">${escapeHtml(
+            it.lab
+          )}</span><strong>${escapeHtml(it.val)}</strong></div>`
+      )
+      .join("")}</div>`;
+  }
+
+  function resolverProduto(texto) {
+    const raw = String(texto || "").trim();
+    if (!raw) return null;
+    const bar = nkBar(raw);
+    if (bar.length >= 8) {
+      const cad = cadastroDoCodigo(raw);
+      if (cad) return cad;
+      const sai = saidasTodas().find((s) => nkBar(s.codigo) === bar);
+      if (sai) return { codigo: sai.codigo, descricao: sai.descricao, referencia: sai.referencia };
+    }
+    const q = raw.toUpperCase();
+    return (
+      cadastroTodos().find((r) => String(r.descricao || "").toUpperCase().includes(q)) ||
+      cadastroTodos().find((r) => String(r.referencia || "").toUpperCase() === q) ||
+      null
+    );
+  }
+
+  function ciclosDoProduto(bar) {
+    const porPlaca = new Map();
+    saidasComData()
+      .filter((s) => s._bar === bar)
+      .forEach((s) => {
+        const k = s._plate || "?";
+        if (!porPlaca.has(k)) porPlaca.set(k, []);
+        porPlaca.get(k).push(s);
+      });
+    const ciclos = [];
+    porPlaca.forEach((lista, plate) => {
+      lista.sort((a, b) => a._data.getTime() - b._data.getTime() || a._km - b._km);
+      for (let i = 1; i < lista.length; i += 1) {
+        const prev = lista[i - 1];
+        const cur = lista[i];
+        const dias = diasEntre(prev._data, cur._data);
+        const km = prev._km > 0 && cur._km > 0 ? cur._km - prev._km : null;
+        ciclos.push({
+          plate,
+          placa: formatPlateOut(cur.placa || prev.placa),
+          veiculo: cur.veiculo || prev.veiculo || "",
+          dias,
+          km,
+          de: prev,
+          ate: cur,
+        });
+      }
+    });
+    return { porPlaca, ciclos };
+  }
+
+  function renderRelatorioPlaca() {
+    const box = $("estoqueRelPlacaResultado");
+    const kpis = $("estoqueRelPlacaKpis");
+    const resumo = $("estoqueRelPlacaResumo");
+    if (!box) return;
+    const per = lerPeriodo("estoqueRelPlacaInicio", "estoqueRelPlacaFim");
+    const filtro = nkPlate($("estoqueRelPlacaFiltro")?.value || "");
+    const rows = saidasComData().filter((s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro));
+    const porPlaca = new Map();
+    rows.forEach((s) => {
+      const k = s._plate || "SEM-PLACA";
+      if (!porPlaca.has(k)) porPlaca.set(k, []);
+      porPlaca.get(k).push(s);
+    });
+    const placas = [...porPlaca.keys()].sort();
+    if (kpis) {
+      kpis.innerHTML = kpisHtml([
+        { lab: "Placas", val: String(placas.length) },
+        { lab: "Aplicações", val: String(rows.length) },
+        { lab: "Período", val: `${formatDataBarra(per.ini)} a ${formatDataBarra(per.fim)}` },
+      ]);
+    }
+    if (resumo) {
+      resumo.textContent = placas.length
+        ? `${placas.length} placa(s) com ${rows.length} aplicação(ões) no período selecionado.`
+        : "Nenhuma aplicação neste período.";
+    }
+    if (!placas.length) {
+      box.innerHTML = `<p class="subtext">Nenhum produto aplicado neste intervalo.</p>`;
+      return;
+    }
+    box.innerHTML = placas
+      .map((k) => {
+        const lista = porPlaca.get(k).slice().sort((a, b) => a._data.getTime() - b._data.getTime());
+        const placa = formatPlateOut(lista[0].placa) || k;
+        const veic = lista.find((s) => s.veiculo)?.veiculo || "";
+        const linhas = lista
+          .map(
+            (s) =>
+              `<tr><td>${escapeHtml(s.codigo || "")}</td><td>${escapeHtml(s.descricao || "")}</td><td>${escapeHtml(
+                s.referencia || ""
+              )}</td><td>${escapeHtml(String(s.quantidade ?? ""))}</td><td>${escapeHtml(
+                String(s.km ?? "")
+              )}</td><td>${escapeHtml(s.data || "")}</td></tr>`
+          )
+          .join("");
+        return `<article class="portal-estoque-rel-bloco"><h4 class="portal-estoque-rel-bloco__tit">PLACA ${escapeHtml(
+          placa
+        )}${veic ? ` · ${escapeHtml(veic)}` : ""} · ${lista.length} item(ns)</h4><div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>CÓDIGO</th><th>PRODUTO</th><th>REFERÊNCIA</th><th>QTD</th><th>KM</th><th>DATA</th></tr></thead><tbody>${linhas}</tbody></table></div></article>`;
+      })
+      .join("");
+  }
+
+  function renderRelatorioProduto() {
+    const box = $("estoqueRelProdutoResultado");
+    const kpis = $("estoqueRelProdutoKpis");
+    const resumo = $("estoqueRelProdutoResumo");
+    if (!box) return;
+    const per = lerPeriodo("estoqueRelProdutoInicio", "estoqueRelProdutoFim");
+    const prod = resolverProduto($("estoqueRelProdutoCodigo")?.value || "");
+    const saidasPer = saidasComData().filter((s) => noPeriodo(s._data, per));
+
+    if (!prod) {
+      const porProd = new Map();
+      saidasPer.forEach((s) => {
+        if (!porProd.has(s._bar)) porProd.set(s._bar, []);
+        porProd.get(s._bar).push(s);
+      });
+      const linhas = [...porProd.entries()]
+        .map(([bar, lista]) => {
+          const { ciclos } = ciclosDoProduto(bar);
+          const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per));
+          const placas = new Set(lista.map((s) => s._plate).filter(Boolean));
+          return {
+            bar,
+            codigo: lista[0].codigo,
+            descricao: lista[0].descricao,
+            placas: placas.size,
+            aplicacoes: lista.length,
+            mediaDias: media(ciclosPer.map((c) => c.dias).filter((n) => n != null)),
+            mediaKm: media(ciclosPer.map((c) => c.km).filter((n) => n != null && n >= 0)),
+          };
+        })
+        .sort((a, b) => b.aplicacoes - a.aplicacoes || String(a.descricao).localeCompare(String(b.descricao), "pt"));
+      if (kpis) {
+        kpis.innerHTML = kpisHtml([
+          { lab: "Produtos aplicados", val: String(linhas.length) },
+          { lab: "Aplicações", val: String(saidasPer.length) },
+          { lab: "Período", val: `${formatDataBarra(per.ini)} a ${formatDataBarra(per.fim)}` },
+        ]);
+      }
+      if (resumo) {
+        resumo.textContent = linhas.length
+          ? `Selecione um produto para ver a duração em cada placa. Abaixo, todos os itens aplicados no período.`
+          : "Nenhuma aplicação neste período.";
+      }
+      if (!linhas.length) {
+        box.innerHTML = `<p class="subtext">Nenhum produto aplicado neste intervalo.</p>`;
+        return;
+      }
+      box.innerHTML = `<div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>CÓDIGO</th><th>PRODUTO</th><th>PLACAS</th><th>APLICAÇÕES</th><th>MÉDIA DIAS</th><th>MÉDIA KM</th></tr></thead><tbody>${linhas
+        .map(
+          (r) =>
+            `<tr data-estoque-prod="${escapeHtml(r.codigo)}"><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(
+              r.descricao || ""
+            )}</td><td>${r.placas}</td><td>${r.aplicacoes}</td><td>${
+              r.mediaDias == null ? "—" : formatNum(r.mediaDias, 1)
+            }</td><td>${r.mediaKm == null ? "—" : formatNum(r.mediaKm, 0)}</td></tr>`
+        )
+        .join("")}</tbody></table></div>`;
+      box.querySelectorAll("[data-estoque-prod]").forEach((tr) => {
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", () => {
+          const input = $("estoqueRelProdutoCodigo");
+          if (input) input.value = tr.getAttribute("data-estoque-prod") || "";
+          renderRelatorioProduto();
+        });
+      });
+      return;
+    }
+
+    const bar = nkBar(prod.codigo);
+    const { porPlaca, ciclos } = ciclosDoProduto(bar);
+    const aplicacoesPer = saidasPer.filter((s) => s._bar === bar);
+    const placasPer = new Set(aplicacoesPer.map((s) => s._plate).filter(Boolean));
+    const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per) || placasPer.has(c.plate));
+    const mediaDias = media(ciclosPer.map((c) => c.dias).filter((n) => n != null));
+    const mediaKm = media(ciclosPer.map((c) => c.km).filter((n) => n != null && n >= 0));
+
+    if (kpis) {
+      kpis.innerHTML = kpisHtml([
+        { lab: "Placas", val: String(placasPer.size || porPlaca.size) },
+        { lab: "Aplicações no período", val: String(aplicacoesPer.length) },
+        { lab: "Média de tempo", val: mediaDias == null ? "—" : `${formatNum(mediaDias, 1)} dias` },
+        { lab: "Média de km", val: mediaKm == null ? "—" : `${formatNum(mediaKm, 0)} km` },
+      ]);
+    }
+    if (resumo) {
+      resumo.textContent = `${prod.descricao || prod.codigo}: aplicado em ${placasPer.size} placa(s) no período. Médias calculadas pelas reaplicações.`;
+    }
+
+    const placas = [...new Set([...placasPer, ...[...porPlaca.keys()].filter((p) => placasPer.has(p))])].sort();
+    const listaPlacas = (placas.length ? placas : [...porPlaca.keys()]).sort();
+    if (!listaPlacas.length) {
+      box.innerHTML = `<p class="subtext">Este produto não foi aplicado no período selecionado.</p>`;
+      return;
+    }
+
+    const linhas = listaPlacas
+      .map((plate) => {
+        const hist = (porPlaca.get(plate) || []).slice().sort((a, b) => a._data.getTime() - b._data.getTime());
+        const noInt = hist.filter((s) => noPeriodo(s._data, per));
+        const ciclosPlaca = ciclos.filter((c) => c.plate === plate);
+        const ultimo = ciclosPlaca[ciclosPlaca.length - 1];
+        const dDias = ultimo && ultimo.dias != null ? ultimo.dias : null;
+        const dKm = ultimo && ultimo.km != null ? ultimo.km : null;
+        const mDias = media(ciclosPlaca.map((c) => c.dias).filter((n) => n != null));
+        const mKm = media(ciclosPlaca.map((c) => c.km).filter((n) => n != null && n >= 0));
+        const veic = (noInt[0] || hist[0] || {}).veiculo || "";
+        return `<tr><td>${escapeHtml(formatPlateOut((noInt[0] || hist[0] || {}).placa || plate))}</td><td>${escapeHtml(
+          veic
+        )}</td><td>${noInt.length || hist.length}</td><td>${
+          dDias == null ? "sem reaplicação" : `${dDias} dia(s)`
+        }</td><td>${dKm == null ? "—" : `${formatNum(dKm, 0)} km`}</td><td>${
+          mDias == null ? "—" : formatNum(mDias, 1)
+        }</td><td>${mKm == null ? "—" : formatNum(mKm, 0)}</td></tr>`;
+      })
+      .join("");
+
+    box.innerHTML = `<div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>PLACA</th><th>VEÍCULO</th><th>APLICAÇÕES</th><th>DUROU (TEMPO)</th><th>DUROU (KM)</th><th>MÉDIA DIAS</th><th>MÉDIA KM</th></tr></thead><tbody>${linhas}</tbody></table></div>`;
+  }
+
+  function renderRelatorioCusto() {
+    const box = $("estoqueRelCustoResultado");
+    const kpis = $("estoqueRelCustoKpis");
+    const resumo = $("estoqueRelCustoResumo");
+    if (!box) return;
+    const per = lerPeriodo("estoqueRelCustoInicio", "estoqueRelCustoFim");
+    const filtro = nkPlate($("estoqueRelCustoFiltro")?.value || "");
+    const rows = saidasComData()
+      .filter((s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro))
+      .map((s) => {
+        const unit = precoDoCodigo(s.codigo);
+        const valor = unit * (s._qtd || 1);
+        return { ...s, unit, valor };
+      });
+    const porPlaca = new Map();
+    rows.forEach((s) => {
+      const k = s._plate || "SEM-PLACA";
+      if (!porPlaca.has(k)) porPlaca.set(k, []);
+      porPlaca.get(k).push(s);
+    });
+    const placas = [...porPlaca.keys()].sort();
+    const totalGeral = rows.reduce((a, s) => a + (s.valor || 0), 0);
+    if (kpis) {
+      kpis.innerHTML = kpisHtml([
+        { lab: "Veículos", val: String(placas.length) },
+        { lab: "Itens aplicados", val: String(rows.length) },
+        { lab: "Total gasto no período", val: formatMoney(totalGeral), valor: true },
+      ]);
+    }
+    if (resumo) {
+      resumo.textContent = placas.length
+        ? `Custo de manutenção de ${placas.length} veículo(s) no período selecionado: ${formatMoney(totalGeral)}.`
+        : "Nenhum item aplicado neste período.";
+    }
+    if (!placas.length) {
+      box.innerHTML = `<p class="subtext">Nenhum custo de manutenção neste intervalo.</p>`;
+      return;
+    }
+    box.innerHTML =
+      placas
+        .map((k) => {
+          const lista = porPlaca.get(k).slice().sort((a, b) => a._data.getTime() - b._data.getTime());
+          const sub = lista.reduce((a, s) => a + (s.valor || 0), 0);
+          const placa = formatPlateOut(lista[0].placa) || k;
+          const veic = lista.find((s) => s.veiculo)?.veiculo || "";
+          const linhas = lista
+            .map(
+              (s) =>
+                `<tr><td>${escapeHtml(s.data || "")}</td><td>${escapeHtml(s.codigo || "")}</td><td>${escapeHtml(
+                  s.descricao || ""
+                )}</td><td>${escapeHtml(String(s.quantidade ?? ""))}</td><td>${
+                  s.unit > 0 ? formatMoney(s.unit) : "—"
+                }</td><td>${s.valor > 0 ? formatMoney(s.valor) : "—"}</td></tr>`
+            )
+            .join("");
+          return `<article class="portal-estoque-rel-bloco"><h4 class="portal-estoque-rel-bloco__tit">PLACA ${escapeHtml(
+            placa
+          )}${veic ? ` · ${escapeHtml(veic)}` : ""} · total ${escapeHtml(
+            formatMoney(sub)
+          )}</h4><div class="fin-table-wrap"><table class="fin-table portal-rel-pag-agg__table"><thead><tr><th>DATA</th><th>CÓDIGO</th><th>ITEM APLICADO</th><th>QTD</th><th>VALOR DO ITEM</th><th>TOTAL</th></tr></thead><tbody>${linhas}<tr class="portal-estoque-rel-total"><td colspan="5">Total da placa</td><td>${escapeHtml(
+            formatMoney(sub)
+          )}</td></tr></tbody></table></div></article>`;
+        })
+        .join("") +
+      `<p class="portal-estoque-rel-geral"><strong>Total geral do período:</strong> ${escapeHtml(formatMoney(totalGeral))}</p>`;
+  }
+
+  function carregarPlanilhaNasTelas() {
+    atualizarKpis();
+    renderTabelaCadastro();
+    renderTabelaEstoque();
+    renderTabelaEntradas();
+    renderTabelaSaidas();
+    preencherDatalist();
+    const listPlaca = $("estoqueRelPlacaList");
+    const listCusto = $("estoqueRelCustoPlacaList");
+    const listProd = $("estoqueRelProdutoList");
+    const htmlP = placasDatalistHtml();
+    if (listPlaca) listPlaca.innerHTML = htmlP;
+    if (listCusto) listCusto.innerHTML = htmlP;
+    if (listProd) listProd.innerHTML = produtosDatalistHtml();
+  }
+
   function aoAbrirSaida() {
     const dataEl = $("estoqueSaidaData");
     if (dataEl && !String(dataEl.value || "").trim()) dataEl.value = hojeBr();
-    preencherDatalist();
-    renderTabelaSaidas();
+    carregarPlanilhaNasTelas();
+  }
+
+  function aoAbrirRelatorio(sub) {
+    carregarPlanilhaNasTelas();
+    if (sub === "rel-placa") {
+      garantirPeriodo("estoqueRelPlacaInicio", "estoqueRelPlacaFim");
+      renderRelatorioPlaca();
+    } else if (sub === "rel-produto") {
+      garantirPeriodo("estoqueRelProdutoInicio", "estoqueRelProdutoFim");
+      renderRelatorioProduto();
+    } else if (sub === "rel-custo") {
+      garantirPeriodo("estoqueRelCustoInicio", "estoqueRelCustoFim");
+      renderRelatorioCusto();
+    }
+  }
+
+  function bindRelatorio(ids, render) {
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("change", render);
+      el.addEventListener("input", () => {
+        if (el.matches("[data-dk-mask='date']") && String(el.value || "").replace(/\D/g, "").length < 8) return;
+        render();
+      });
+    });
   }
 
   function bind() {
@@ -281,9 +872,26 @@
         conferirUltimaAplicacao({ silencioso: true });
       }
     });
+    $("estoqueRelPlacaGerarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      renderRelatorioPlaca();
+    });
+    $("estoqueRelProdutoGerarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      renderRelatorioProduto();
+    });
+    $("estoqueRelCustoGerarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      renderRelatorioCusto();
+    });
+    bindRelatorio(["estoqueRelPlacaInicio", "estoqueRelPlacaFim", "estoqueRelPlacaFiltro"], renderRelatorioPlaca);
+    bindRelatorio(["estoqueRelProdutoInicio", "estoqueRelProdutoFim", "estoqueRelProdutoCodigo"], renderRelatorioProduto);
+    bindRelatorio(["estoqueRelCustoInicio", "estoqueRelCustoFim", "estoqueRelCustoFiltro"], renderRelatorioCusto);
   }
 
   window.__DK_estoqueAoAbrirSaida = aoAbrirSaida;
+  window.__DK_estoqueAoAbrirPainel = carregarPlanilhaNasTelas;
+  window.__DK_estoqueAoAbrirRelatorio = aoAbrirRelatorio;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bind, { once: true });
   } else {
