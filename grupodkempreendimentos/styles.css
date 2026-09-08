@@ -13033,3 +13033,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 #estoquePaneRelCusto .portal-placa-dropdown {
   z-index: 80;
 }
+
+#estoqueEntradaForm .portal-field select {
+  width: 100%;
+}

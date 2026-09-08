@@ -225,6 +225,25 @@
       }
     },
     {
+      "id": "estoque-entrada-caixas-lancamento",
+      "descricao": "Na tela Entrada do Controle de Estoque existem as 9 caixas para dar entrada no material (código de barras, descrição, referência, quantidade, fornecedor, data, número da nota fiscal, valor da nota e forma de pagamento). Forma de pagamento é lista suspensa de 1x a 12x.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueEntradaForm",
+          "estoqueEntradaCodigo",
+          "estoqueEntradaFormaPagamento",
+          "Dar entrada",
+          "1x",
+          "12x"
+        ],
+        "portal-estoque.js": [
+          "gravarEntradaMaterial",
+          "dk_estoque_entradas_v1",
+          "estoqueEntradaFormaPagamento"
+        ]
+      }
+    },
+    {
       "id": "estoque-entrada-nota-fiscal",
       "descricao": "Na tela Entrada do Controle de Estoque, além das colunas da planilha (código de barras, descrição, referência, quantidade, fornecedor e data), existem NÚMERO DA NOTA FISCAL, VALOR DA NOTA e FORMA DE PAGAMENTO.",
       "ficheiros": {

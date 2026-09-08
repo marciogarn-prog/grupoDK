@@ -154,9 +154,28 @@
     return out;
   }
 
+  function extrasEntradas() {
+    try {
+      const extra = JSON.parse(localStorage.getItem("dk_estoque_entradas_v1") || "[]");
+      return Array.isArray(extra) ? extra : [];
+    } catch {
+      return [];
+    }
+  }
+
   function entradasTodas() {
-    const rows = Array.isArray(planilha().entradas) ? planilha().entradas : [];
-    return rows.filter((r) => codigoValido(r.codigo) || String(r.descricao || "").trim());
+    const base = Array.isArray(planilha().entradas) ? planilha().entradas : [];
+    return extrasEntradas().concat(base).filter((r) => codigoValido(r.codigo) || String(r.descricao || "").trim());
+  }
+
+  function qtdExtraEntrada(codigo) {
+    const key = nkBar(codigo);
+    if (!key) return 0;
+    return extrasEntradas().reduce((acc, r) => acc + (nkBar(r.codigo) === key ? parseQtd(r.quantidade) : 0), 0);
+  }
+
+  function estoqueAndroidSomenteLeitura() {
+    return document.body.classList.contains("portal-plataforma-android");
   }
 
   function cadastroDoCodigo(codigo) {
@@ -350,13 +369,16 @@
       .map((r) => {
         const preco = parsePreco(r.preco);
         const total = parsePreco(r.total) || preco * parseQtd(r.qt);
+        const extraEnt = qtdExtraEntrada(r.codigo);
+        const entradas = parseQtd(r.entradas) + extraEnt;
+        const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
         return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
           r.referencia || ""
         )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${escapeHtml(String(r.qt ?? ""))}</td><td>${
           preco > 0 ? formatMoney(preco) : "—"
         }</td><td>${total > 0 ? formatMoney(total) : "—"}</td><td>${escapeHtml(r.setor || "")}</td><td>${escapeHtml(
-          String(r.entradas ?? "")
-        )}</td><td>${escapeHtml(String(r.saidas ?? ""))}</td><td>${escapeHtml(String(r.saldo ?? r.qt ?? ""))}</td></tr>`;
+          String(entradas)
+        )}</td><td>${escapeHtml(String(r.saidas ?? ""))}</td><td>${escapeHtml(String(saldo))}</td></tr>`;
       })
       .join("");
   }
@@ -403,16 +425,101 @@
     }
   }
 
-  function preencherDatalist() {
-    const list = $("estoqueSaidaCodigoList");
-    if (!list) return;
-    list.innerHTML = cadastroTodos()
+  function opcoesCodigoHtml() {
+    return cadastroTodos()
       .map((r) => {
         const cod = String(r.codigo || "");
         const desc = String(r.descricao || "");
         return `<option value="${escapeHtml(cod)}" label="${escapeHtml(desc)}"></option>`;
       })
       .join("");
+  }
+
+  function preencherDatalist() {
+    const list = $("estoqueSaidaCodigoList");
+    if (list) list.innerHTML = opcoesCodigoHtml();
+    const listEnt = $("estoqueEntradaCodigoList");
+    if (listEnt) listEnt.innerHTML = opcoesCodigoHtml();
+    const forn = $("estoqueEntradaFornecedorList");
+    if (forn) {
+      const seen = new Set();
+      const opts = [];
+      entradasTodas().forEach((r) => {
+        const nome = String(r.fornecedor || "").trim();
+        const k = nome.toUpperCase();
+        if (!nome || seen.has(k)) return;
+        seen.add(k);
+        opts.push(`<option value="${escapeHtml(nome)}"></option>`);
+      });
+      forn.innerHTML = opts.join("");
+    }
+  }
+
+  function preencherProdutoEntrada() {
+    const cad = cadastroDoCodigo($("estoqueEntradaCodigo")?.value || "");
+    const desc = $("estoqueEntradaDescricao");
+    const ref = $("estoqueEntradaReferencia");
+    if (!cad) return;
+    if (desc) desc.value = String(cad.descricao || "");
+    if (ref) ref.value = String(cad.referencia || "");
+  }
+
+  function gravarEntradaMaterial() {
+    const msg = $("estoqueEntradaFormMsg");
+    if (estoqueAndroidSomenteLeitura()) {
+      if (msg) msg.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
+      return false;
+    }
+    const codigo = String($("estoqueEntradaCodigo")?.value || "").trim();
+    const descricao = String($("estoqueEntradaDescricao")?.value || "").trim();
+    const referencia = String($("estoqueEntradaReferencia")?.value || "").trim();
+    const quantidade = parseQtd($("estoqueEntradaQtd")?.value);
+    const fornecedor = String($("estoqueEntradaFornecedor")?.value || "").trim();
+    const data = String($("estoqueEntradaData")?.value || "").trim() || hojeBr();
+    const notaFiscal = String($("estoqueEntradaNota")?.value || "").trim();
+    const valorNotaRaw = String($("estoqueEntradaValorNota")?.value || "").trim();
+    const valorNota = parsePreco(valorNotaRaw);
+    const formaPagamento = String($("estoqueEntradaFormaPagamento")?.value || "").trim();
+    if (!codigoValido(codigo) && !descricao) {
+      if (msg) msg.textContent = "Informe o código de barras ou a descrição do material.";
+      return false;
+    }
+    if (!(quantidade > 0)) {
+      if (msg) msg.textContent = "Informe a quantidade que chegou.";
+      return false;
+    }
+    if (!formaPagamento) {
+      if (msg) msg.textContent = "Escolha a forma de pagamento (1x a 12x).";
+      return false;
+    }
+    const row = {
+      codigo,
+      descricao,
+      referencia,
+      quantidade,
+      fornecedor,
+      data,
+      notaFiscal,
+      valorNota: valorNota > 0 ? valorNota : valorNotaRaw,
+      formaPagamento,
+      gravadoEm: new Date().toISOString(),
+    };
+    const extra = extrasEntradas();
+    extra.unshift(row);
+    localStorage.setItem("dk_estoque_entradas_v1", JSON.stringify(extra));
+    if (msg) msg.textContent = `Entrada gravada: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
+    if ($("estoqueEntradaCodigo")) $("estoqueEntradaCodigo").value = "";
+    if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = "";
+    if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = "";
+    if ($("estoqueEntradaQtd")) $("estoqueEntradaQtd").value = "1";
+    carregarPlanilhaNasTelas();
+    return true;
+  }
+
+  function aoAbrirEntrada() {
+    const dataEl = $("estoqueEntradaData");
+    if (dataEl && !String(dataEl.value || "").trim()) dataEl.value = hojeBr();
+    carregarPlanilhaNasTelas();
   }
 
   function sanitizarPlacaDigitada(raw) {
@@ -1014,12 +1121,23 @@
       e.preventDefault();
       renderRelatorioCusto();
     });
+    $("estoqueEntradaSalvarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      gravarEntradaMaterial();
+    });
+    $("estoqueEntradaForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      gravarEntradaMaterial();
+    });
+    $("estoqueEntradaCodigo")?.addEventListener("change", preencherProdutoEntrada);
+    $("estoqueEntradaCodigo")?.addEventListener("blur", preencherProdutoEntrada);
     bindRelatorio(["estoqueRelPlacaInicio", "estoqueRelPlacaFim", "estoqueRelPlacaFiltro"], renderRelatorioPlaca);
     bindRelatorio(["estoqueRelProdutoInicio", "estoqueRelProdutoFim", "estoqueRelProdutoCodigo"], renderRelatorioProduto);
     bindRelatorio(["estoqueRelCustoInicio", "estoqueRelCustoFim", "estoqueRelCustoFiltro"], renderRelatorioCusto);
   }
 
   window.__DK_estoqueAoAbrirSaida = aoAbrirSaida;
+  window.__DK_estoqueAoAbrirEntrada = aoAbrirEntrada;
   window.__DK_estoqueAoAbrirPainel = carregarPlanilhaNasTelas;
   window.__DK_estoqueAoAbrirRelatorio = aoAbrirRelatorio;
   if (document.readyState === "loading") {

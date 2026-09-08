@@ -4452,6 +4452,9 @@
     if (sub === "saida" && typeof window.__DK_estoqueAoAbrirSaida === "function") {
       window.__DK_estoqueAoAbrirSaida();
     }
+    if (sub === "entrada" && typeof window.__DK_estoqueAoAbrirEntrada === "function") {
+      window.__DK_estoqueAoAbrirEntrada();
+    }
     if ((sub === "rel-placa" || sub === "rel-produto" || sub === "rel-custo") && typeof window.__DK_estoqueAoAbrirRelatorio === "function") {
       window.__DK_estoqueAoAbrirRelatorio(sub);
     }

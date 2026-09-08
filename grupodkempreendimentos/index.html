@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-pla">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-ent">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3191,7 +3191,67 @@
             </div>
             <div id="estoquePaneEntrada" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Entrada">
               <h3 class="operacao-inline-form__title">Entrada</h3>
-              <p class="subtext">Mesmas colunas da aba ENTRADAS da planilha, mais nota fiscal, valor da nota e forma de pagamento.</p>
+              <p class="subtext">Preencha as 9 caixas para dar entrada no material que chega no estoque. A forma de pagamento abre a lista suspensa de <strong>1x a 12x</strong>.</p>
+              <form id="estoqueEntradaForm" class="operacao-inline-form__grid" novalidate>
+                <label class="portal-field">
+                  <span>CÓDIGO DE BARRAS</span>
+                  <input type="text" id="estoqueEntradaCodigo" list="estoqueEntradaCodigoList" maxlength="20" autocomplete="off" placeholder="0-000000-000000" aria-label="Código de barras do material">
+                  <datalist id="estoqueEntradaCodigoList"></datalist>
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRIÇÃO DO MATERIAL</span>
+                  <input type="text" id="estoqueEntradaDescricao" maxlength="160" autocomplete="off" aria-label="Descrição do material">
+                </label>
+                <label class="portal-field">
+                  <span>REFERENCIA</span>
+                  <input type="text" id="estoqueEntradaReferencia" maxlength="40" autocomplete="off" aria-label="Referência">
+                </label>
+                <label class="portal-field">
+                  <span>QUANTIDADE</span>
+                  <input type="text" id="estoqueEntradaQtd" inputmode="decimal" maxlength="8" autocomplete="off" value="1" aria-label="Quantidade">
+                </label>
+                <label class="portal-field">
+                  <span>FORNECEDOR</span>
+                  <input type="text" id="estoqueEntradaFornecedor" list="estoqueEntradaFornecedorList" maxlength="80" autocomplete="off" aria-label="Fornecedor">
+                  <datalist id="estoqueEntradaFornecedorList"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>DATA</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="estoqueEntradaData" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data da entrada" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <label class="portal-field">
+                  <span>NÚMERO DA NOTA FISCAL</span>
+                  <input type="text" id="estoqueEntradaNota" maxlength="30" autocomplete="off" aria-label="Número da nota fiscal">
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DA NOTA</span>
+                  <input type="text" id="estoqueEntradaValorNota" inputmode="decimal" maxlength="16" autocomplete="off" placeholder="0,00" aria-label="Valor da nota">
+                </label>
+                <label class="portal-field">
+                  <span>FORMA DE PAGAMENTO</span>
+                  <select id="estoqueEntradaFormaPagamento" aria-label="Forma de pagamento, lista suspensa de 1x a 12x">
+                    <option value="">Selecione</option>
+                    <option value="1x">1x</option>
+                    <option value="2x">2x</option>
+                    <option value="3x">3x</option>
+                    <option value="4x">4x</option>
+                    <option value="5x">5x</option>
+                    <option value="6x">6x</option>
+                    <option value="7x">7x</option>
+                    <option value="8x">8x</option>
+                    <option value="9x">9x</option>
+                    <option value="10x">10x</option>
+                    <option value="11x">11x</option>
+                    <option value="12x">12x</option>
+                  </select>
+                </label>
+              </form>
+              <p id="estoqueEntradaFormMsg" class="portal-feedback" role="status"></p>
+              <div class="operacao-inline-form__actions">
+                <button type="button" class="btn-primary" id="estoqueEntradaSalvarBtn">Dar entrada</button>
+              </div>
               <div class="fin-table-wrap">
                 <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableEntrada">
                   <thead>
@@ -4954,7 +5014,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-pla" defer></script>
+  <script src="app.js?v=20260908estq-ent" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4962,13 +5022,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-pla" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-pla" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-pla" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-ent" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-ent" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-ent" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-pla" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-ent" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
