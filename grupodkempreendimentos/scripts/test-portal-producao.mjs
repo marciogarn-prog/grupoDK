@@ -1732,7 +1732,7 @@ async function runSuite() {
         });
           record("financeiro E2E: abre tela com módulos 0–6", finOk);
         if (finOk) {
-          await pageE2e.keyboard.press("0").catch(() => null);
+          await pageE2e.locator("#btn-fin-mod-relacao-pagamento").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneRelacaoPagamento:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const relOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneRelacaoPagamento");
@@ -1752,7 +1752,7 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: módulo Relação de pagamento por cliente abre", relOk);
-          await pageE2e.keyboard.press("1").catch(() => null);
+          await pageE2e.locator("#btn-fin-mod-quantitativo").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneQuantitativo:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const qOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneQuantitativo");
