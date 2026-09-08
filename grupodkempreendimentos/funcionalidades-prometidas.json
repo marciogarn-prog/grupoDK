@@ -1822,6 +1822,30 @@
           "App Android · DK Locadora"
         ]
       }
+    },
+    {
+      "id": "fin-atalho-cadastro-despesas-locadora",
+      "descricao": "No FINANCEIRO existe o botão Cadastro de despesas: atalho para a mesma tela do FINANCEIRO CEO, sem segundo banco. Ao abrir por este botão, a lista e os totais mostram só DK Locadora e o lançamento grava só nessa categoria.",
+      "ficheiros": {
+        "index.html": [
+          "btn-fin-mod-cadastro-despesas",
+          "Atalho · só DK Locadora"
+        ],
+        "portal-locadora-ui.js": [
+          "openLocadoraFinanceiroDespesasLocadora",
+          "financeiro/despesas",
+          "financeiro-despesas"
+        ],
+        "portal-financeiro-ceo.js": [
+          "__DK_financeiroCeoAbrirAtalhoLocadora",
+          "isAtalhoLocadora",
+          "CAT_DK_LOCADORA",
+          "LEAD_DESPESA_ATALHO"
+        ],
+        "styles.css": [
+          "fin-ceo-atalho-locadora"
+        ]
+      }
     }
   ]
 }

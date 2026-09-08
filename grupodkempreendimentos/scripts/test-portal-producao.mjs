@@ -329,6 +329,8 @@ async function runSuite() {
         html.includes("btn-fin-mod-localizacao") &&
         html.includes("btn-fin-mod-dia-semana") &&
         html.includes("btn-fin-mod-intervalo") &&
+        html.includes("btn-fin-mod-cadastro-despesas") &&
+        html.includes("Atalho · só DK Locadora") &&
         !html.includes('id="btn-fin-mod-despesas"') &&
         !html.includes('id="btn-fin-mod-despesas-graf"') &&
         !html.includes('id="btn-fin-mod-analise"') &&
@@ -1842,10 +1844,32 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: comandos 7–10 e extratos removidos do menu", removedOk);
+          await pageE2e.locator("#btn-fin-mod-cadastro-despesas").click().catch(() => null);
+          await pageE2e.waitForSelector("#finCeoPaneDespesas:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const atalhoOk = await pageE2e.evaluate(() => {
+            const view = document.getElementById("view-financeiro-ceo");
+            const sel = document.getElementById("finCeoDespCategoria");
+            const opts = sel ? Array.from(sel.options).map((o) => o.value) : [];
+            return Boolean(
+              view?.classList.contains("view--active") &&
+                view.classList.contains("fin-ceo-atalho-locadora") &&
+                document.getElementById("finCeoPaneDespesas") &&
+                !document.getElementById("finCeoPaneDespesas").classList.contains("hidden") &&
+                sel &&
+                sel.disabled &&
+                opts.length === 1 &&
+                opts[0] === "DK_LOCADORA" &&
+                window.__DK_finCeoAtalhoLocadora === true
+            );
+          });
+          record("financeiro E2E: atalho Cadastro de despesas filtra DK Locadora", atalhoOk);
+          await pageE2e.locator("#btn-voltar-financeiro-ceo-locadora").click().catch(() => null);
+          await pageE2e.waitForSelector("#view-financeiro.view--active", { timeout: 8000 }).catch(() => null);
         } else {
           record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
           record("financeiro E2E: comandos 7–10 e extratos removidos do menu", false, "tela financeiro não abriu");
+          record("financeiro E2E: atalho Cadastro de despesas filtra DK Locadora", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
@@ -1854,6 +1878,7 @@ async function runSuite() {
         record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: comandos 7–10 e extratos removidos do menu", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: atalho Cadastro de despesas filtra DK Locadora", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();

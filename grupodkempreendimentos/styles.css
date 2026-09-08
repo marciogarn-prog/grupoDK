@@ -6263,6 +6263,18 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   border-bottom: 1px solid rgba(220, 38, 38, 0.5);
 }
 
+.fin-ceo-atalho-locadora #finCeoModulosNav [data-ceo-mod]:not([data-ceo-mod="despesas"]) {
+  display: none;
+}
+
+.fin-ceo-atalho-locadora #finCeoDespVerRelatorio {
+  display: none;
+}
+
+.fin-ceo-atalho-locadora #finCeoDespCategoria {
+  pointer-events: none;
+}
+
 #view-financeiro .fin-pptx__rail .operacao-comandos {
   margin: 0.25rem 0 0;
   gap: 0.22rem;

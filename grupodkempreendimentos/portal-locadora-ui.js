@@ -2122,7 +2122,9 @@
     }
     const precisaEmpresa =
       atual === "cliente" ||
-      (viewFinanceiroCeo?.classList.contains("view--active") && !isPortalAdministradorTitularCeo()) ||
+      (viewFinanceiroCeo?.classList.contains("view--active") &&
+        !isPortalAdministradorTitularCeo() &&
+        !window.__DK_finCeoAtalhoLocadora) ||
       (viewFinanceiro?.classList.contains("view--active") && !portalPodeAcessarFinanceiro());
     if (precisaEmpresa) {
       openLocadoraEmpresa();
@@ -2437,6 +2439,9 @@
 
   function openLocadoraFinanceiro() {
     currentUnit = "locadora";
+    if (typeof window.__DK_financeiroCeoLimparAtalhoLocadora === "function") {
+      window.__DK_financeiroCeoLimparAtalhoLocadora();
+    }
     const func = portalObterFuncionarioDaSessaoRestauracao();
     if (!func || !portalPodeAcessarFinanceiro()) {
       openLocadoraEmpresa();
@@ -2453,8 +2458,31 @@
     portalAndroidSyncNavegacao();
   }
 
+  function openLocadoraFinanceiroDespesasLocadora() {
+    currentUnit = "locadora";
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func || !portalPodeAcessarFinanceiro()) {
+      openLocadoraEmpresa();
+      return;
+    }
+    finalizarLoginEquipaPortal(func);
+    hideAllPanels();
+    panelFinanceiroCeo?.classList.remove("hidden");
+    showView("financeiroCeo");
+    setPortalHash("locadora/financeiro/despesas");
+    if (typeof window.__DK_financeiroCeoAbrirAtalhoLocadora === "function") {
+      window.__DK_financeiroCeoAbrirAtalhoLocadora();
+    }
+    portalPersistirAreaAtiva("financeiro-despesas");
+    portalAtualizarBannerAdmin();
+    portalAndroidSyncNavegacao();
+  }
+
   function openLocadoraFinanceiroCeo() {
     currentUnit = "locadora";
+    if (typeof window.__DK_financeiroCeoLimparAtalhoLocadora === "function") {
+      window.__DK_financeiroCeoLimparAtalhoLocadora();
+    }
     if (!portalPodeAcessarFinanceiroCeo()) {
       openLocadoraEmpresa();
       return;
@@ -2905,6 +2933,9 @@
     if (h.startsWith("#locadora/cliente")) return;
     if (area === "documentos" && panelDocumentos && !panelDocumentos.classList.contains("hidden")) return;
     if (area === "financeiro" && viewFinanceiro?.classList.contains("view--active")) return;
+    if (area === "financeiro-despesas" && viewFinanceiroCeo?.classList.contains("view--active") && window.__DK_finCeoAtalhoLocadora) {
+      return;
+    }
     if (area === "financeiro-ceo" && viewFinanceiroCeo?.classList.contains("view--active")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
     if (area === "estoque" && panelEstoque && !panelEstoque.classList.contains("hidden")) return;
@@ -2914,6 +2945,10 @@
     if (!func) return;
     if (area === "financeiro") {
       openLocadoraFinanceiro();
+      return;
+    }
+    if (area === "financeiro-despesas") {
+      openLocadoraFinanceiroDespesasLocadora();
       return;
     }
     if (area === "financeiro-ceo") {
@@ -4532,7 +4567,15 @@
   });
 
   document.getElementById("btn-voltar-financeiro-ceo-locadora")?.addEventListener("click", () => {
+    if (window.__DK_finCeoAtalhoLocadora) {
+      openLocadoraFinanceiro();
+      return;
+    }
     portalVoltarEquipaLocadora();
+  });
+
+  document.getElementById("btn-fin-mod-cadastro-despesas")?.addEventListener("click", () => {
+    openLocadoraFinanceiroDespesasLocadora();
   });
 
   btnLocalizacao?.addEventListener("click", () => {
@@ -24911,6 +24954,10 @@
     }
     if (rest === "financeiro-ceo" || rest.startsWith("financeiro-ceo/")) {
       openLocadoraFinanceiroCeo();
+      return;
+    }
+    if (rest === "financeiro/despesas" || rest.startsWith("financeiro/despesas/")) {
+      openLocadoraFinanceiroDespesasLocadora();
       return;
     }
     if (rest === "financeiro" || rest.startsWith("financeiro/")) {

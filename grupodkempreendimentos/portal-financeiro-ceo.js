@@ -94,7 +94,29 @@
     DK_LOCADORA: "DK Locadora",
   };
 
+  const CAT_DK_LOCADORA = "DK_LOCADORA";
+  const LEAD_DESPESA_CEO =
+    "Escolha a <strong>categoria</strong>, depois a rubrica (unidades DK) ou o tipo de despesa em Particulares. Use <strong>Detalhe da despesa</strong> para identificar quem ou o quê (ex.: nome do funcionário). Repetições mensais no mesmo dia.";
+  const LEAD_DESPESA_ATALHO =
+    "Atalho do FINANCEIRO: mesma base do FINANCEIRO CEO, filtrada automaticamente para <strong>DK Locadora</strong>. Novos lançamentos gravam só nessa categoria.";
+  let modoAtalhoLocadora = false;
   const panel = document.getElementById("panel-financeiro-ceo-locadora");
+
+  function isAtalhoLocadora() {
+    return Boolean(modoAtalhoLocadora);
+  }
+
+  function aplicarChromeAtalhoLocadora(on) {
+    modoAtalhoLocadora = Boolean(on);
+    window.__DK_finCeoAtalhoLocadora = modoAtalhoLocadora;
+    document.getElementById("view-financeiro-ceo")?.classList.toggle("fin-ceo-atalho-locadora", modoAtalhoLocadora);
+    const titulo = document.getElementById("financeiro-ceo-page-title");
+    if (titulo) titulo.textContent = modoAtalhoLocadora ? "FINANCEIRO" : "FINANCEIRO CEO";
+    const brand = document.getElementById("finCeoBrand");
+    if (brand) brand.textContent = modoAtalhoLocadora ? "FINANCEIRO" : "FINANCEIRO CEO";
+    const lead = document.getElementById("finCeoDespLead");
+    if (lead) lead.innerHTML = modoAtalhoLocadora ? LEAD_DESPESA_ATALHO : LEAD_DESPESA_CEO;
+  }
   if (!panel) return;
 
   let bound = false;
@@ -692,6 +714,13 @@
   function renderCategoriaSelect() {
     const sel = document.getElementById("finCeoDespCategoria");
     if (!sel) return;
+    if (isAtalhoLocadora()) {
+      sel.innerHTML = `<option value="${esc(CAT_DK_LOCADORA)}">DK Locadora</option>`;
+      sel.value = CAT_DK_LOCADORA;
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
     const atual = sel.value;
     sel.innerHTML = CATEGORIAS_CEO.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
     if (categoriaValida(atual)) sel.value = atual;
@@ -2588,9 +2617,13 @@
   function renderResumoCadastroDespesas() {
     const el = document.getElementById("finCeoDespResumo");
     if (!el) return;
-    const list = loadDespesasCeo();
+    const list = isAtalhoLocadora()
+      ? loadDespesasCeo().filter((d) => d.categoria === CAT_DK_LOCADORA)
+      : loadDespesasCeo();
     if (!list.length) {
-      el.textContent = "Nenhuma despesa cadastrada — escolha a categoria e lance os compromissos abaixo.";
+      el.textContent = isAtalhoLocadora()
+        ? "Nenhuma despesa da DK Locadora — lance os compromissos abaixo."
+        : "Nenhuma despesa cadastrada — escolha a categoria e lance os compromissos abaixo.";
       return;
     }
     const proj = buildProjecao24Meses();
@@ -2753,6 +2786,7 @@
   function iniciarEdicaoDespesa(id, pagNum, mode) {
     const raw = loadDespesasCeo().find((d) => String(d.id) === String(id));
     if (!raw) return;
+    if (isAtalhoLocadora() && raw.categoria !== CAT_DK_LOCADORA) return;
     preencherFormDespesaEdicao(raw, pagNum, mode);
   }
 
@@ -2878,7 +2912,8 @@
   }
 
   function coletarLinhasExcelListaDespesas() {
-    const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
+    let list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
+    if (isAtalhoLocadora()) list = list.filter((d) => d.categoria === CAT_DK_LOCADORA);
     const rows = [];
     list.forEach((d) => {
       const pagos = expandirPagamentosDespesa(d, d.repeticoes);
@@ -3024,7 +3059,9 @@
   }
 
   function coletarEntryDespesaForm(fb) {
-    const categoria = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
+    const categoria = isAtalhoLocadora()
+      ? CAT_DK_LOCADORA
+      : document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
     const rubrica = document.getElementById("finCeoDespRubrica")?.value || "";
     const tipoParticular = document.getElementById("finCeoDespTipoParticular")?.value || "";
     let cartaoCredito = document.getElementById("finCeoDespCartao")?.value || "";
@@ -4023,6 +4060,7 @@
   }
 
   function abrirRelatorioUltimoCadastro() {
+    if (isAtalhoLocadora()) return;
     const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
     const alvo =
       list.find((d) => d.id === ultimaDespesaSalvaId) ||
@@ -4306,6 +4344,7 @@
   }
 
   function abrirPane(id) {
+    if (isAtalhoLocadora() && id && id !== "despesas") id = "despesas";
     paneAberto = id || "";
     document.getElementById("finCeoFormPlaceholder")?.classList.toggle("hidden", Boolean(id));
     document.querySelectorAll(".fin-ceo-pane").forEach((p) => {
@@ -4524,6 +4563,7 @@
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
     migrarFontesLegadoParaCartoes();
+    aplicarChromeAtalhoLocadora(false);
     panel.classList.remove("hidden");
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       window.__DK_financeiroCeoReset();
@@ -4533,12 +4573,29 @@
     abrirPane("dashboard");
   };
 
+  window.__DK_financeiroCeoAbrirAtalhoLocadora = function __DK_financeiroCeoAbrirAtalhoLocadora() {
+    bindOnce();
+    migrarFontesLegadoParaCartoes();
+    aplicarChromeAtalhoLocadora(true);
+    panel.classList.remove("hidden");
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
+      return;
+    }
+    abrirPane("despesas");
+  };
+
+  window.__DK_financeiroCeoLimparAtalhoLocadora = function __DK_financeiroCeoLimparAtalhoLocadora() {
+    aplicarChromeAtalhoLocadora(false);
+  };
+
   window.__DK_financeiroCeoFecharPainel = function __DK_financeiroCeoFecharPainel() {
     window.__DK_financeiroCeoReset();
     if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
   };
 
   window.__DK_financeiroCeoReset = function __DK_financeiroCeoReset() {
+    aplicarChromeAtalhoLocadora(false);
     paneAberto = "";
     document.getElementById("finCeoFormPlaceholder")?.classList.remove("hidden");
     document.querySelectorAll(".fin-ceo-pane").forEach((p) => p.classList.add("hidden"));
