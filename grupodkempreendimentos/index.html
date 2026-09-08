@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-org">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-cad">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3039,6 +3039,18 @@
               <span class="portal-rel-pag-agg-kpi__lab">Entradas</span>
               <strong id="estoqueKpiEntradas">—</strong>
             </div>
+            <div class="portal-rel-pag-agg-kpi" role="listitem">
+              <span class="portal-rel-pag-agg-kpi__lab">Valor do estoque de motos</span>
+              <strong id="estoqueKpiValorMotos">—</strong>
+            </div>
+            <div class="portal-rel-pag-agg-kpi" role="listitem">
+              <span class="portal-rel-pag-agg-kpi__lab">Valor do estoque de carros</span>
+              <strong id="estoqueKpiValorCarros">—</strong>
+            </div>
+            <div class="portal-rel-pag-agg-kpi" role="listitem">
+              <span class="portal-rel-pag-agg-kpi__lab">Estoque total</span>
+              <strong id="estoqueKpiValorTotal">—</strong>
+            </div>
           </div>
         </div>
         <div class="portal-operacao-layout">
@@ -3077,17 +3089,17 @@
           <div class="portal-operacao-layout__main">
             <div id="estoquePaneCadastro" class="operacao-inline-form operacao-inline-form--rodar-mouse" role="region" aria-label="Cadastro de material">
               <h3 class="operacao-inline-form__title">Cadastro de material</h3>
-              <p class="subtext">Lista dos materiais da planilha, identificados pelo código de barras.</p>
+              <p class="subtext">Lista dos materiais da planilha, identificados pelo código de barras. A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores).</p>
               <div class="fin-table-wrap">
-                <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableCadastro">
-                  <thead>
+                <table class="fin-table portal-rel-pag-agg__table fin-table--excel-cols" id="estoqueTableCadastro">
+                  <thead id="estoqueHeadCadastro">
                     <tr>
-                      <th>CÓDIGO DE BARRAS</th>
-                      <th>DESCRIÇÃO</th>
-                      <th>REFERÊNCIA</th>
-                      <th>FABRICANTE</th>
-                      <th>PREÇO</th>
-                      <th>SETOR</th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">CÓDIGO DE BARRAS</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="codigo" title="Filtro estilo Excel" aria-label="Filtro de CÓDIGO DE BARRAS">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">DESCRIÇÃO</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="descricao" title="Filtro estilo Excel" aria-label="Filtro de DESCRIÇÃO">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">REFERÊNCIA</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="referencia" title="Filtro estilo Excel" aria-label="Filtro de REFERÊNCIA">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">FABRICANTE</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="fabricante" title="Filtro estilo Excel" aria-label="Filtro de FABRICANTE">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">PREÇO</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="preco" title="Filtro estilo Excel" aria-label="Filtro de PREÇO">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">SETOR</span><button type="button" class="fin-excel-filter-btn" data-estoque-cad-excel-col="setor" title="Filtro estilo Excel" aria-label="Filtro de SETOR">▾</button></th>
                     </tr>
                   </thead>
                   <tbody id="estoqueBodyCadastro">
@@ -3098,22 +3110,22 @@
             </div>
             <div id="estoquePaneEstoque" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Estoque">
               <h3 class="operacao-inline-form__title">Estoque</h3>
-              <p class="subtext">Saldo total de cada item da planilha (código de barras).</p>
+              <p class="subtext">Saldo total de cada item da planilha (código de barras). A seta ao lado do nome da coluna abre o <strong>Filtro estilo Excel</strong> (ordenar, pesquisar e marcar valores).</p>
               <div class="fin-table-wrap">
-                <table class="fin-table portal-rel-pag-agg__table" id="estoqueTableSaldo">
-                  <thead>
+                <table class="fin-table portal-rel-pag-agg__table fin-table--excel-cols" id="estoqueTableSaldo">
+                  <thead id="estoqueHeadSaldo">
                     <tr>
-                      <th>CÓDIGO DE BARRAS</th>
-                      <th>DESCRIÇÃO</th>
-                      <th>REFERÊNCIA</th>
-                      <th>FABRICANTE</th>
-                      <th>QT</th>
-                      <th>PREÇO</th>
-                      <th>TOTAL</th>
-                      <th>SETOR</th>
-                      <th>ENTRADAS</th>
-                      <th>SAIDAS</th>
-                      <th>SALDO</th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">CÓDIGO DE BARRAS</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="codigo" title="Filtro estilo Excel" aria-label="Filtro de CÓDIGO DE BARRAS">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">DESCRIÇÃO</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="descricao" title="Filtro estilo Excel" aria-label="Filtro de DESCRIÇÃO">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">REFERÊNCIA</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="referencia" title="Filtro estilo Excel" aria-label="Filtro de REFERÊNCIA">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">FABRICANTE</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="fabricante" title="Filtro estilo Excel" aria-label="Filtro de FABRICANTE">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">QT</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="qt" title="Filtro estilo Excel" aria-label="Filtro de QT">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">PREÇO</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="preco" title="Filtro estilo Excel" aria-label="Filtro de PREÇO">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">TOTAL</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="total" title="Filtro estilo Excel" aria-label="Filtro de TOTAL">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">SETOR</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="setor" title="Filtro estilo Excel" aria-label="Filtro de SETOR">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">ENTRADAS</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="entradas" title="Filtro estilo Excel" aria-label="Filtro de ENTRADAS">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">SAIDAS</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="saidas" title="Filtro estilo Excel" aria-label="Filtro de SAIDAS">▾</button></th>
+                      <th class="fin-excel-th" scope="col"><span class="fin-excel-th__label">SALDO</span><button type="button" class="fin-excel-filter-btn" data-estoque-saldo-excel-col="saldo" title="Filtro estilo Excel" aria-label="Filtro de SALDO">▾</button></th>
                     </tr>
                   </thead>
                   <tbody id="estoqueBodySaldo">
@@ -3191,7 +3203,7 @@
             </div>
             <div id="estoquePaneEntrada" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Entrada">
               <h3 class="operacao-inline-form__title">Entrada</h3>
-              <p class="subtext">Preencha as 9 caixas para dar entrada no material que chega no estoque. A forma de pagamento abre a lista suspensa de <strong>1x a 12x</strong>.</p>
+              <p class="subtext">Preencha as 9 caixas para dar entrada no material que chega no estoque. A forma de pagamento abre a lista suspensa de <strong>1x a 12x</strong>. Se o material for novo, fica cadastrado automaticamente.</p>
               <form id="estoqueEntradaForm" class="operacao-inline-form__grid" novalidate>
                 <label class="portal-field">
                   <span>CÓDIGO DE BARRAS</span>
@@ -5026,7 +5038,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-org" defer></script>
+  <script src="app.js?v=20260908estq-cad" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5034,13 +5046,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-org" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-org" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-org" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-cad" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-cad" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-cad" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-org" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-cad" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

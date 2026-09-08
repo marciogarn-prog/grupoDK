@@ -135,9 +135,33 @@
     return base.concat(Array.isArray(extra) ? extra : []).filter((s) => codigoValido(s.codigo));
   }
 
+  function extrasCadastro() {
+    try {
+      const extra = JSON.parse(localStorage.getItem("dk_estoque_cadastro_v1") || "[]");
+      return Array.isArray(extra) ? extra : [];
+    } catch {
+      return [];
+    }
+  }
+
   function cadastroTodos() {
     const rows = Array.isArray(planilha().cadastro) ? planilha().cadastro : [];
-    return rows.filter((r) => codigoValido(r.codigo));
+    const seen = new Set();
+    const out = [];
+    const add = (r) => {
+      const desc = String(r?.descricao || "").trim();
+      if (!codigoValido(r?.codigo) && !desc) return;
+      const k = codigoValido(r?.codigo) ? nkBar(r.codigo) : `d:${desc.toUpperCase()}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(r);
+    };
+    for (const r of rows) {
+      if (!codigoValido(r.codigo)) continue;
+      add(r);
+    }
+    extrasCadastro().forEach(add);
+    return out;
   }
 
   function estoqueTodos() {
@@ -150,6 +174,25 @@
       if (seen.has(k)) continue;
       seen.add(k);
       out.push(r);
+    }
+    for (const r of extrasCadastro()) {
+      if (!codigoValido(r.codigo)) continue;
+      const k = nkBar(r.codigo);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({
+        codigo: r.codigo,
+        descricao: r.descricao,
+        referencia: r.referencia,
+        fabricante: r.fabricante || "",
+        qt: 0,
+        preco: r.preco,
+        total: 0,
+        setor: r.setor || "",
+        entradas: 0,
+        saidas: 0,
+        saldo: 0,
+      });
     }
     return out;
   }
@@ -338,10 +381,265 @@
       .join("");
   }
 
+  const ESTOQUE_CAD_COLS = [
+    { key: "codigo", label: "CÓDIGO DE BARRAS" },
+    { key: "descricao", label: "DESCRIÇÃO" },
+    { key: "referencia", label: "REFERÊNCIA" },
+    { key: "fabricante", label: "FABRICANTE" },
+    { key: "preco", label: "PREÇO" },
+    { key: "setor", label: "SETOR" },
+  ];
+  const cadExcelState = { cols: {}, sortKey: "descricao", sortDir: "asc" };
+  let cadExcelOpen = "";
+
+  function cadCellDisplay(r, key) {
+    if (key === "preco") {
+      const p = parsePreco(r.preco);
+      return p > 0 ? formatMoney(p) : "—";
+    }
+    const v = String(r[key] || "").trim();
+    return v || "(vazio)";
+  }
+
+  function nkFiltroExcel(s) {
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function cadLinhasAntesDaColuna(openKey) {
+    let rows = cadastroTodos().slice();
+    ESTOQUE_CAD_COLS.forEach((col) => {
+      if (col.key === openKey) return;
+      const set = cadExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      rows = rows.filter((r) => set.has(cadCellDisplay(r, col.key)));
+    });
+    return rows;
+  }
+
+  function cadLinhasFiltradas() {
+    let rows = cadLinhasAntesDaColuna("");
+    const key = cadExcelState.sortKey || "descricao";
+    const dir = cadExcelState.sortDir === "desc" ? -1 : 1;
+    rows.sort((a, b) => {
+      if (key === "preco") return (parsePreco(a.preco) - parsePreco(b.preco)) * dir;
+      return String(cadCellDisplay(a, key)).localeCompare(String(cadCellDisplay(b, key)), "pt-BR") * dir;
+    });
+    return rows;
+  }
+
+  function cadValoresUnicos(openKey) {
+    const seen = new Set();
+    const out = [];
+    cadLinhasAntesDaColuna(openKey).forEach((r) => {
+      const v = cadCellDisplay(r, openKey);
+      if (seen.has(v)) return;
+      seen.add(v);
+      out.push(v);
+    });
+    if (openKey === "preco") {
+      out.sort((a, b) => {
+        if (a === "—") return 1;
+        if (b === "—") return -1;
+        return a.localeCompare(b, "pt-BR");
+      });
+    } else {
+      out.sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+    }
+    return out;
+  }
+
+  function fecharEstoqueCadExcelFiltro() {
+    cadExcelOpen = "";
+    document.querySelectorAll(".estoque-cad-excel-pop").forEach((el) => el.remove());
+    document.querySelectorAll("#estoqueTableCadastro .fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
+  }
+
+  function renderEstoqueCadHead() {
+    const thead = $("estoqueHeadCadastro");
+    if (!thead) return;
+    thead.innerHTML = `<tr>${ESTOQUE_CAD_COLS.map((col) => {
+      const filtered = cadExcelState.cols[col.key] instanceof Set;
+      const active = filtered || cadExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col"><span class="fin-excel-th__label">${escapeHtml(
+        col.label
+      )}</span><button type="button" class="fin-excel-filter-btn${
+        filtered ? " is-filtered" : ""
+      }" data-estoque-cad-excel-col="${escapeHtml(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${escapeHtml(
+        col.label
+      )}">▾</button></th>`;
+    }).join("")}</tr>`;
+  }
+
+  function abrirEstoqueCadExcelFiltro(btn, key) {
+    fecharEstoqueCadExcelFiltro();
+    const col = ESTOQUE_CAD_COLS.find((c) => c.key === key);
+    if (!col || !btn) return;
+    cadExcelOpen = key;
+    btn.classList.add("is-open");
+    const uniques = cadValoresUnicos(key);
+    const selected = cadExcelState.cols[key];
+    const isAll = !(selected instanceof Set);
+    const pop = document.createElement("div");
+    pop.className = "fin-excel-filter-pop estoque-cad-excel-pop";
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Filtro ${col.label}`);
+    pop.innerHTML = `
+      <div class="fin-excel-filter-pop__sort">
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="asc">↑ Ordenar A a Z</button>
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="desc">↓ Ordenar Z a A</button>
+      </div>
+      <label class="fin-excel-filter-pop__search">
+        <input type="search" placeholder="Pesquisar…" autocomplete="off" aria-label="Pesquisar valores" data-excel-search>
+      </label>
+      <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
+      <div class="fin-excel-filter-pop__list" data-excel-list>
+        ${
+          uniques
+            .map((v, i) => {
+              const checked = isAll || selected.has(v) ? "checked" : "";
+              return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${escapeHtml(
+                v
+              )}</span></label>`;
+            })
+            .join("") || `<p class="subtext">Sem valores.</p>`
+        }
+      </div>
+      <div class="fin-excel-filter-pop__actions">
+        <button type="button" class="btn-primary" data-excel-ok>OK</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-cancel>Cancelar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-clear>Limpar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const rect = btn.getBoundingClientRect();
+    const popW = Math.max(260, Math.min(340, window.innerWidth - 16));
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4;
+    pop.style.width = `${popW}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => {
+      const h = pop.offsetHeight;
+      if (top + h > window.innerHeight - 8) {
+        pop.style.top = `${Math.max(8, rect.top - h - 4)}px`;
+      }
+    });
+    const rerender = () => {
+      fecharEstoqueCadExcelFiltro();
+      renderTabelaCadastro();
+    };
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const syncAll = () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      if (allCb) allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+    search?.addEventListener("input", () => {
+      const q = nkFiltroExcel(search.value);
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        const t = nkFiltroExcel(lab.textContent || "");
+        lab.style.display = !q || t.includes(q) ? "" : "none";
+      });
+      syncAll();
+    });
+    allCb?.addEventListener("change", () => {
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        if (lab.style.display === "none") return;
+        const cb = lab.querySelector("[data-excel-idx]");
+        if (cb) cb.checked = allCb.checked;
+      });
+    });
+    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
+      cadExcelState.sortKey = key;
+      cadExcelState.sortDir = "asc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
+      cadExcelState.sortKey = key;
+      cadExcelState.sortDir = "desc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const pool = visible.length ? visible : boxes;
+      const checked = pool
+        .filter((el) => el.checked)
+        .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
+        .filter((v) => v != null);
+      if (!checked.length || checked.length === pool.length) delete cadExcelState.cols[key];
+      else cadExcelState.cols[key] = new Set(checked);
+      rerender();
+    });
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharEstoqueCadExcelFiltro());
+    pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
+      delete cadExcelState.cols[key];
+      if (cadExcelState.sortKey === key) {
+        cadExcelState.sortKey = "descricao";
+        cadExcelState.sortDir = "asc";
+      }
+      rerender();
+    });
+    search?.focus();
+  }
+
+  function bindEstoqueCadExcelFiltros() {
+    const table = $("estoqueTableCadastro");
+    table?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-estoque-cad-excel-col]");
+      if (!btn || !table.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-estoque-cad-excel-col") || "";
+      if (cadExcelOpen === key) {
+        fecharEstoqueCadExcelFiltro();
+        return;
+      }
+      fecharEstoqueSaldoExcelFiltro();
+      abrirEstoqueCadExcelFiltro(btn, key);
+    });
+    const tableSaldo = $("estoqueTableSaldo");
+    tableSaldo?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-estoque-saldo-excel-col]");
+      if (!btn || !tableSaldo.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-estoque-saldo-excel-col") || "";
+      if (saldoExcelOpen === key) {
+        fecharEstoqueSaldoExcelFiltro();
+        return;
+      }
+      fecharEstoqueCadExcelFiltro();
+      abrirEstoqueSaldoExcelFiltro(btn, key);
+    });
+    document.addEventListener("mousedown", (e) => {
+      const t = e.target;
+      if (cadExcelOpen) {
+        const pop = document.querySelector(".estoque-cad-excel-pop");
+        if (!pop?.contains(t) && !t?.closest?.("[data-estoque-cad-excel-col]")) fecharEstoqueCadExcelFiltro();
+      }
+      if (saldoExcelOpen) {
+        const pop = document.querySelector(".estoque-saldo-excel-pop");
+        if (!pop?.contains(t) && !t?.closest?.("[data-estoque-saldo-excel-col]")) fecharEstoqueSaldoExcelFiltro();
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (cadExcelOpen) fecharEstoqueCadExcelFiltro();
+      if (saldoExcelOpen) fecharEstoqueSaldoExcelFiltro();
+    });
+  }
+
   function renderTabelaCadastro() {
     const body = $("estoqueBodyCadastro");
     if (!body) return;
-    const rows = cadastroTodos().slice().sort((a, b) => String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt"));
+    renderEstoqueCadHead();
+    const rows = cadLinhasFiltradas();
     if (!rows.length) {
       body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum material na planilha.</td></tr>`;
       return;
@@ -358,28 +656,237 @@
       .join("");
   }
 
+  const ESTOQUE_SALDO_COLS = [
+    { key: "codigo", label: "CÓDIGO DE BARRAS" },
+    { key: "descricao", label: "DESCRIÇÃO" },
+    { key: "referencia", label: "REFERÊNCIA" },
+    { key: "fabricante", label: "FABRICANTE" },
+    { key: "qt", label: "QT", num: true },
+    { key: "preco", label: "PREÇO", money: true },
+    { key: "total", label: "TOTAL", money: true },
+    { key: "setor", label: "SETOR" },
+    { key: "entradas", label: "ENTRADAS", num: true },
+    { key: "saidas", label: "SAIDAS", num: true },
+    { key: "saldo", label: "SALDO", num: true },
+  ];
+  const saldoExcelState = { cols: {}, sortKey: "descricao", sortDir: "asc" };
+  let saldoExcelOpen = "";
+
+  function saldoView(r) {
+    const extraEnt = qtdExtraEntrada(r.codigo);
+    const preco = parsePreco(r.preco);
+    const total = parsePreco(r.total) || preco * parseQtd(r.qt);
+    const entradas = parseQtd(r.entradas) + extraEnt;
+    const saidas = parseQtd(r.saidas);
+    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    return { row: r, extraEnt, preco, total, entradas, saidas, saldo };
+  }
+
+  function saldoCellDisplay(view, key) {
+    const col = ESTOQUE_SALDO_COLS.find((c) => c.key === key);
+    if (col?.money) return view[key] > 0 ? formatMoney(view[key]) : "—";
+    if (key === "qt" || key === "entradas" || key === "saidas" || key === "saldo") {
+      const n = key === "qt" ? view.row.qt : view[key];
+      if (n == null || n === "") return "(vazio)";
+      return String(n);
+    }
+    const v = String(view.row[key] || "").trim();
+    return v || "(vazio)";
+  }
+
+  function saldoLinhasAntesDaColuna(openKey) {
+    let views = estoqueTodos().map(saldoView);
+    ESTOQUE_SALDO_COLS.forEach((col) => {
+      if (col.key === openKey) return;
+      const set = saldoExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      views = views.filter((v) => set.has(saldoCellDisplay(v, col.key)));
+    });
+    return views;
+  }
+
+  function saldoLinhasFiltradas() {
+    const views = saldoLinhasAntesDaColuna("");
+    const key = saldoExcelState.sortKey || "descricao";
+    const dir = saldoExcelState.sortDir === "desc" ? -1 : 1;
+    const col = ESTOQUE_SALDO_COLS.find((c) => c.key === key);
+    views.sort((a, b) => {
+      if (col?.money || col?.num) {
+        const na = key === "qt" ? parseQtd(a.row.qt) : Number(a[key]) || 0;
+        const nb = key === "qt" ? parseQtd(b.row.qt) : Number(b[key]) || 0;
+        return (na - nb) * dir;
+      }
+      return saldoCellDisplay(a, key).localeCompare(saldoCellDisplay(b, key), "pt-BR") * dir;
+    });
+    return views;
+  }
+
+  function saldoValoresUnicos(openKey) {
+    const seen = new Set();
+    const out = [];
+    saldoLinhasAntesDaColuna(openKey).forEach((v) => {
+      const val = saldoCellDisplay(v, openKey);
+      if (seen.has(val)) return;
+      seen.add(val);
+      out.push(val);
+    });
+    out.sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+    return out;
+  }
+
+  function fecharEstoqueSaldoExcelFiltro() {
+    saldoExcelOpen = "";
+    document.querySelectorAll(".estoque-saldo-excel-pop").forEach((el) => el.remove());
+    document.querySelectorAll("#estoqueTableSaldo .fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
+  }
+
+  function renderEstoqueSaldoHead() {
+    const thead = $("estoqueHeadSaldo");
+    if (!thead) return;
+    thead.innerHTML = `<tr>${ESTOQUE_SALDO_COLS.map((col) => {
+      const filtered = saldoExcelState.cols[col.key] instanceof Set;
+      const active = filtered || saldoExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col"><span class="fin-excel-th__label">${escapeHtml(
+        col.label
+      )}</span><button type="button" class="fin-excel-filter-btn${
+        filtered ? " is-filtered" : ""
+      }" data-estoque-saldo-excel-col="${escapeHtml(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${escapeHtml(
+        col.label
+      )}">▾</button></th>`;
+    }).join("")}</tr>`;
+  }
+
+  function abrirEstoqueSaldoExcelFiltro(btn, key) {
+    fecharEstoqueSaldoExcelFiltro();
+    const col = ESTOQUE_SALDO_COLS.find((c) => c.key === key);
+    if (!col || !btn) return;
+    saldoExcelOpen = key;
+    btn.classList.add("is-open");
+    const uniques = saldoValoresUnicos(key);
+    const selected = saldoExcelState.cols[key];
+    const isAll = !(selected instanceof Set);
+    const pop = document.createElement("div");
+    pop.className = "fin-excel-filter-pop estoque-saldo-excel-pop";
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Filtro ${col.label}`);
+    pop.innerHTML = `
+      <div class="fin-excel-filter-pop__sort">
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="asc">↑ Ordenar A a Z</button>
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="desc">↓ Ordenar Z a A</button>
+      </div>
+      <label class="fin-excel-filter-pop__search">
+        <input type="search" placeholder="Pesquisar…" autocomplete="off" aria-label="Pesquisar valores" data-excel-search>
+      </label>
+      <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
+      <div class="fin-excel-filter-pop__list" data-excel-list>
+        ${
+          uniques
+            .map((v, i) => {
+              const checked = isAll || selected.has(v) ? "checked" : "";
+              return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${escapeHtml(
+                v
+              )}</span></label>`;
+            })
+            .join("") || `<p class="subtext">Sem valores.</p>`
+        }
+      </div>
+      <div class="fin-excel-filter-pop__actions">
+        <button type="button" class="btn-primary" data-excel-ok>OK</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-cancel>Cancelar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-clear>Limpar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const rect = btn.getBoundingClientRect();
+    const popW = Math.max(260, Math.min(340, window.innerWidth - 16));
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4;
+    pop.style.width = `${popW}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => {
+      const h = pop.offsetHeight;
+      if (top + h > window.innerHeight - 8) pop.style.top = `${Math.max(8, rect.top - h - 4)}px`;
+    });
+    const rerender = () => {
+      fecharEstoqueSaldoExcelFiltro();
+      renderTabelaEstoque();
+    };
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const syncAll = () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      if (allCb) allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+    search?.addEventListener("input", () => {
+      const q = nkFiltroExcel(search.value);
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        lab.style.display = !q || nkFiltroExcel(lab.textContent || "").includes(q) ? "" : "none";
+      });
+      syncAll();
+    });
+    allCb?.addEventListener("change", () => {
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        if (lab.style.display === "none") return;
+        const cb = lab.querySelector("[data-excel-idx]");
+        if (cb) cb.checked = allCb.checked;
+      });
+    });
+    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
+      saldoExcelState.sortKey = key;
+      saldoExcelState.sortDir = "asc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
+      saldoExcelState.sortKey = key;
+      saldoExcelState.sortDir = "desc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const pool = visible.length ? visible : boxes;
+      const checked = pool
+        .filter((el) => el.checked)
+        .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
+        .filter((v) => v != null);
+      if (!checked.length || checked.length === pool.length) delete saldoExcelState.cols[key];
+      else saldoExcelState.cols[key] = new Set(checked);
+      rerender();
+    });
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharEstoqueSaldoExcelFiltro());
+    pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
+      delete saldoExcelState.cols[key];
+      if (saldoExcelState.sortKey === key) {
+        saldoExcelState.sortKey = "descricao";
+        saldoExcelState.sortDir = "asc";
+      }
+      rerender();
+    });
+    search?.focus();
+  }
+
   function renderTabelaEstoque() {
     const body = $("estoqueBodySaldo");
     if (!body) return;
-    const rows = estoqueTodos().slice().sort((a, b) => String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt"));
-    if (!rows.length) {
+    renderEstoqueSaldoHead();
+    const views = saldoLinhasFiltradas();
+    if (!views.length) {
       body.innerHTML = `<tr><td colspan="11" class="subtext">Nenhum saldo na planilha.</td></tr>`;
       return;
     }
-    body.innerHTML = rows
-      .map((r) => {
-        const preco = parsePreco(r.preco);
-        const total = parsePreco(r.total) || preco * parseQtd(r.qt);
-        const extraEnt = qtdExtraEntrada(r.codigo);
-        const entradas = parseQtd(r.entradas) + extraEnt;
-        const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    body.innerHTML = views
+      .map((v) => {
+        const r = v.row;
         return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
           r.referencia || ""
         )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${escapeHtml(String(r.qt ?? ""))}</td><td>${
-          preco > 0 ? formatMoney(preco) : "—"
-        }</td><td>${total > 0 ? formatMoney(total) : "—"}</td><td>${escapeHtml(r.setor || "")}</td><td>${escapeHtml(
-          String(entradas)
-        )}</td><td>${escapeHtml(String(r.saidas ?? ""))}</td><td>${escapeHtml(String(saldo))}</td></tr>`;
+          v.preco > 0 ? formatMoney(v.preco) : "—"
+        }</td><td>${v.total > 0 ? formatMoney(v.total) : "—"}</td><td>${escapeHtml(r.setor || "")}</td><td>${escapeHtml(
+          String(v.entradas)
+        )}</td><td>${escapeHtml(String(v.saidas))}</td><td>${escapeHtml(String(v.saldo))}</td></tr>`;
       })
       .join("");
   }
@@ -412,13 +919,72 @@
       .join("");
   }
 
+  function isMotoVeiculo(v) {
+    return /\bMOTO\b|MOTOCICLETA|SCOOTER/.test(String(v || "").toUpperCase());
+  }
+
+  function valorLinhaEstoque(r) {
+    const extraEnt = qtdExtraEntrada(r.codigo);
+    const preco = parsePreco(r.preco);
+    const totalPlanilha = parsePreco(r.total);
+    if (totalPlanilha > 0) return totalPlanilha + (preco > 0 ? preco * extraEnt : 0);
+    const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    return preco * saldo;
+  }
+
+  function totaisValorEstoque() {
+    const usos = new Map();
+    for (const s of saidasTodas()) {
+      const k = nkBar(s.codigo);
+      const v = String(s.veiculo || "").trim();
+      if (!k || !v) continue;
+      let rec = usos.get(k);
+      if (!rec) {
+        rec = { moto: 0, carro: 0 };
+        usos.set(k, rec);
+      }
+      if (isMotoVeiculo(v)) rec.moto += 1;
+      else rec.carro += 1;
+    }
+    let motos = 0;
+    let carros = 0;
+    for (const r of estoqueTodos()) {
+      const v = valorLinhaEstoque(r);
+      const rec = usos.get(nkBar(r.codigo));
+      let tipo = "carro";
+      if (rec && rec.moto > rec.carro) tipo = "moto";
+      else if (rec && rec.carro > rec.moto) tipo = "carro";
+      else {
+        const desc = `${r.descricao || ""} ${r.referencia || ""}`.toUpperCase();
+        if (
+          /MOTO|MOTOCICLETA|COROA|PINH[AÃ]O|RELA[CÇ][AÃ]O|PNEU\s*(80|90|100|110|120)/.test(desc) &&
+          !/RADIADOR|AMORTEC/.test(desc)
+        ) {
+          tipo = "moto";
+        } else if (/LOCADORA/.test(String(r.setor || "").toUpperCase())) {
+          tipo = "moto";
+        }
+      }
+      if (tipo === "moto") motos += v;
+      else carros += v;
+    }
+    return { motos, carros, total: motos + carros };
+  }
+
   function atualizarKpis() {
     const cad = $("estoqueKpiCadastros");
     const sai = $("estoqueKpiSaidas");
     const ent = $("estoqueKpiEntradas");
+    const vm = $("estoqueKpiValorMotos");
+    const vc = $("estoqueKpiValorCarros");
+    const vt = $("estoqueKpiValorTotal");
     if (cad) cad.textContent = String(cadastroTodos().length);
     if (sai) sai.textContent = String(saidasTodas().length);
     if (ent) ent.textContent = String(entradasTodas().length);
+    const totais = totaisValorEstoque();
+    if (vm) vm.textContent = formatMoney(totais.motos);
+    if (vc) vc.textContent = formatMoney(totais.carros);
+    if (vt) vt.textContent = formatMoney(totais.total);
     const aviso = $("estoquePlanilhaAviso");
     const fonte = planilha().fonte;
     if (aviso && fonte) {
@@ -456,13 +1022,48 @@
     }
   }
 
+  function materialJaCadastrado(codigo, descricao) {
+    if (codigoValido(codigo) && cadastroDoCodigo(codigo)) return true;
+    const d = String(descricao || "").trim().toUpperCase();
+    if (!codigoValido(codigo) && d) {
+      return cadastroTodos().some((r) => String(r.descricao || "").trim().toUpperCase() === d);
+    }
+    return false;
+  }
+
+  function garantirCadastroDoMaterial(row) {
+    const codigo = String(row.codigo || "").trim();
+    const descricao = String(row.descricao || "").trim();
+    if (materialJaCadastrado(codigo, descricao)) return false;
+    if (!codigoValido(codigo) && !descricao) return false;
+    const extra = extrasCadastro();
+    extra.unshift({
+      codigo,
+      descricao,
+      referencia: row.referencia || "",
+      fabricante: "",
+      preco: "",
+      setor: "",
+      origem: "entrada",
+      gravadoEm: new Date().toISOString(),
+    });
+    localStorage.setItem("dk_estoque_cadastro_v1", JSON.stringify(extra));
+    return true;
+  }
+
   function preencherProdutoEntrada() {
-    const cad = cadastroDoCodigo($("estoqueEntradaCodigo")?.value || "");
+    const codigo = $("estoqueEntradaCodigo")?.value || "";
+    const cad = cadastroDoCodigo(codigo);
     const desc = $("estoqueEntradaDescricao");
     const ref = $("estoqueEntradaReferencia");
-    if (!cad) return;
-    if (desc) desc.value = String(cad.descricao || "");
-    if (ref) ref.value = String(cad.referencia || "");
+    const msg = $("estoqueEntradaFormMsg");
+    if (cad) {
+      if (desc) desc.value = String(cad.descricao || "");
+      if (ref) ref.value = String(cad.referencia || "");
+      if (msg) msg.textContent = "MATERIAL JÁ CADASTRADO";
+      return;
+    }
+    if (msg && codigoValido(codigo)) msg.textContent = "";
   }
 
   function gravarEntradaMaterial() {
@@ -505,10 +1106,18 @@
       formaPagamento,
       gravadoEm: new Date().toISOString(),
     };
+    const jaCadastrado = materialJaCadastrado(codigo, descricao);
     const extra = extrasEntradas();
     extra.unshift(row);
     localStorage.setItem("dk_estoque_entradas_v1", JSON.stringify(extra));
-    if (msg) msg.textContent = `Entrada gravada: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
+    let avisoCad = "";
+    if (jaCadastrado) {
+      avisoCad = "MATERIAL JÁ CADASTRADO. ";
+    } else {
+      garantirCadastroDoMaterial(row);
+      avisoCad = "Material cadastrado automaticamente. ";
+    }
+    if (msg) msg.textContent = `${avisoCad}Entrada gravada: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
     if ($("estoqueEntradaCodigo")) $("estoqueEntradaCodigo").value = "";
     if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = "";
     if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = "";
@@ -1129,6 +1738,7 @@
   }
 
   function carregarPlanilhaNasTelas() {
+    extrasEntradas().forEach((r) => garantirCadastroDoMaterial(r));
     atualizarKpis();
     renderTabelaCadastro();
     renderTabelaEstoque();
@@ -1172,6 +1782,7 @@
   }
 
   function bind() {
+    bindEstoqueCadExcelFiltros();
     $("estoqueSaidaConferirBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       conferirUltimaAplicacao();

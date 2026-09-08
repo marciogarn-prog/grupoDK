@@ -342,6 +342,60 @@
       }
     },
     {
+      "id": "estoque-kpis-valor-moto-carro",
+      "descricao": "No Controle de Estoque, além das caixas Cadastros, Saídas e Entradas, existem Valor do estoque de motos, Valor do estoque de carros e Estoque total.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueKpiValorMotos",
+          "estoqueKpiValorCarros",
+          "estoqueKpiValorTotal",
+          "Valor do estoque de motos",
+          "Valor do estoque de carros",
+          "Estoque total"
+        ],
+        "portal-estoque.js": [
+          "totaisValorEstoque",
+          "estoqueKpiValorMotos",
+          "estoqueKpiValorCarros",
+          "estoqueKpiValorTotal"
+        ]
+      }
+    },
+    {
+      "id": "estoque-filtro-excel-cadastro-saldo",
+      "descricao": "Nas tabelas Cadastro de material e Estoque, a seta ao lado do nome da coluna abre o Filtro estilo Excel (ordenar, pesquisar e marcar valores).",
+      "ficheiros": {
+        "index.html": [
+          "estoqueTableCadastro",
+          "estoqueTableSaldo",
+          "Filtro estilo Excel",
+          "data-estoque-cad-excel-col",
+          "data-estoque-saldo-excel-col"
+        ],
+        "portal-estoque.js": [
+          "abrirEstoqueCadExcelFiltro",
+          "abrirEstoqueSaldoExcelFiltro",
+          "(Selecionar tudo)",
+          "Filtro estilo Excel"
+        ]
+      }
+    },
+    {
+      "id": "estoque-entrada-auto-cadastro",
+      "descricao": "Na Entrada do Controle de Estoque, se o material for novo fica cadastrado automaticamente. Se o código de barras já existir, ao concluir a entrada o operador vê MATERIAL JÁ CADASTRADO.",
+      "ficheiros": {
+        "index.html": [
+          "cadastrado automaticamente"
+        ],
+        "portal-estoque.js": [
+          "dk_estoque_cadastro_v1",
+          "garantirCadastroDoMaterial",
+          "MATERIAL JÁ CADASTRADO",
+          "Material cadastrado automaticamente"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

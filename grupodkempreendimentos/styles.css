@@ -13080,3 +13080,20 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 700;
   white-space: nowrap;
 }
+
+#estoqueTableCadastro.fin-table--excel-cols .fin-excel-th,
+#estoqueTableSaldo.fin-table--excel-cols .fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+}
+
+#estoqueTableCadastro.fin-table--excel-cols .fin-excel-th__label,
+#estoqueTableSaldo.fin-table--excel-cols .fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+#estoqueTableCadastro.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label,
+#estoqueTableSaldo.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}
