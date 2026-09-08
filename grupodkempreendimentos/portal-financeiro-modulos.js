@@ -421,7 +421,7 @@
     bindFinDateCalendariosInView();
   }
 
-  function svgLineChart(days, series, axisLabs) {
+  function svgLineChart(days, series, axisLabs, asMoney) {
     const w = 1100;
     const h = 380;
     const padL = 58;
@@ -437,12 +437,13 @@
     const n = Math.max(1, days.length - 1);
     const xAt = (i) => padL + (days.length <= 1 ? innerW / 2 : (i / n) * innerW);
     const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
+    const fmtEixo = (v) => (asMoney === false ? String(Math.round(v)) : brl(v));
     const grid = [0, 0.25, 0.5, 0.75, 1]
       .map((p) => {
         const val = rawMin + span * p;
         const y = yAt(val);
         return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
-          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(fmtEixo(val))}</text>`;
       })
       .join("");
     const zero =
@@ -920,6 +921,66 @@
     return events;
   }
 
+  const SERIES_LOCAL_4 = [
+    { id: "minha-moto", label: "1 — Plano DK Minha Moto", color: "#5eb8ff" },
+    { id: "meu-transporte", label: "2 — Plano DK Meu Transporte moto", color: "#6ee7a0" },
+    { id: "carros", label: "3 — Plano DK Meu Transporte carro", color: "#c4a484" },
+    { id: "parados", label: "4 — Parados", color: "#f5d76e" },
+  ];
+
+  function locAtivaNoDiaGrafico(loc, day) {
+    const ini = locInicio(loc);
+    const fim = locFim(loc);
+    if (ini && day < ini) return false;
+    if (fim && day >= fim) return false;
+    if (!ini && !fim) return locacaoEstaAtiva(loc);
+    return true;
+  }
+
+  function grupoLinhaLocalizacao(loc, veiculo) {
+    const plano = planoDeLocacao(loc, veiculo);
+    if (plano === "minha-moto") return "minha-moto";
+    if (plano === "carro") return "carros";
+    if (plano === "meu-transporte") {
+      return categoriaFrotaVeiculo(veiculo) === "CARRO" ? "carros" : "meu-transporte";
+    }
+    return "parados";
+  }
+
+  function seriesQuantitativo4Linhas(days) {
+    const veics = veiculosCadastro();
+    const locs = locacoesCadastro();
+    const vmap = new Map();
+    veics.forEach((v) => {
+      const p = nkPlate(v?.placa);
+      if (p) vmap.set(p, v);
+    });
+    const placasFrota = new Set(vmap.keys());
+    locs.forEach((loc) => {
+      const p = nkPlate(loc?.placa);
+      if (p) placasFrota.add(p);
+    });
+    const series = SERIES_LOCAL_4.map((s) => ({ ...s, values: days.map(() => 0) }));
+    const idx = Object.fromEntries(SERIES_LOCAL_4.map((s, i) => [s.id, i]));
+    days.forEach((day, di) => {
+      const usados = new Set();
+      locs.forEach((loc) => {
+        if (!locAtivaNoDiaGrafico(loc, day)) return;
+        const placa = nkPlate(loc?.placa);
+        if (!placa || usados.has(placa)) return;
+        usados.add(placa);
+        const g = grupoLinhaLocalizacao(loc, vmap.get(placa));
+        const i = idx[g] != null ? idx[g] : idx.parados;
+        series[i].values[di] += 1;
+      });
+      placasFrota.forEach((placa) => {
+        if (usados.has(placa)) return;
+        series[idx.parados].values[di] += 1;
+      });
+    });
+    return series;
+  }
+
   function renderLocalizacao() {
     fillPeriodo("finLocalDe", "finLocalAte");
     const agora = snapshotAgoraPorLocal();
@@ -933,47 +994,33 @@
     }
     const { de, ate } = readPeriodo("finLocalDe", "finLocalAte");
     const days = eachDay(de, ate);
-    const events = eventosLocalizacao();
-    const last = new Map();
-    const series = LOCAIS.map((l, i) => ({
-      id: l.id,
-      label: l.label,
-      color: LOCAL_COLORS[i],
-      values: days.map(() => 0),
-    }));
-    const idx = Object.fromEntries(LOCAIS.map((l, i) => [l.id, i]));
-    days.forEach((day, di) => {
-      const fim = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
-      events.forEach((ev) => {
-        if (ev.dt <= fim) last.set(ev.placa, ev.local);
-      });
-      last.forEach((loc) => {
-        const i = idx[loc];
-        if (i != null) series[i].values[di] += 1;
-      });
-    });
+    const series = seriesQuantitativo4Linhas(days);
     const chart = document.getElementById("finLocalChart");
     if (chart) {
-      chart.innerHTML = events.length
-        ? `<h4 class="fin-subh">Por dia (movimentações da manutenção)</h4>${svgLineChart(days, series)}`
-        : '<p class="subtext">Ainda não há movimentações de manutenção no período. A tabela «Agora» usa o estado actual da frota.</p>';
+      chart.innerHTML = svgLineChart(days, series, null, false);
+    }
+    const leg = document.getElementById("finLocalLegenda");
+    if (leg) {
+      leg.innerHTML = series
+        .map((s) => {
+          const last = s.values.length ? s.values[s.values.length - 1] : 0;
+          return `<span class="fin-legenda__item"><i style="background:${s.color}"></i>${esc(s.label)} · hoje ${last}</span>`;
+        })
+        .join("");
     }
     const tab = document.getElementById("finLocalTabela");
-    if (tab && events.length) {
-      const head = `<th>Dia</th>${LOCAIS.map((l) => `<th>${esc(String(l.n))}</th>`).join("")}`;
+    if (tab) {
+      const head = `<th>Dia</th>${series.map((s) => `<th>${esc(s.label)}</th>`).join("")}<th>Total</th>`;
       const body = days
         .map((d, i) => {
           const vals = series.map((s) => s.values[i] || 0);
-          if (!vals.some((v) => v > 0)) return "";
-          return `<tr><td>${esc(fmtBrDate(d))}</td>${vals.map((v) => `<td>${v}</td>`).join("")}</tr>`;
+          const tot = vals.reduce((a, b) => a + b, 0);
+          return `<tr><td>${esc(fmtBrDate(d))}</td>${vals.map((v) => `<td>${v}</td>`).join("")}<td>${tot}</td></tr>`;
         })
-        .filter(Boolean)
         .join("");
       tab.innerHTML = `<table class="fin-table fin-table--compact"><thead><tr>${head}</tr></thead><tbody>${
-        body || "<tr><td colspan='11'>Sem movimentos no período.</td></tr>"
+        body || "<tr><td colspan='6'>Sem veículos no período.</td></tr>"
       }</tbody></table>`;
-    } else if (tab && !events.length) {
-      tab.innerHTML = "";
     }
   }
 

@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908fin-desp">
+  <link rel="stylesheet" href="styles.css?v=20260908fin-4lin">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3528,7 +3528,7 @@
                 <span class="btn-operacao-cmd__hint">Locais 1 a 10 da manutenção</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-dia-semana" data-fin-mod="dia-semana" aria-expanded="false" aria-controls="financeiroPaneDiaSemana">
-                <span class="btn-operacao-cmd__title">5 — Pagamentos vs dia da semana</span>
+                <span class="btn-operacao-cmd__title">5 — Receita vs dia da semana</span>
                 <span class="btn-operacao-cmd__hint">Barras acumuladas por dia</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-intervalo" data-fin-mod="intervalo" aria-expanded="false" aria-controls="financeiroPaneIntervalo">
@@ -3624,19 +3624,21 @@
 
             <div id="financeiroPaneLocalizacao" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="localizacao" role="region" aria-labelledby="finLocalizacaoTitulo">
               <h3 id="finLocalizacaoTitulo" class="operacao-inline-form__title">Quantitativo vs localização vs tempo</h3>
-              <p class="subtext">Onde está cada veículo agora (locais 1 a 10 da manutenção) e por onde passaram em cada dia, conforme as movimentações.</p>
+              <p class="subtext">Onde está cada veículo agora (locais 1 a 10). O gráfico tem 4 linhas de quantidade: DK Minha Moto, DK Meu Transporte moto, DK Meu Transporte carro e Parados. Se uma moto do plano Minha Moto for devolvida, a linha 1 cai 1 e a linha 4 sobe 1.</p>
               <div class="fin-filtros">
                 <label class="portal-field"><span>De</span><input type="text" id="finLocalDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <label class="portal-field"><span>Até</span><input type="text" id="finLocalAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <button type="button" class="btn-primary" id="finLocalAplicar">Atualizar</button>
               </div>
               <div id="finLocalAgora" class="fin-table-wrap"></div>
+              <h4 class="fin-subh">Quantidade por dia (4 linhas)</h4>
               <div id="finLocalChart" class="fin-chart-wrap"></div>
+              <div id="finLocalLegenda" class="fin-legenda"></div>
               <div id="finLocalTabela" class="fin-table-wrap"></div>
             </div>
 
             <div id="financeiroPaneDiaSemana" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="dia-semana" role="region" aria-labelledby="finDiaSemanaTitulo">
-              <h3 id="finDiaSemanaTitulo" class="operacao-inline-form__title">Pagamentos vs dia da semana</h3>
+              <h3 id="finDiaSemanaTitulo" class="operacao-inline-form__title">Receita vs dia da semana</h3>
               <p class="subtext">Total recebido em cada dia da semana no período escolhido.</p>
               <div class="fin-filtros">
                 <label class="portal-field"><span>De</span><input type="text" id="finDiaDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
@@ -5109,7 +5111,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908fin-desp" defer></script>
+  <script src="app.js?v=20260908fin-4lin" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5117,13 +5119,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908fin-desp" defer></script>
-  <script src="portal-estoque.js?v=20260908fin-desp" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908fin-desp" defer></script>
-  <script src="portal-financeiro.js?v=20260908fin-desp" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908fin-4lin" defer></script>
+  <script src="portal-estoque.js?v=20260908fin-4lin" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908fin-4lin" defer></script>
+  <script src="portal-financeiro.js?v=20260908fin-4lin" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260908fin-desp"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908fin-desp" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260908fin-4lin"></script>
+  <script src="portal-financeiro-ceo.js?v=20260908fin-4lin" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

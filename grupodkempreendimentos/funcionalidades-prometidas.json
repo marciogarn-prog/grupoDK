@@ -1846,6 +1846,33 @@
           "fin-ceo-atalho-locadora"
         ]
       }
+    },
+    {
+      "id": "fin-localizacao-4-linhas",
+      "descricao": "No FINANCEIRO → 4 Quantitativo vs localização vs tempo, o gráfico tem 4 linhas de quantidade (não em R$): 1 DK Minha Moto, 2 DK Meu Transporte moto, 3 DK Meu Transporte carro, 4 Parados. Devolução no dia tira 1 da linha do plano e soma 1 em Parados.",
+      "ficheiros": {
+        "index.html": [
+          "Quantidade por dia (4 linhas)",
+          "finLocalLegenda"
+        ],
+        "portal-financeiro-modulos.js": [
+          "SERIES_LOCAL_4",
+          "seriesQuantitativo4Linhas",
+          "locAtivaNoDiaGrafico",
+          "grupoLinhaLocalizacao",
+          "asMoney === false"
+        ]
+      }
+    },
+    {
+      "id": "fin-receita-vs-dia-semana",
+      "descricao": "No FINANCEIRO o módulo 5 chama-se Receita vs dia da semana (não Pagamentos vs dia da semana).",
+      "ficheiros": {
+        "index.html": [
+          "5 — Receita vs dia da semana",
+          "finDiaSemanaTitulo"
+        ]
+      }
     }
   ]
 }

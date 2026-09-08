@@ -328,6 +328,7 @@ async function runSuite() {
         html.includes("btn-fin-mod-receita-modelo") &&
         html.includes("btn-fin-mod-localizacao") &&
         html.includes("btn-fin-mod-dia-semana") &&
+        html.includes("Receita vs dia da semana") &&
         html.includes("btn-fin-mod-intervalo") &&
         html.includes("btn-fin-mod-cadastro-despesas") &&
         html.includes("Atalho · só DK Locadora") &&
@@ -369,7 +370,9 @@ async function runSuite() {
         portalFinModJs.includes("abrirExcelFiltroPopup") &&
         portalFinModJs.includes("aplicarExcelFiltroSort") &&
         portalFinModJs.includes("fin-excel-filter-btn") &&
-        portalFinModJs.includes("financeiroModulosVisivel"),
+        portalFinModJs.includes("financeiroModulosVisivel") &&
+        portalFinModJs.includes("seriesQuantitativo4Linhas") &&
+        portalFinModJs.includes("SERIES_LOCAL_4"),
       "0 = relação; quantitativo por TIPO moto/carro + valor aquisição; filtros Excel"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
