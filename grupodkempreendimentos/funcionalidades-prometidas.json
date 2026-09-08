@@ -396,6 +396,36 @@
       }
     },
     {
+      "id": "estoque-cadastro-valor-unitario",
+      "descricao": "Na Entrada do Controle de Estoque existe a caixa VALOR UNITÁRIO DO PRODUTO. Esse valor consta no Cadastro de material e, se o item já existir, o cadastro passa a usar o preço mais recente lançado.",
+      "ficheiros": {
+        "index.html": [
+          "estoqueEntradaValorUnitario",
+          "VALOR UNITÁRIO DO PRODUTO"
+        ],
+        "portal-estoque.js": [
+          "estoqueEntradaValorUnitario",
+          "valorUnitario",
+          "VALOR UNITÁRIO DO PRODUTO"
+        ]
+      }
+    },
+    {
+      "id": "estoque-entrada-preco-mais-recente",
+      "descricao": "Na Entrada do Controle de Estoque, quando um material que já existe é lançado, o cadastro, o estoque e os totais passam a usar o preço mais recente (valor da nota dividido pela quantidade).",
+      "ficheiros": {
+        "index.html": [
+          "preço mais recente"
+        ],
+        "portal-estoque.js": [
+          "dk_estoque_precos_v1",
+          "gravarPrecoRecente",
+          "precoUnitarioDaEntrada",
+          "Preço mais recente"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

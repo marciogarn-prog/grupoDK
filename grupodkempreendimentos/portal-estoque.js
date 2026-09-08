@@ -233,11 +233,67 @@
     return estoqueTodos().find((r) => nkBar(r.codigo) === key) || null;
   }
 
+  function extrasPrecos() {
+    try {
+      const extra = JSON.parse(localStorage.getItem("dk_estoque_precos_v1") || "{}");
+      return extra && typeof extra === "object" && !Array.isArray(extra) ? extra : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function precoUnitarioDaEntrada(row) {
+    const direto = parsePreco(row?.valorUnitario);
+    if (direto > 0) return direto;
+    const qtd = parseQtd(row?.quantidade);
+    const valor = parsePreco(row?.valorNota);
+    if (valor > 0 && qtd > 0) return valor / qtd;
+    return 0;
+  }
+
+  function gravarPrecoRecente(codigo, preco) {
+    if (!codigoValido(codigo) || !(Number(preco) > 0)) return;
+    const map = extrasPrecos();
+    map[nkBar(codigo)] = { preco: Number(preco), gravadoEm: new Date().toISOString() };
+    localStorage.setItem("dk_estoque_precos_v1", JSON.stringify(map));
+    const extra = extrasCadastro();
+    const key = nkBar(codigo);
+    const i = extra.findIndex((r) => nkBar(r.codigo) === key);
+    if (i >= 0) {
+      extra[i] = { ...extra[i], preco: Number(preco) };
+      localStorage.setItem("dk_estoque_cadastro_v1", JSON.stringify(extra));
+    }
+  }
+
   function precoDoCodigo(codigo) {
-    const cad = cadastroDoCodigo(codigo);
-    const pCad = parsePreco(cad?.preco);
+    const key = nkBar(codigo);
+    if (!key) return 0;
+    const pOverlay = parsePreco(extrasPrecos()[key]?.preco);
+    if (pOverlay > 0) return pOverlay;
+    for (const r of extrasEntradas()) {
+      if (nkBar(r.codigo) !== key) continue;
+      const p = precoUnitarioDaEntrada(r);
+      if (p > 0) return p;
+    }
+    const base = (Array.isArray(planilha().entradas) ? planilha().entradas : [])
+      .filter((r) => nkBar(r.codigo) === key)
+      .slice()
+      .sort((a, b) => {
+        const da = parseDataBr(a.data);
+        const db = parseDataBr(b.data);
+        return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+      });
+    for (const r of base) {
+      const p = precoUnitarioDaEntrada(r);
+      if (p > 0) return p;
+    }
+    const cadPlan = (Array.isArray(planilha().cadastro) ? planilha().cadastro : []).find((r) => nkBar(r.codigo) === key);
+    const pCad = parsePreco(cadPlan?.preco);
     if (pCad > 0) return pCad;
-    const est = estoqueDoCodigo(codigo);
+    const extraCad = extrasCadastro().find((r) => nkBar(r.codigo) === key);
+    const pEx = parsePreco(extraCad?.preco);
+    if (pEx > 0) return pEx;
+    const est = (Array.isArray(planilha().estoque) ? planilha().estoque : []).find((r) => nkBar(r.codigo) === key);
     const pEst = parsePreco(est?.preco);
     return pEst > 0 ? pEst : 0;
   }
@@ -386,7 +442,7 @@
     { key: "descricao", label: "DESCRIÇÃO" },
     { key: "referencia", label: "REFERÊNCIA" },
     { key: "fabricante", label: "FABRICANTE" },
-    { key: "preco", label: "PREÇO" },
+    { key: "preco", label: "VALOR UNITÁRIO DO PRODUTO" },
     { key: "setor", label: "SETOR" },
   ];
   const cadExcelState = { cols: {}, sortKey: "descricao", sortDir: "asc" };
@@ -394,7 +450,7 @@
 
   function cadCellDisplay(r, key) {
     if (key === "preco") {
-      const p = parsePreco(r.preco);
+      const p = precoDoCodigo(r.codigo);
       return p > 0 ? formatMoney(p) : "—";
     }
     const v = String(r[key] || "").trim();
@@ -424,7 +480,7 @@
     const key = cadExcelState.sortKey || "descricao";
     const dir = cadExcelState.sortDir === "desc" ? -1 : 1;
     rows.sort((a, b) => {
-      if (key === "preco") return (parsePreco(a.preco) - parsePreco(b.preco)) * dir;
+      if (key === "preco") return (precoDoCodigo(a.codigo) - precoDoCodigo(b.codigo)) * dir;
       return String(cadCellDisplay(a, key)).localeCompare(String(cadCellDisplay(b, key)), "pt-BR") * dir;
     });
     return rows;
@@ -646,7 +702,7 @@
     }
     body.innerHTML = rows
       .map((r) => {
-        const preco = parsePreco(r.preco);
+        const preco = precoDoCodigo(r.codigo);
         return `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
           r.referencia || ""
         )}</td><td>${escapeHtml(r.fabricante || "")}</td><td>${preco > 0 ? formatMoney(preco) : "—"}</td><td>${escapeHtml(
@@ -674,11 +730,11 @@
 
   function saldoView(r) {
     const extraEnt = qtdExtraEntrada(r.codigo);
-    const preco = parsePreco(r.preco);
-    const total = parsePreco(r.total) || preco * parseQtd(r.qt);
+    const preco = precoDoCodigo(r.codigo);
     const entradas = parseQtd(r.entradas) + extraEnt;
     const saidas = parseQtd(r.saidas);
     const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
+    const total = preco > 0 ? preco * saldo : 0;
     return { row: r, extraEnt, preco, total, entradas, saidas, saldo };
   }
 
@@ -902,7 +958,7 @@
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
       });
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="9" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="10" class="subtext">Nenhuma entrada na planilha.</td></tr>`;
       return;
     }
     body.innerHTML = rows
@@ -910,9 +966,13 @@
         (r) =>
           `<tr><td>${escapeHtml(r.codigo || "")}</td><td>${escapeHtml(r.descricao || "")}</td><td>${escapeHtml(
             r.referencia || ""
-          )}</td><td>${escapeHtml(String(r.quantidade ?? ""))}</td><td>${escapeHtml(
-            r.fornecedor || ""
-          )}</td><td>${escapeHtml(r.data || "")}</td><td>${escapeHtml(r.notaFiscal || "")}</td><td>${
+          )}</td><td>${escapeHtml(String(r.quantidade ?? ""))}</td><td>${
+            (precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo)) > 0
+              ? formatMoney(precoUnitarioDaEntrada(r) || precoDoCodigo(r.codigo))
+              : "—"
+          }</td><td>${escapeHtml(r.fornecedor || "")}</td><td>${escapeHtml(r.data || "")}</td><td>${escapeHtml(
+            r.notaFiscal || ""
+          )}</td><td>${
             parsePreco(r.valorNota) > 0 ? formatMoney(parsePreco(r.valorNota)) : escapeHtml(r.valorNota || "")
           }</td><td>${escapeHtml(r.formaPagamento || "")}</td></tr>`
       )
@@ -925,11 +985,8 @@
 
   function valorLinhaEstoque(r) {
     const extraEnt = qtdExtraEntrada(r.codigo);
-    const preco = parsePreco(r.preco);
-    const totalPlanilha = parsePreco(r.total);
-    if (totalPlanilha > 0) return totalPlanilha + (preco > 0 ? preco * extraEnt : 0);
     const saldo = parseQtd(r.saldo != null ? r.saldo : r.qt) + extraEnt;
-    return preco * saldo;
+    return precoDoCodigo(r.codigo) * saldo;
   }
 
   function totaisValorEstoque() {
@@ -1042,7 +1099,7 @@
       descricao,
       referencia: row.referencia || "",
       fabricante: "",
-      preco: "",
+      preco: precoUnitarioDaEntrada(row) || "",
       setor: "",
       origem: "entrada",
       gravadoEm: new Date().toISOString(),
@@ -1056,10 +1113,15 @@
     const cad = cadastroDoCodigo(codigo);
     const desc = $("estoqueEntradaDescricao");
     const ref = $("estoqueEntradaReferencia");
+    const unit = $("estoqueEntradaValorUnitario");
     const msg = $("estoqueEntradaFormMsg");
     if (cad) {
       if (desc) desc.value = String(cad.descricao || "");
       if (ref) ref.value = String(cad.referencia || "");
+      const preco = precoDoCodigo(codigo);
+      if (unit && preco > 0) {
+        unit.value = Number(preco).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
       if (msg) msg.textContent = "MATERIAL JÁ CADASTRADO";
       return;
     }
@@ -1081,6 +1143,8 @@
     const notaFiscal = String($("estoqueEntradaNota")?.value || "").trim();
     const valorNotaRaw = String($("estoqueEntradaValorNota")?.value || "").trim();
     const valorNota = parsePreco(valorNotaRaw);
+    const valorUnitarioRaw = String($("estoqueEntradaValorUnitario")?.value || "").trim();
+    const valorUnitario = parsePreco(valorUnitarioRaw);
     const formaPagamento = String($("estoqueEntradaFormaPagamento")?.value || "").trim();
     if (!codigoValido(codigo) && !descricao) {
       if (msg) msg.textContent = "Informe o código de barras ou a descrição do material.";
@@ -1103,6 +1167,7 @@
       data,
       notaFiscal,
       valorNota: valorNota > 0 ? valorNota : valorNotaRaw,
+      valorUnitario: valorUnitario > 0 ? valorUnitario : valorUnitarioRaw,
       formaPagamento,
       gravadoEm: new Date().toISOString(),
     };
@@ -1110,11 +1175,17 @@
     const extra = extrasEntradas();
     extra.unshift(row);
     localStorage.setItem("dk_estoque_entradas_v1", JSON.stringify(extra));
+    const precoRecente = precoUnitarioDaEntrada(row);
+    if (precoRecente > 0) gravarPrecoRecente(codigo, precoRecente);
     let avisoCad = "";
     if (jaCadastrado) {
-      avisoCad = "MATERIAL JÁ CADASTRADO. ";
+      avisoCad =
+        precoRecente > 0
+          ? `MATERIAL JÁ CADASTRADO. Preço mais recente ${formatMoney(precoRecente)}. `
+          : "MATERIAL JÁ CADASTRADO. ";
     } else {
       garantirCadastroDoMaterial(row);
+      if (precoRecente > 0) gravarPrecoRecente(codigo, precoRecente);
       avisoCad = "Material cadastrado automaticamente. ";
     }
     if (msg) msg.textContent = `${avisoCad}Entrada gravada: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
@@ -1122,6 +1193,7 @@
     if ($("estoqueEntradaDescricao")) $("estoqueEntradaDescricao").value = "";
     if ($("estoqueEntradaReferencia")) $("estoqueEntradaReferencia").value = "";
     if ($("estoqueEntradaQtd")) $("estoqueEntradaQtd").value = "1";
+    if ($("estoqueEntradaValorUnitario")) $("estoqueEntradaValorUnitario").value = "";
     carregarPlanilhaNasTelas();
     return true;
   }
