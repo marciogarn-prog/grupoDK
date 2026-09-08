@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260908estq-fam">
+  <link rel="stylesheet" href="styles.css?v=20260908estq-org">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3310,8 +3310,8 @@
             </div>
             <div id="estoquePaneRelProduto" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Relatório de aplicação por produto">
               <h3 class="operacao-inline-form__title">Relatório de aplicação por produto</h3>
-              <p class="subtext">Informe o produto e o período. Óleos iguais da planilha entram juntos mesmo com código de barras diferente (ex.: 10W30). A <strong>média de km</strong> é a média dos intervalos na mesma placa.</p>
-              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <p class="subtext">Informe o produto e o período. Óleos iguais da planilha entram juntos mesmo com código de barras diferente (ex.: 10W30). A lista segue as marcações de placas da DK Locadora e placas diversas.</p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid portal-estoque-rel-filtros">
                 <label class="portal-field portal-field--wide">
                   <span>PRODUTO</span>
                   <input type="text" id="estoqueRelProdutoCodigo" list="estoqueRelProdutoList" maxlength="80" autocomplete="off" placeholder="Código ou descrição — vazio lista todos" aria-label="Produto do relatório de aplicação">
@@ -3329,6 +3329,10 @@
                     <input type="text" id="estoqueRelProdutoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de aplicação por produto" title="Clique para abrir o calendário">
                   </span>
                 </label>
+                <div class="portal-estoque-rel-origem" role="group" aria-label="Origem das placas">
+                  <label class="portal-check-label"><input type="checkbox" id="estoqueRelProdutoLocadora" checked> PLACAS CADASTRADAS NA DK LOCADORA</label>
+                  <label class="portal-check-label"><input type="checkbox" id="estoqueRelProdutoDiversas" checked> PLACAS DIVERSAS</label>
+                </div>
               </div>
               <div class="portal-relatorio-pagamentos-periodo__actions">
                 <button type="button" class="btn-primary" id="estoqueRelProdutoGerarBtn">Gerar relatório</button>
@@ -3339,8 +3343,8 @@
             </div>
             <div id="estoquePaneRelCusto" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-label="Relatório de custo de manutenção por veículo">
               <h3 class="operacao-inline-form__title">Relatório de custo de manutenção por veículo</h3>
-              <p class="subtext">Informe o período nos calendários. Lista os veículos, os itens aplicados na placa, o valor de cada item e o total gasto no período selecionado.</p>
-              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <p class="subtext">Informe o período nos calendários. Cada placa lista os itens aplicados, o valor e o total gasto no intervalo. A lista segue as marcações de placas da DK Locadora e placas diversas.</p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid portal-estoque-rel-filtros">
                 <label class="portal-field">
                   <span>Data início</span>
                   <span class="dk-date-cal fin-date-cal">
@@ -3356,10 +3360,14 @@
                 <label class="portal-field portal-field--combobox">
                   <span>PLACA (opcional)</span>
                   <div class="portal-combobox" id="estoqueRelCustoFiltroCombo">
-                    <input type="text" id="estoqueRelCustoFiltro" maxlength="8" autocomplete="off" placeholder="Todos os veículos" aria-label="Filtrar placa do relatório de custo" aria-autocomplete="list" aria-expanded="false" aria-controls="estoqueRelCustoFiltroLista">
+                    <input type="text" id="estoqueRelCustoFiltro" maxlength="8" autocomplete="off" placeholder="Todas as placas" aria-label="Filtrar placa do relatório de custo" aria-autocomplete="list" aria-expanded="false" aria-controls="estoqueRelCustoFiltroLista">
                     <div id="estoqueRelCustoFiltroLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Lista suspensa das placas" hidden></div>
                   </div>
                 </label>
+                <div class="portal-estoque-rel-origem" role="group" aria-label="Origem das placas">
+                  <label class="portal-check-label"><input type="checkbox" id="estoqueRelCustoLocadora" checked> PLACAS CADASTRADAS NA DK LOCADORA</label>
+                  <label class="portal-check-label"><input type="checkbox" id="estoqueRelCustoDiversas" checked> PLACAS DIVERSAS</label>
+                </div>
               </div>
               <div class="portal-relatorio-pagamentos-periodo__actions">
                 <button type="button" class="btn-primary" id="estoqueRelCustoGerarBtn">Gerar relatório</button>
@@ -5018,7 +5026,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260908estq-fam" defer></script>
+  <script src="app.js?v=20260908estq-org" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5026,13 +5034,13 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-fam" defer></script>
-  <script src="portal-estoque.js?v=20260908estq-fam" defer></script>
-  <script src="portal-locadora-ui.js?v=20260908estq-fam" defer></script>
+  <script src="data/estoque/dk-estoque-planilha.js?v=20260908estq-org" defer></script>
+  <script src="portal-estoque.js?v=20260908estq-org" defer></script>
+  <script src="portal-locadora-ui.js?v=20260908estq-org" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260908estq-fam" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260908estq-org" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

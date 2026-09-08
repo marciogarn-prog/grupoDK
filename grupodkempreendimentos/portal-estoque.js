@@ -549,11 +549,23 @@
     return placasFrotaDkSet().has(key) ? "locadora" : "diversa";
   }
 
-  function filtroOrigemRelPlaca() {
+  function filtroOrigemRel(prefixo) {
     return {
-      locadora: Boolean($("estoqueRelPlacaLocadora")?.checked),
-      diversas: Boolean($("estoqueRelPlacaDiversas")?.checked),
+      locadora: Boolean($(prefixo + "Locadora")?.checked),
+      diversas: Boolean($(prefixo + "Diversas")?.checked),
     };
+  }
+
+  function filtroOrigemRelPlaca() {
+    return filtroOrigemRel("estoqueRelPlaca");
+  }
+
+  function filtroOrigemRelCusto() {
+    return filtroOrigemRel("estoqueRelCusto");
+  }
+
+  function filtroOrigemRelProduto() {
+    return filtroOrigemRel("estoqueRelProduto");
   }
 
   function aceitaOrigemPlaca(key, origem) {
@@ -921,7 +933,14 @@
     if (!box) return;
     const per = lerPeriodo("estoqueRelProdutoInicio", "estoqueRelProdutoFim");
     const prod = resolverProduto($("estoqueRelProdutoCodigo")?.value || "");
-    const saidasPer = saidasComData().filter((s) => noPeriodo(s._data, per));
+    const origem = filtroOrigemRelProduto();
+    if (!origem.locadora && !origem.diversas) {
+      if (kpis) kpis.innerHTML = "";
+      if (resumo) resumo.textContent = "Marque PLACAS CADASTRADAS NA DK LOCADORA e/ou PLACAS DIVERSAS.";
+      box.innerHTML = `<p class="subtext">Nenhuma origem de placa marcada.</p>`;
+      return;
+    }
+    const saidasPer = saidasComData().filter((s) => noPeriodo(s._data, per) && aceitaOrigemPlaca(s._plate, origem));
 
     if (!prod) {
       const porProd = new Map();
@@ -933,7 +952,7 @@
       const linhas = [...porProd.entries()]
         .map(([fam, lista]) => {
           const { ciclos } = ciclosDoProduto(fam);
-          const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per));
+          const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per) && aceitaOrigemPlaca(c.plate, origem));
           const placas = new Set(lista.map((s) => s._plate).filter(Boolean));
           return {
             bar: fam,
@@ -987,7 +1006,7 @@
     const { porPlaca, ciclos } = ciclosDoProduto(fam);
     const aplicacoesPer = saidasPer.filter((s) => s._fam === fam || s._bar === nkBar(prod.codigo));
     const placasPer = new Set(aplicacoesPer.map((s) => s._plate).filter(Boolean));
-    const ciclosPer = ciclos.filter((c) => noPeriodo(c.ate._data, per) || placasPer.has(c.plate));
+    const ciclosPer = ciclos.filter((c) => aceitaOrigemPlaca(c.plate, origem) && (noPeriodo(c.ate._data, per) || placasPer.has(c.plate)));
     const mediaDias = media(ciclosPer.map((c) => c.dias).filter((n) => n != null));
     const mediaKm = media(ciclosPer.map((c) => c.km).filter((n) => n != null && n > 0));
     const codigosFam = [...new Set(aplicacoesPer.map((s) => s.codigo).filter(Boolean))];
@@ -1042,8 +1061,15 @@
     if (!box) return;
     const per = lerPeriodo("estoqueRelCustoInicio", "estoqueRelCustoFim");
     const filtro = nkPlate($("estoqueRelCustoFiltro")?.value || "");
+    const origem = filtroOrigemRelCusto();
+    if (!origem.locadora && !origem.diversas) {
+      if (kpis) kpis.innerHTML = "";
+      if (resumo) resumo.textContent = "Marque PLACAS CADASTRADAS NA DK LOCADORA e/ou PLACAS DIVERSAS.";
+      box.innerHTML = `<p class="subtext">Nenhuma origem de placa marcada.</p>`;
+      return;
+    }
     const rows = saidasComData()
-      .filter((s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro))
+      .filter((s) => noPeriodo(s._data, per) && (!filtro || s._plate === filtro) && aceitaOrigemPlaca(s._plate, origem))
       .map((s) => {
         const unit = precoDoCodigo(s.codigo);
         const valor = unit * (s._qtd || 1);
@@ -1197,6 +1223,13 @@
       panelId: "estoqueRelCustoFiltroLista",
       comboId: "estoqueRelCustoFiltroCombo",
       onPick: () => renderRelatorioCusto(),
+      origemFn: filtroOrigemRelCusto,
+    });
+    ["estoqueRelCustoLocadora", "estoqueRelCustoDiversas"].forEach((id) => {
+      $(id)?.addEventListener("change", () => renderRelatorioCusto());
+    });
+    ["estoqueRelProdutoLocadora", "estoqueRelProdutoDiversas"].forEach((id) => {
+      $(id)?.addEventListener("change", () => renderRelatorioProduto());
     });
     $("estoqueSaidaKm")?.addEventListener("change", () => {
       if (nkBar($("estoqueSaidaCodigo")?.value || "") && nkPlate($("estoqueSaidaPlaca")?.value || "") && parseKm($("estoqueSaidaKm")?.value || "")) {

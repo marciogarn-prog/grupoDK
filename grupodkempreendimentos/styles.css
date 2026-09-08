@@ -13017,6 +13017,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 #estoquePaneSaida .operacao-inline-form__grid,
 #estoquePaneRelPlaca .operacao-inline-form__grid,
+#estoquePaneRelProduto .operacao-inline-form__grid,
 #estoquePaneRelCusto .operacao-inline-form__grid {
   overflow: visible;
 }
@@ -13038,7 +13039,9 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   width: 100%;
 }
 
-#estoquePaneRelPlaca .portal-estoque-rel-filtros {
+#estoquePaneRelPlaca .portal-estoque-rel-filtros,
+#estoquePaneRelProduto .portal-estoque-rel-filtros,
+#estoquePaneRelCusto .portal-estoque-rel-filtros {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
@@ -13046,20 +13049,32 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   gap: 0.65rem 0.85rem;
 }
 
-#estoquePaneRelPlaca .portal-estoque-rel-filtros > .portal-field {
+#estoquePaneRelPlaca .portal-estoque-rel-filtros > .portal-field,
+#estoquePaneRelProduto .portal-estoque-rel-filtros > .portal-field,
+#estoquePaneRelCusto .portal-estoque-rel-filtros > .portal-field {
   flex: 0 0 11.2rem;
   width: 11.2rem;
   max-width: 11.2rem;
 }
 
-#estoquePaneRelPlaca .portal-estoque-rel-origem {
+#estoquePaneRelProduto .portal-estoque-rel-filtros > .portal-field--wide {
+  flex: 0 1 16rem;
+  width: 16rem;
+  max-width: 18rem;
+}
+
+#estoquePaneRelPlaca .portal-estoque-rel-origem,
+#estoquePaneRelProduto .portal-estoque-rel-origem,
+#estoquePaneRelCusto .portal-estoque-rel-origem {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   padding-bottom: 0.15rem;
 }
 
-#estoquePaneRelPlaca .portal-estoque-rel-origem .portal-check-label {
+#estoquePaneRelPlaca .portal-estoque-rel-origem .portal-check-label,
+#estoquePaneRelProduto .portal-estoque-rel-origem .portal-check-label,
+#estoquePaneRelCusto .portal-estoque-rel-origem .portal-check-label {
   color: #fff;
   font-size: 0.82rem;
   font-weight: 700;

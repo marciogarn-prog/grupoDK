@@ -321,16 +321,22 @@
     },
     {
       "id": "estoque-rel-placa-origem-filtros",
-      "descricao": "No Relatório de aplicação por placa as caixas ficam à esquerda. Há duas marcações: PLACAS CADASTRADAS NA DK LOCADORA e PLACAS DIVERSAS; a lista suspensa e o relatório só mostram as origens marcadas.",
+      "descricao": "Nos relatórios de aplicação por placa, aplicação por produto e custo de manutenção as caixas ficam à esquerda. Há duas marcações: PLACAS CADASTRADAS NA DK LOCADORA e PLACAS DIVERSAS; a lista e o relatório só mostram as origens marcadas.",
       "ficheiros": {
         "index.html": [
           "estoqueRelPlacaLocadora",
           "estoqueRelPlacaDiversas",
+          "estoqueRelProdutoLocadora",
+          "estoqueRelProdutoDiversas",
+          "estoqueRelCustoLocadora",
+          "estoqueRelCustoDiversas",
           "PLACAS CADASTRADAS NA DK LOCADORA",
           "PLACAS DIVERSAS"
         ],
         "portal-estoque.js": [
           "filtroOrigemRelPlaca",
+          "filtroOrigemRelProduto",
+          "filtroOrigemRelCusto",
           "aceitaOrigemPlaca"
         ]
       }
