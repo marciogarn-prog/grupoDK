@@ -3708,6 +3708,47 @@ body.portal-body--admin-ceo {
   }
 }
 
+/* Cartão branco só para gerar a imagem do WhatsApp (JPEG, mais leve que PDF). */
+.portal-recibo-share-capture {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  z-index: 0;
+  width: 420px;
+  pointer-events: none;
+}
+.portal-recibo-share-card {
+  box-sizing: border-box;
+  width: 420px;
+  padding: 1.45rem 1.55rem 1.35rem;
+  background: #fff;
+  color: #4b5563;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.portal-recibo-share-card__titulo {
+  margin: 0 0 0.55rem;
+  color: #c9a227;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.portal-recibo-share-card .portal-recibo-doc__marca {
+  color: #111;
+  font-weight: 800;
+}
+.portal-recibo-share-card .portal-recibo-doc__linha dt {
+  color: #111;
+}
+.portal-recibo-share-card .portal-recibo-doc__linha dd {
+  color: #6b7280;
+  font-weight: 600;
+}
+.portal-recibo-share-card .portal-recibo-doc__texto {
+  color: #374151;
+}
+
 @media print {
   body * {
     visibility: hidden !important;

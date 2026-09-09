@@ -1778,6 +1778,27 @@
       }
     },
     {
+      "id": "lanc-aluguel-recibo-whatsapp-imagem",
+      "descricao": "No Recibo de pagamento, Compartilhar (WhatsApp) envia o modelo do recibo em imagem JPEG (mais leve que PDF): html2canvas do cartão branco. No telemóvel usa partilha nativa com o ficheiro; no computador baixa a imagem e abre o WhatsApp. Se a imagem falhar, mantém o envio por wa.me com o texto.",
+      "ficheiros": {
+        "index.html": [
+          "portalReciboShareCapture",
+          "portalReciboShareBtn"
+        ],
+        "portal-locadora-ui.js": [
+          "portalCompartilharReciboWhatsApp",
+          "portalReciboDocParaImagemJpeg",
+          "image/jpeg",
+          "vendor/html2canvas.min.js",
+          "wa.me/"
+        ],
+        "styles.css": [
+          "portal-recibo-share-card",
+          "portal-recibo-share-card__titulo"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-gerar-recibo-historico",
       "descricao": "Na tabela Lançamentos registados do Lançamento de aluguel, cada pagamento tem o botão Gerar recibo à esquerda do protocolo. Abre o mesmo Recibo de pagamento que aparece após Confirmar pagamento, com Imprimir e Compartilhar (WhatsApp). Devolução de investimento não gera recibo.",
       "ficheiros": {

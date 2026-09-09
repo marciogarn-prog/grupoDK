@@ -13242,6 +13242,123 @@
     }
   }
 
+  function portalReciboWaMeUrl(texto) {
+    const wa = String(window.__dkReciboWhatsApp || "").replace(/\D/g, "");
+    const dest = wa.length >= 12 ? wa : "";
+    return dest
+      ? `https://wa.me/${dest}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  function portalEnsureHtml2canvas() {
+    if (typeof window.html2canvas === "function") return Promise.resolve(window.html2canvas);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "vendor/html2canvas.min.js";
+      s.async = true;
+      s.onload = () =>
+        typeof window.html2canvas === "function"
+          ? resolve(window.html2canvas)
+          : reject(new Error("html2canvas indisponível"));
+      s.onerror = () => reject(new Error("Não foi possível carregar html2canvas"));
+      document.head.appendChild(s);
+    });
+  }
+
+  function portalMontarReciboCardImagem(srcEl) {
+    const host = document.getElementById("portalReciboShareCapture");
+    if (!host || !srcEl) return null;
+    host.innerHTML = `<div class="portal-recibo-share-card">
+      <h2 class="portal-recibo-share-card__titulo">Recibo de pagamento</h2>
+      ${srcEl.outerHTML}
+    </div>`;
+    return host.querySelector(".portal-recibo-share-card");
+  }
+
+  function portalDescarregarBlob(blob, nome) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  async function portalReciboDocParaImagemJpeg(srcEl) {
+    const card = portalMontarReciboCardImagem(srcEl);
+    if (!card) throw new Error("Cartão do recibo em falta");
+    const html2canvas = await portalEnsureHtml2canvas();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const canvas = await html2canvas(card, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      width: card.offsetWidth,
+      height: card.offsetHeight,
+    });
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Falha ao gerar JPEG"))),
+        "image/jpeg",
+        0.86
+      );
+    });
+    return blob;
+  }
+
+  async function portalPartilharReciboImagemWhatsApp(file, texto) {
+    if (navigator.share && navigator.canShare) {
+      try {
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: "Recibo de pagamento — DK Locadora",
+            text: texto,
+            files: [file],
+          });
+          return true;
+        }
+      } catch (e) {
+        if (String(e?.name || "") === "AbortError") return true;
+      }
+    }
+    return false;
+  }
+
+  async function portalCompartilharReciboWhatsApp() {
+    const btn = document.getElementById("portalReciboShareBtn");
+    const corpo = document.getElementById("portalReciboCorpo");
+    const src = corpo?.querySelector(".portal-recibo-doc") || corpo;
+    const texto = corpo ? String(corpo.innerText || "").trim() : "";
+    if (!src || !texto) return;
+    const caption = "Recibo de pagamento — Grupo DK Empreendimentos — DK Locadora";
+    const nome = `recibo-dk-${Date.now()}.jpg`;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "A gerar imagem…";
+    }
+    try {
+      const blob = await portalReciboDocParaImagemJpeg(src);
+      const file = new File([blob], nome, { type: "image/jpeg" });
+      const okShare = await portalPartilharReciboImagemWhatsApp(file, caption);
+      if (!okShare) {
+        portalDescarregarBlob(blob, nome);
+        window.open(portalReciboWaMeUrl(caption), "_blank", "noopener,noreferrer");
+      }
+    } catch (e) {
+      console.error("[DK recibo] imagem WhatsApp", e);
+      window.open(portalReciboWaMeUrl(texto), "_blank", "noopener,noreferrer");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Compartilhar (WhatsApp)";
+      }
+    }
+  }
+
   function portalInitReciboModalOnce() {
     if (window.__dkPortalReciboModalInit) return;
     window.__dkPortalReciboModalInit = true;
@@ -13253,15 +13370,7 @@
       window.print();
     });
     document.getElementById("portalReciboShareBtn")?.addEventListener("click", () => {
-      const corpo = document.getElementById("portalReciboCorpo");
-      const texto = corpo ? String(corpo.innerText || "").trim() : "";
-      if (!texto) return;
-      const wa = String(window.__dkReciboWhatsApp || "").replace(/\D/g, "");
-      const dest = wa.length >= 12 ? wa : "";
-      const url = dest
-        ? `https://wa.me/${dest}?text=${encodeURIComponent(texto)}`
-        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+      void portalCompartilharReciboWhatsApp();
     });
   }
 
