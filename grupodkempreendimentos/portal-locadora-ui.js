@@ -16811,11 +16811,7 @@
     syncOperacaoLocacaoValorDevidoPlano();
     syncOperacaoLocacaoValorDevidoAluguel();
     syncOperacaoLocacaoProtocoloComDataInicio();
-    const cpfDigits =
-      typeof onlyDigits === "function"
-        ? onlyDigits(String(document.getElementById("operacaoLocacaoCpf")?.value || ""))
-        : String(document.getElementById("operacaoLocacaoCpf")?.value || "").replace(/\D/g, "");
-    if (cpfDigits.length === 11) refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
     refreshOperacaoLocacaoFinalizarBtn();
   }
 
@@ -17629,6 +17625,31 @@
     refreshOperacaoLocacaoApagarProtocoloBtn();
   }
 
+  function textoOperacaoLocacaoOptNovo() {
+    const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const inicioDt =
+      rawInicio && typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+    const inicioOk = inicioDt && !Number.isNaN(inicioDt.getTime());
+    const protoNovo = inicioOk ? proximoProtocoloPortalAaaammddXX(inicioDt) : "";
+    return {
+      protoNovo,
+      text: protoNovo ? `NOVO — ${protoNovo}` : "NOVO — (informe data de início)",
+    };
+  }
+
+  function appendOperacaoLocacaoOptNovo(sel) {
+    const { protoNovo, text } = textoOperacaoLocacaoOptNovo();
+    let optNovo = Array.from(sel?.options || []).find((o) => o.value === PORTAL_PROTO_NOVO);
+    if (!optNovo) {
+      optNovo = document.createElement("option");
+      optNovo.value = PORTAL_PROTO_NOVO;
+      sel.appendChild(optNovo);
+    }
+    optNovo.textContent = text;
+    optNovo.classList.add("portal-locacao-proto-opt--novo");
+    return { protoNovo, optNovo };
+  }
+
   function refreshOperacaoLocacaoProtocoloPicker(opts = {}) {
     const force = Boolean(opts.force);
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
@@ -17642,54 +17663,30 @@
     const known =
       digits.length === 11 &&
       (Boolean(getPortalClienteKnownRecord(digits)) || locs.some((l) => Boolean(normPortalNumeroContrato(l.numeroContrato))));
-    if (!known) {
-      const keepNc =
-        typeof normalizeNumeroContratoKey === "function"
-          ? normalizeNumeroContratoKey(String(hid.value || ""))
-          : String(hid.value || "").trim();
-      const keepLoc = keepNc ? findPortalLocacaoByProtocolo(keepNc) : null;
-      if (keepLoc) {
-        portalLocacaoProtocoloPickerCpf = digits;
-        pinOperacaoLocacaoProtocoloCarregado(keepNc);
-        return;
-      }
-      portalLocacaoProtocoloPickerCpf = "";
-      sel.disabled = true;
-      sel.replaceChildren();
-      const o = document.createElement("option");
-      o.value = "";
-      o.textContent = "Informe um CPF cadastrado";
-      sel.appendChild(o);
-      hid.value = "";
-      if (msgEl && digits.length === 11) {
-        msgEl.textContent = "CPF não encontrado no cadastro — confira o número ou use Cadastro de cliente.";
-      } else if (msgEl) {
-        msgEl.textContent = "";
-      }
-      return;
-    }
-    if (!force && digits === portalLocacaoProtocoloPickerCpf) return;
-    portalLocacaoProtocoloPickerCpf = digits;
     const preserve = String(hid.value || "").trim();
-    sel.disabled = false;
     const norm = (v) =>
       typeof normalizeNumeroContratoKey === "function"
         ? normalizeNumeroContratoKey(v || "")
         : String(v || "").trim();
+    const preserveNorm = preserve ? norm(preserve) : "";
+    if (known && !force && digits === portalLocacaoProtocoloPickerCpf) return;
+    portalLocacaoProtocoloPickerCpf = digits.length === 11 ? digits : "";
+    sel.disabled = false;
     const byNc = new Map();
-    locs.forEach((l) => {
-      const nc = norm(l.numeroContrato || "");
-      if (nc) byNc.set(nc, l);
-    });
+    if (known) {
+      locs.forEach((l) => {
+        const nc = norm(l.numeroContrato || "");
+        if (nc) byNc.set(nc, l);
+      });
+    }
     /* Protocolo já no campo (Carregar / cadastro) não pode cair em NOVO só porque o CPF
        ainda não listou essa locação — senão «Gerar contrato» fica desligado. */
-    const preserveNorm = preserve ? norm(preserve) : "";
     if (preserveNorm && !byNc.has(preserveNorm)) {
       const extra = findPortalLocacaoByProtocolo(preserveNorm);
       if (extra) byNc.set(preserveNorm, extra);
     }
     const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
-    if (!sorted.length && digits.length === 11 && !opts.syncingCloud) {
+    if (known && !sorted.length && digits.length === 11 && !opts.syncingCloud) {
       if (msgEl) msgEl.textContent = "A carregar protocolos da nuvem…";
       void portalEnsureLocacoesFromCloud({ force: true }).then((r) => {
         if (r?.applied) {
@@ -17704,6 +17701,8 @@
       });
     } else if (msgEl && sorted.length) {
       msgEl.textContent = "";
+    } else if (msgEl && !known && digits.length === 11 && !sorted.length) {
+      msgEl.textContent = "CPF não encontrado no cadastro — confira o número ou use Cadastro de cliente.";
     }
     sel.replaceChildren();
     sorted.forEach((nc) => {
@@ -17733,23 +17732,14 @@
       }
       sel.appendChild(opt);
     });
-    const optNovo = document.createElement("option");
-    optNovo.value = PORTAL_PROTO_NOVO;
-    const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
-    const inicioDt =
-      rawInicio && typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
-    const inicioOk = inicioDt && !Number.isNaN(inicioDt.getTime());
-    const protoNovo = inicioOk ? proximoProtocoloPortalAaaammddXX(inicioDt) : "";
-    optNovo.textContent = protoNovo ? `NOVO — ${protoNovo}` : "NOVO — (informe data de início)";
-    sel.appendChild(optNovo);
-    const pNorm = preserveNorm;
-    if (pNorm && sorted.includes(pNorm)) {
-      sel.value = pNorm;
-      hid.value = pNorm;
+    const { protoNovo } = appendOperacaoLocacaoOptNovo(sel);
+    if (preserveNorm && sorted.includes(preserveNorm)) {
+      sel.value = preserveNorm;
+      hid.value = preserveNorm;
     } else {
       sel.value = PORTAL_PROTO_NOVO;
       hid.value =
-        protoNovo || (pNorm && isPortalProtocoloAlignedWithInicioForm(pNorm) ? pNorm : "");
+        protoNovo || (preserveNorm && isPortalProtocoloAlignedWithInicioForm(preserveNorm) ? preserveNorm : "");
     }
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
     paintOperacaoLocacaoProtocoloSelectFromModalidade();
@@ -17922,6 +17912,9 @@
     if (!nc || !hid || !sel) return;
     hid.value = nc;
     if (sel.disabled) sel.disabled = false;
+    Array.from(sel.options).forEach((o) => {
+      if (o.value === "" && /Informe um CPF/i.test(String(o.textContent || ""))) o.remove();
+    });
     const has = Array.from(sel.options).some((o) => o.value === nc);
     if (!has) {
       const loc = findPortalLocacaoByProtocolo(nc);
@@ -17937,6 +17930,7 @@
       if (novo) sel.insertBefore(opt, novo);
       else sel.appendChild(opt);
     }
+    appendOperacaoLocacaoOptNovo(sel);
     sel.value = nc;
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
     refreshOperacaoLocacaoSubmitBtn();
@@ -25652,6 +25646,7 @@
     })
   );
 
+  window.refreshOperacaoLocacaoProtocoloPicker = refreshOperacaoLocacaoProtocoloPicker;
   window.__DK_emitPortalRelatorioPdf = emitPortalRelatorioPdf;
   window.__DK_getPortalRelatorioLocacaoContext = getPortalRelatorioLocacaoContext;
   window.__DK_sortPortalRelatorioRowsCadastro = sortPortalRelatorioRowsCadastro;

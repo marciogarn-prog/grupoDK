@@ -2557,6 +2557,10 @@ body.portal-body--admin-ceo {
 }
 
 /* Cadastro loca??o ? protocolo inativo: vermelho */
+#operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--novo {
+  color: #f8fafc;
+  font-weight: 700;
+}
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--inativo {
   color: #ff6b6b;
   font-weight: 600;

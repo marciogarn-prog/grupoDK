@@ -752,8 +752,10 @@ async function runSuite() {
         portalUiProto.includes("refreshOperacaoLocacaoProtocoloPicker({ force: true })") &&
         portalUiProto.includes("portal-locacao-proto-opt--ativo") &&
         portalUiProto.includes("portal-locacao-proto-opt--carro") &&
+        portalUiProto.includes("appendOperacaoLocacaoOptNovo") &&
+        portalUiProto.includes("portal-locacao-proto-opt--novo") &&
         cloudSyncJs.includes("__DK_portalRefreshOperacaoDeferred"),
-      "CPF + sync nuvem atualiza select"
+      "CPF + sync nuvem atualiza select; NOVO sempre visível"
     );
     const cssProto = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""

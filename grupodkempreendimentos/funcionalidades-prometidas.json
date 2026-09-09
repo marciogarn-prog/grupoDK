@@ -41,6 +41,25 @@
       }
     },
     {
+      "id": "locacao-picker-novo-protocolo",
+      "descricao": "No Cadastro de locação, a caixa PROTOCOLO mostra sempre a opção NOVO (NOVO — número ou NOVO — informe data de início), mesmo sem CPF preenchido. Não fica só em «Informe um CPF cadastrado».",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoProtocoloSelect",
+          "__PORTAL_PROTO_NOVO__",
+          "NOVO — (informe data de início)"
+        ],
+        "portal-locadora-ui.js": [
+          "appendOperacaoLocacaoOptNovo",
+          "portal-locacao-proto-opt--novo",
+          "NOVO — (informe data de início)"
+        ],
+        "styles.css": [
+          "portal-locacao-proto-opt--novo"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-layout-travado",
       "descricao": "No Lançamento de aluguel não há botão Editar layout; o layout customizado (absolute) fica desligado para não sobrepor caixas — fluxo normal da tela.",
       "ficheiros": {
