@@ -105,6 +105,17 @@
       }
     },
     {
+      "id": "pesquisa-protocolos-ativos-primeiro",
+      "descricao": "Na lista de pesquisa do Lançamento de aluguel (clique numa linha), os protocolos ativos ficam na parte de cima; os inativos em baixo. Dentro de cada grupo o protocolo mais recente vem primeiro. Depois de inativo continua a data fim.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "sortPortalPesquisaLinhasAtivoPrimeiro",
+          "contrato(s) — clique numa linha:",
+          "portal-lanc-pesquisa-linha__fim"
+        ]
+      }
+    },
+    {
       "id": "devolucao-data-limite-40d",
       "descricao": "No painel Registrar devolução de investimento: se há valor a devolver, DATA LIMITE e a data 40 dias corridos após o fim do contrato; se não há valor, NÃO EXISTE DEVOLUÇÃO.",
       "ficheiros": {

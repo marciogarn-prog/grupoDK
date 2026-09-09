@@ -16829,10 +16829,11 @@
     }
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
     const max = 40;
-    const slice = linhas.slice(0, max);
+    const ordenadas = sortPortalPesquisaLinhasAtivoPrimeiro(linhas);
+    const slice = ordenadas.slice(0, max);
     const item = tituloItem || "cadastro";
     const countLbl =
-      slice.length === linhas.length ? `${slice.length}` : `${slice.length} de ${linhas.length}`;
+      slice.length === ordenadas.length ? `${slice.length}` : `${slice.length} de ${ordenadas.length}`;
     panel.classList.remove("hidden");
     panel.removeAttribute("hidden");
     panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${countLbl} ${item}(s) — clique numa linha para confirmar:</p><ul class="portal-cliente-prefix-list__ul">${slice
@@ -20880,6 +20881,15 @@
     return Boolean(cpfPrefix.length || nomeKey.length >= 1 || protoQ.length || placaQ.length >= 3);
   }
 
+  function sortPortalPesquisaLinhasAtivoPrimeiro(linhas) {
+    return (linhas || []).slice().sort((a, b) => {
+      const aa = a?.ativo ? 1 : 0;
+      const ba = b?.ativo ? 1 : 0;
+      if (ba !== aa) return ba - aa;
+      return String(b?.proto || "").localeCompare(String(a?.proto || ""), "en");
+    });
+  }
+
   function renderOperacaoLancAluguelPesquisaLista(linhas) {
     const panel = document.getElementById("operacaoLancAluguelPesquisaLista");
     if (!panel) return;
@@ -20891,10 +20901,11 @@
       return;
     }
     const max = 40;
-    const slice = linhas.slice(0, max);
+    const ordenadas = sortPortalPesquisaLinhasAtivoPrimeiro(linhas);
+    const slice = ordenadas.slice(0, max);
     panel.classList.remove("hidden");
     panel.removeAttribute("hidden");
-    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === linhas.length ? slice.length : `${slice.length} de ${linhas.length}`} contrato(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
+    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === ordenadas.length ? slice.length : `${slice.length} de ${ordenadas.length}`} contrato(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
       .map((row) => {
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
@@ -25790,6 +25801,7 @@
   window.__DK_portalStampRegistradoPor = portalStampRegistradoPor;
   window.__DK_portalResolveResponsavelStamp = portalResolveResponsavelStamp;
   window.__DK_collectLancPesquisaLinhas = collectOperacaoLancAluguelPesquisaLinhas;
+  window.__DK_sortPortalPesquisaLinhasAtivoPrimeiro = sortPortalPesquisaLinhasAtivoPrimeiro;
   window.__DK_filterLancPesquisaLinhas = filterOperacaoLancAluguelPesquisaLinhas;
   window.__DK_portalPesquisaValoresFiltroPorOrigem = portalPesquisaValoresFiltroPorOrigem;
   window.__DK_resolveLancNomePorCpf = resolveOperacaoLancAluguelNomePorCpf;

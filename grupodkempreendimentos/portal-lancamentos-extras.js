@@ -958,10 +958,12 @@
       return;
     }
     const max = 40;
-    const slice = linhas.slice(0, max);
+    const sortFn = window.__DK_sortPortalPesquisaLinhasAtivoPrimeiro;
+    const ordenadas = typeof sortFn === "function" ? sortFn(linhas) : linhas;
+    const slice = ordenadas.slice(0, max);
     panel.classList.remove("hidden");
     panel.removeAttribute("hidden");
-    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === linhas.length ? slice.length : `${slice.length} de ${linhas.length}`} protocolo(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
+    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === ordenadas.length ? slice.length : `${slice.length} de ${ordenadas.length}`} protocolo(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice}
       .map((row) => {
         const placaLbl = row.placa ? ` · ${escHtml(row.placa)}` : "";
         const status = row.ativo ? "ativo" : "inativo";
