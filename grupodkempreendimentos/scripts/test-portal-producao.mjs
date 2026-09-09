@@ -169,18 +169,25 @@ async function runSuite() {
     );
     const htmlLancAluguel = await fetch(BASE_URL, { cache: "no-store" }).then((r) => r.text());
     record(
-      "submenu lançamento aluguel (avulso + relatórios 2.1/2.2/2.3)",
+      "submenu lançamento aluguel (avulso + relatórios 2.1/2.2/2.3/2.4/2.5)",
       htmlLancAluguel.includes("btn-lanc-aluguel-avulso") &&
         htmlLancAluguel.includes("btn-lanc-aluguel-rel-pag") &&
         htmlLancAluguel.includes("btn-lanc-aluguel-rel-dia") &&
         htmlLancAluguel.includes("btn-lanc-aluguel-rel-periodo") &&
         htmlLancAluguel.includes("btn-lanc-aluguel-rel-inad") &&
+        htmlLancAluguel.includes("btn-lanc-aluguel-rel-ceo") &&
+        htmlLancAluguel.includes("btn-lanc-aluguel-rel-cliente") &&
         htmlLancAluguel.includes("portalRelPagDiaData") &&
         htmlLancAluguel.includes("portalRelPagPeriodoInicio") &&
         htmlLancAluguel.includes("portalRelInadInicio") &&
+        htmlLancAluguel.includes("portalRelCeoInicio") &&
+        htmlLancAluguel.includes("portalRelClienteVidaBusca") &&
         htmlLancAluguel.includes("operacaoLancAluguelPaneRelDia") &&
         htmlLancAluguel.includes("operacaoLancAluguelPaneRelPeriodo") &&
         htmlLancAluguel.includes("operacaoLancAluguelPaneRelInadimplentes") &&
+        htmlLancAluguel.includes("operacaoLancAluguelPaneRelCeo") &&
+        htmlLancAluguel.includes("operacaoLancAluguelPaneRelCliente") &&
+        htmlLancAluguel.includes("O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS") &&
         /btn-lanc-aluguel-comprovante[^>]*hidden/.test(htmlLancAluguel) &&
         /btn-lanc-aluguel-validacao[^>]*hidden/.test(htmlLancAluguel) &&
         !/btn-lanc-aluguel-avulso[^>]*hidden/.test(htmlLancAluguel)
@@ -202,8 +209,13 @@ async function runSuite() {
         portalUiLancJs.includes('"rel-dia"') &&
         portalUiLancJs.includes('"rel-periodo"') &&
         portalUiLancJs.includes('"rel-inadimplentes"') &&
+        portalUiLancJs.includes('"rel-ceo"') &&
+        portalUiLancJs.includes('"rel-cliente"') &&
         portalUiLancJs.includes("collectPortalRelPagamentoAgregadoPorProtocolo") &&
         portalUiLancJs.includes("collectPortalRelInadimplentesPeriodo") &&
+        portalUiLancJs.includes("anexarPortalPagamentoAuditoria") &&
+        portalUiLancJs.includes("collectPortalRelClienteVida") &&
+        portalUiLancJs.includes('linha("Comentário", comentario)') &&
         portalUiLancJs.includes("buildPortalRelPagAggContext") &&
         portalUiLancJs.includes("buildPortalRelPagAggSummaryHtml") &&
         portalUiLancJs.includes("DK MEU TRANSPORTE-CARRO") &&

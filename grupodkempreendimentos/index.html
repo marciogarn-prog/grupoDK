@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260909recibo-img">
+  <link rel="stylesheet" href="styles.css?v=20260909recibo-com">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -626,7 +626,7 @@
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-rel-pag" aria-expanded="false" aria-controls="operacaoLancAluguelRelPagSubnav">
                   <span class="btn-operacao-cmd__title">2 — Relatório de pagamento</span>
-                  <span class="btn-operacao-cmd__hint">Por dia, por período ou quem não pagou</span>
+                  <span class="btn-operacao-cmd__hint">Por dia, período, inadimplentes, CEO ou por cliente</span>
                 </button>
                 <nav id="operacaoLancAluguelRelPagSubnav" class="portal-manutencao-subnav-nested operacao-lanc-aluguel-rel-subnav hidden" aria-label="Relatórios de pagamento" hidden>
                   <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-dia" data-lanc-aluguel-sub="rel-dia">
@@ -640,6 +640,14 @@
                   <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-inad" data-lanc-aluguel-sub="rel-inadimplentes">
                     <span class="btn-operacao-cmd__title">2.3 — Relação de clientes que não pagaram</span>
                     <span class="btn-operacao-cmd__hint">Em um período — dois calendários</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-ceo" data-lanc-aluguel-sub="rel-ceo">
+                    <span class="btn-operacao-cmd__title">2.4 — Intervenções CEO</span>
+                    <span class="btn-operacao-cmd__hint">O que o CEO lançou, apagou ou alterou</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-cliente" data-lanc-aluguel-sub="rel-cliente">
+                    <span class="btn-operacao-cmd__title">2.5 — Relatório de pagamento por cliente</span>
+                    <span class="btn-operacao-cmd__hint">Vida do cliente no sistema — separado por protocolo</span>
                   </button>
                 </nav>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub hidden" id="btn-lanc-aluguel-comprovante" data-lanc-aluguel-sub="comprovante" hidden aria-hidden="true" tabindex="-1">
@@ -1644,6 +1652,7 @@
                   <div class="portal-lanc-dual-cols">
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento" data-lanc-layout-box="pagamento">
                       <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
+                      <p id="operacaoLancAluguelCeoApagarAviso" class="portal-lanc-ceo-apagar-aviso">O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS</p>
                       <div class="portal-lanc-dual-col__grid">
                         <label class="portal-field portal-lanc-field--data">
                           <span>DATA DO PAGAMENTO</span>
@@ -1966,6 +1975,72 @@
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelCeo" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Intervenções do Administrador CEO">
+            <h4 class="portal-lanc-aluguel-section__title">2.4 — Intervenções CEO</h4>
+            <p class="subtext">O que o <strong>Administrador CEO</strong> <strong>lançou</strong>, <strong>apagou</strong> ou <strong>alterou</strong> nos pagamentos. Escolha o início e o fim — a lista atualiza na hora (pela data da intervenção).</p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Colunas: <strong>QUANDO — AÇÃO — PROTOCOLO — CLIENTE — DATA DO PAGAMENTO — VALOR — DETALHE</strong>
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>Data início</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelCeoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início das intervenções CEO" title="Clique para abrir o calendário">
+                </span>
+              </label>
+              <label class="portal-field">
+                <span>Data fim</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelCeoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim das intervenções CEO" title="Clique para abrir o calendário">
+                </span>
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary" id="portalRelCeoGerarBtn">Gerar relatório</button>
+            </div>
+            <div id="portalRelCeoKpis" class="portal-rel-pag-agg-kpis hidden" aria-live="polite"></div>
+            <p id="portalRelCeoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o período no calendário — os dados atualizam na hora.</p>
+            <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
+              <table class="fin-table portal-rel-pag-agg__table" id="portalRelCeoTable">
+                <thead>
+                  <tr>
+                    <th>Quando</th>
+                    <th>Ação</th>
+                    <th>Protocolo</th>
+                    <th>Cliente</th>
+                    <th>Data do pagamento</th>
+                    <th>Valor</th>
+                    <th>Detalhe</th>
+                  </tr>
+                </thead>
+                <tbody id="portalRelCeoBody">
+                  <tr><td colspan="7" class="subtext">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelCliente" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatório de pagamento por cliente">
+            <h4 class="portal-lanc-aluguel-section__title">2.5 — Relatório de pagamento por cliente</h4>
+            <p class="subtext">A <strong>vida do cliente</strong> no sistema: pesquise pelo nome ou CPF. Os contratos aparecem <strong>separados por protocolo</strong>, com todas as datas e valores pagos e o resumo na data de emissão do relatório.</p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Resumo de cada protocolo: <strong>VALOR DEVIDO SÓ DE ALUGUEL</strong> · <strong>VALOR DEVIDO DO PLANO</strong> · <strong>VALOR DE INVESTIMENTO</strong> · <strong>VALOR PAGO TOTAL</strong> · <strong>SALDO A DEVOLVER</strong> (pago − devido só de aluguel). Se o saldo for negativo, o nome vira <strong>VALOR EM ATRASO SÓ DE ALUGUEL</strong>.
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field portal-rel-cli-vida__busca">
+                <span>Pesquisar cliente (nome ou CPF)</span>
+                <input type="text" id="portalRelClienteVidaBusca" maxlength="80" autocomplete="off" placeholder="Nome ou CPF já cadastrado" aria-label="Pesquisar cliente para o relatório 2.5" aria-controls="portalRelClienteVidaSugestoes">
+              </label>
+            </div>
+            <div id="portalRelClienteVidaSugestoes" class="portal-cliente-prefix-list hidden" hidden role="listbox" aria-label="Clientes encontrados"></div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary" id="portalRelClienteVidaGerarBtn">Gerar relatório</button>
+            </div>
+            <div id="portalRelClienteVidaKpis" class="portal-rel-pag-agg-kpis hidden" aria-live="polite"></div>
+            <p id="portalRelClienteVidaResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Pesquise o cliente — a vida dele no sistema atualiza na hora.</p>
+            <div id="portalRelClienteVidaBody" class="portal-rel-cli-vida"></div>
           </div>
 
           <div id="operacaoLancAluguelPaneRelatorios" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatórios de pagamentos">
@@ -5115,7 +5190,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909hist-data-desc" defer></script>
-  <script src="app.js?v=20260909ativos-topo" defer></script>
+  <script src="app.js?v=20260909recibo-com" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5125,7 +5200,7 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260909ativos-topo" defer></script>
+  <script src="portal-locadora-ui.js?v=20260909recibo-com" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260908excel-dt"></script>

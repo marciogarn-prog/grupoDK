@@ -234,6 +234,59 @@
       }
     },
     {
+      "id": "lanc-aluguel-ceo-pode-apagar-aviso",
+      "descricao": "Junto de Registrar pagamento no Lançamento de aluguel aparece a informação: O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancAluguelCeoApagarAviso",
+          "O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS"
+        ]
+      }
+    },
+    {
+      "id": "lanc-aluguel-relatorio-2-4-intervencoes-ceo",
+      "descricao": "Em Lançamento de aluguel: 2.4 Intervenções CEO lista o que o Administrador CEO lançou, apagou ou alterou nos pagamentos, com dois calendários (data da intervenção). Atualiza ao mudar as datas.",
+      "ficheiros": {
+        "index.html": [
+          "btn-lanc-aluguel-rel-ceo",
+          "operacaoLancAluguelPaneRelCeo",
+          "portalRelCeoInicio",
+          "portalRelCeoFim",
+          "2.4 — Intervenções CEO",
+          "rel-ceo"
+        ],
+        "portal-locadora-ui.js": [
+          "anexarPortalPagamentoAuditoria",
+          "collectPortalRelIntervencoesCeo",
+          "atualizarPortalRelCeoTela",
+          "tentarAtualizarPortalRelCeoAoMudarData",
+          "rel-ceo"
+        ]
+      }
+    },
+    {
+      "id": "lanc-aluguel-relatorio-2-5-por-cliente",
+      "descricao": "Em Lançamento de aluguel: 2.5 Relatório de pagamento por cliente mostra a vida do cliente no sistema, separado por protocolo, com todas as datas e valores pagos. Resumo no dia de emissão: valor devido só de aluguel, valor devido do plano, valor de investimento, valor pago total e saldo a devolver (pago − devido só de aluguel). Se o saldo for negativo, o nome vira VALOR EM ATRASO SÓ DE ALUGUEL.",
+      "ficheiros": {
+        "index.html": [
+          "btn-lanc-aluguel-rel-cliente",
+          "operacaoLancAluguelPaneRelCliente",
+          "portalRelClienteVidaBusca",
+          "2.5 — Relatório de pagamento por cliente",
+          "VALOR EM ATRASO SÓ DE ALUGUEL",
+          "rel-cliente"
+        ],
+        "portal-locadora-ui.js": [
+          "collectPortalRelClienteVida",
+          "computePortalRelClienteVidaResumoNum",
+          "atualizarPortalRelClienteVidaTela",
+          "VALOR DEVIDO SÓ DE ALUGUEL",
+          "saldoLabel",
+          "rel-cliente"
+        ]
+      }
+    },
+    {
       "id": "controle-estoque-area-equipa",
       "descricao": "Na Área da equipa existe o botão Controle de Estoque, entre Operação e Manutenção. Abre o painel com Cadastro de material, Estoque, Saída e Entrada; o controlo dos itens é pelo código de barras.",
       "ficheiros": {
@@ -1780,7 +1833,8 @@
           "Valor total já pago até",
           "wa.me/",
           "omitirFormaPagamento",
-          "portalFormatOperadorNomeXxx"
+          "portalFormatOperadorNomeXxx",
+          "linha(\"Comentário\", comentario)"
         ],
         "styles.css": [
           "portal-recibo-doc",

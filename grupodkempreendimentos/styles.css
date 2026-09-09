@@ -3066,6 +3066,114 @@ body.portal-body--admin-ceo {
   letter-spacing: 0.02em;
 }
 
+.portal-lanc-ceo-apagar-aviso {
+  margin: 0 0 0.7rem;
+  padding: 0.48rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 197, 24, 0.55);
+  background: rgba(245, 197, 24, 0.12);
+  color: #f5c518;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.portal-rel-ceo-acao--lancado {
+  color: #86efac;
+  font-weight: 700;
+}
+
+.portal-rel-ceo-acao--apagado {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.portal-rel-ceo-acao--alterado {
+  color: #f5c518;
+  font-weight: 700;
+}
+
+.portal-rel-cli-vida {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-top: 0.65rem;
+}
+
+.portal-rel-cli-vida__busca {
+  max-width: 36rem;
+}
+
+.portal-rel-cli-vida__card {
+  border: 1px solid rgba(220, 38, 38, 0.38);
+  border-radius: 10px;
+  background: rgba(8, 10, 14, 0.55);
+  padding: 0.85rem 0.95rem 1rem;
+}
+
+.portal-rel-cli-vida__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+}
+
+.portal-rel-cli-vida__card-head strong {
+  color: #fff;
+}
+
+.portal-rel-cli-vida__card-head .portal-rel-cli-vida__status--ativo {
+  color: #86efac;
+}
+
+.portal-rel-cli-vida__card-head .portal-rel-cli-vida__status--inativo {
+  color: #f5c518;
+}
+
+.portal-rel-cli-vida__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+  gap: 0.45rem;
+  margin: 0.7rem 0 0;
+}
+
+.portal-rel-cli-vida__kpi {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.portal-rel-cli-vida__kpi span {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  color: #c4c8d0;
+  margin-bottom: 0.15rem;
+}
+
+.portal-rel-cli-vida__kpi strong {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.portal-rel-cli-vida__kpi--atraso strong {
+  color: #f87171;
+}
+
+.portal-rel-cli-vida__kpi--devolver strong {
+  color: #93c5fd;
+}
+
+.portal-rel-cli-vida__vazio {
+  color: #9aa0aa;
+  margin: 0.4rem 0 0;
+}
+
 .portal-lanc-aluguel-section__hint {
   margin: 0 0 0.75rem;
 }
@@ -3691,6 +3799,8 @@ body.portal-body--admin-ceo {
 .portal-recibo-doc__linha dd {
   margin: 0;
   font-weight: 700;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .portal-recibo-doc__texto {
   margin: 0.65rem 0 0;

@@ -11713,7 +11713,9 @@
         context.qtdClientes || 0
       } cliente(s) ${label} · Soma: ${tot}. Exportar em PDF ou Excel.`;
     } else if (
-      (context.fileSlug === "relatorio-cliente-protocolos" || context.fileSlug === "relatorio-placa-protocolos") &&
+      (context.fileSlug === "relatorio-cliente-protocolos" ||
+        context.fileSlug === "relatorio-placa-protocolos" ||
+        context.fileSlug === "relatorio-pagamento-por-cliente") &&
       context.stats
     ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
@@ -13164,6 +13166,8 @@
     let texto = `Recebemos de "${nome}" CPF "${cpf}" a importância de "${fmtMoney(total)} (${extTotal})" no dia "${dia}"`;
     if (p.omitirFormaPagamento) {
       texto += ".";
+      const coment = String(p.comentario || "").trim();
+      if (coment) texto += ` Comentário: "${coment}".`;
       return texto;
     }
     if (discriminadas.length >= 2) {
@@ -13218,6 +13222,7 @@
     const linha = (lab, val) =>
       `<div class="portal-recibo-doc__linha"><dt>${esc(lab)}</dt><dd>${esc(val)}</dd></div>`;
     const dataBr = String(p.dataPagamentoBr || "").trim() || "—";
+    const comentario = String(p.comentario || "").trim() || "—";
     return `<div class="portal-recibo-doc">
       <p class="portal-recibo-doc__marca">Grupo DK Empreendimentos — DK Locadora</p>
       <dl class="portal-recibo-doc__lista">
@@ -13228,6 +13233,7 @@
         ${p.cpfExib ? linha("CPF", p.cpfExib) : ""}
         ${p.protocolo ? linha("Protocolo", p.protocolo) : ""}
         ${p.placa ? linha("Placa", p.placa) : ""}
+        ${linha("Comentário", comentario)}
         ${linha(`Valor total já pago até ${dataBr}`, fmt(p.totalPagoAteDataNum))}
       </dl>
       <p class="portal-recibo-doc__texto">${esc(portalMontarTextoReciboPagamentoAluguel(p))}</p>
@@ -13437,6 +13443,7 @@
       placa,
       celularWa,
       omitirFormaPagamento: true,
+      comentario: String(opts?.comentario || "").trim(),
       partes: [{ valor, tipo: "—", tipoOrder: 0 }],
     });
   }
@@ -13507,6 +13514,7 @@
       operadorNome: row.registradoPorNome,
       operadorCpf: row.registradoPorCpf,
       operadorDoLancamento: true,
+      comentario: String(row.comentarioPagamento || row.comentario || "").trim(),
     });
   }
 
@@ -14255,6 +14263,9 @@
     }
     if (slug === "relatorio-placa-protocolos") {
       return getPortalRelatorioPlacaProtocolosContext(anchor.relatorioPlacaNorm);
+    }
+    if (slug === "relatorio-pagamento-por-cliente") {
+      return buildPortalRelClienteVidaContext(anchor.relatorioClienteCpfDigits);
     }
     return anchor;
   }
@@ -15342,6 +15353,690 @@
     });
   });
 
+  function portalCpfEhCeoTitular(cpf) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    return dig(String(cpf || "")).slice(0, 11) === DK_LOCADORA_ADMIN_CPF;
+  }
+
+  function portalRelCeoAcaoMeta(acao) {
+    const a = String(acao || "").trim().toLowerCase();
+    if (a === "apagado") return { lab: "APAGADO", cls: "portal-rel-ceo-acao--apagado" };
+    if (a === "alterado") return { lab: "ALTERADO", cls: "portal-rel-ceo-acao--alterado" };
+    return { lab: "LANÇADO", cls: "portal-rel-ceo-acao--lancado" };
+  }
+
+  function collectPortalRelIntervencoesCeo(inicioBr, fimBr) {
+    const fmtBrl = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const sIn = String(inicioBr || "").trim();
+    const sFi = String(fimBr || "").trim();
+    const empty = {
+      ok: false,
+      rows: [],
+      qtdLancado: 0,
+      qtdApagado: 0,
+      qtdAlterado: 0,
+      fmtBrl,
+      inicioFmt: sIn,
+      fimFmt: sFi,
+    };
+    const faixa = portalRelInadPeriodoMs(inicioBr, fimBr);
+    if (!faixa) return empty;
+    const { startMs, endMs, inicioFmt, fimFmt } = faixa;
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
+    const dig =
+      typeof onlyDigits === "function"
+        ? (x) => onlyDigits(String(x || ""))
+        : (x) => String(x || "").replace(/\D/g, "");
+    const seen = new Set();
+    const rows = [];
+    const pushRow = (r) => {
+      const key = [r.acao, r.protocoloLancamento, r.at, r.numeroContrato, r.valor, r.detalhe].join("|");
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push(r);
+    };
+    for (const loc of locs || []) {
+      if (isGhost(loc)) continue;
+      const proto = normPortalNumeroContrato(loc.numeroContrato || "");
+      if (!proto) continue;
+      const cpfCliente = dig(loc.cpf).slice(0, 11);
+      let nome = String(loc.nome || loc.cliente || "").trim();
+      if (!nome && cpfCliente.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        nome = String(findClienteByCpfCadastro(cpfCliente)?.nome || "").trim();
+      }
+      const audits = Array.isArray(loc.portalPagamentosAuditoria) ? loc.portalPagamentosAuditoria : [];
+      const auditedLancado = new Set();
+      for (const ev of audits) {
+        if (!ev || typeof ev !== "object") continue;
+        if (!portalCpfEhCeoTitular(ev.operadorCpf)) continue;
+        const acao = String(ev.acao || "").trim().toLowerCase();
+        if (acao !== "lancado" && acao !== "apagado" && acao !== "alterado") continue;
+        const at = Number(ev.at || ev.createdAt || 0);
+        if (!at || at < startMs || at > endMs) continue;
+        const protoLanc = String(ev.protocoloLancamento || "").trim();
+        if (acao === "lancado" && protoLanc) auditedLancado.add(protoLanc);
+        pushRow({
+          at,
+          acao,
+          numeroContrato: String(ev.numeroContrato || proto).trim() || proto,
+          nome: nome || "—",
+          protocoloLancamento: protoLanc,
+          dataPagamento: String(ev.dataPagamento || ev.data || "").trim() || "—",
+          valor: Number(ev.valor) || 0,
+          detalhe: String(ev.detalhe || "").trim(),
+        });
+      }
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+      for (const lan of lancs) {
+        if (!portalCpfEhCeoTitular(lan?.registradoPorCpf)) continue;
+        const protoLanc = portalProtocoloLancamentoKey(lan);
+        if (protoLanc && auditedLancado.has(protoLanc)) continue;
+        const at = Number(lan.createdAt || 0);
+        if (!at || at < startMs || at > endMs) continue;
+        pushRow({
+          at,
+          acao: "lancado",
+          numeroContrato: proto,
+          nome: nome || "—",
+          protocoloLancamento: protoLanc,
+          dataPagamento: String(lan.data || "").trim() || "—",
+          valor: Number(lan.valor) || 0,
+          detalhe: "",
+        });
+      }
+    }
+    rows.sort((a, b) => Number(b.at || 0) - Number(a.at || 0));
+    return {
+      ok: true,
+      rows,
+      qtdLancado: rows.filter((r) => r.acao === "lancado").length,
+      qtdApagado: rows.filter((r) => r.acao === "apagado").length,
+      qtdAlterado: rows.filter((r) => r.acao === "alterado").length,
+      fmtBrl,
+      inicioFmt,
+      fimFmt,
+    };
+  }
+
+  function buildPortalRelIntervencoesCeoContext(inicioBr, fimBr) {
+    const agg = collectPortalRelIntervencoesCeo(inicioBr, fimBr);
+    const title = "2.4 — Intervenções CEO";
+    const periodoLabel = `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
+    const headers = [
+      "Quando",
+      "Ação",
+      "Protocolo",
+      "Cliente",
+      "Data do pagamento",
+      "Valor",
+      "Detalhe",
+    ];
+    const rows = agg.rows.map((r) => [
+      formatPortalDataHoraLancamentoMs(r.at),
+      portalRelCeoAcaoMeta(r.acao).lab,
+      r.numeroContrato || "—",
+      r.nome || "—",
+      r.dataPagamento || "—",
+      agg.fmtBrl(r.valor),
+      r.detalhe || "—",
+    ]);
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const summaryHtml = agg.ok
+      ? `<div class="portal-rel-resumo" role="region" aria-label="Resumo do relatório">
+      <h2>Resumo</h2>
+      <p>1 — Intervenções: <strong>${eh(String(rows.length))}</strong></p>
+      <p>2 — Lançados: <strong>${eh(String(agg.qtdLancado || 0))}</strong></p>
+      <p>3 — Apagados: <strong>${eh(String(agg.qtdApagado || 0))}</strong></p>
+      <p>4 — Alterados: <strong>${eh(String(agg.qtdAlterado || 0))}</strong></p>
+      <p>5 — Período: <strong>${eh(periodoLabel)}</strong></p>
+    </div>`
+      : "";
+    const previewHtml = agg.ok
+      ? buildPortalRelatorioHtml(title, headers, rows, {
+          headerSubtitleLines: [`Período da intervenção: ${periodoLabel}`],
+          summaryHtml,
+        })
+      : "";
+    return {
+      title,
+      fileSlug: "intervencoes-ceo",
+      headers,
+      rows,
+      textColumns: [0, 1, 2, 3, 4, 6],
+      preserveRowOrder: true,
+      rawRows: agg.rows,
+      qtdLancado: agg.qtdLancado,
+      qtdApagado: agg.qtdApagado,
+      qtdAlterado: agg.qtdAlterado,
+      ok: agg.ok,
+      periodoLabel,
+      summaryHtml,
+      previewHtml,
+      headerSubtitleLines: [`Período da intervenção: ${periodoLabel}`],
+      excelMetaPairs: [
+        ["Período", periodoLabel],
+        ["Intervenções", String(rows.length)],
+        ["Lançados", String(agg.qtdLancado || 0)],
+        ["Apagados", String(agg.qtdApagado || 0)],
+        ["Alterados", String(agg.qtdAlterado || 0)],
+        ["Ordenação", "Data da intervenção (mais recente → mais antiga)"],
+      ],
+      stats: {
+        protocolos: rows.length,
+        clientes: new Set(agg.rows.map((r) => r.nome).filter(Boolean)).size,
+      },
+    };
+  }
+
+  function renderPortalRelCeoKpis(ctx) {
+    const box = document.getElementById("portalRelCeoKpis");
+    if (!box) return;
+    if (!ctx?.ok || !ctx.rows?.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="portal-rel-pag-agg-kpis__grid" role="list">
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">1 — Intervenções</span>
+          <strong>${portalEscapeHtml(String(ctx.rows.length))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">2 — Lançados</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdLancado || 0))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">3 — Apagados</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdApagado || 0))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">4 — Alterados</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdAlterado || 0))}</strong>
+        </div>
+      </div>`;
+  }
+
+  function renderPortalRelCeoTela(ctx) {
+    const body = document.getElementById("portalRelCeoBody");
+    const resumo = document.getElementById("portalRelCeoResumo");
+    if (!ctx?.ok) {
+      if (body) body.innerHTML = `<tr><td colspan="7" class="subtext">Informe data de início e data de fim no formato DD/MM/AAAA.</td></tr>`;
+      if (resumo) resumo.textContent = "Datas inválidas.";
+      renderPortalRelCeoKpis(ctx);
+      return;
+    }
+    if (!ctx.rows.length) {
+      if (body) {
+        body.innerHTML = `<tr><td colspan="7" class="subtext">Nenhuma intervenção do CEO neste período.</td></tr>`;
+      }
+      if (resumo) resumo.textContent = `Período ${ctx.periodoLabel}: nenhuma intervenção do CEO.`;
+      renderPortalRelCeoKpis(ctx);
+      return;
+    }
+    if (body) {
+      body.innerHTML = ctx.rows
+        .map((row, ri) => {
+          const raw = ctx.rawRows?.[ri];
+          const meta = portalRelCeoAcaoMeta(raw?.acao || row[1]);
+          return `<tr>
+            <td>${portalEscapeHtml(String(row[0] || ""))}</td>
+            <td class="${meta.cls}">${portalEscapeHtml(String(row[1] || ""))}</td>
+            <td>${portalEscapeHtml(String(row[2] || ""))}</td>
+            <td>${portalEscapeHtml(String(row[3] || ""))}</td>
+            <td>${portalEscapeHtml(String(row[4] || ""))}</td>
+            <td>${portalEscapeHtml(String(row[5] || ""))}</td>
+            <td>${portalEscapeHtml(String(row[6] || ""))}</td>
+          </tr>`;
+        })
+        .join("");
+    }
+    if (resumo) {
+      resumo.textContent = `${ctx.rows.length} intervenção(ões) · ${ctx.qtdLancado || 0} lançado(s) · ${
+        ctx.qtdApagado || 0
+      } apagado(s) · ${ctx.qtdAlterado || 0} alterado(s) · Período: ${ctx.periodoLabel}`;
+    }
+    renderPortalRelCeoKpis(ctx);
+  }
+
+  function atualizarPortalRelCeoTela(opts = {}) {
+    const abrirModal = opts.abrirModal === true;
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const inicio = String(document.getElementById("portalRelCeoInicio")?.value || "").trim();
+    const fim = String(document.getElementById("portalRelCeoFim")?.value || "").trim();
+    if (!inicio || !fim) {
+      if (abrirModal && msg) msg.textContent = "Informe a data de início e a data de fim (DD/MM/AAAA).";
+      renderPortalRelCeoTela({ ok: false, rows: [] });
+      return null;
+    }
+    const ctx = buildPortalRelIntervencoesCeoContext(inicio, fim);
+    renderPortalRelCeoTela(ctx);
+    if (!ctx.ok) {
+      if (abrirModal && msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
+      return ctx;
+    }
+    if (msg) {
+      msg.textContent = ctx.rows.length
+        ? `${ctx.title}: ${ctx.rows.length} intervenção(ões) do CEO.`
+        : `${ctx.title}: nenhuma intervenção no período.`;
+    }
+    if (abrirModal) openPortalRelatorioModal(ctx);
+    return ctx;
+  }
+
+  function tentarAtualizarPortalRelCeoAoMudarData() {
+    const a = String(document.getElementById("portalRelCeoInicio")?.value || "").trim();
+    const b = String(document.getElementById("portalRelCeoFim")?.value || "").trim();
+    if (!dataBrRelPagValida(a) || !dataBrRelPagValida(b)) return;
+    atualizarPortalRelCeoTela();
+  }
+
+  document.getElementById("portalRelCeoGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    atualizarPortalRelCeoTela({ abrirModal: true });
+  });
+  ["input", "change"].forEach((evName) => {
+    document.getElementById("portalRelCeoInicio")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelCeoAoMudarData();
+    });
+    document.getElementById("portalRelCeoFim")?.addEventListener(evName, () => {
+      tentarAtualizarPortalRelCeoAoMudarData();
+    });
+  });
+
+  let portalRelClienteVidaCpfSel = "";
+
+  function portalRelClienteVidaFmtBrl(n) {
+    return typeof currencyBRL === "function"
+      ? currencyBRL(Number(n || 0))
+      : Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  /** Resumo do protocolo no dia de emissão: devido aluguel, plano, investimento, pago e saldo. */
+  function computePortalRelClienteVidaResumoNum(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? (v) => Number(parseCurrencyBR(String(v ?? "")))
+        : (v) => Number(parsePortalLancamentoValorRaw(v));
+    const valLoc = portalValorAluguelNumFromLoc(loc);
+    const valInv = parseCur(loc?.valorInvestimento ?? "0");
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
+    const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
+    const dias = computePortalDiasAteHoje(loc);
+    const devidoAluguel = dias * (Number(valLoc) / 7);
+    const devidoPlano = dias * (Number(plano) / 7);
+    const investimento = dias * (Number(valInv) / 7);
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+    const pago = sumPortalLancamentosAluguelTotal(lancs);
+    const saldo = Number(pago || 0) - Number(devidoAluguel || 0);
+    const negativo = Number.isFinite(saldo) && saldo < -0.009;
+    return {
+      devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
+      devidoPlano: Number.isFinite(devidoPlano) ? devidoPlano : 0,
+      investimento: Number.isFinite(investimento) ? investimento : 0,
+      pago: Number.isFinite(pago) ? pago : 0,
+      saldo: Number.isFinite(saldo) ? saldo : 0,
+      negativo,
+      saldoLabel: negativo ? "VALOR EM ATRASO SÓ DE ALUGUEL" : "SALDO A DEVOLVER",
+    };
+  }
+
+  function collectPortalRelClienteVida(cpfDigitsRaw) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigitsRaw || "")).slice(0, 11);
+    const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const plateExib = (p) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(p || "")) || "—"
+        : String(p || "").trim() || "—";
+    let nome = "";
+    if (cpf.length === 11 && typeof findClienteByCpfCadastro === "function") {
+      nome = String(findClienteByCpfCadastro(cpf)?.nome || "").trim();
+    }
+    const empty = {
+      ok: false,
+      cpf,
+      cpfExib: cpf.length === 11 ? fmtCpf(cpf) : "—",
+      nome: nome || "—",
+      emitidoEm: formatPortalDataBr(new Date()),
+      sections: [],
+    };
+    if (cpf.length !== 11) return empty;
+    const locs = sortPortalLocacoesPorProtocoloAsc(collectPortalLocacoesComProtocoloByCpf(cpf));
+    const sections = locs.map((loc) => {
+      const proto = normPortalNumeroContrato(loc.numeroContrato || "") || "—";
+      if (!nome) nome = String(loc.nome || loc.cliente || "").trim();
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
+        .slice()
+        .sort((a, b) => {
+          const da = parseD(String(a.data || ""));
+          const db = parseD(String(b.data || ""));
+          const ta = da && !Number.isNaN(da.getTime()) ? da.getTime() : 0;
+          const tb = db && !Number.isNaN(db.getTime()) ? db.getTime() : 0;
+          if (ta !== tb) return ta - tb;
+          return Number(a.createdAt || 0) - Number(b.createdAt || 0);
+        });
+      const pagamentos = lancs.filter((lan) => !portalLancamentoEhDevolucaoInvestimento(lan));
+      const cancelada = isPortalLocacaoCancelada(loc);
+      const ativa = !cancelada && isPortalLocacaoAtiva(loc);
+      return {
+        proto,
+        placa: plateExib(loc.placa),
+        inicio: String(loc.inicio || loc.dataInicio || "").trim() || "—",
+        fim: String(loc.fim || loc.dataFim || loc.dataFinalizacao || "").trim() || "—",
+        status: cancelada ? "cancelado" : ativa ? "ativo" : "inativo",
+        pagamentos,
+        resumo: computePortalRelClienteVidaResumoNum(loc),
+      };
+    });
+    return {
+      ok: true,
+      cpf,
+      cpfExib: fmtCpf(cpf),
+      nome: nome || "—",
+      emitidoEm: formatPortalDataBr(new Date()),
+      sections,
+    };
+  }
+
+  function buildPortalRelClienteVidaContext(cpfDigitsRaw) {
+    const agg = collectPortalRelClienteVida(cpfDigitsRaw);
+    const title = "2.5 — Relatório de pagamento por cliente";
+    const qtdPag = agg.sections.reduce((s, sec) => s + (sec.pagamentos?.length || 0), 0);
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const fmt = portalRelClienteVidaFmtBrl;
+    const emptyMsg = agg.ok
+      ? "Nenhuma locação com protocolo encontrada para este cliente."
+      : "Informe um cliente (nome ou CPF) já cadastrado.";
+    const buildPdf = () => {
+      let body = "";
+      if (!agg.sections.length) {
+        body = `<p class="meta">${eh(emptyMsg)}</p>`;
+      }
+      for (const sec of agg.sections) {
+        const r = sec.resumo;
+        body += `<h2>${eh(`Protocolo ${sec.proto} · Placa ${sec.placa} · ${String(sec.status).toUpperCase()}`)}</h2>`;
+        body += `<p class="meta">${eh(`Início: ${sec.inicio} · Fim: ${sec.fim}`)}</p>`;
+        body += `<p class="meta">${eh("Pagamentos do protocolo")}</p>`;
+        body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
+        if (!sec.pagamentos.length) {
+          body += `<tr><td colspan="2">${eh("Nenhum pagamento registado neste protocolo.")}</td></tr>`;
+        } else {
+          for (const lan of sec.pagamentos) {
+            body += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td></tr>`;
+          }
+        }
+        body += `</tbody></table>`;
+        body += `<p class="sum-title">${eh("Resumo do protocolo")} · ${eh(`valores no dia ${agg.emitidoEm}`)}</p>`;
+        body += `<table class="resumo"><tbody>`;
+        const pares = [
+          ["VALOR DEVIDO SÓ DE ALUGUEL", fmt(r.devidoAluguel)],
+          ["VALOR DEVIDO DO PLANO", fmt(r.devidoPlano)],
+          ["VALOR DE INVESTIMENTO", fmt(r.investimento)],
+          ["VALOR PAGO TOTAL", fmt(r.pago)],
+          [r.saldoLabel, formatPortalSaldoDevolucaoBrl(r.saldo)],
+        ];
+        for (const [lbl, val] of pares) {
+          const neg = r.negativo && lbl === r.saldoLabel ? ' class="neg"' : "";
+          body += `<tr><td><span class="lbl">${eh(lbl)}</span><br /><span class="val"${neg}>${eh(val)}</span></td></tr>`;
+        }
+        body += `</tbody></table><hr />`;
+      }
+      return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
+        body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+        h1{font-size:1.05rem;margin:0 0 0.35rem}
+        h2{font-size:0.95rem;margin:1rem 0 0.35rem}
+        .meta{color:#444;margin:0.2rem 0;font-size:11px}
+        table{width:100%;border-collapse:collapse;margin:0.35rem 0 0.7rem}
+        th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+        th{background:#eee}
+        .sum-title{font-weight:700;margin:0.7rem 0 0.25rem;text-transform:uppercase;font-size:11px}
+        table.resumo td{background:#f7f7f7}
+        .lbl{font-size:10px;color:#444;font-weight:700}
+        .val{font-size:13px;font-weight:700}
+        .neg{color:#c62828}
+        hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
+      </style></head><body>
+        <h1>${eh(title)}</h1>
+        <p class="meta">${eh(`Cliente: ${agg.nome}`)} · ${eh(`CPF: ${agg.cpfExib}`)}</p>
+        <p class="meta">${eh(`Emitido em ${agg.emitidoEm}`)} · ${eh(`${agg.sections.length} protocolo(s), ${qtdPag} pagamento(s)`)}</p>
+        ${body}
+      </body></html>`;
+    };
+    const buildExcel = () => {
+      let html = `<html><head><meta charset="utf-8"></head><body><h1>${eh(title)}</h1>`;
+      html += `<p>Cliente: ${eh(agg.nome)} · CPF: ${eh(agg.cpfExib)} · Emitido em: ${eh(agg.emitidoEm)}</p>`;
+      if (!agg.sections.length) html += `<p>${eh(emptyMsg)}</p>`;
+      for (const sec of agg.sections) {
+        const r = sec.resumo;
+        html += `<h2>Protocolo ${eh(sec.proto)} · Placa ${eh(sec.placa)}</h2>`;
+        html += `<table border="1"><thead><tr><th>Data do pagamento</th><th>Valor</th></tr></thead><tbody>`;
+        if (!sec.pagamentos.length) {
+          html += `<tr><td colspan="2">Nenhum pagamento</td></tr>`;
+        } else {
+          for (const lan of sec.pagamentos) {
+            html += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td></tr>`;
+          }
+        }
+        html += `</tbody></table>`;
+        html += `<table border="1"><tbody>`;
+        html += `<tr><td>VALOR DEVIDO SÓ DE ALUGUEL</td><td>${eh(fmt(r.devidoAluguel))}</td></tr>`;
+        html += `<tr><td>VALOR DEVIDO DO PLANO</td><td>${eh(fmt(r.devidoPlano))}</td></tr>`;
+        html += `<tr><td>VALOR DE INVESTIMENTO</td><td>${eh(fmt(r.investimento))}</td></tr>`;
+        html += `<tr><td>VALOR PAGO TOTAL</td><td>${eh(fmt(r.pago))}</td></tr>`;
+        html += `<tr><td>${eh(r.saldoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldo))}</td></tr>`;
+        html += `</tbody></table>`;
+      }
+      html += `</body></html>`;
+      return html;
+    };
+    return {
+      title,
+      fileSlug: "relatorio-pagamento-por-cliente",
+      relatorioClienteCpfDigits: agg.cpf,
+      headers: ["Data do pagamento", "Valor"],
+      rows: [],
+      ok: agg.ok,
+      stats: { protocolos: agg.sections.length, pagamentos: qtdPag },
+      headerSubtitleLines: [`Cliente: ${agg.nome}`, `CPF: ${agg.cpfExib}`, `Emitido em: ${agg.emitidoEm}`],
+      sections: agg.sections,
+      nome: agg.nome,
+      cpfExib: agg.cpfExib,
+      emitidoEm: agg.emitidoEm,
+      previewHtml: "",
+      buildPdfHtml: buildPdf,
+      buildExcelHtml: buildExcel,
+    };
+  }
+
+  function renderPortalRelClienteVidaTela(ctx) {
+    const body = document.getElementById("portalRelClienteVidaBody");
+    const resumo = document.getElementById("portalRelClienteVidaResumo");
+    const kpis = document.getElementById("portalRelClienteVidaKpis");
+    if (!ctx?.ok) {
+      if (body) body.innerHTML = "";
+      if (resumo) resumo.textContent = "Pesquise o cliente pelo nome ou CPF — a vida dele no sistema atualiza na hora.";
+      if (kpis) {
+        kpis.classList.add("hidden");
+        kpis.innerHTML = "";
+      }
+      return;
+    }
+    const fmt = portalRelClienteVidaFmtBrl;
+    if (kpis) {
+      kpis.classList.remove("hidden");
+      kpis.innerHTML = `
+        <div class="portal-rel-pag-agg-kpis__grid" role="list">
+          <div class="portal-rel-pag-agg-kpi" role="listitem">
+            <span class="portal-rel-pag-agg-kpi__lab">Cliente</span>
+            <strong>${portalEscapeHtml(ctx.nome || "—")}</strong>
+          </div>
+          <div class="portal-rel-pag-agg-kpi" role="listitem">
+            <span class="portal-rel-pag-agg-kpi__lab">Protocolos</span>
+            <strong>${portalEscapeHtml(String(ctx.stats?.protocolos || 0))}</strong>
+          </div>
+          <div class="portal-rel-pag-agg-kpi" role="listitem">
+            <span class="portal-rel-pag-agg-kpi__lab">Pagamentos</span>
+            <strong>${portalEscapeHtml(String(ctx.stats?.pagamentos || 0))}</strong>
+          </div>
+        </div>`;
+    }
+    if (!ctx.sections.length) {
+      if (body) body.innerHTML = `<p class="portal-rel-cli-vida__vazio">Nenhuma locação com protocolo para este cliente.</p>`;
+      if (resumo) resumo.textContent = `${ctx.nome} · ${ctx.cpfExib}: nenhum protocolo.`;
+      return;
+    }
+    if (resumo) {
+      resumo.textContent = `${ctx.nome} · ${ctx.cpfExib} · ${ctx.stats.protocolos} protocolo(s) · ${ctx.stats.pagamentos} pagamento(s) · valores do dia ${ctx.emitidoEm}`;
+    }
+    if (body) {
+      body.innerHTML = ctx.sections
+        .map((sec) => {
+          const r = sec.resumo;
+          const statusCls =
+            sec.status === "ativo" ? "portal-rel-cli-vida__status--ativo" : "portal-rel-cli-vida__status--inativo";
+          const saldoCls = r.negativo ? "portal-rel-cli-vida__kpi--atraso" : "portal-rel-cli-vida__kpi--devolver";
+          const pagRows = sec.pagamentos.length
+            ? sec.pagamentos
+                .map(
+                  (lan) =>
+                    `<tr><td>${portalEscapeHtml(String(lan.data || "—"))}</td><td>${portalEscapeHtml(fmt(lan.valor))}</td></tr>`
+                )
+                .join("")
+            : `<tr><td colspan="2" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
+          return `<article class="portal-rel-cli-vida__card">
+            <p class="portal-rel-cli-vida__card-head">
+              <strong>Protocolo ${portalEscapeHtml(sec.proto)}</strong>
+              <span>Placa ${portalEscapeHtml(sec.placa)}</span>
+              <span>Início ${portalEscapeHtml(sec.inicio)}</span>
+              <span>Fim ${portalEscapeHtml(sec.fim)}</span>
+              <span class="${statusCls}">${portalEscapeHtml(String(sec.status).toUpperCase())}</span>
+            </p>
+            <div class="fin-table-wrap">
+              <table class="fin-table portal-rel-pag-agg__table">
+                <thead><tr><th>Data do pagamento</th><th>Valor</th></tr></thead>
+                <tbody>${pagRows}</tbody>
+              </table>
+            </div>
+            <div class="portal-rel-cli-vida__kpis" role="list">
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DEVIDO SÓ DE ALUGUEL</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DEVIDO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.devidoPlano))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DE INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.investimento))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO TOTAL</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
+            </div>
+          </article>`;
+        })
+        .join("");
+    }
+  }
+
+  function atualizarPortalRelClienteVidaTela(opts = {}) {
+    const abrirModal = opts.abrirModal === true;
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const cpf = String(opts.cpf || portalRelClienteVidaCpfSel || "").replace(/\D/g, "").slice(0, 11);
+    if (cpf.length !== 11) {
+      if (abrirModal && msg) msg.textContent = "Pesquise e escolha o cliente (nome ou CPF).";
+      renderPortalRelClienteVidaTela({ ok: false, sections: [] });
+      return null;
+    }
+    portalRelClienteVidaCpfSel = cpf;
+    const ctx = buildPortalRelClienteVidaContext(cpf);
+    renderPortalRelClienteVidaTela(ctx);
+    if (msg) {
+      msg.textContent = ctx.sections.length
+        ? `${ctx.title}: ${ctx.nome} · ${ctx.stats.protocolos} protocolo(s), ${ctx.stats.pagamentos} pagamento(s).`
+        : `${ctx.title}: nenhum protocolo para este cliente.`;
+    }
+    if (abrirModal) openPortalRelatorioModal(ctx);
+    return ctx;
+  }
+
+  function portalRelClienteVidaLinhasSugestao(q) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const query = String(q || "").trim();
+    const qDig = dig(query);
+    const qNome = portalNomeChaveBusca(query);
+    if (qDig.length < 3 && qNome.length < 2) return [];
+    const cands = typeof getLancamentoClienteCandidates === "function" ? getLancamentoClienteCandidates() : [];
+    const seen = new Set();
+    const rows = [];
+    for (const c of cands || []) {
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11 || seen.has(cpf)) continue;
+      const nome = String(c.nome || "").trim();
+      if (qDig.length >= 3 && !cpf.includes(qDig) && !portalNomeChaveBusca(nome).includes(qNome)) continue;
+      if (qDig.length < 3 && qNome && !portalNomeChaveBusca(nome).includes(qNome)) continue;
+      seen.add(cpf);
+      rows.push({
+        cpf,
+        nome: nome || "—",
+        proto: "",
+        placa: "",
+        codigo: "",
+        ativo: true,
+        corClasse: "portal-lanc-pesquisa-linha--branco",
+      });
+    }
+    rows.sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+    return rows;
+  }
+
+  function tentarAtualizarPortalRelClienteVidaAoBuscar() {
+    const inp = document.getElementById("portalRelClienteVidaBusca");
+    const panel = document.getElementById("portalRelClienteVidaSugestoes");
+    const raw = String(inp?.value || "").trim();
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfInp = dig(raw).slice(0, 11);
+    if (cpfInp.length === 11) {
+      hidePortalSugestoesLista(panel);
+      atualizarPortalRelClienteVidaTela({ cpf: cpfInp });
+      return;
+    }
+    const linhas = portalRelClienteVidaLinhasSugestao(raw);
+    renderPortalSugestoesLista(panel, linhas, "cliente");
+  }
+
+  document.getElementById("portalRelClienteVidaGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    atualizarPortalRelClienteVidaTela({ abrirModal: true });
+  });
+  document.getElementById("portalRelClienteVidaBusca")?.addEventListener("input", () => {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const raw = String(document.getElementById("portalRelClienteVidaBusca")?.value || "");
+    if (dig(raw).length !== 11) portalRelClienteVidaCpfSel = "";
+    tentarAtualizarPortalRelClienteVidaAoBuscar();
+  });
+  document.getElementById("portalRelClienteVidaSugestoes")?.addEventListener("click", (e) => {
+    const btn = e.target instanceof Element ? e.target.closest("[data-cpf-digits],[data-cpf]") : null;
+    if (!btn) return;
+    e.preventDefault();
+    const cpf = String(btn.getAttribute("data-cpf-digits") || btn.getAttribute("data-cpf") || "").replace(/\D/g, "").slice(0, 11);
+    const nome = String(btn.getAttribute("data-nome") || "").trim();
+    const inp = document.getElementById("portalRelClienteVidaBusca");
+    const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => v;
+    if (inp && cpf.length === 11) inp.value = nome ? `${nome} · ${fmtCpf(cpf)}` : fmtCpf(cpf);
+    hidePortalSugestoesLista(document.getElementById("portalRelClienteVidaSugestoes"));
+    atualizarPortalRelClienteVidaTela({ cpf });
+  });
+
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     portalLocacaoRelatorioModo = "ativas";
@@ -15474,7 +16169,7 @@
   });
 
   /** Submenus visíveis em «Lançamento de aluguel» — reactivar comprovante/validacao/relatorios quando necessário. */
-  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso", "rel-dia", "rel-periodo", "rel-inadimplentes"]);
+  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso", "rel-dia", "rel-periodo", "rel-inadimplentes", "rel-ceo", "rel-cliente"]);
 
   const OPERACAO_LANC_ALUGUEL_SUB_IDS = {
     avulso: "operacaoLancAluguelPaneAvulso",
@@ -15484,6 +16179,8 @@
     "rel-dia": "operacaoLancAluguelPaneRelDia",
     "rel-periodo": "operacaoLancAluguelPaneRelPeriodo",
     "rel-inadimplentes": "operacaoLancAluguelPaneRelInadimplentes",
+    "rel-ceo": "operacaoLancAluguelPaneRelCeo",
+    "rel-cliente": "operacaoLancAluguelPaneRelCliente",
   };
 
   const OPERACAO_LANC_ALUGUEL_SUB_LEADS = {
@@ -15500,7 +16197,21 @@
       "2.2 — Relatório por período: escolha início e fim. Lista protocolo, cliente, valor no período e valor total do protocolo.",
     "rel-inadimplentes":
       "2.3 — Relação de clientes que não pagaram: escolha início e fim. Lista protocolo, nome, placa, modelo, valor do aluguel e valor em atraso (pago − devido).",
+    "rel-ceo":
+      "2.4 — Intervenções CEO: o que o Administrador CEO lançou, apagou ou alterou nos pagamentos. Escolha início e fim (data da intervenção).",
+    "rel-cliente":
+      "2.5 — Relatório de pagamento por cliente: a vida do cliente no sistema, separado por protocolo, com todas as datas e valores pagos e o resumo na data de emissão.",
   };
+
+  function operacaoLancAluguelSubEhRelPag(sub) {
+    return (
+      sub === "rel-dia" ||
+      sub === "rel-periodo" ||
+      sub === "rel-inadimplentes" ||
+      sub === "rel-ceo" ||
+      sub === "rel-cliente"
+    );
+  }
 
   let operacaoLancAluguelSubAtivo = "avulso";
   let operacaoLancAluguelRelPagSubnavAberto = false;
@@ -15519,10 +16230,7 @@
     if (!nav) return;
     if (typeof forceOpen === "boolean") operacaoLancAluguelRelPagSubnavAberto = forceOpen;
     const show =
-      operacaoLancAluguelRelPagSubnavAberto ||
-      operacaoLancAluguelSubAtivo === "rel-dia" ||
-      operacaoLancAluguelSubAtivo === "rel-periodo" ||
-      operacaoLancAluguelSubAtivo === "rel-inadimplentes";
+      operacaoLancAluguelRelPagSubnavAberto || operacaoLancAluguelSubEhRelPag(operacaoLancAluguelSubAtivo);
     operacaoLancAluguelRelPagSubnavAberto = show;
     nav.classList.toggle("hidden", !show);
     if (show) nav.removeAttribute("hidden");
@@ -15530,10 +16238,7 @@
     parent?.setAttribute("aria-expanded", show ? "true" : "false");
     parent?.classList.toggle(
       "is-active",
-      show ||
-        operacaoLancAluguelSubAtivo === "rel-dia" ||
-        operacaoLancAluguelSubAtivo === "rel-periodo" ||
-        operacaoLancAluguelSubAtivo === "rel-inadimplentes"
+      show || operacaoLancAluguelSubEhRelPag(operacaoLancAluguelSubAtivo)
     );
   }
 
@@ -15546,6 +16251,8 @@
       "btn-lanc-aluguel-rel-dia",
       "btn-lanc-aluguel-rel-periodo",
       "btn-lanc-aluguel-rel-inad",
+      "btn-lanc-aluguel-rel-ceo",
+      "btn-lanc-aluguel-rel-cliente",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -15562,7 +16269,9 @@
       const showParent =
         operacaoLancAluguelSubPermitido("rel-dia") ||
         operacaoLancAluguelSubPermitido("rel-periodo") ||
-        operacaoLancAluguelSubPermitido("rel-inadimplentes");
+        operacaoLancAluguelSubPermitido("rel-inadimplentes") ||
+        operacaoLancAluguelSubPermitido("rel-ceo") ||
+        operacaoLancAluguelSubPermitido("rel-cliente");
       parentRel.classList.toggle("hidden", !showParent);
       parentRel.toggleAttribute("hidden", !showParent);
       parentRel.setAttribute("aria-hidden", showParent ? "false" : "true");
@@ -15619,6 +16328,8 @@
       "btn-lanc-aluguel-rel-dia",
       "btn-lanc-aluguel-rel-periodo",
       "btn-lanc-aluguel-rel-inad",
+      "btn-lanc-aluguel-rel-ceo",
+      "btn-lanc-aluguel-rel-cliente",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -15626,9 +16337,7 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
-    syncOperacaoLancAluguelRelPagSubnavVisible(
-      sub === "rel-dia" || sub === "rel-periodo" || sub === "rel-inadimplentes"
-    );
+    syncOperacaoLancAluguelRelPagSubnavVisible(operacaoLancAluguelSubEhRelPag(sub));
     const main = document.getElementById("btn-operacao-lancamento-aluguel");
     if (main) {
       const aluguelAberto = !document
@@ -15693,6 +16402,8 @@
     if (sub === "rel-dia") tentarAtualizarPortalRelPagAggAoMudarData("dia");
     if (sub === "rel-periodo") tentarAtualizarPortalRelPagAggAoMudarData("periodo");
     if (sub === "rel-inadimplentes") tentarAtualizarPortalRelInadimplentesAoMudarData();
+    if (sub === "rel-ceo") tentarAtualizarPortalRelCeoAoMudarData();
+    if (sub === "rel-cliente") tentarAtualizarPortalRelClienteVidaAoBuscar();
   }
 
   function openOperacaoLancamentoAluguel(subRaw) {
@@ -21950,6 +22661,32 @@
       .join("");
   }
 
+  function anexarPortalPagamentoAuditoria(loc, ev) {
+    if (!loc || !ev) return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const opCpf = dig(String(ev.operadorCpf || "")).slice(0, 11);
+    if (opCpf !== DK_LOCADORA_ADMIN_CPF) return;
+    const acao = String(ev.acao || "").trim().toLowerCase();
+    if (acao !== "lancado" && acao !== "apagado" && acao !== "alterado") return;
+    const item = {
+      at: Number(ev.at) || Date.now(),
+      acao,
+      numeroContrato: String(ev.numeroContrato || "").trim(),
+      cpfCliente: dig(String(ev.cpfCliente || "")).slice(0, 11),
+      protocoloLancamento: String(ev.protocoloLancamento || "").trim(),
+      dataPagamento: String(ev.dataPagamento || "").trim(),
+      valor: Number(ev.valor) || 0,
+      operadorCpf: opCpf,
+      operadorNome: String(ev.operadorNome || "").trim(),
+      detalhe: String(ev.detalhe || "").trim(),
+    };
+    const prev = Array.isArray(loc.portalPagamentosAuditoria) ? loc.portalPagamentosAuditoria.slice() : [];
+    const mergeFn =
+      typeof window.__DK_mergePagamentosAuditoria === "function" ? window.__DK_mergePagamentosAuditoria : null;
+    loc.portalPagamentosAuditoria = mergeFn ? mergeFn([prev, [item]]) : prev.concat([item]);
+  }
+
   function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
     if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
@@ -21999,6 +22736,18 @@
     const comentarioPagamento = String(meios?.comentarioPagamento || meios?.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) entry.comentarioPagamento = comentarioPagamento;
     loc.portalLancamentosAluguel.push(entry);
+    anexarPortalPagamentoAuditoria(loc, {
+      at: entry.createdAt,
+      acao: "lancado",
+      numeroContrato: nc,
+      cpfCliente: cpfDigits,
+      protocoloLancamento: entry.protocoloLancamento || "",
+      dataPagamento: dataStr,
+      valor: valorFinal,
+      operadorCpf: String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11),
+      operadorNome: String(reg?.nome || "").trim(),
+      detalhe: ehDevolucao ? "Devolução de licenciamento" : "",
+    });
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
     if (!ehDevolucao) {
@@ -22049,7 +22798,21 @@
     const loc = locs[idx];
     const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     if (!arr || indice < 0 || indice >= arr.length) return false;
-    stampPortalLancamentoRemovido(loc, arr[indice]);
+    const row = arr[indice];
+    stampPortalLancamentoRemovido(loc, row);
+    const sess = getPortalSessaoParaRegistroLancamentoAluguel();
+    anexarPortalPagamentoAuditoria(loc, {
+      at: Date.now(),
+      acao: "apagado",
+      numeroContrato: nc,
+      cpfCliente: cpfDigits,
+      protocoloLancamento: portalProtocoloLancamentoKey(row),
+      dataPagamento: String(row?.data || "").trim(),
+      valor: Number(row?.valor) || 0,
+      operadorCpf: String(sess?.cpf || "").replace(/\D/g, "").slice(0, 11),
+      operadorNome: String(sess?.nome || "").trim(),
+      detalhe: "",
+    });
     arr.splice(indice, 1);
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
@@ -22120,6 +22883,21 @@
       if (next.length === arr1.length) return false;
     }
     removed.forEach((row) => stampPortalLancamentoRemovido(loc, row));
+    const sessProto = getPortalSessaoParaRegistroLancamentoAluguel();
+    removed.forEach((row) => {
+      anexarPortalPagamentoAuditoria(loc, {
+        at: Date.now(),
+        acao: "apagado",
+        numeroContrato: nc,
+        cpfCliente: cpfDigits,
+        protocoloLancamento: portalProtocoloLancamentoKey(row),
+        dataPagamento: String(row?.data || "").trim(),
+        valor: Number(row?.valor) || 0,
+        operadorCpf: String(sessProto?.cpf || "").replace(/\D/g, "").slice(0, 11),
+        operadorNome: String(sessProto?.nome || "").trim(),
+        detalhe: "",
+      });
+    });
     loc.portalLancamentosAluguel = next;
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
@@ -22178,6 +22956,26 @@
           : {}),
       ...(coment ? { comentarioPagamento: coment } : {}),
     };
+    const fmtAud = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const dataAnt = String(prev?.data || "").trim();
+    const valorAnt = Number(prev?.valor) || 0;
+    const partes = [];
+    if (dataAnt !== merged.data) partes.push(`data ${dataAnt || "—"} → ${merged.data || "—"}`);
+    if (valorAnt !== Number(merged.valor)) partes.push(`valor ${fmtAud(valorAnt)} → ${fmtAud(merged.valor)}`);
+    const sessEdit = getPortalSessaoParaRegistroLancamentoAluguel();
+    anexarPortalPagamentoAuditoria(loc, {
+      at: Date.now(),
+      acao: "alterado",
+      numeroContrato: nc,
+      cpfCliente: cpfDigits,
+      protocoloLancamento: String(arr[indice].protocoloLancamento || "").trim(),
+      dataPagamento: merged.data,
+      valor: Number(merged.valor) || 0,
+      operadorCpf: String(sessEdit?.cpf || "").replace(/\D/g, "").slice(0, 11),
+      operadorNome: String(sessEdit?.nome || "").trim(),
+      detalhe: partes.join("; "),
+    });
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
@@ -24344,6 +25142,8 @@
     "btn-lanc-aluguel-rel-dia",
     "btn-lanc-aluguel-rel-periodo",
     "btn-lanc-aluguel-rel-inad",
+    "btn-lanc-aluguel-rel-ceo",
+    "btn-lanc-aluguel-rel-cliente",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       const sub = document.getElementById(id)?.getAttribute("data-lanc-aluguel-sub") || "avulso";
@@ -24953,6 +25753,7 @@
           nome: nomeExibir,
           cpfDigits: digits,
           protocolo: proto,
+          comentario,
         });
         if (msg) msg.textContent = "A enviar aviso ao cliente…";
         const notify = await portalNotificarClientePagamentosLancados(
