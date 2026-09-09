@@ -33,7 +33,7 @@ record("histórico do aluguel escuta Gerar recibo", uiJs.includes('t.closest("[d
 record("modal Imprimir", html.includes('id="portalReciboPrintBtn"') && uiJs.includes("portalReciboPrintBtn"));
 record("modal WhatsApp", html.includes('id="portalReciboShareBtn"') && uiJs.includes("wa.me/"));
 record("CSS do botão Recibo", css.includes(".portal-lanc-hist__recibo-btn"));
-record("cache-bust recibo-hist", html.includes("dk-lancamento-protocolo.js?v=20260909recibo-hist"));
+record("cache-bust recibo-hist", html.includes("dk-lancamento-protocolo.js?v=20260909hist-data-desc"));
 
 const sandbox = {
   window: { location: { hostname: "localhost" } },
@@ -80,6 +80,33 @@ if (typeof render === "function") {
   record(
     "Gerar recibo vem antes da coluna Protocolo",
     htmlHist.includes('>Gerar recibo</button></td><td>20260909091/28-05</td>')
+  );
+  const htmlOrdem = render(
+    [
+      {
+        protocoloLancamento: "P-ANTIGO",
+        tipoMovimento: "PAGAMENTO",
+        data: "31/08/2026",
+        valor: 819,
+        registradoPorNome: "TESTE",
+        createdAt: 9_999,
+      },
+      {
+        protocoloLancamento: "P-RECENTE",
+        tipoMovimento: "PAGAMENTO",
+        data: "03/09/2026",
+        valor: 385.7,
+        registradoPorNome: "TESTE",
+        createdAt: 1,
+      },
+    ],
+    { adminActions: false }
+  );
+  const iRecente = htmlOrdem.indexOf("03/09/2026");
+  const iAntigo = htmlOrdem.indexOf("31/08/2026");
+  record(
+    "data mais recente em cima (03/09 acima de 31/08)",
+    iRecente >= 0 && iAntigo >= 0 && iRecente < iAntigo
   );
 }
 

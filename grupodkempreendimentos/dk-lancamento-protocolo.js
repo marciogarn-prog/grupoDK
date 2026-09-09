@@ -585,13 +585,32 @@
       .replace(/>/g, "&gt;");
   }
 
+  function dataLancamentoMs(x) {
+    const s = String(x?.data || "").trim();
+    const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (br) {
+      const d = Number(br[1]);
+      const mo = Number(br[2]);
+      const y = Number(br[3]);
+      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000) {
+        return Date.UTC(y, mo - 1, d);
+      }
+    }
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    return 0;
+  }
+
+  function compareLancamentosHistoricoPorDataDesc(a, b) {
+    const da = dataLancamentoMs(a);
+    const db = dataLancamentoMs(b);
+    if (db !== da) return db - da;
+    return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+  }
+
   function renderHistoricoLancamentosHtml(lancs, opts) {
     const owner = Boolean(opts && opts.adminActions);
-    const arr = (lancs || []).slice().sort((a, b) => {
-      const ta = Number(a.createdAt || 0);
-      const tb = Number(b.createdAt || 0);
-      return tb - ta;
-    });
+    const arr = (lancs || []).slice().sort(compareLancamentosHistoricoPorDataDesc);
     if (!arr.length) {
       return '<p class="subtext">Nenhum lançamento registado neste protocolo.</p>';
     }
@@ -659,6 +678,7 @@
   window.__DK_consolidarLancamentosAluguelLoc = consolidarLancamentosAluguelLoc;
   window.__DK_getLancamentosAluguelCanonico = getLancamentosAluguelCanonico;
   window.__DK_renderHistoricoLancamentosHtml = renderHistoricoLancamentosHtml;
+  window.__DK_compareLancamentosHistoricoPorDataDesc = compareLancamentosHistoricoPorDataDesc;
   window.__DK_mergePortalLancamentosRemovidos = mergePortalLancamentosRemovidos;
   window.__DK_filtrarPortalLancamentosPorRemovidos = filtrarPortalLancamentosPorRemovidos;
   window.__DK_anexarLancamentosMergeNaLocacao = anexarLancamentosMergeNaLocacao;
