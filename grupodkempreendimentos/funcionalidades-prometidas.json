@@ -1936,6 +1936,25 @@
       }
     },
     {
+      "id": "lanc-aluguel-apagar-gemeos-ceo",
+      "descricao": "Apagar pagamento pelo CEO remove o lançamento visível e as cópias gémeas (mesma data, mesmo valor, mesmo operador) para o merge da nuvem não devolver o valor. Tombstone usa chave de grupo g:data|valor|cpf.",
+      "ficheiros": {
+        "dk-lancamento-protocolo.js": [
+          "portalLancamentoRemocaoKeys",
+          "g:\" + data",
+          "__DK_portalLancamentoRemocaoKeys"
+        ],
+        "portal-locadora-ui.js": [
+          "portalLancamentoCasaComRemocao",
+          "portalLancamentoKeysRemocao"
+        ],
+        "lib/dk-append-only-merge.cjs": [
+          "portalLancamentoDataChave",
+          "g:\" + data"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-pagamentos-do-dia-apagado-ceo",
       "descricao": "Pagamento apagado pelo administrador CEO entra em PAGAMENTOS DO DIA com valor negativo e o comentário APAGADO PELO ADMINISTRADOR. Coluna COMENTÁRIO na tabela. Recupera apagamentos do dia a partir da auditoria/removidos da locação.",
       "ficheiros": {

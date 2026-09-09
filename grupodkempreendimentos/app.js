@@ -6963,17 +6963,33 @@ function scoreLocacaoCanonica(loc) {
 }
 
 function mergePortalLancamentosNoKeeper(keeper, dup, keeperNc) {
-  const base = Array.isArray(keeper.portalLancamentosAluguel) ? keeper.portalLancamentosAluguel : [];
-  const extra = Array.isArray(dup.portalLancamentosAluguel) ? dup.portalLancamentosAluguel : [];
-  if (!extra.length) return keeper;
-  const merged = [
-    ...base,
-    ...extra.map((p) => ({
-      ...p,
-      numeroContrato: keeperNc,
-    })),
-  ];
-  return { ...keeper, portalLancamentosAluguel: merged };
+  const mergedPl =
+    typeof mergePortalLancamentosAluguelEmbutidos === "function"
+      ? mergePortalLancamentosAluguelEmbutidos([
+          keeper?.portalLancamentosAluguel,
+          dup?.portalLancamentosAluguel,
+        ])
+      : [
+          ...(Array.isArray(keeper?.portalLancamentosAluguel) ? keeper.portalLancamentosAluguel : []),
+          ...(Array.isArray(dup?.portalLancamentosAluguel)
+            ? dup.portalLancamentosAluguel.map((p) => ({ ...p, numeroContrato: keeperNc }))
+            : []),
+        ];
+  const target = { ...keeper, numeroContrato: keeper.numeroContrato || keeperNc };
+  if (typeof window !== "undefined" && typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+    window.__DK_anexarLancamentosMergeNaLocacao(target, keeper, dup, mergedPl);
+    return target;
+  }
+  target.portalLancamentosAluguel = mergedPl;
+  const remFn =
+    typeof window !== "undefined" && typeof window.__DK_mergePortalLancamentosRemovidos === "function"
+      ? window.__DK_mergePortalLancamentosRemovidos
+      : null;
+  if (remFn) {
+    const rem = remFn([keeper?.portalLancamentosAluguelRemovidos, dup?.portalLancamentosAluguelRemovidos]);
+    if (rem.length) target.portalLancamentosAluguelRemovidos = rem;
+  }
+  return target;
 }
 
 /**

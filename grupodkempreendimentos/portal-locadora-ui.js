@@ -22932,22 +22932,26 @@
     const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     if (!arr || indice < 0 || indice >= arr.length) return false;
     const row = arr[indice];
-    stampPortalLancamentoRemovido(loc, row);
-    registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits);
+    const removed = arr.filter((x) => portalLancamentoCasaComRemocao(x, row));
+    if (!removed.length) return false;
+    removed.forEach((item) => stampPortalLancamentoRemovido(loc, item));
+    removed.forEach((item) => registrarPortalLancPagamentoDoDiaApagado(loc, item, nc, cpfDigits));
+    loc.portalLancamentosAluguel = arr.filter((x) => !portalLancamentoCasaComRemocao(x, row));
     const sess = getPortalSessaoParaRegistroLancamentoAluguel();
-    anexarPortalPagamentoAuditoria(loc, {
-      at: Date.now(),
-      acao: "apagado",
-      numeroContrato: nc,
-      cpfCliente: cpfDigits,
-      protocoloLancamento: portalProtocoloLancamentoKey(row),
-      dataPagamento: String(row?.data || "").trim(),
-      valor: Number(row?.valor) || 0,
-      operadorCpf: String(sess?.cpf || "").replace(/\D/g, "").slice(0, 11),
-      operadorNome: String(sess?.nome || "").trim(),
-      detalhe: "",
+    removed.forEach((item) => {
+      anexarPortalPagamentoAuditoria(loc, {
+        at: Date.now(),
+        acao: "apagado",
+        numeroContrato: nc,
+        cpfCliente: cpfDigits,
+        protocoloLancamento: portalProtocoloLancamentoKey(item),
+        dataPagamento: String(item?.data || "").trim(),
+        valor: Number(item?.valor) || 0,
+        operadorCpf: String(sess?.cpf || "").replace(/\D/g, "").slice(0, 11),
+        operadorNome: String(sess?.nome || "").trim(),
+        detalhe: "",
+      });
     });
-    arr.splice(indice, 1);
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
@@ -22960,6 +22964,24 @@
       ).trim();
     }
     return "";
+  }
+
+  function portalLancamentoKeysRemocao(row) {
+    if (typeof window.__DK_portalLancamentoRemocaoKeys === "function") {
+      return window.__DK_portalLancamentoRemocaoKeys(row) || [];
+    }
+    const proto = portalProtocoloLancamentoKey(row);
+    return proto ? ["p:" + proto] : [];
+  }
+
+  function portalLancamentoCasaComRemocao(row, alvo) {
+    if (!row || !alvo) return false;
+    if (portalProtocoloLancamentoKey(row) && portalProtocoloLancamentoKey(row) === portalProtocoloLancamentoKey(alvo)) {
+      return true;
+    }
+    const want = new Set(portalLancamentoKeysRemocao(alvo));
+    if (!want.size) return false;
+    return portalLancamentoKeysRemocao(row).some((k) => want.has(k));
   }
 
   function stampPortalLancamentoRemovido(loc, row) {
@@ -23005,16 +23027,21 @@
     );
     if (idx === -1) return false;
     const loc = locs[idx];
-    const takeRemoved = (arr) => (arr || []).filter((x) => portalProtocoloLancamentoKey(x) === proto);
+    const alvoFrom = (arr) =>
+      (arr || []).find((x) => portalProtocoloLancamentoKey(x) === proto) ||
+      (arr || []).find((x) => String(x?.protocoloLancamento || x?.protocolo || "").trim() === proto);
+    const takeRemoved = (arr, alvo) => (arr || []).filter((x) => portalLancamentoCasaComRemocao(x, alvo));
     const arr0 = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
-    let removed = takeRemoved(arr0);
-    let next = arr0.filter((x) => portalProtocoloLancamentoKey(x) !== proto);
-    if (next.length === arr0.length) {
+    let alvo = alvoFrom(arr0);
+    let removed = alvo ? takeRemoved(arr0, alvo) : [];
+    let next = alvo ? arr0.filter((x) => !portalLancamentoCasaComRemocao(x, alvo)) : arr0.slice();
+    if (!removed.length) {
       materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
       const arr1 = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
-      removed = takeRemoved(arr1);
-      next = arr1.filter((x) => portalProtocoloLancamentoKey(x) !== proto);
-      if (next.length === arr1.length) return false;
+      alvo = alvoFrom(arr1);
+      removed = alvo ? takeRemoved(arr1, alvo) : [];
+      next = alvo ? arr1.filter((x) => !portalLancamentoCasaComRemocao(x, alvo)) : arr1;
+      if (!removed.length) return false;
     }
     removed.forEach((row) => stampPortalLancamentoRemovido(loc, row));
     removed.forEach((row) => registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits));

@@ -94,18 +94,36 @@
     return PROTO_RE.test(String(s || "").trim());
   }
 
+  function portalLancamentoDataChave(raw) {
+    const s = String(raw || "").trim();
+    const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (br) return `${String(Number(br[1])).padStart(2, "0")}/${String(Number(br[2])).padStart(2, "0")}/${br[3]}`;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    return s;
+  }
+
   function portalLancamentoRemocaoKeys(x) {
     const keys = [];
-    const proto = String(x?.protocoloLancamento || x?.protocolo || "").trim();
+    let proto = String(x?.protocoloLancamento || x?.protocolo || "").trim();
+    if (!PROTO_RE.test(proto)) {
+      const generated = gerarProtocoloLancamento(x?.registradoPorCpf || x?.registradoPor, x?.createdAt);
+      if (PROTO_RE.test(generated)) proto = generated;
+    }
     if (PROTO_RE.test(proto)) keys.push("p:" + proto);
-    const data = String(x?.data || x?.dataPagamento || "").trim();
-    const valor = Number(x?.valor);
+    const data = portalLancamentoDataChave(x?.data || x?.dataPagamento);
+    let valor = Number(x?.valor);
+    if (!Number.isFinite(valor)) valor = parseValorRaw(x?.valor);
     const ca = Number(x?.createdAt || x?.id || 0);
-    const rp = onlyDigits(x?.registradoPorCpf || "").slice(0, 11);
-    if (data && Number.isFinite(valor) && valor > 0) {
+    const rp = onlyDigits(x?.registradoPorCpf || x?.registradoPor || "").slice(0, 11);
+    if (data && Number.isFinite(valor) && valor !== 0) {
       keys.push(
         "l:" + data + "|" + valor.toFixed(2) + "|" + (Number.isFinite(ca) ? ca : 0) + "|" + rp
       );
+    }
+    const abs = Math.abs(Number(valor));
+    if (data && Number.isFinite(abs) && abs > 0 && rp.length === 11) {
+      keys.push("g:" + data + "|" + abs.toFixed(2) + "|" + rp);
     }
     return keys;
   }
@@ -681,6 +699,7 @@
   window.__DK_compareLancamentosHistoricoPorDataDesc = compareLancamentosHistoricoPorDataDesc;
   window.__DK_mergePortalLancamentosRemovidos = mergePortalLancamentosRemovidos;
   window.__DK_filtrarPortalLancamentosPorRemovidos = filtrarPortalLancamentosPorRemovidos;
+  window.__DK_portalLancamentoRemocaoKeys = portalLancamentoRemocaoKeys;
   window.__DK_anexarLancamentosMergeNaLocacao = anexarLancamentosMergeNaLocacao;
   window.__DK_syncResumoPagamentosNaLocacao = syncResumoPagamentosNaLocacao;
   window.__DK_mergePagamentosAuditoria = mergePagamentosAuditoria;
