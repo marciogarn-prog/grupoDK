@@ -2989,6 +2989,13 @@
     }
   }
 
+  function linhaDespesaVencidaNaoPaga(row) {
+    if (!row || row.situacao === "PAGO") return false;
+    const venc = row.data instanceof Date ? row.data : parseBrDate(row.dataLabel || row.data);
+    if (!venc) return false;
+    return startOfDay(venc) < startOfDay(new Date());
+  }
+
   function renderListaDespesaRowHtml(row) {
     const d = row._d;
     const p = row._p;
@@ -3002,7 +3009,8 @@
       row.situacao === "PAGO"
         ? `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--pago" aria-label="Pago">PAGO</span>`
         : `<button type="button" class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" data-ceo-desp-marcar-pago="1" aria-label="Marcar como pago">A PAGAR</button>`;
-    return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
+    const vencidaCls = linhaDespesaVencidaNaoPaga(row) ? " fin-ceo-desp-row--vencida" : "";
+    return `<tr class="${vencidaCls.trim()}" data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
           <td><strong>${esc(row.pagamentoLabel)}</strong></td>
           <td>${esc(row.categoria)}</td>
           <td>${esc(row.rubrica)}</td>

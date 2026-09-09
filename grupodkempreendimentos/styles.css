@@ -12024,6 +12024,16 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin-top: 0.85rem;
 }
 
+#finCeoDespesasTable tbody tr.fin-ceo-desp-row--vencida td,
+#finCeoDespesasTable tbody tr.fin-ceo-desp-row--vencida td strong {
+  color: #ef4444;
+}
+
+#finCeoDespesasTable tbody tr.fin-ceo-desp-row--vencida .fin-ceo-desp-situacao-btn--aberto {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
 .fin-ceo-desp-lista--com-dados tbody tr:first-child {
   background: rgba(220, 38, 38, 0.12);
 }
