@@ -3679,6 +3679,233 @@
     return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState, CEO_PAG_COLS);
   }
 
+  const MESES_FILTRO_PT = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+
+  function parseExcelDateLabel(label) {
+    const s = String(label || "").trim();
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    const d = Number(m[1]);
+    const mo = Number(m[2]);
+    const y = Number(m[3]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return { y, m: mo, d, label: s };
+  }
+
+  function excelDateLooksLikeDates(uniques) {
+    const arr = Array.isArray(uniques) ? uniques : [];
+    if (!arr.length) return false;
+    const n = arr.filter((v) => parseExcelDateLabel(v)).length;
+    return n >= 1 && n >= arr.length * 0.5;
+  }
+
+  function renderExcelDateTreeHtml(uniques, isAll, selected, escFn) {
+    const years = new Map();
+    const other = [];
+    uniques.forEach((v, i) => {
+      const p = parseExcelDateLabel(v);
+      if (!p) {
+        other.push({ label: v, idx: i });
+        return;
+      }
+      if (!years.has(p.y)) years.set(p.y, new Map());
+      const months = years.get(p.y);
+      if (!months.has(p.m)) months.set(p.m, []);
+      months.get(p.m).push({ label: v, idx: i, d: p.d });
+    });
+    const yearKeys = Array.from(years.keys()).sort((a, b) => b - a);
+    const checkedOf = (idx) => (isAll || (selected instanceof Set && selected.has(uniques[idx])) ? "checked" : "");
+    let html = "";
+    yearKeys.forEach((y, yi) => {
+      const months = years.get(y);
+      const monthKeys = Array.from(months.keys()).sort((a, b) => a - b);
+      const yearOpen = yi === 0;
+      html += `<div class="fin-excel-date-year" data-excel-year="${y}">
+        <div class="fin-excel-date-row">
+          <button type="button" class="fin-excel-date-toggle" data-excel-toggle aria-expanded="${yearOpen ? "true" : "false"}">${yearOpen ? "▾" : "▸"}</button>
+          <label class="fin-excel-filter-pop__item fin-excel-date-node"><input type="checkbox" data-excel-year-cb="${y}"> <span>${y}</span></label>
+        </div>
+        <div class="fin-excel-date-kids"${yearOpen ? "" : " hidden"}>`;
+      monthKeys.forEach((mo) => {
+        const days = months.get(mo).slice().sort((a, b) => a.d - b.d);
+        const mesNome = MESES_FILTRO_PT[mo - 1] || String(mo);
+        html += `<div class="fin-excel-date-month" data-excel-month="${y}-${mo}">
+          <div class="fin-excel-date-row">
+            <button type="button" class="fin-excel-date-toggle" data-excel-toggle aria-expanded="false">▸</button>
+            <label class="fin-excel-filter-pop__item fin-excel-date-node"><input type="checkbox" data-excel-month-cb="${y}-${mo}"> <span>${escFn(mesNome)}</span></label>
+          </div>
+          <div class="fin-excel-date-kids" hidden>
+            ${days
+              .map(
+                (it) =>
+                  `<label class="fin-excel-filter-pop__item fin-excel-date-day"><input type="checkbox" data-excel-idx="${it.idx}" ${checkedOf(it.idx)}> <span>${escFn(it.label)}</span></label>`
+              )
+              .join("")}
+          </div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    other.forEach((it) => {
+      html += `<label class="fin-excel-filter-pop__item fin-excel-date-other"><input type="checkbox" data-excel-idx="${it.idx}" ${checkedOf(it.idx)}> <span>${escFn(it.label || "(Vazias)")}</span></label>`;
+    });
+    return html || `<p class="subtext">Sem valores.</p>`;
+  }
+
+  function excelLeafVisibleInPop(pop, el) {
+    let n = el instanceof Element ? el : null;
+    while (n && n !== pop) {
+      if (n.style && n.style.display === "none") return false;
+      n = n.parentElement;
+    }
+    return true;
+  }
+
+  function applyExcelDateTreeToPop(pop, uniques, isAll, selected, escFn) {
+    if (!excelDateLooksLikeDates(uniques)) return false;
+    const list = pop.querySelector("[data-excel-list]");
+    if (!list) return false;
+    list.innerHTML = renderExcelDateTreeHtml(uniques, isAll, selected, escFn);
+    bindExcelDateTree(pop);
+    return true;
+  }
+
+  function bindExcelDateTree(pop) {
+    const list = pop.querySelector("[data-excel-list]");
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const dayBoxes = (root) => Array.from((root || pop).querySelectorAll("[data-excel-idx]"));
+    const itemVisible = (el) => excelLeafVisibleInPop(pop, el);
+
+    const syncParents = () => {
+      pop.querySelectorAll("[data-excel-month]").forEach((monthEl) => {
+        const vis = dayBoxes(monthEl).filter(itemVisible);
+        const cb = monthEl.querySelector("[data-excel-month-cb]");
+        if (!cb) return;
+        if (!vis.length) {
+          cb.checked = false;
+          cb.indeterminate = false;
+          return;
+        }
+        const n = vis.filter((el) => el.checked).length;
+        cb.checked = n === vis.length;
+        cb.indeterminate = n > 0 && n < vis.length;
+      });
+      pop.querySelectorAll("[data-excel-year]").forEach((yearEl) => {
+        const vis = dayBoxes(yearEl).filter(itemVisible);
+        const cb = yearEl.querySelector("[data-excel-year-cb]");
+        if (!cb) return;
+        if (!vis.length) {
+          cb.checked = false;
+          cb.indeterminate = false;
+          return;
+        }
+        const n = vis.filter((el) => el.checked).length;
+        cb.checked = n === vis.length;
+        cb.indeterminate = n > 0 && n < vis.length;
+      });
+      const visible = dayBoxes().filter(itemVisible);
+      if (allCb) allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+
+    list?.addEventListener("click", (ev) => {
+      const tog = ev.target instanceof Element ? ev.target.closest("[data-excel-toggle]") : null;
+      if (!tog) return;
+      ev.preventDefault();
+      const wrap = tog.closest("[data-excel-year], [data-excel-month]");
+      const kids = wrap?.querySelector(":scope > .fin-excel-date-kids");
+      if (!kids) return;
+      const open = kids.hasAttribute("hidden");
+      kids.toggleAttribute("hidden", !open);
+      tog.setAttribute("aria-expanded", open ? "true" : "false");
+      tog.textContent = open ? "▾" : "▸";
+    });
+
+    list?.addEventListener("change", (ev) => {
+      const t = ev.target;
+      if (!(t instanceof HTMLInputElement)) return;
+      if (t.hasAttribute("data-excel-year-cb")) {
+        dayBoxes(t.closest("[data-excel-year]")).forEach((el) => {
+          if (itemVisible(el)) el.checked = t.checked;
+        });
+      } else if (t.hasAttribute("data-excel-month-cb")) {
+        dayBoxes(t.closest("[data-excel-month]")).forEach((el) => {
+          if (itemVisible(el)) el.checked = t.checked;
+        });
+      }
+      syncParents();
+    });
+
+    search?.addEventListener("input", () => {
+      const q = nkRel(search.value);
+      pop.querySelectorAll("[data-excel-year]").forEach((yearEl) => {
+        let yearShow = false;
+        yearEl.querySelectorAll("[data-excel-month]").forEach((monthEl) => {
+          let monthShow = false;
+          monthEl.querySelectorAll(".fin-excel-date-day").forEach((dayEl) => {
+            const blob = nkRel(`${dayEl.textContent || ""} ${monthEl.textContent || ""} ${yearEl.getAttribute("data-excel-year") || ""}`);
+            const on = !q || blob.includes(q);
+            dayEl.style.display = on ? "" : "none";
+            if (on) monthShow = true;
+          });
+          monthEl.style.display = !q || monthShow ? "" : "none";
+          if (monthShow) yearShow = true;
+          if (q && monthShow) {
+            const kids = monthEl.querySelector(":scope > .fin-excel-date-kids");
+            const tog = monthEl.querySelector(":scope > .fin-excel-date-row [data-excel-toggle]");
+            if (kids) kids.removeAttribute("hidden");
+            if (tog) {
+              tog.setAttribute("aria-expanded", "true");
+              tog.textContent = "▾";
+            }
+          }
+        });
+        yearEl.style.display = !q || yearShow ? "" : "none";
+        if (q && yearShow) {
+          const kids = yearEl.querySelector(":scope > .fin-excel-date-kids");
+          const tog = yearEl.querySelector(":scope > .fin-excel-date-row [data-excel-toggle]");
+          if (kids) kids.removeAttribute("hidden");
+          if (tog) {
+            tog.setAttribute("aria-expanded", "true");
+            tog.textContent = "▾";
+          }
+        }
+      });
+      pop.querySelectorAll(".fin-excel-date-other").forEach((lab) => {
+        lab.style.display = !q || nkRel(lab.textContent || "").includes(q) ? "" : "none";
+      });
+      syncParents();
+    });
+
+    allCb?.addEventListener("change", () => {
+      dayBoxes().forEach((el) => {
+        if (itemVisible(el)) el.checked = allCb.checked;
+      });
+      syncParents();
+    });
+
+    syncParents();
+  }
+
+  window.__DK_excelDateLooksLikeDates = excelDateLooksLikeDates;
+  window.__DK_excelDateTreeHtml = renderExcelDateTreeHtml;
+  window.__DK_excelDateTreeBind = bindExcelDateTree;
+  window.__DK_excelDateTreeApply = applyExcelDateTreeToPop;
+  window.__DK_excelDateLeafVisible = excelLeafVisibleInPop;
+
   function abrirCeoPagExcelFiltroPopup(scope, btn, key, rows, state, onRerender, cols = CEO_PAG_COLS) {
     fecharCeoPagExcelFiltroPopup();
     const col = cols.find((c) => c.key === key);
@@ -3690,6 +3917,15 @@
     const selected = state.cols[key];
     const isAll = !(selected instanceof Set);
     const sortLbl = ceoRelSortLabels(col);
+    const useDateTree = col.type === "date" || excelDateLooksLikeDates(uniques);
+    const listHtml = useDateTree
+      ? renderExcelDateTreeHtml(uniques, isAll, selected, esc)
+      : uniques
+          .map((v, i) => {
+            const checked = isAll || selected.has(v) ? "checked" : "";
+            return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${esc(v)}</span></label>`;
+          })
+          .join("") || `<p class="subtext">Sem valores.</p>`;
     const pop = document.createElement("div");
     pop.className = "fin-excel-filter-pop";
     pop.setAttribute("role", "dialog");
@@ -3704,12 +3940,7 @@
       </label>
       <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
       <div class="fin-excel-filter-pop__list" data-excel-list>
-        ${uniques
-          .map((v, i) => {
-            const checked = isAll || selected.has(v) ? "checked" : "";
-            return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${esc(v)}</span></label>`;
-          })
-          .join("") || `<p class="subtext">Sem valores.</p>`}
+        ${listHtml}
       </div>
       <div class="fin-excel-filter-pop__actions">
         <button type="button" class="btn-primary" data-excel-ok>OK</button>
@@ -3744,22 +3975,26 @@
       const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
       allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
     };
-    search?.addEventListener("input", () => {
-      const q = nkRel(search.value);
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        const t = nkRel(lab.textContent || "");
-        lab.style.display = !q || t.includes(q) ? "" : "none";
+    if (useDateTree) {
+      bindExcelDateTree(pop);
+    } else {
+      search?.addEventListener("input", () => {
+        const q = nkRel(search.value);
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          const t = nkRel(lab.textContent || "");
+          lab.style.display = !q || t.includes(q) ? "" : "none";
+        });
+        syncAll();
       });
-      syncAll();
-    });
-    allCb?.addEventListener("change", () => {
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        if (lab.style.display === "none") return;
-        const cb = lab.querySelector("[data-excel-idx]");
-        if (cb) cb.checked = allCb.checked;
+      allCb?.addEventListener("change", () => {
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          const cb = lab.querySelector("[data-excel-idx]");
+          if (cb) cb.checked = allCb.checked;
+        });
       });
-    });
-    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+      pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    }
     pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
       state.sortKey = key;
       state.sortDir = "asc";
@@ -3772,7 +4007,7 @@
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter((el) => excelLeafVisibleInPop(pop, el));
       const pool = visible.length ? visible : boxes;
       const checked = pool
         .filter((el) => el.checked)

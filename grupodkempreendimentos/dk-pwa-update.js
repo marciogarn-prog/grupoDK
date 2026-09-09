@@ -7,7 +7,7 @@
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260904inat-fim";
+  const SW_BUILD = "20260908excel-dt";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
   const ACTIVE_CACHE = `${CACHE_PREFIX}20260904inat-fim`;

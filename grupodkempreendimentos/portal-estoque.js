@@ -759,6 +759,16 @@
     return v || "(vazio)";
   }
 
+  function tryBindExcelDateTree(pop, uniques, isAll, selected) {
+    if (typeof window.__DK_excelDateTreeApply !== "function") return false;
+    return window.__DK_excelDateTreeApply(pop, uniques, isAll, selected, escapeHtml);
+  }
+
+  function excelFiltroLeafVisible(pop, el) {
+    if (typeof window.__DK_excelDateLeafVisible === "function") return window.__DK_excelDateLeafVisible(pop, el);
+    return el.closest(".fin-excel-filter-pop__item")?.style.display !== "none";
+  }
+
   function nkFiltroExcel(s) {
     return String(s || "")
       .toLowerCase()
@@ -894,25 +904,27 @@
     const allCb = pop.querySelector("[data-excel-all]");
     const syncAll = () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter((el) => excelFiltroLeafVisible(pop, el));
       if (allCb) allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
     };
-    search?.addEventListener("input", () => {
-      const q = nkFiltroExcel(search.value);
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        const t = nkFiltroExcel(lab.textContent || "");
-        lab.style.display = !q || t.includes(q) ? "" : "none";
+    if (!tryBindExcelDateTree(pop, uniques, isAll, selected)) {
+      search?.addEventListener("input", () => {
+        const q = nkFiltroExcel(search.value);
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          const t = nkFiltroExcel(lab.textContent || "");
+          lab.style.display = !q || t.includes(q) ? "" : "none";
+        });
+        syncAll();
       });
-      syncAll();
-    });
-    allCb?.addEventListener("change", () => {
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        if (lab.style.display === "none") return;
-        const cb = lab.querySelector("[data-excel-idx]");
-        if (cb) cb.checked = allCb.checked;
+      allCb?.addEventListener("change", () => {
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          const cb = lab.querySelector("[data-excel-idx]");
+          if (cb) cb.checked = allCb.checked;
+        });
       });
-    });
-    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+      pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    }
     pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
       cadExcelState.sortKey = key;
       cadExcelState.sortDir = "asc";
@@ -925,7 +937,7 @@
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter((el) => excelFiltroLeafVisible(pop, el));
       const pool = visible.length ? visible : boxes;
       const checked = pool
         .filter((el) => el.checked)
@@ -1188,24 +1200,26 @@
     const allCb = pop.querySelector("[data-excel-all]");
     const syncAll = () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter((el) => excelFiltroLeafVisible(pop, el));
       if (allCb) allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
     };
-    search?.addEventListener("input", () => {
-      const q = nkFiltroExcel(search.value);
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        lab.style.display = !q || nkFiltroExcel(lab.textContent || "").includes(q) ? "" : "none";
+    if (!tryBindExcelDateTree(pop, uniques, isAll, selected)) {
+      search?.addEventListener("input", () => {
+        const q = nkFiltroExcel(search.value);
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          lab.style.display = !q || nkFiltroExcel(lab.textContent || "").includes(q) ? "" : "none";
+        });
+        syncAll();
       });
-      syncAll();
-    });
-    allCb?.addEventListener("change", () => {
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        if (lab.style.display === "none") return;
-        const cb = lab.querySelector("[data-excel-idx]");
-        if (cb) cb.checked = allCb.checked;
+      allCb?.addEventListener("change", () => {
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          const cb = lab.querySelector("[data-excel-idx]");
+          if (cb) cb.checked = allCb.checked;
+        });
       });
-    });
-    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+      pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    }
     pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
       saldoExcelState.sortKey = key;
       saldoExcelState.sortDir = "asc";
@@ -1218,7 +1232,7 @@
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter((el) => excelFiltroLeafVisible(pop, el));
       const pool = visible.length ? visible : boxes;
       const checked = pool
         .filter((el) => el.checked)

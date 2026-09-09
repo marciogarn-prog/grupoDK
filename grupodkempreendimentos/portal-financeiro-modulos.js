@@ -2555,27 +2555,37 @@
 
     const search = pop.querySelector("[data-excel-search]");
     const allCb = pop.querySelector("[data-excel-all]");
+    const leafVisible = (el) =>
+      typeof window.__DK_excelDateLeafVisible === "function"
+        ? window.__DK_excelDateLeafVisible(pop, el)
+        : el.closest(".fin-excel-filter-pop__item")?.style.display !== "none";
     const syncAll = () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter(leafVisible);
       allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
     };
-    search?.addEventListener("input", () => {
-      const q = nk(search.value);
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        const t = nk(lab.textContent || "");
-        lab.style.display = !q || t.includes(q) ? "" : "none";
+    const usedDateTree =
+      typeof window.__DK_excelDateTreeApply === "function"
+        ? window.__DK_excelDateTreeApply(pop, uniques, isAll, selected, esc)
+        : false;
+    if (!usedDateTree) {
+      search?.addEventListener("input", () => {
+        const q = nk(search.value);
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          const t = nk(lab.textContent || "");
+          lab.style.display = !q || t.includes(q) ? "" : "none";
+        });
+        syncAll();
       });
-      syncAll();
-    });
-    allCb?.addEventListener("change", () => {
-      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
-        if (lab.style.display === "none") return;
-        const cb = lab.querySelector("[data-excel-idx]");
-        if (cb) cb.checked = allCb.checked;
+      allCb?.addEventListener("change", () => {
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          const cb = lab.querySelector("[data-excel-idx]");
+          if (cb) cb.checked = allCb.checked;
+        });
       });
-    });
-    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+      pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    }
     pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
       relacaoExcelState.sortKey = key;
       relacaoExcelState.sortDir = "asc";
@@ -2590,7 +2600,7 @@
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const visible = boxes.filter(leafVisible);
       const pool = visible.length ? visible : boxes;
       const checked = pool
         .filter((el) => el.checked)

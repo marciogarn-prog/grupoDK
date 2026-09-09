@@ -6764,6 +6764,50 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   background: #151515;
 }
 
+.fin-excel-date-row {
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.fin-excel-date-toggle {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d0d0d0;
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.fin-excel-date-toggle:hover {
+  color: #fff;
+}
+
+.fin-excel-date-node {
+  flex: 1;
+  margin: 0;
+}
+
+.fin-excel-date-kids {
+  padding-left: 0.85rem;
+}
+
+.fin-excel-date-kids[hidden] {
+  display: none !important;
+}
+
+.fin-excel-date-month {
+  margin-left: 0.1rem;
+}
+
+.fin-excel-date-day {
+  padding-left: 1.55rem;
+}
+
 .fin-excel-filter-pop__actions {
   display: flex;
   flex-wrap: wrap;

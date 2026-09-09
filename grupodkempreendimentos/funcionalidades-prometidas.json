@@ -1887,6 +1887,24 @@
           "finDiaSemanaTitulo"
         ]
       }
+    },
+    {
+      "id": "fin-excel-filtro-data-arvore",
+      "descricao": "Nos filtros de coluna estilo Excel de data, as datas agrupam por ano, mês e dia (como no Excel): dá para marcar um mês ou um ano inteiro sem selecionar dia a dia.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "renderExcelDateTreeHtml",
+          "bindExcelDateTree",
+          "data-excel-year",
+          "data-excel-month",
+          "MESES_FILTRO_PT"
+        ],
+        "styles.css": [
+          "fin-excel-date-row",
+          "fin-excel-date-toggle",
+          "fin-excel-date-kids"
+        ]
+      }
     }
   ]
 }
