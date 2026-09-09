@@ -283,6 +283,8 @@ async function main() {
 
   record("HTML tem Gerar contrato", html.includes("operacaoLocacaoVisualizarContratoBtn") && html.includes("Gerar contrato"));
   record("JS escreve o HTML do contrato na janela", contrato.includes("popup.document.write(html)"));
+  record("JS abre a janela no clique (antes de montar as páginas)", contrato.includes('window.open("about:blank"'));
+  record("Botão Gerar contrato permanece clicável", contrato.includes("btn.disabled = false"));
   record(
     "JS não desvia Gerar contrato para o pacote",
     !contrato.includes("__DK_contratoPacoteAbrir === \"function\"") &&

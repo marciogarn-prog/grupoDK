@@ -1445,12 +1445,15 @@
       "ficheiros": {
         "portal-locadora-ui.js": [
           "pinOperacaoLocacaoProtocoloCarregado",
-          "Protocolo carregado fica seleccionado"
+          "Protocolo carregado fica seleccionado",
+          "refreshOperacaoLocacaoVisualizarContratoBtn();"
         ],
         "portal-contrato-locacao.js": [
           "popup.document.write(html)",
           "modelo 10 páginas formatado para impressão",
-          "id=\"btnImprimir\">Imprimir"
+          "id=\"btnImprimir\">Imprimir",
+          "window.open(\"about:blank\"",
+          "btn.disabled = false"
         ]
       }
     },
@@ -1771,6 +1774,27 @@
         "styles.css": [
           "portal-recibo-doc",
           "portal-recibo-doc__linha"
+        ]
+      }
+    },
+    {
+      "id": "lanc-aluguel-gerar-recibo-historico",
+      "descricao": "Na tabela Lançamentos registados do Lançamento de aluguel, cada pagamento tem o botão Gerar recibo à esquerda do protocolo. Abre o mesmo Recibo de pagamento que aparece após Confirmar pagamento, com Imprimir e Compartilhar (WhatsApp). Devolução de investimento não gera recibo.",
+      "ficheiros": {
+        "dk-lancamento-protocolo.js": [
+          "data-lanc-aluguel-recibo",
+          "Gerar recibo",
+          "portal-lanc-hist__recibo"
+        ],
+        "portal-locadora-ui.js": [
+          "portalAbrirReciboDeLancamentoHistorico",
+          "operadorDoLancamento",
+          "data-lanc-aluguel-recibo",
+          "portalReciboPrintBtn",
+          "portalReciboShareBtn"
+        ],
+        "styles.css": [
+          "portal-lanc-hist__recibo-btn"
         ]
       }
     },

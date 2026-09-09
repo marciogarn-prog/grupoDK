@@ -596,9 +596,10 @@
       return '<p class="subtext">Nenhum lançamento registado neste protocolo.</p>';
     }
     const esc = escapeHtml;
+    const reciboTh = `<th>Recibo</th>`;
     const thead = owner
-      ? `<thead><tr><th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th><th>Ações</th></tr></thead>`
-      : `<thead><tr><th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th></tr></thead>`;
+      ? `<thead><tr>${reciboTh}<th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th><th>Ações</th></tr></thead>`
+      : `<thead><tr>${reciboTh}<th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th></tr></thead>`;
     const fmtBrl =
       typeof window.currencyBRL === "function"
         ? (n) => window.currencyBRL(Number(n || 0))
@@ -632,7 +633,10 @@
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";
-        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
+        const reciboHtml = ehDev
+          ? `<td class="portal-lanc-hist__recibo">—</td>`
+          : `<td class="portal-lanc-hist__recibo"><button type="button" class="btn-primary btn-secondary-outline portal-lanc-hist__recibo-btn" data-lanc-aluguel-recibo="${protoAttr}">Gerar recibo</button></td>`;
+        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}>${reciboHtml}<td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
       })
       .join("");
     return `<p class="subtext"><strong>Lançamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;

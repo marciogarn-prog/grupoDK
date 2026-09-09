@@ -13306,7 +13306,13 @@
       typeof getPortalSessaoParaRegistroLancamentoAluguel === "function"
         ? getPortalSessaoParaRegistroLancamentoAluguel()
         : null;
-    const operador = portalFormatOperadorNomeXxx(sessao?.nome || opts?.operadorNome, sessao?.cpf || opts?.operadorCpf);
+    const operadorNome = opts?.operadorDoLancamento
+      ? opts?.operadorNome
+      : sessao?.nome || opts?.operadorNome;
+    const operadorCpf = opts?.operadorDoLancamento
+      ? opts?.operadorCpf
+      : sessao?.cpf || opts?.operadorCpf;
+    const operador = portalFormatOperadorNomeXxx(operadorNome, operadorCpf);
     const recebedor = operador && operador !== "—"
       ? `Grupo DK Empreendimentos — DK Locadora · ${operador}`
       : "Grupo DK Empreendimentos — DK Locadora";
@@ -13323,6 +13329,75 @@
       celularWa,
       omitirFormaPagamento: true,
       partes: [{ valor, tipo: "—", tipoOrder: 0 }],
+    });
+  }
+
+  function portalLocacaoDoContextoHistoricoPagamentos() {
+    const atual = getPortalLocacaoLancAluguelAtual();
+    if (atual) return atual;
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const cpfEl = document.getElementById("operacaoLocacaoCpf");
+    const nc = normPortalNumeroContrato(hid?.value || "");
+    const cpf =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(cpfEl?.value || "")).slice(0, 11)
+        : String(cpfEl?.value || "").replace(/\D/g, "").slice(0, 11);
+    if (nc && cpf.length === 11) {
+      return (
+        collectPortalLocacoesByCpf(cpf).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) ||
+        findPortalLocacaoByProtocolo(nc)
+      );
+    }
+    return nc ? findPortalLocacaoByProtocolo(nc) : null;
+  }
+
+  function portalAbrirReciboDeLancamentoHistorico(protoLanc, origemEl) {
+    const msg =
+      document.getElementById("operacaoLancAluguelInlineMsg") ||
+      document.getElementById("operacaoLocacaoInlineMsg");
+    const fromAluguel = Boolean(origemEl && origemEl.closest && origemEl.closest("#operacaoLancAluguelHistorico"));
+    const fromLocacao = Boolean(origemEl && origemEl.closest && origemEl.closest("#operacaoLocacaoLancamentosHistorico"));
+    let loc = null;
+    if (fromAluguel) loc = getPortalLocacaoLancAluguelAtual();
+    else if (fromLocacao) {
+      const hid = document.getElementById("operacaoLocacaoProtocolo");
+      const cpfEl = document.getElementById("operacaoLocacaoCpf");
+      const nc = normPortalNumeroContrato(hid?.value || "");
+      const cpf =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(cpfEl?.value || "")).slice(0, 11)
+          : String(cpfEl?.value || "").replace(/\D/g, "").slice(0, 11);
+      if (nc && cpf.length === 11) {
+        loc =
+          collectPortalLocacoesByCpf(cpf).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) ||
+          findPortalLocacaoByProtocolo(nc);
+      } else if (nc) loc = findPortalLocacaoByProtocolo(nc);
+    } else loc = portalLocacaoDoContextoHistoricoPagamentos();
+    if (!loc) {
+      if (msg) msg.textContent = "Carregue um protocolo para gerar o recibo.";
+      return;
+    }
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+    const row = lancs.find((x) => portalProtocoloLancamentoKey(x) === String(protoLanc || "").trim());
+    if (!row) {
+      if (msg) msg.textContent = "Lançamento não encontrado.";
+      return;
+    }
+    if (typeof portalLancamentoEhDevolucaoInvestimento === "function" && portalLancamentoEhDevolucaoInvestimento(row)) {
+      if (msg) msg.textContent = "Recibo de pagamento só para lançamentos de aluguel (não para devolução).";
+      return;
+    }
+    const cpfDigits = String(loc.cpf || "").replace(/\D/g, "");
+    portalAbrirReciboAposLancamentoAvulso({
+      loc,
+      valor: Number(row.valor) || 0,
+      dataBr: String(row.data || "").trim(),
+      nome: String(loc.nome || loc.cliente || "").trim(),
+      cpfDigits,
+      protocolo: String(loc.numeroContrato || "").trim(),
+      operadorNome: row.registradoPorNome,
+      operadorCpf: row.registradoPorCpf,
+      operadorDoLancamento: true,
     });
   }
 
@@ -17746,6 +17821,7 @@
     if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
     }
+    refreshOperacaoLocacaoVisualizarContratoBtn();
   }
 
   /** Cor no select fechado: marrom carro · azul minha moto · verde meu transporte · vermelho inativo. */
@@ -22006,8 +22082,21 @@
   function onOperacaoLancAluguelHistoricoClick(e) {
     const t = e.target instanceof Element ? e.target : e.target && e.target.parentElement;
     if (!(t instanceof Element)) return;
+    const recibo = t.closest("[data-lanc-aluguel-recibo]");
     const del = t.closest("[data-lanc-aluguel-del]");
     const edit = t.closest("[data-lanc-aluguel-edit]");
+    if (recibo) {
+      e.preventDefault();
+      e.stopPropagation();
+      const proto = String(recibo.getAttribute("data-lanc-aluguel-recibo") || "").trim();
+      if (!proto) {
+        const msg = document.getElementById("operacaoLancAluguelInlineMsg") || document.getElementById("operacaoLocacaoInlineMsg");
+        if (msg) msg.textContent = "Não foi possível identificar o pagamento.";
+        return;
+      }
+      portalAbrirReciboDeLancamentoHistorico(proto, t);
+      return;
+    }
     if (!del && !edit) return;
     e.preventDefault();
     e.stopPropagation();
@@ -22334,6 +22423,12 @@
     const comboPlaca = document.getElementById("operacaoLocacaoPlacaCombo");
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", onOperacaoLocacaoProtocoloSelectChange);
+    document.getElementById("formOperacaoLocacaoInline")?.addEventListener("input", () => {
+      refreshOperacaoLocacaoVisualizarContratoBtn();
+    });
+    document.getElementById("formOperacaoLocacaoInline")?.addEventListener("change", () => {
+      refreshOperacaoLocacaoVisualizarContratoBtn();
+    });
     document.getElementById("operacaoLocacaoModalidadeWrap")?.addEventListener("change", () => {
       paintOperacaoLocacaoProtocoloSelectFromModalidade();
     });
@@ -24486,6 +24581,11 @@
     el.addEventListener("click", () => closePortalLocacaoConfirmModal());
   });
   document.getElementById("operacaoLancAluguelHistorico")?.addEventListener(
+    "click",
+    onOperacaoLancAluguelHistoricoClick,
+    true
+  );
+  document.getElementById("operacaoLocacaoLancamentosHistorico")?.addEventListener(
     "click",
     onOperacaoLancAluguelHistoricoClick,
     true

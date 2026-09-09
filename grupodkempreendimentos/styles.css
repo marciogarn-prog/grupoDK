@@ -3860,6 +3860,16 @@ body.portal-body--admin-ceo {
   font-weight: 600;
 }
 
+.portal-lanc-hist__recibo {
+  white-space: nowrap;
+  width: 1%;
+}
+.portal-lanc-hist__recibo-btn {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.5rem;
+  margin: 0;
+}
+
 .portal-lanc-hist__actions {
   white-space: normal;
 }
@@ -9141,6 +9151,13 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   white-space: nowrap;
 }
 
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist__recibo {
+  white-space: nowrap;
+}
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist__recibo-btn {
+  font-size: 0.76rem;
+  padding: 0.26rem 0.45rem;
+}
 .portal-lanc-avulso-workspace__hist .portal-lanc-hist__actions .btn-primary {
   font-size: 0.78rem;
   padding: 0.28rem 0.5rem;

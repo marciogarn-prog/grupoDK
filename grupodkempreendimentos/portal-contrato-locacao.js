@@ -1202,20 +1202,32 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
   function buildContratoPreviewHtml(dados) {
     const paginas = buildPaginasHtml(dados);
     let extra = "";
-    if (typeof window.__DK_contratoPacoteBuildOpcaoPagina === "function") {
-      extra =
-        `<div class="kit-secao-titulo-preview">2. Opção contratada</div>` +
-        window.__DK_contratoPacoteBuildOpcaoPagina(dados);
+    try {
+      if (typeof window.__DK_contratoPacoteBuildOpcaoPagina === "function") {
+        extra =
+          `<div class="kit-secao-titulo-preview">2. Opção contratada</div>` +
+          window.__DK_contratoPacoteBuildOpcaoPagina(dados);
+      }
+    } catch (e) {
+      console.warn("[DK contrato] opção contratada", e);
     }
-    if (typeof window.__DK_contratoPacoteBuildVistoriaPagina === "function") {
-      extra +=
-        `<div class="kit-secao-titulo-preview">3. Termo de vistoria</div>` +
-        window.__DK_contratoPacoteBuildVistoriaPagina(dados);
+    try {
+      if (typeof window.__DK_contratoPacoteBuildVistoriaPagina === "function") {
+        extra +=
+          `<div class="kit-secao-titulo-preview">3. Termo de vistoria</div>` +
+          window.__DK_contratoPacoteBuildVistoriaPagina(dados);
+      }
+    } catch (e) {
+      console.warn("[DK contrato] termo de vistoria", e);
     }
-    if (typeof window.__DK_contratoPacoteBuildRequerimentoPagina === "function") {
-      extra +=
-        `<div class="kit-secao-titulo-preview">4. Requerimento padrão</div>` +
-        window.__DK_contratoPacoteBuildRequerimentoPagina();
+    try {
+      if (typeof window.__DK_contratoPacoteBuildRequerimentoPagina === "function") {
+        extra +=
+          `<div class="kit-secao-titulo-preview">4. Requerimento padrão</div>` +
+          window.__DK_contratoPacoteBuildRequerimentoPagina();
+      }
+    } catch (e) {
+      console.warn("[DK contrato] requerimento padrão", e);
     }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
@@ -1373,18 +1385,58 @@ ${scriptPreviewInline(dados)}
 
   function abrirPreviewContrato(dados) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
-    const dadosFinal = garantirDadosContratoComEndereco(dados);
-    const html = buildContratoPreviewHtml(dadosFinal);
-    /* Volta o fluxo original: janela com o contrato de 10 páginas já formatado
-       para impressão (document.write). O pacote de 4 docs não substitui isto. */
-    const popup = window.open("", "_blank", "width=920,height=1000");
+    /* Abrir a janela no mesmo clique (antes de montar as 15 págs). Se window.open
+       vier depois do HTML, o Chrome trata como pop-up e a janela não abre. */
+    const popup = window.open("about:blank", "_blank", "width=920,height=1000");
     if (!popup) {
       if (msgEl) msgEl.textContent = "O navegador bloqueou a janela — permita pop-ups para gerar o contrato.";
       return false;
     }
-    popup.document.write(html);
-    popup.document.close();
-    popup.focus();
+    try {
+      popup.document.open();
+      popup.document.write(
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>A gerar contrato…</title></head><body style=\"font-family:sans-serif;padding:24px\">A gerar o contrato…</body></html>"
+      );
+      popup.document.close();
+    } catch {
+      /* ignore */
+    }
+    let dadosFinal;
+    let html;
+    try {
+      dadosFinal = garantirDadosContratoComEndereco(dados);
+      html = buildContratoPreviewHtml(dadosFinal);
+    } catch (e) {
+      try {
+        popup.close();
+      } catch {
+        /* ignore */
+      }
+      if (msgEl) msgEl.textContent = `Não foi possível gerar o contrato: ${e && e.message ? e.message : e}.`;
+      console.error("[DK contrato] gerar", e);
+      return false;
+    }
+    try {
+      popup.document.open();
+      popup.document.write(html);
+      popup.document.close();
+    } catch {
+      try {
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        popup.location.replace(url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+      } catch (e) {
+        if (msgEl) msgEl.textContent = "Não foi possível abrir o contrato neste navegador.";
+        console.error("[DK contrato] janela", e);
+        return false;
+      }
+    }
+    try {
+      popup.focus();
+    } catch {
+      /* ignore */
+    }
     if (msgEl) {
       msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 págs + opção + termo de vistoria (2 págs) + requerimento padrão (2 págs). Clique «Imprimir» na janela.`;
     }
@@ -1449,16 +1501,14 @@ ${scriptPreviewInline(dados)}
     const proto = normProtocolo(hid?.value);
     const dados = resolverDadosFromForm();
     const can = Boolean(proto) && !validarDados(dados);
-    btn.disabled = !can;
-    if (!can) {
-      btn.textContent = "Gerar contrato";
-      btn.dataset.dkModo = "gerar";
-      btn.title = "Preencha protocolo, CPF, cliente e placa para gerar o contrato.";
-      return;
-    }
+    /* Sempre clicável: se faltar dado, o clique explica. Botão disabled engolia o clique. */
+    btn.disabled = false;
+    btn.removeAttribute("disabled");
     btn.textContent = "Gerar contrato";
     btn.dataset.dkModo = "gerar";
-    btn.title = `Abrir o contrato formatado (10 páginas) do protocolo ${proto} para imprimir.`;
+    btn.title = can
+      ? `Abrir o contrato formatado (10 páginas) do protocolo ${proto} para imprimir.`
+      : "Preencha protocolo, CPF, cliente e placa para gerar o contrato.";
   }
 
   function hidratarCamposClienteParaContrato(cpfDigits) {
@@ -1518,15 +1568,26 @@ ${scriptPreviewInline(dados)}
   document.getElementById("operacaoLocacaoVisualizarContratoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
-    const cpfDigits = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
-    hidratarCamposClienteParaContrato(cpfDigits);
-    const dados = resolverDadosFromForm();
-    const err = validarDados(dados);
-    if (err) {
-      if (msgEl) msgEl.textContent = err;
-      return;
+    try {
+      if (
+        !normProtocolo(document.getElementById("operacaoLocacaoProtocolo")?.value) &&
+        typeof window.refreshOperacaoLocacaoProtocoloPicker === "function"
+      ) {
+        window.refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      }
+      const cpfDigits = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+      hidratarCamposClienteParaContrato(cpfDigits);
+      const dados = resolverDadosFromForm();
+      const err = validarDados(dados);
+      if (err) {
+        if (msgEl) msgEl.textContent = err;
+        return;
+      }
+      abrirPreviewContrato(dados);
+    } catch (err) {
+      if (msgEl) msgEl.textContent = `Não foi possível gerar o contrato: ${err && err.message ? err.message : err}.`;
+      console.error("[DK contrato] clique Gerar contrato", err);
     }
-    abrirPreviewContrato(dados);
   });
 
   atualizarBotaoContratoLocacao();
