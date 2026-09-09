@@ -1936,6 +1936,27 @@
       }
     },
     {
+      "id": "lanc-aluguel-pagamentos-do-dia-apagado-ceo",
+      "descricao": "Pagamento apagado pelo administrador CEO entra em PAGAMENTOS DO DIA com valor negativo e o comentário APAGADO PELO ADMINISTRADOR. Coluna COMENTÁRIO na tabela. Recupera apagamentos do dia a partir da auditoria/removidos da locação.",
+      "ficheiros": {
+        "index.html": [
+          "APAGADO PELO ADMINISTRADOR",
+          "<th>COMENTÁRIO</th>",
+          "colspan=\"7\""
+        ],
+        "portal-locadora-ui.js": [
+          "registrarPortalLancPagamentoDoDiaApagado",
+          "portalIncorporarApagadosDoDiaNoLog",
+          "APAGADO PELO ADMINISTRADOR",
+          "portal-lanc-dia-log__valor--apagado"
+        ],
+        "styles.css": [
+          "portal-lanc-dia-log__valor--apagado",
+          "portal-lanc-dia-log__coment--apagado"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {

@@ -22639,20 +22639,128 @@
       placa: String(item?.placa || "").trim() || "—",
       valor: Number(item?.valor) || 0,
       dataPagamento: String(item?.dataPagamento || "").trim() || "—",
-      hora: portalLancPagDiaHoraAgora(),
-      ts: Date.now(),
+      hora: String(item?.hora || "").trim() || portalLancPagDiaHoraAgora(),
+      comentario: String(item?.comentario || "").trim(),
+      apagado: Boolean(item?.apagado),
+      chave: String(item?.chave || "").trim(),
+      ts: Number(item?.ts) || Date.now(),
     });
     try {
       localStorage.setItem(PORTAL_LANC_PAG_DIA_KEY, JSON.stringify(state));
     } catch {
       /* ignore quota */
     }
-    renderPortalLancPagamentosDoDia();
+    if (item?.silencioso !== true) renderPortalLancPagamentosDoDia();
+  }
+
+  function portalNomePlacaParaPagamentoDoDia(loc, cpfDigits) {
+    const nome =
+      (typeof findClienteByCpfCadastro === "function"
+        ? String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim()
+        : "") ||
+      resolveOperacaoLancAluguelNomePorCpf(cpfDigits) ||
+      String(loc?.nome || loc?.cliente || "").trim() ||
+      "—";
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(loc?.placa || "")) || "—"
+        : String(loc?.placa || "").trim() || "—";
+    return { nome, placa };
+  }
+
+  function chavePortalLancPagamentoDoDiaApagado(nc, row) {
+    const protoLanc = String(row?.protocoloLancamento || "").trim();
+    if (protoLanc) return `apagado|${protoLanc}`;
+    return `apagado|${nc}|${String(row?.data || "").trim()}|${Math.abs(Number(row?.valor) || 0)}`;
+  }
+
+  function registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits, opts) {
+    if (!row) return;
+    const { nome, placa } = portalNomePlacaParaPagamentoDoDia(loc, cpfDigits);
+    const ts = Number(opts?.ts || row.removedAt || Date.now());
+    let hora = String(opts?.hora || "").trim();
+    if (!hora && ts) {
+      try {
+        hora = new Date(ts).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      } catch {
+        hora = portalLancPagDiaHoraAgora();
+      }
+    }
+    registrarPortalLancPagamentoDoDia({
+      protocolo: nc,
+      nome,
+      placa,
+      valor: -Math.abs(Number(row.valor) || 0),
+      dataPagamento: String(row.data || row.dataPagamento || "").trim(),
+      comentario: "APAGADO PELO ADMINISTRADOR",
+      apagado: true,
+      chave: chavePortalLancPagamentoDoDiaApagado(nc, row),
+      hora,
+      ts,
+      silencioso: opts?.silencioso === true,
+    });
+  }
+
+  function portalIncorporarApagadosDoDiaNoLog() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
+    const inicio = new Date();
+    inicio.setHours(0, 0, 0, 0);
+    const inicioMs = inicio.getTime();
+    const state = loadPortalLancPagamentosDoDia();
+    const seen = new Set(
+      (state.itens || [])
+        .filter((x) => x && (x.apagado || String(x.comentario || "").toUpperCase().includes("APAGADO PELO ADMINISTRADOR")))
+        .map((x) => String(x.chave || `apagado|${x.protocolo}|${x.dataPagamento}|${Math.abs(Number(x.valor) || 0)}`))
+    );
+    const locs = loadCadastro(CAD_LOCACOES_KEY) || [];
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    let added = 0;
+    for (const loc of locs) {
+      const nc = normPortalNumeroContrato(loc?.numeroContrato || "");
+      if (!nc) continue;
+      const cpfDigits = dig(String(loc.cpf || "")).slice(0, 11);
+      const removidos = Array.isArray(loc.portalLancamentosAluguelRemovidos)
+        ? loc.portalLancamentosAluguelRemovidos
+        : [];
+      for (const row of removidos) {
+        const at = Number(row?.removedAt || 0);
+        if (!at || at < inicioMs) continue;
+        const chave = chavePortalLancPagamentoDoDiaApagado(nc, row);
+        if (seen.has(chave)) continue;
+        seen.add(chave);
+        registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits, { ts: at, silencioso: true });
+        added += 1;
+      }
+      const audits = Array.isArray(loc.portalPagamentosAuditoria) ? loc.portalPagamentosAuditoria : [];
+      for (const ev of audits) {
+        if (String(ev?.acao || "").toLowerCase() !== "apagado") continue;
+        const at = Number(ev?.at || ev?.createdAt || 0);
+        if (!at || at < inicioMs) continue;
+        const chave = chavePortalLancPagamentoDoDiaApagado(nc, ev);
+        if (seen.has(chave)) continue;
+        seen.add(chave);
+        registrarPortalLancPagamentoDoDiaApagado(
+          loc,
+          { data: ev.dataPagamento, valor: ev.valor, protocoloLancamento: ev.protocoloLancamento },
+          nc,
+          cpfDigits,
+          { ts: at, silencioso: true }
+        );
+        added += 1;
+      }
+    }
+    return added;
   }
 
   function renderPortalLancPagamentosDoDia() {
     const body = document.getElementById("operacaoLancAluguelDiaLogBody");
     if (!body) return;
+    portalIncorporarApagadosDoDiaNoLog();
     const state = loadPortalLancPagamentosDoDia();
     const fmt =
       typeof currencyBRL === "function"
@@ -22660,20 +22768,28 @@
         : (n) =>
             Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     if (!state.itens.length) {
-      body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum pagamento registado hoje.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="7" class="subtext">Nenhum pagamento registado hoje.</td></tr>`;
       return;
     }
     body.innerHTML = state.itens
-      .map(
-        (row) => `<tr>
+      .map((row) => {
+        const apagado =
+          Boolean(row.apagado) ||
+          Number(row.valor) < 0 ||
+          String(row.comentario || "").toUpperCase().includes("APAGADO PELO ADMINISTRADOR");
+        const valorCls = apagado ? "portal-lanc-dia-log__valor--apagado" : "";
+        const comentCls = apagado ? "portal-lanc-dia-log__coment--apagado" : "";
+        const coment = String(row.comentario || "").trim() || "—";
+        return `<tr>
           <td>${portalEscapeHtml(row.protocolo)}</td>
           <td>${portalEscapeHtml(row.nome)}</td>
           <td>${portalEscapeHtml(row.placa)}</td>
-          <td>${portalEscapeHtml(fmt(row.valor))}</td>
+          <td class="${valorCls}">${portalEscapeHtml(fmt(row.valor))}</td>
           <td>${portalEscapeHtml(row.dataPagamento || "—")}</td>
           <td>${portalEscapeHtml(row.hora)}</td>
-        </tr>`
-      )
+          <td class="${comentCls}">${portalEscapeHtml(coment)}</td>
+        </tr>`;
+      })
       .join("");
   }
 
@@ -22784,6 +22900,7 @@
         placa,
         valor: valorFinal,
         dataPagamento: dataStr,
+        comentario: comentarioPagamento,
       });
     }
     return { ok: true, entry, cpfDigits, nc, loc };
@@ -22816,6 +22933,7 @@
     if (!arr || indice < 0 || indice >= arr.length) return false;
     const row = arr[indice];
     stampPortalLancamentoRemovido(loc, row);
+    registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits);
     const sess = getPortalSessaoParaRegistroLancamentoAluguel();
     anexarPortalPagamentoAuditoria(loc, {
       at: Date.now(),
@@ -22899,6 +23017,7 @@
       if (next.length === arr1.length) return false;
     }
     removed.forEach((row) => stampPortalLancamentoRemovido(loc, row));
+    removed.forEach((row) => registrarPortalLancPagamentoDoDiaApagado(loc, row, nc, cpfDigits));
     const sessProto = getPortalSessaoParaRegistroLancamentoAluguel();
     removed.forEach((row) => {
       anexarPortalPagamentoAuditoria(loc, {

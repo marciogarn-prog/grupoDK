@@ -12877,6 +12877,15 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .portal-lanc-dia-log__table td:nth-child(5) {
   font-variant-numeric: tabular-nums;
 }
+.portal-lanc-dia-log__table td:nth-child(7) {
+  white-space: normal;
+  min-width: 12rem;
+}
+.portal-lanc-dia-log__valor--apagado,
+.portal-lanc-dia-log__coment--apagado {
+  color: #f87171;
+  font-weight: 800;
+}
 
 /* ——— Escolha Windows / Android no login (não mexe na sessão Windows) ——— */
 .portal-plataforma-pick__quem {
