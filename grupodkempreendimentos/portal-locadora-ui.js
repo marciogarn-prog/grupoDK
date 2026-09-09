@@ -16618,12 +16618,28 @@
           ".portal-lanc-pesquisa-lista, .portal-sugestoes-cadastro, .portal-placa-dropdown"
         );
         if (nested && nested !== root && nested.scrollHeight > nested.clientHeight + 2) return;
-        const canScroll = root.scrollHeight > root.clientHeight + 2;
-        if (!canScroll) return;
-        const atTop = root.scrollTop <= 0;
-        const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2;
-        if ((event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom)) return;
-        root.scrollTop += event.deltaY;
+        const canY = root.scrollHeight > root.clientHeight + 2;
+        const canX = root.scrollWidth > root.clientWidth + 2;
+        if (!canY && !canX) return;
+        let moved = false;
+        if (canY && event.deltaY && !event.shiftKey) {
+          const atTop = root.scrollTop <= 0;
+          const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2;
+          if (!((event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom))) {
+            root.scrollTop += event.deltaY;
+            moved = true;
+          }
+        }
+        const dx = event.shiftKey ? event.deltaY : event.deltaX;
+        if (canX && dx) {
+          const atLeft = root.scrollLeft <= 0;
+          const atRight = root.scrollLeft + root.clientWidth >= root.scrollWidth - 2;
+          if (!((dx < 0 && atLeft) || (dx > 0 && atRight))) {
+            root.scrollLeft += dx;
+            moved = true;
+          }
+        }
+        if (!moved) return;
         event.preventDefault();
       },
       { passive: false, capture: true }

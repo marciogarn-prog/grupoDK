@@ -1771,8 +1771,9 @@ body.portal-body--admin-ceo {
   /* Cadastro de locação, Lançamento de aluguel e Lançamento de multas: a bola do mouse move o conteúdo. */
   /* a bola do mouse move o conteúdo */
   /* um único scroll no formulário */
+  /* a bola do mouse também move o conteúdo para os lados */
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -1796,7 +1797,7 @@ body.portal-body--admin-ceo {
     flex: 1 1 auto;
     min-height: 0 !important;
     max-height: 100%;
-    overflow-x: hidden !important;
+    overflow-x: auto !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -9143,7 +9144,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   gap: 0.85rem 1rem;
   align-items: start;
   width: 100%;
-  min-width: 0;
+  min-width: 72rem;
 }
 
 /* Layout edit?vel ? Lan?amento de aluguel */

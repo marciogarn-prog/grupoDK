@@ -93,6 +93,20 @@
       }
     },
     {
+      "id": "lanc-aluguel-scroll-lados",
+      "descricao": "No Lançamento de aluguel, além de subir e descer com a bola do mouse, o conteúdo também corre para os lados (overflow-x auto + scrollLeft) quando os dados não cabem na largura.",
+      "ficheiros": {
+        "styles.css": [
+          "a bola do mouse também move o conteúdo para os lados",
+          "overflow-x: auto !important"
+        ],
+        "portal-locadora-ui.js": [
+          "root.scrollLeft += dx",
+          "event.shiftKey"
+        ]
+      }
+    },
+    {
       "id": "pesquisa-inativo-data-fim",
       "descricao": "Na lista de pesquisa do Lançamento de aluguel, depois de inativo deve aparecer a data fim do contrato (ex.: inativo · 22/01/2026).",
       "ficheiros": {
