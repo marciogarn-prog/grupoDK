@@ -301,6 +301,27 @@
       }
     },
     {
+      "id": "lanc-aluguel-relatorio-2-5-semanas-pagas",
+      "descricao": "No relatório 2.5, cada protocolo mostra SEMANAS PAGAS (valor pago total ÷ valor semanal do contrato, parte inteira) e SALDO POSITIVO (o que sobrou). Ex.: R$ 1.100,00 pagos em contrato de R$ 350,00/semana = 3 semanas e R$ 50,00.",
+      "ficheiros": {
+        "index.html": [
+          "SEMANAS PAGAS",
+          "SALDO POSITIVO",
+          "R$ 1.100,00"
+        ],
+        "portal-locadora-ui.js": [
+          "semanasPagas",
+          "saldoSemanas",
+          "SEMANAS PAGAS",
+          "SALDO POSITIVO"
+        ],
+        "styles.css": [
+          "portal-rel-cli-vida__kpi--semanas",
+          "portal-rel-cli-vida__kpi--saldo-semanas"
+        ]
+      }
+    },
+    {
       "id": "controle-estoque-area-equipa",
       "descricao": "Na Área da equipa existe o botão Controle de Estoque, entre Operação e Manutenção. Abre o painel com Cadastro de material, Estoque, Saída e Entrada; o controlo dos itens é pelo código de barras.",
       "ficheiros": {

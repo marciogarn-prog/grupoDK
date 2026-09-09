@@ -3170,6 +3170,11 @@ body.portal-body--admin-ceo {
   color: #93c5fd;
 }
 
+.portal-rel-cli-vida__kpi--semanas strong,
+.portal-rel-cli-vida__kpi--saldo-semanas strong {
+  color: #86efac;
+}
+
 .portal-rel-cli-vida__vazio {
   color: #9aa0aa;
   margin: 0.4rem 0 0;

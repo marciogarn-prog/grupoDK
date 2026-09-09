@@ -15682,14 +15682,26 @@
     const pago = sumPortalLancamentosAluguelTotal(lancs);
     const saldo = Number(pago || 0) - Number(devidoAluguel || 0);
     const negativo = Number.isFinite(saldo) && saldo < -0.009;
+    const semanal = Number(plano) > 0.009 ? Number(plano) : Number(valLoc) > 0.009 ? Number(valLoc) : 0;
+    const pagoNum = Number.isFinite(pago) ? pago : 0;
+    let semanasPagas = 0;
+    let saldoSemanas = 0;
+    if (semanal > 0.009) {
+      semanasPagas = Math.floor((pagoNum + 1e-9) / semanal);
+      saldoSemanas = Math.round((pagoNum - semanasPagas * semanal) * 100) / 100;
+      if (Math.abs(saldoSemanas) < 0.009) saldoSemanas = 0;
+    }
     return {
       devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
       devidoPlano: Number.isFinite(devidoPlano) ? devidoPlano : 0,
       investimento: Number.isFinite(investimento) ? investimento : 0,
-      pago: Number.isFinite(pago) ? pago : 0,
+      pago: pagoNum,
       saldo: Number.isFinite(saldo) ? saldo : 0,
       negativo,
       saldoLabel: negativo ? "VALOR EM ATRASO SÓ DE ALUGUEL" : "SALDO A DEVOLVER",
+      valorSemanal: semanal,
+      semanasPagas,
+      saldoSemanas,
     };
   }
 
@@ -15789,6 +15801,9 @@
           ["VALOR DE INVESTIMENTO", fmt(r.investimento)],
           ["VALOR PAGO TOTAL", fmt(r.pago)],
           [r.saldoLabel, formatPortalSaldoDevolucaoBrl(r.saldo)],
+          ["VALOR SEMANAL DO CONTRATO", r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—"],
+          ["SEMANAS PAGAS", String(r.semanasPagas ?? 0)],
+          ["SALDO POSITIVO", r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—"],
         ];
         for (const [lbl, val] of pares) {
           const neg = r.negativo && lbl === r.saldoLabel ? ' class="neg"' : "";
@@ -15839,6 +15854,9 @@
         html += `<tr><td>VALOR DE INVESTIMENTO</td><td>${eh(fmt(r.investimento))}</td></tr>`;
         html += `<tr><td>VALOR PAGO TOTAL</td><td>${eh(fmt(r.pago))}</td></tr>`;
         html += `<tr><td>${eh(r.saldoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldo))}</td></tr>`;
+        html += `<tr><td>VALOR SEMANAL DO CONTRATO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</td></tr>`;
+        html += `<tr><td>SEMANAS PAGAS</td><td>${eh(String(r.semanasPagas ?? 0))}</td></tr>`;
+        html += `<tr><td>SALDO POSITIVO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—")}</td></tr>`;
         html += `</tbody></table>`;
       }
       html += `</body></html>`;
@@ -15938,6 +15956,9 @@
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DE INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.investimento))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO TOTAL</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR SEMANAL DO CONTRATO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</strong></div>
+              <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--semanas" role="listitem"><span>SEMANAS PAGAS</span><strong>${portalEscapeHtml(String(r.semanasPagas ?? 0))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--saldo-semanas" role="listitem"><span>SALDO POSITIVO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—")}</strong></div>
             </div>
           </article>`;
         })
