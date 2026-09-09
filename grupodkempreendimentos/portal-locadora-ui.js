@@ -21791,6 +21791,7 @@
       nome: String(item?.nome || "").trim() || "—",
       placa: String(item?.placa || "").trim() || "—",
       valor: Number(item?.valor) || 0,
+      dataPagamento: String(item?.dataPagamento || "").trim() || "—",
       hora: portalLancPagDiaHoraAgora(),
       ts: Date.now(),
     });
@@ -21812,7 +21813,7 @@
         : (n) =>
             Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     if (!state.itens.length) {
-      body.innerHTML = `<tr><td colspan="5" class="subtext">Nenhum pagamento registado hoje.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum pagamento registado hoje.</td></tr>`;
       return;
     }
     body.innerHTML = state.itens
@@ -21822,6 +21823,7 @@
           <td>${portalEscapeHtml(row.nome)}</td>
           <td>${portalEscapeHtml(row.placa)}</td>
           <td>${portalEscapeHtml(fmt(row.valor))}</td>
+          <td>${portalEscapeHtml(row.dataPagamento || "—")}</td>
           <td>${portalEscapeHtml(row.hora)}</td>
         </tr>`
       )
@@ -21896,6 +21898,7 @@
         nome,
         placa,
         valor: valorFinal,
+        dataPagamento: dataStr,
       });
     }
     return { ok: true, entry, cpfDigits, nc, loc };

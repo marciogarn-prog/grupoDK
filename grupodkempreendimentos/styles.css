@@ -12722,6 +12722,9 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
+.portal-lanc-dia-log__table td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+}
 
 /* ——— Escolha Windows / Android no login (não mexe na sessão Windows) ——— */
 .portal-plataforma-pick__quem {
