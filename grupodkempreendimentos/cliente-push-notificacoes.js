@@ -17,6 +17,9 @@
   function pushFetchHeaders() {
     const h = { "Content-Type": "application/json" };
     if (window.__DK_DEPLOY_CHANNEL__ === "demo") h["X-DK-Deploy-Channel"] = "demo";
+    if (typeof window.__DK_portalApiHeaders === "function") {
+      return window.__DK_portalApiHeaders(h);
+    }
     return h;
   }
 

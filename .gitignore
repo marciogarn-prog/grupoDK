@@ -1,4 +1,5 @@
 backups/
+_backup-fase-1a-*/
 *.zip
 node_modules/
 .cursor/*

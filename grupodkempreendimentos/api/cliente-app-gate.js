@@ -9,6 +9,7 @@ const {
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
 } = require("../lib/dk-deploy-channel-api.cjs");
+const { enforceRateLimit } = require("../lib/dk-portal-auth.cjs");
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -18,6 +19,8 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
+
+  if (await enforceRateLimit(req, res, "cliente-app-gate", 20)) return;
 
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, msg: "Método não permitido." });

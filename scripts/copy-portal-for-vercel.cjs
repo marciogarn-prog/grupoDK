@@ -130,20 +130,7 @@ if (fs.existsSync(indexHtml)) {
       `<meta name="dk-supabase-anon-key" content="${escHtmlAttrValue(anonEnv)}">`
     );
   }
-  const waSecret = process.env.DK_WHATSAPP_SEND_SECRET || "";
-  if (waSecret) {
-    html = html.replace(
-      /<meta\s+name="dk-whatsapp-send-secret"\s+content="[^"]*"\s*>/i,
-      `<meta name="dk-whatsapp-send-secret" content="${escHtmlAttrValue(waSecret)}">`
-    );
-  }
-  const backupSecret = process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || "";
-  if (backupSecret) {
-    html = html.replace(
-      /<meta\s+name="dk-backup-send-secret"\s+content="[^"]*"\s*>/i,
-      `<meta name="dk-backup-send-secret" content="${escHtmlAttrValue(backupSecret)}">`
-    );
-  }
+  /* Fase 1A: não injetar DK_WHATSAPP_SEND_SECRET nem DK_BACKUP_SEND_SECRET no HTML. */
   fs.writeFileSync(indexHtml, html);
   const unitCopies = [
     ["grupodk.html", "grupodk"],
@@ -157,10 +144,7 @@ if (fs.existsSync(indexHtml)) {
   console.log(
     "copy-portal-for-vercel: Supabase meta injetadas (chave:",
     anonEnv ? "env" : "mantida-do-index",
-    "); WhatsApp send:",
-    waSecret ? "secret injetado" : "sem DK_WHATSAPP_SEND_SECRET",
-    "; Backup send:",
-    backupSecret ? "secret injetado" : "sem DK_BACKUP_SEND_SECRET/CRON_SECRET"
+    "); WhatsApp/backup secrets: não injetados no HTML (Fase 1A)"
   );
 }
 

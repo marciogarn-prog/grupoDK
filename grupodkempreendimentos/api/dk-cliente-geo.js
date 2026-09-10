@@ -7,6 +7,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { handleClientePush } = require("../lib/dk-cliente-push-handler.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -66,9 +67,7 @@ function pruneStore(store) {
 }
 
 function applyCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-DK-Deploy-Channel");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 }
 
 module.exports = async function handler(req, res) {
@@ -80,6 +79,23 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
+  }
+
+  if (await enforceRateLimit(req, res, "cliente-geo", req.method === "GET" ? 20 : 40)) return;
+  if (req.method === "GET") {
+    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    if (!gate.ok) {
+      return res.status(gate.status).json({ ok: false, reason: gate.reason });
+    }
+  } else if (req.method === "POST") {
+    const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+    if (!gate.ok) {
+      return res.status(gate.status).json({ ok: false, reason: gate.reason });
+    }
+    const bodyCpf = onlyDigits(parseBody(req).cpf).slice(0, 11);
+    if (gate.typ === "cliente" && gate.cpf !== bodyCpf) {
+      return res.status(403).json({ ok: false, reason: "cpf_mismatch" });
+    }
   }
 
   if (!isRedisKvConfigured()) {

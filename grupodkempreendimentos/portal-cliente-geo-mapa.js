@@ -201,7 +201,10 @@
     }
     if (msg && preserveView) msg.textContent = "A atualizar mapa…";
     try {
-      const res = await fetch(GEO_API, { cache: "no-store" });
+      const res = await fetch(GEO_API, {
+        cache: "no-store",
+        headers: typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {},
+      });
       const raw = await res.text();
       let data;
       try {

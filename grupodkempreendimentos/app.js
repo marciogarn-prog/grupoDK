@@ -2288,6 +2288,9 @@ function clearSession() {
   } catch {
     // ignore
   }
+  if (typeof window.__DK_portalApiTokenClear === "function") {
+    window.__DK_portalApiTokenClear();
+  }
 }
 
 function isSalvarClienteUnlockedThisSession() {
@@ -8825,35 +8828,32 @@ function getBundledClienteCpfSet() {
 }
 
 /**
- * Próximo Cód. no padrão de 4 dígitos (0386, 0387…): teto da base embarcada + extras locais
- * com nome (≥3 chars), ignorando fantasmas no localStorage sem nome.
+ * Próximo Cód. no padrão de 4 dígitos: maior código da base + 1
+ * (nuvem já puxada + bundles). Ex.: 0400 na nuvem → próximo 0401.
  */
 function nextClienteCodigo() {
-  const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
-  const snapshotCpfs = getBundledClienteCpfSet();
   const used = new Set();
-  const addBundledCodes = (arr) => {
+  const addCodes = (arr) => {
     if (!Array.isArray(arr)) return;
     for (const c of arr) {
       const n = Number(onlyDigits(String(c.codigo || "")));
       if (Number.isFinite(n) && n > 0) used.add(n);
     }
   };
-  addBundledCodes(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
-  addBundledCodes(clientesSeedData);
-  addBundledCodes(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  addCodes(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addCodes(clientesSeedData);
+  addCodes(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  try {
+    addCodes(loadCadastro(CAD_CLIENTES_KEY));
+  } catch {
+    /* ignore */
+  }
 
-  let extrasComNome = 0;
-  loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
-    const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11 || snapshotCpfs.has(cpf)) return;
-    if (String(c.nome || "").trim().length < 3) return;
-    extrasComNome += 1;
-    const n = Number(onlyDigits(String(c.codigo || "")));
-    if (Number.isFinite(n) && n > 0) used.add(n);
+  let max = getMaxClienteCodigoFromBundledSnapshots();
+  used.forEach((n) => {
+    if (n > max) max = n;
   });
-
-  let next = bundledMax + extrasComNome + 1;
+  let next = max + 1;
   while (used.has(next)) next += 1;
   return formatClienteCodigoPadrao(next);
 }

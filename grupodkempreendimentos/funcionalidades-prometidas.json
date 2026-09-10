@@ -2107,6 +2107,59 @@
       }
     },
     {
+      "id": "fase-1a-contencao-apis",
+      "descricao": "Fase 1A: APIs de snapshot, cadastro-* e GPS/push recusam anónimo; token de sessão no browser; secrets de WhatsApp/backup fora do HTML.",
+      "ficheiros": {
+        "lib/dk-portal-auth.cjs": [
+          "requirePortalAuth",
+          "enforceRateLimit"
+        ],
+        "api/dk-portal-auth.js": [
+          "tipo: \"equipa\"",
+          "tipo: \"cliente\""
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "requirePortalAuth"
+        ],
+        "index.html": [
+          "dk-portal-api-auth.js"
+        ],
+        "dk-portal-api-auth.js": [
+          "__DK_portalApiHeaders"
+        ]
+      }
+    },
+    {
+      "id": "salvar-cliente-so-libera-apos-nuvem",
+      "descricao": "Ao salvar o cadastro de um cliente, o sistema só libera para trabalhar depois de garantir que a informação está na nuvem. Botão Enviar para nuvem ao lado de Guardar cliente, Guardar veículo e Cadastrar locação. Trocar de tela baixa a última atualização e bloqueia até o download terminar. Próximo Cód. = maior código da base + 1.",
+      "ficheiros": {
+        "index.html": [
+          "portalNuvemSyncLock",
+          "operacaoClienteEnviarNuvemBtn",
+          "operacaoVeiculoEnviarNuvemBtn",
+          "operacaoLocacaoEnviarNuvemBtn",
+          "Enviar para nuvem"
+        ],
+        "portal-locadora-ui.js": [
+          "portalNuvemGarantirNaNuvem",
+          "portalNuvemSyncLockShow",
+          "A enviar o cadastro do cliente para a nuvem",
+          "Só pode trabalhar quando o download terminar"
+        ],
+        "portal-supabase-sync.js": [
+          "screenPullInFlight",
+          "Sem intervalo mínimo"
+        ],
+        "app.js": [
+          "maior código da base + 1"
+        ],
+        "styles.css": [
+          "portal-nuvem-sync-lock",
+          "portal-nuvem-sync-lock-on"
+        ]
+      }
+    },
+    {
       "id": "fin-excel-filtro-data-arvore",
       "descricao": "Nos filtros de coluna estilo Excel de data, as datas agrupam por ano, mês e dia (como no Excel): dá para marcar um mês ou um ano inteiro sem selecionar dia a dia.",
       "ficheiros": {

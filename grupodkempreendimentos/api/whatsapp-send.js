@@ -39,7 +39,10 @@ function isOriginAllowed(origin) {
 function applyCors(res, origin) {
   if (isOriginAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dk-whatsapp-secret");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-DK-Portal-Token, x-dk-whatsapp-secret"
+    );
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   }
 }
@@ -63,8 +66,15 @@ module.exports = async function handler(req, res) {
   }
 
   const secret = String(req.headers["x-dk-whatsapp-secret"] || "");
-  if (!process.env.DK_WHATSAPP_SEND_SECRET || secret !== process.env.DK_WHATSAPP_SEND_SECRET) {
-    return res.status(401).json({ ok: false, reason: "unauthorized" });
+  const secretOk = Boolean(
+    process.env.DK_WHATSAPP_SEND_SECRET && secret === process.env.DK_WHATSAPP_SEND_SECRET
+  );
+  if (!secretOk) {
+    const { requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
+    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    if (!gate.ok) {
+      return res.status(gate.status).json({ ok: false, reason: gate.reason || "unauthorized" });
+    }
   }
 
   const token = process.env.WHATSAPP_ACCESS_TOKEN;

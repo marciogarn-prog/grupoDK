@@ -10,6 +10,7 @@ const {
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
 } = require("../lib/dk-deploy-channel-api.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:clientes_cadastro:v1";
 
@@ -28,12 +29,16 @@ function parseRedisArray(raw) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-DK-Deploy-Channel");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
+  }
+
+  if (await enforceRateLimit(req, res, "cadastro-clientes", 30)) return;
+  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+  if (!gate.ok) {
+    return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
   if (!isRedisKvConfigured()) {

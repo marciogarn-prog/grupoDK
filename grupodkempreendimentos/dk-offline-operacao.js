@@ -306,7 +306,11 @@
       const res = await fetch(`/api/dk-cloud-snapshot${q}`, {
         method: "GET",
         cache: "no-store",
-        headers: { Accept: "application/json", ...(q ? { "X-DK-Deploy-Channel": "demo" } : {}) },
+        headers: {
+          Accept: "application/json",
+          ...(q ? { "X-DK-Deploy-Channel": "demo" } : {}),
+          ...(typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {}),
+        },
         signal: AbortSignal.timeout(8000),
       });
       return res.ok;

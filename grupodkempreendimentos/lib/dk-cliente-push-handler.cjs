@@ -10,11 +10,10 @@ const {
   sendPushToCpf,
   resolveChannel,
 } = require("./dk-web-push.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, onlyDigits } = require("./dk-portal-auth.cjs");
 
 function applyCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-DK-Deploy-Channel");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 }
 
 function parseBody(req) {
@@ -44,6 +43,8 @@ async function handleClientePush(req, res) {
     return res.status(204).end();
   }
 
+  if (await enforceRateLimit(req, res, "cliente-push", 40)) return;
+
   if (req.method === "GET") {
     const action = String(req.query?.action || "vapid").trim();
     if (action !== "vapid") {
@@ -70,17 +71,11 @@ async function handleClientePush(req, res) {
   const action = String(body.action || "").trim();
   const channel = resolveChannelFromReq(req, body);
 
-  if (action === "subscribe") {
-    const r = await upsertSubscription(channel, body.cpf, body.subscription);
-    return res.status(r.ok ? 200 : 400).json(r);
-  }
-
-  if (action === "unsubscribe") {
-    const r = await removeSubscription(channel, body.cpf, body.subscription?.endpoint || body.endpoint);
-    return res.status(r.ok ? 200 : 400).json(r);
-  }
-
   if (action === "notify") {
+    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    if (!gate.ok) {
+      return res.status(gate.status).json({ ok: false, reason: gate.reason });
+    }
     if (!isVapidConfigured()) {
       return res.status(200).json({ ok: false, reason: "vapid_not_configured", sent: 0 });
     }
@@ -90,6 +85,23 @@ async function handleClientePush(req, res) {
       setor: body.setor,
     });
     return res.status(200).json(r);
+  }
+
+  if (action === "subscribe" || action === "unsubscribe") {
+    const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+    if (!gate.ok) {
+      return res.status(gate.status).json({ ok: false, reason: gate.reason });
+    }
+    const bodyCpf = onlyDigits(body.cpf).slice(0, 11);
+    if (gate.typ === "cliente" && gate.cpf !== bodyCpf) {
+      return res.status(403).json({ ok: false, reason: "cpf_mismatch" });
+    }
+    if (action === "subscribe") {
+      const r = await upsertSubscription(channel, body.cpf, body.subscription);
+      return res.status(r.ok ? 200 : 400).json(r);
+    }
+    const r = await removeSubscription(channel, body.cpf, body.subscription?.endpoint || body.endpoint);
+    return res.status(r.ok ? 200 : 400).json(r);
   }
 
   return res.status(400).json({ ok: false, msg: "Ação POST inválida." });

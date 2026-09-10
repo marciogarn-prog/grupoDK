@@ -107,7 +107,10 @@
       };
       const res = await fetch(GEO_API, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {}),
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));

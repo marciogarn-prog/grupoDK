@@ -886,6 +886,10 @@
   }
 
   function getOperacaoProximoClienteNumero() {
+    if (typeof nextClienteCodigo === "function") {
+      const n = Number(String(nextClienteCodigo()).replace(/\D/g, ""));
+      if (Number.isFinite(n) && n > 0) return n;
+    }
     return countOperacaoClientesCadastrados() + 1;
   }
 
@@ -2232,7 +2236,11 @@
   }
 
   function dkPortalCloudFetchHeaders() {
-    return dkPortalSnapshotLabel() === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+    const extra = dkPortalSnapshotLabel() === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+    if (typeof window.__DK_portalApiHeaders === "function") {
+      return window.__DK_portalApiHeaders(extra);
+    }
+    return extra;
   }
 
   async function validateClienteProtocoloViaSupabase(cpfDigits, protoRaw) {
@@ -3405,6 +3413,13 @@
 
     if (role === "colaborador" || role === "administrador") {
       portalHydrateFuncionariosForLogin();
+      if (typeof window.__DK_portalApiLoginEquipa === "function") {
+        const remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
+        if (!remote.ok && !remote.networkError) {
+          loginFeedback.textContent = remote.msg || "CPF ou senha inválidos.";
+          return;
+        }
+      }
       let auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
       if (!auth.ok) {
         await portalPullFuncionariosFromCloudForLogin();
@@ -10126,11 +10141,10 @@
         else clientes[idx] = { ...clientes[idx], ...payload };
         saveCadastro(CAD_CLIENTES_KEY, clientes);
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof window.__DK_portalClienteDocsPersist === "function") {
         window.__DK_portalClienteDocsPersist(cpfDigits);
       }
-      if (msg) msg.textContent = "Dados do cliente guardados com sucesso.";
+      if (msg) msg.textContent = "Dados do cliente guardados neste PC. A confirmar na nuvem…";
       portalApplyAmbienteVisualForm("Cliente", payloadPortal);
       refreshOperacaoClienteCodigoEditavel();
       return true;
@@ -10541,13 +10555,12 @@
           return false;
         }
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof window.__DK_portalClienteDocsPersist === "function") {
         window.__DK_portalClienteDocsPersist(digits);
       }
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
-      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
+      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado neste PC. A confirmar na nuvem…`;
       portalApplyAmbienteVisualForm("Cliente", novo);
       portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
@@ -10580,8 +10593,15 @@
       portalAbrirClienteConfirmModal(
         { novo, rows: portalClienteResumoConfirmRows(digits) },
         () => {
-          if (known) persistOperacaoClienteAtualizacao(digits, known);
-          else persistOperacaoClienteNovo(digits);
+          const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
+          if (!ok) return;
+          void portalNuvemGarantirNaNuvem({
+            verifyKind: "cliente",
+            verifyValue: digits,
+            msgEl: msg,
+            textoEnviar: "A enviar o cadastro do cliente para a nuvem. Só pode continuar quando a nuvem confirmar.",
+            textoOk: "Cliente na nuvem. Pode continuar o trabalho.",
+          });
         }
       );
     }
@@ -10593,6 +10613,22 @@
       if (digits.length !== 11) return;
       const known = getClienteByCpfAny(digits);
       iniciarConfirmacaoCliente(digits, known);
+    });
+
+    document.getElementById("operacaoClienteEnviarNuvemBtn")?.addEventListener("click", () => {
+      const digits =
+        typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) {
+        if (msg) msg.textContent = "Informe o CPF do cliente e guarde o cadastro antes de enviar.";
+        return;
+      }
+      void portalNuvemGarantirNaNuvem({
+        verifyKind: "cliente",
+        verifyValue: digits,
+        msgEl: msg,
+        textoEnviar: "A enviar o cadastro do cliente para a nuvem. Só pode continuar quando a nuvem confirmar.",
+        textoOk: "Cliente na nuvem. Pode continuar o trabalho.",
+      });
     });
 
     btnAtualizar?.addEventListener("click", () => {
@@ -16731,7 +16767,69 @@
     });
   }
 
-  function portalPushCloudSnapshotAfterPersist() {
+  function portalNuvemSyncLockEls() {
+    return {
+      box: document.getElementById("portalNuvemSyncLock"),
+      texto: document.getElementById("portalNuvemSyncLockTexto"),
+      retry: document.getElementById("portalNuvemSyncLockRetry"),
+    };
+  }
+
+  function portalNuvemSyncLockShow(texto, opts) {
+    const { box, texto: tEl, retry } = portalNuvemSyncLockEls();
+    if (tEl) tEl.textContent = texto || "A sincronizar com a nuvem…";
+    const spin = box?.querySelector(".dk-offline-upload-spinner");
+    if (spin) spin.classList.toggle("hidden", Boolean(opts?.retry));
+    if (retry) {
+      retry.classList.toggle("hidden", !opts?.retry);
+      retry.onclick = typeof opts?.onRetry === "function" ? opts.onRetry : null;
+    }
+    if (box) {
+      box.classList.remove("hidden");
+      box.removeAttribute("hidden");
+      box.setAttribute("aria-hidden", "false");
+    }
+    document.body.classList.add("portal-nuvem-sync-lock-on");
+  }
+
+  function portalNuvemSyncLockHide() {
+    const { box, retry } = portalNuvemSyncLockEls();
+    if (box) {
+      box.classList.add("hidden");
+      box.setAttribute("hidden", "");
+      box.setAttribute("aria-hidden", "true");
+    }
+    if (retry) {
+      retry.classList.add("hidden");
+      retry.onclick = null;
+    }
+    document.body.classList.remove("portal-nuvem-sync-lock-on");
+  }
+
+  function portalNuvemDigitsCpf(v) {
+    return String(v ?? "").replace(/\D/g, "").slice(0, 11);
+  }
+
+  function portalNuvemNormPlaca(v) {
+    if (typeof normalizePlate === "function") return normalizePlate(String(v || ""));
+    return String(v || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function portalNuvemNormProto(v) {
+    if (typeof normPortalNumeroContrato === "function") return normPortalNumeroContrato(v);
+    return String(v || "").replace(/\D/g, "");
+  }
+
+  function portalNuvemPushResultOk(push) {
+    if (!push || push.ok === false) return false;
+    if (push.skipped && push.reason === "android_somente_leitura") return true;
+    return Boolean(push.redisOk || push.source === "redis" || push.source === "both");
+  }
+
+  async function portalNuvemPushAwait() {
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
         window.__DK_markLocalDataAuthority();
@@ -16739,10 +16837,110 @@
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
-    window.__DK_pushCloudSnapshotNow({ force: true }).catch((err) => {
-      console.warn("[DK portal] enviar snapshot nuvem", err);
-    });
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
+      return { ok: false, error: new Error("sem envio para a nuvem") };
+    }
+    try {
+      return await window.__DK_pushCloudSnapshotNow({ force: true });
+    } catch (err) {
+      return { ok: false, error: err };
+    }
+  }
+
+  async function portalNuvemLerSnapshotPayload() {
+    if (typeof window.__DK_fetchCloudSnapshotPayload === "function") {
+      const data = await window.__DK_fetchCloudSnapshotPayload();
+      return data?.payload || null;
+    }
+    const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data?.payload || null;
+  }
+
+  async function portalNuvemVerificarNoSnapshot(kind, value) {
+    const payload = await portalNuvemLerSnapshotPayload();
+    if (!payload) return false;
+    if (kind === "cliente") {
+      const want = portalNuvemDigitsCpf(value);
+      const arr = payload.dk_clientes_cadastro;
+      if (!Array.isArray(arr) || want.length !== 11) return false;
+      return arr.some((c) => portalNuvemDigitsCpf(c?.cpf) === want);
+    }
+    if (kind === "veiculo") {
+      const want = portalNuvemNormPlaca(value);
+      const arr = [].concat(payload.dk_veiculos_cadastro || [], payload.dk_portal_veiculos_cadastro || []);
+      if (!want) return false;
+      return arr.some((v) => portalNuvemNormPlaca(v?.placa) === want);
+    }
+    if (kind === "locacao") {
+      const want = portalNuvemNormProto(value);
+      const arr = payload.dk_locacoes_cadastro;
+      if (!Array.isArray(arr) || !want) return false;
+      return arr.some((l) => portalNuvemNormProto(l?.numeroContrato) === want);
+    }
+    return false;
+  }
+
+  async function portalNuvemGarantirNaNuvem(opts) {
+    const msgEl = opts?.msgEl;
+    const setMsg = (t) => {
+      if (msgEl && t) msgEl.textContent = t;
+    };
+    const textoEnviar =
+      opts?.textoEnviar ||
+      "A enviar os dados para a nuvem. Só pode trabalhar quando a nuvem confirmar.";
+    const run = async () => {
+      portalNuvemSyncLockShow(textoEnviar);
+      const push = await portalNuvemPushAwait();
+      if (!portalNuvemPushResultOk(push)) {
+        const falha =
+          "Ficou só neste PC. A nuvem não confirmou. Não continue noutro computador — tente de novo.";
+        setMsg(falha);
+        portalNuvemSyncLockShow(falha, {
+          retry: true,
+          onRetry: () => {
+            void run();
+          },
+        });
+        return false;
+      }
+      if (opts?.verifyKind && opts?.verifyValue) {
+        let naNuvem = false;
+        try {
+          naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
+          if (!naNuvem) {
+            await new Promise((res) => setTimeout(res, 1200));
+            naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
+          }
+        } catch {
+          naNuvem = false;
+        }
+        if (!naNuvem) {
+          const falha =
+            "A nuvem recebeu o envio, mas o cadastro ainda não aparece no snapshot. Tente de novo.";
+          setMsg(falha);
+          portalNuvemSyncLockShow(falha, {
+            retry: true,
+            onRetry: () => {
+              void run();
+            },
+          });
+          return false;
+        }
+      }
+      portalNuvemSyncLockHide();
+      if (opts?.textoOk) setMsg(opts.textoOk);
+      if (typeof refreshOperacaoClienteCodigoEditavel === "function") {
+        refreshOperacaoClienteCodigoEditavel();
+      }
+      return true;
+    };
+    return run();
+  }
+
+  function portalPushCloudSnapshotAfterPersist() {
+    void portalNuvemGarantirNaNuvem();
   }
 
   /**
@@ -16838,24 +17036,57 @@
   }
 
   /**
-   * Trocar de tela na Operação: UI local na hora; download da nuvem só depois
-   * do upload automático (se houver) confirmar sucesso neste PC.
+   * Trocar de tela: bloqueia até o download da última atualização da nuvem terminar.
    */
-  function portalOperacaoOnScreenChange() {
+  let portalScreenPullGen = 0;
+  async function portalOperacaoOnScreenChange() {
+    const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
-    if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return;
-    window
-      .__DK_pullFromCloudOnScreenChange()
-      .then((r) => {
-        if (r && (r.applied || r.changed)) portalRefreshOperacaoLocal();
-      })
-      .catch(() => {});
+    if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
+    portalNuvemSyncLockShow(
+      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar."
+    );
+    try {
+      const r = await window.__DK_pullFromCloudOnScreenChange();
+      if (gen !== portalScreenPullGen) return false;
+      if (r && r.ok === false) {
+        const falha =
+          r.reason === "await_push_failed"
+            ? "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar."
+            : "Não foi possível receber a última atualização da nuvem.";
+        portalNuvemSyncLockShow(falha, {
+          retry: true,
+          onRetry: () => {
+            void portalOperacaoOnScreenChange();
+          },
+        });
+        return false;
+      }
+      portalRefreshOperacaoLocal();
+      if (r && (r.applied || r.changed)) {
+        portalRefreshOperacaoDeferred();
+      }
+      refreshOperacaoClienteCodigoEditavel();
+      portalNuvemSyncLockHide();
+      return true;
+    } catch {
+      if (gen !== portalScreenPullGen) return false;
+      portalNuvemSyncLockShow("Falha ao receber a nuvem.", {
+        retry: true,
+        onRetry: () => {
+          void portalOperacaoOnScreenChange();
+        },
+      });
+      return false;
+    }
   }
 
   try {
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
     window.__DK_portalOperacaoOnScreenChange = portalOperacaoOnScreenChange;
     window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
+    window.__DK_portalNuvemGarantirNaNuvem = portalNuvemGarantirNaNuvem;
+    window.portalPushCloudSnapshotAfterPersist = portalPushCloudSnapshotAfterPersist;
     window.__DK_invalidatePesquisaLinhasCache = invalidatePesquisaLinhasCache;
     window.__DK_portalRenderColaboradoresLista = portalRenderColaboradoresLista;
   } catch {
@@ -19830,10 +20061,20 @@
         console.error(err);
         return;
       }
-      portalPushCloudSnapshotAfterPersist();
       if (msg) {
-        msg.textContent = existenteVeiculo ? "Veículo atualizado com sucesso." : "Veículo cadastrado com sucesso.";
+        msg.textContent = existenteVeiculo
+          ? "Veículo atualizado neste PC. A confirmar na nuvem…"
+          : "Veículo cadastrado neste PC. A confirmar na nuvem…";
       }
+      void portalNuvemGarantirNaNuvem({
+        verifyKind: "veiculo",
+        verifyValue: plate,
+        msgEl: msg,
+        textoEnviar: "A enviar o veículo para a nuvem. Só pode trabalhar quando a nuvem confirmar.",
+        textoOk: existenteVeiculo
+          ? "Veículo na nuvem. Pode continuar o trabalho."
+          : "Veículo cadastrado e na nuvem. Pode continuar o trabalho.",
+      });
       portalApplyAmbienteVisualForm("Veiculo", novo);
       refreshOperacaoVeiculoApagarBtn(plate);
       setOperacaoVeiculoCadastradoPorDisplay(novo);
@@ -24460,12 +24701,8 @@
       if (msgEl) msgEl.textContent = "Escreva a mensagem.";
       return;
     }
-    const secret = portalWaGetSendSecret();
-    if (!secret) {
-      if (msgEl) {
-        msgEl.textContent =
-          "Envio não configurado: na Vercel defina WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID e DK_WHATSAPP_SEND_SECRET (redeploy para injetar a chave).";
-      }
+    if (typeof window.__DK_portalApiTokenGet === "function" && !window.__DK_portalApiTokenGet()) {
+      if (msgEl) msgEl.textContent = "Inicie sessão de novo para enviar WhatsApp.";
       return;
     }
     const btn = document.getElementById("portalWaBtnEnviar");
@@ -24476,7 +24713,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-dk-whatsapp-secret": secret,
+          ...(typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {}),
         },
         body: JSON.stringify({ to: row.celularWa, text }),
       });
@@ -26509,7 +26746,10 @@
         try {
           const r = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {}),
+          },
           body: JSON.stringify({ data: list }),
         });
           if (r.ok) {

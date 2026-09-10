@@ -22,7 +22,11 @@
 
   function dkCloudFetchHeaders() {
     const ch = dkSnapshotLabel();
-    return ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+    const extra = ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+    if (typeof window.__DK_portalApiHeaders === "function") {
+      return window.__DK_portalApiHeaders(extra);
+    }
+    return extra;
   }
 
   /** Merge documentos de locação — preferir PDF (arquivoBase64) e enviadoCliente. Usado no portal e no app cliente. */
@@ -218,8 +222,8 @@
 
   const CLOUD_PUSH_DEBOUNCE_MS = 2500;
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
-  /** Evita vários pulls seguidos ao clicar rápido entre menus da Operação. */
-  const SCREEN_PULL_MIN_INTERVAL_MS = 4000;
+  /** Sem intervalo mínimo: cada troca de tela baixa a última atualização. */
+  const SCREEN_PULL_MIN_INTERVAL_MS = 0;
 
   let backgroundPullLastAt = 0;
   let backgroundPullInFlight = null;
@@ -4236,9 +4240,10 @@
     if (recusarOpcaoNuvemSeNaoAdmin()) return;
     closeBackupImportChoiceModal();
     const secret = readBackupSendSecret();
-    if (!secret) {
+    const hasToken = typeof window.__DK_portalApiTokenGet === "function" && window.__DK_portalApiTokenGet();
+    if (!secret && !hasToken) {
       setMsg(
-        "Importação do último backup não configurada: defina DK_BACKUP_SEND_SECRET na Vercel e faça redeploy.",
+        "Inicie sessão de administrador para importar o último backup.",
         null
       );
       return;
@@ -4260,7 +4265,7 @@
         method: "GET",
         headers: {
           ...dkCloudFetchHeaders(),
-          "x-dk-backup-secret": secret,
+          ...(secret ? { "x-dk-backup-secret": secret } : {}),
         },
       });
       const data = await res.json().catch(() => ({}));
@@ -4282,11 +4287,9 @@
   async function sendBackupEmailFromBrowser() {
     if (recusarOpcaoNuvemSeNaoAdmin()) return;
     const secret = readBackupSendSecret();
-    if (!secret) {
-      setMsg(
-        "Backup por e-mail não configurado: na Vercel defina DK_BACKUP_SEND_SECRET (ou CRON_SECRET) e faça redeploy.",
-        null
-      );
+    const hasToken = typeof window.__DK_portalApiTokenGet === "function" && window.__DK_portalApiTokenGet();
+    if (!secret && !hasToken) {
+      setMsg("Inicie sessão de administrador para gerar o backup.", null);
       return;
     }
     if (
@@ -4305,7 +4308,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-dk-backup-secret": secret,
+          ...(secret ? { "x-dk-backup-secret": secret } : {}),
           ...dkCloudFetchHeaders(),
         },
         body: JSON.stringify({ browserData }),

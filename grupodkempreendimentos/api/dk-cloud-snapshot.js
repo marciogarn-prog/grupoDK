@@ -8,12 +8,14 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
 const {
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -316,9 +318,7 @@ const DEMO_TEN_CAP_KEYS = [
 ];
 
 function applyCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 }
 
 function parseBody(req) {
@@ -805,6 +805,14 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
+  if (await enforceRateLimit(req, res, "cloud-snapshot", req.method === "POST" ? 30 : 60)) {
+    return;
+  }
+  const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+  if (!gate.ok) {
+    return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  }
+
   if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
@@ -839,6 +847,11 @@ async function handler(req, res) {
         channel === "default" && payload
           ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
           : payload;
+      if (gate.typ === "cliente" && safePayload && Array.isArray(safePayload.dk_funcionarios_access)) {
+        safePayload.dk_funcionarios_access = safePayload.dk_funcionarios_access.map((f) =>
+          f && typeof f === "object" ? { ...f, senha: "" } : f
+        );
+      }
       return res.status(200).json({
         ok: true,
         label: LABEL,

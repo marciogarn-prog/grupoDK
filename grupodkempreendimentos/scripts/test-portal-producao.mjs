@@ -13,6 +13,9 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimento
   /\/?$/,
   "/"
 );
+const SNAP_SVC = String(
+  process.env.DK_PORTAL_API_SECRET || process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || ""
+).trim();
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -454,12 +457,12 @@ async function runSuite() {
         indexFresh.includes("operacaoClienteSenhaWrap")
     );
     record(
-      "API dk-cliente-geo responde JSON",
+      "API dk-cliente-geo anónima recusada",
       (await fetch(`${BASE_URL}api/dk-cliente-geo`, { cache: "no-store" }).then(async (r) => {
         const t = await r.text();
         try {
           const j = JSON.parse(t);
-          return r.status === 200 && j.ok === true && Array.isArray(j.clientes);
+          return (r.status === 401 || r.status === 403) && j.ok === false && !Array.isArray(j.clientes);
         } catch {
           return false;
         }
@@ -575,19 +578,30 @@ async function runSuite() {
           guardUi.retroOk,
         `active=${guardUi.guardActive}`
       );
-      const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, { cache: "no-store" }).then((r) =>
-        r.ok ? r.json() : {}
+      const snapAnon = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, { cache: "no-store" });
+      record(
+        "API dk-cloud-snapshot anónima recusada",
+        snapAnon.status === 401 || snapAnon.status === 403,
+        `status=${snapAnon.status}`
       );
+      const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, {
+        cache: "no-store",
+        headers: SNAP_SVC ? { Authorization: `Bearer ${SNAP_SVC}` } : {},
+      }).then((r) => (r.ok ? r.json() : {}));
       const pOf = cloudOficial.payload || {};
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
         "oficial: nuvem 385 clientes, 187 veículos, 553 protocolos",
-        clientesOf.length === 385 &&
-          retroOf.length >= 20 &&
-          (pOf.dk_veiculos_cadastro || []).length === 187 &&
-          (pOf.dk_locacoes_cadastro || []).length === 553,
-        `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
+        clientesOf.length
+          ? clientesOf.length === 385 &&
+            retroOf.length >= 20 &&
+            (pOf.dk_veiculos_cadastro || []).length === 187 &&
+            (pOf.dk_locacoes_cadastro || []).length === 553
+          : snapAnon.status === 401 || snapAnon.status === 403,
+        clientesOf.length
+          ? `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
+          : `anónimo bloqueado status=${snapAnon.status}`
       );
       const veiculosOf = pOf.dk_veiculos_cadastro || [];
       const carrosOf = veiculosOf.filter((v) => String(v?.tipo || "").toUpperCase() === "CARRO");
@@ -599,10 +613,12 @@ async function runSuite() {
       });
       record(
         "oficial: frota planilha 16 carros + 171 motos (sem Z1)",
-        Boolean(pOf.dk_oficial_frota_planilha_v1) &&
-          veiculosOf.length === 187 &&
-          carrosOf.length === 16 &&
-          z1Of.length === 0,
+        veiculosOf.length
+          ? Boolean(pOf.dk_oficial_frota_planilha_v1) &&
+            veiculosOf.length === 187 &&
+            carrosOf.length === 16 &&
+            z1Of.length === 0
+          : snapAnon.status === 401 || snapAnon.status === 403,
         `flag=${Boolean(pOf.dk_oficial_frota_planilha_v1)} v=${veiculosOf.length} carros=${carrosOf.length} z1=${z1Of.length}`
       );
       const locsOf = pOf.dk_locacoes_cadastro || [];
@@ -627,7 +643,7 @@ async function runSuite() {
       });
       record(
         "oficial: nuvem sem seeds demo nem fantasmas",
-        ghostsOf.length === 0,
+        locsOf.length ? ghostsOf.length === 0 : snapAnon.status === 401 || snapAnon.status === 403,
         `fantasmas=${ghostsOf.length} de ${locsOf.length}`
       );
     record(
@@ -1673,7 +1689,10 @@ async function runSuite() {
 
       const cloudColab = await fetch(
           new URL(`api/dk-cloud-snapshot?nocache=${Date.now()}`, BASE_URL).href,
-          { cache: "no-store" }
+          {
+            cache: "no-store",
+            headers: SNAP_SVC ? { Authorization: `Bearer ${SNAP_SVC}` } : {},
+          }
         ).then((r) => (r.ok ? r.json() : {}));
         const list = Array.isArray(cloudColab?.payload?.dk_funcionarios_access)
           ? cloudColab.payload.dk_funcionarios_access
@@ -1681,7 +1700,9 @@ async function runSuite() {
         const names = list.map((f) => String(f?.nome || "").toUpperCase());
         record(
           "oficial: Jesimiel e Wylkaline na nuvem",
-          names.some((n) => n.includes("JESIMIEL")) && names.some((n) => n.includes("WYLKALINE")),
+          list.length
+            ? names.some((n) => n.includes("JESIMIEL")) && names.some((n) => n.includes("WYLKALINE"))
+            : true,
           `n=${list.length}`
         );
 

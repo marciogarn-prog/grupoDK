@@ -12,8 +12,7 @@
   <!-- Supabase (Settings &mdash; API). Na Vercel defina SUPABASE_ANON_KEY; o build injeta a chave. -->
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
   <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
-  <meta name="dk-whatsapp-send-secret" content="">
-  <meta name="dk-backup-send-secret" content="">
+  <!-- Secrets de WhatsApp/backup NÃO vão no HTML (Fase 1A). APIs usam token de sessão. -->
   <meta name="description" content="Grupo DK Empreendimentos &mdash; DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -36,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260909semanas-pagas">
+  <link rel="stylesheet" href="styles.css?v=20260909nuvem-lock">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -843,6 +842,7 @@
             </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteEnviarNuvemBtn">Enviar para nuvem</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoClienteApagarBtn" title="Sí administrador (titular), só cadastro local e sem histórico de locação &mdash; o botão fica oculto se existir locação com este cliente">Apagar cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
@@ -973,6 +973,7 @@
             </label>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar veículo</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoEnviarNuvemBtn">Enviar para nuvem</button>
               <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoVeiculoApagarBtn" title="Só administrador e cadastro marcado como TESTE">Apagar veículo (teste)</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoVoltarBtn">Voltar</button>
@@ -1328,6 +1329,7 @@
 
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary" id="operacaoLocacaoSubmitBtn">Cadastrar locação</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoEnviarNuvemBtn">Enviar para nuvem</button>
               <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoLocacaoApagarProtocoloBtn" title="Só administrador e protocolo marcado como TESTE">Apagar protocolo (teste)</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoVoltarBtn">Voltar</button>
@@ -5176,6 +5178,15 @@
     </div>
   </div>
 
+  <div id="portalNuvemSyncLock" class="portal-nuvem-sync-lock hidden" hidden aria-live="assertive" aria-hidden="true" role="alertdialog" aria-labelledby="portalNuvemSyncLockTexto">
+    <div class="portal-nuvem-sync-lock__card">
+      <p id="portalNuvemSyncLockTexto" class="portal-nuvem-sync-lock__title">A sincronizar com a nuvem…</p>
+      <p class="subtext portal-nuvem-sync-lock__sub">Só pode trabalhar quando a nuvem confirmar a última atualização.</p>
+      <div class="dk-offline-upload-spinner" aria-hidden="true"></div>
+      <button type="button" class="btn-primary hidden" id="portalNuvemSyncLockRetry">Tentar de novo</button>
+    </div>
+  </div>
+
   <div id="dkOfflineBlockOverlay" class="dk-offline-block-overlay hidden" aria-live="assertive" aria-hidden="true">
     <div class="dk-offline-block-overlay__card">
       <p id="dkOfflineBlockMsg" class="dk-offline-block-overlay__title">Aguarde…</p>
@@ -5191,7 +5202,8 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
-  <script src="app.js?v=20260909semanas-pagas" defer></script>
+  <script src="dk-portal-api-auth.js?v=20260909fase1a"></script>
+  <script src="app.js?v=20260909fase1a" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5201,7 +5213,7 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260909semanas-pagas" defer></script>
+  <script src="portal-locadora-ui.js?v=20260909fase1a" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260908excel-dt"></script>
@@ -5250,7 +5262,7 @@
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260907plat-and" defer></script>
+  <script src="portal-supabase-sync.js?v=20260909fase1a" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

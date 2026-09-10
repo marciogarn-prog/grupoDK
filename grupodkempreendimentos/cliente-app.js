@@ -2529,6 +2529,13 @@
       if (fb) fb.textContent = "A verificar cadastro na nuvem…";
       if (submitBtn) submitBtn.disabled = true;
       try {
+        if (typeof window.__DK_portalApiLoginCliente === "function") {
+          const remote = await window.__DK_portalApiLoginCliente(cpf, senha, proto);
+          if (!remote.ok && !remote.networkError) {
+            if (fb) fb.textContent = remote.msg || "CPF, senha ou protocolo inválidos.";
+            return;
+          }
+        }
         if (typeof window.__DK_upsertClienteCadastroFromCloud === "function") {
           await window.__DK_upsertClienteCadastroFromCloud(cpf, proto);
         }

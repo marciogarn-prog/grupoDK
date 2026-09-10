@@ -27,7 +27,10 @@
     const cpfDig = onlyDigits(cpf).slice(0, 11);
     if (cpfDig.length !== 11) return;
     const body = String(mensagem || "").trim().slice(0, 180) || "Você tem um novo aviso da DK";
-    const headers = { "Content-Type": "application/json" };
+    const headers =
+      typeof window.__DK_portalApiHeaders === "function"
+        ? window.__DK_portalApiHeaders({ "Content-Type": "application/json" })
+        : { "Content-Type": "application/json" };
     if (window.__DK_DEPLOY_CHANNEL__ === "demo") headers["X-DK-Deploy-Channel"] = "demo";
     void fetch("/api/dk-cliente-geo?push=1", {
       method: "POST",

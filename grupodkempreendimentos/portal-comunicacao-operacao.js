@@ -32,7 +32,10 @@
     if (!rec || rec.autor !== "operacao") return;
     const cpf = onlyDigits(rec.cpf).slice(0, 11);
     if (cpf.length !== 11) return;
-    const headers = { "Content-Type": "application/json" };
+    const headers =
+      typeof window.__DK_portalApiHeaders === "function"
+        ? window.__DK_portalApiHeaders({ "Content-Type": "application/json" })
+        : { "Content-Type": "application/json" };
     if (window.__DK_DEPLOY_CHANNEL__ === "demo") headers["X-DK-Deploy-Channel"] = "demo";
     void fetch("/api/dk-cliente-geo?push=1", {
       method: "POST",
