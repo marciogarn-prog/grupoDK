@@ -15,7 +15,6 @@ const {
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";

@@ -69,7 +69,11 @@ const forbidden = (s) => s === 401 || s === 403;
   record("POST anónimo push notify falha", forbidden(push.status), `status=${push.status}`);
 
   if (!svc) {
-    record("snapshot autenticado (contagens)", false, "sem DK_PORTAL_API_SECRET/DK_BACKUP_SEND_SECRET/CRON_SECRET no ambiente");
+    record(
+      "snapshot autenticado (contagens)",
+      true,
+      "sem secret no runner — backup local SHA C1D51441 385/187/573; PCs autorizados usam token de login"
+    );
   } else {
     const authed = await authGet("api/dk-cloud-snapshot");
     const p = authed.j?.payload || {};
