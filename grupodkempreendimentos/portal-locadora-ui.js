@@ -4426,6 +4426,9 @@
     if (leadEl) leadEl.textContent = meta.lead;
     document.getElementById("portalSetorRelatorioBtnLocados")?.setAttribute("data-setor-relatorio", sub);
     portalAttachChecklistWorkspace("operacao");
+    if (typeof window.__DK_portalManutRapidaOnLocadosOpen === "function") {
+      window.__DK_portalManutRapidaOnLocadosOpen();
+    }
     /* Locados: só pesquisa de placa + enviar para manutenção (sem check-list). */
     document.getElementById("portalChecklistMount")?.classList.add("hidden");
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
@@ -5382,6 +5385,10 @@
       return modeloKey.includes(qNome);
     });
   }
+
+  window.__DK_portalListPlacasLocadosAtivas = function (queryRaw) {
+    return filterPlacasAtivasChecklistDropdown(queryRaw);
+  };
 
   function renderPortalChecklistPlacaDropdown(queryRaw) {
     const panel = document.getElementById("portalChecklistPlacaLista");
@@ -16971,6 +16978,10 @@
   }
 
   function portalPushCloudSnapshotAfterPersist() {
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      void window.__DK_pushCloudSnapshotNow({ force: true });
+      return;
+    }
     void portalNuvemGarantirNaNuvem();
   }
 
@@ -16991,6 +17002,9 @@
       }
     }
     portalPushCloudSnapshotAfterPersist();
+    if (typeof window.__DK_portalManutRapidaRefreshDia === "function") {
+      window.__DK_portalManutRapidaRefreshDia();
+    }
   }
 
   function portalGetManutSetorAtivo() {
@@ -17067,49 +17081,40 @@
   }
 
   /**
-   * Trocar de tela: bloqueia até o download da última atualização da nuvem terminar.
+   * Trocar de tela: puxa a última atualização da nuvem em fundo.
+   * Não mostra o overlay preto — o operador continua a trabalhar.
    */
   let portalScreenPullGen = 0;
   async function portalOperacaoOnScreenChange() {
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
     if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
-    portalNuvemSyncLockShow(
-      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar."
-    );
-    try {
-      const r = await window.__DK_pullFromCloudOnScreenChange();
-      if (gen !== portalScreenPullGen) return false;
-      if (r && r.ok === false) {
-        const falha =
-          r.reason === "await_push_failed"
-            ? "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar."
-            : "Não foi possível receber a última atualização da nuvem.";
-        portalNuvemSyncLockShow(falha, {
-          retry: true,
-          onRetry: () => {
-            void portalOperacaoOnScreenChange();
-          },
-        });
-        return false;
-      }
-      portalRefreshOperacaoLocal();
-      if (r && (r.applied || r.changed)) {
-        portalRefreshOperacaoDeferred();
-      }
-      refreshOperacaoClienteCodigoEditavel();
-      portalNuvemSyncLockHide();
-      return true;
-    } catch {
-      if (gen !== portalScreenPullGen) return false;
-      portalNuvemSyncLockShow("Falha ao receber a nuvem.", {
-        retry: true,
-        onRetry: () => {
-          void portalOperacaoOnScreenChange();
-        },
-      });
-      return false;
-    }
+    const textoDownload =
+      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar.";
+    const textoEnvioPendente =
+      "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar.";
+    void Promise.resolve(window.__DK_pullFromCloudOnScreenChange())
+      .then((r) => {
+        if (gen !== portalScreenPullGen) return;
+        if (r && r.reason === "await_push_failed") {
+          console.warn("[DK portal]", textoEnvioPendente);
+          if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+            void window.__DK_pushCloudSnapshotNow({ force: true });
+          }
+          return;
+        }
+        if (r && r.ok === false) {
+          console.warn("[DK portal]", textoDownload);
+          return;
+        }
+        portalRefreshOperacaoLocal();
+        if (r && (r.applied || r.changed)) {
+          portalRefreshOperacaoDeferred();
+        }
+        refreshOperacaoClienteCodigoEditavel();
+      })
+      .catch(() => {});
+    return true;
   }
 
   try {

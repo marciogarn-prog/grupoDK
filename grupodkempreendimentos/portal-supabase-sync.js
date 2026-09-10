@@ -158,6 +158,7 @@
     "dk_locacoes_cadastro",
     "dk_locacoes_quadro_geral",
     "dk_manutencoes_cadastro",
+    "dk_manutencoes_rapidas_v1",
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_setor_movimentacoes_v1",
@@ -1798,14 +1799,14 @@
     if (cloudPushTimer) {
       clearTimeout(cloudPushTimer);
       cloudPushTimer = null;
-      const flushed = await withTimeout(runTrackedCloudPush(() => pushSnapshotQuiet({ force: true })), 12000);
+      const flushed = await withTimeout(runTrackedCloudPush(() => pushSnapshotQuiet({ force: true })), 4000);
       if (!flushed || flushed.ok === false) {
         return { ok: false, reason: flushed?.reason || "push_failed", result: flushed };
       }
       return { ok: true, reason: "flushed", result: flushed };
     }
     if (cloudPushInFlight) {
-      const r = await withTimeout(cloudPushInFlight, 12000);
+      const r = await withTimeout(cloudPushInFlight, 4000);
       if (!r || r.ok === false) {
         return { ok: false, reason: r?.reason || "push_failed", result: r };
       }
@@ -3719,7 +3720,10 @@
     const gate = await awaitAutoCloudPushConfirmed();
     if (!gate.ok) {
       console.warn("[DK cloud] pull ao mudar ecrã adiado: upload não confirmado", gate.reason);
-      return { ok: false, skipped: true, reason: "await_push_failed", gate };
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        void window.__DK_pushCloudSnapshotNow({ force: true });
+      }
+      return { ok: true, skipped: true, reason: "await_push_failed", gate };
     }
     if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
       try {
