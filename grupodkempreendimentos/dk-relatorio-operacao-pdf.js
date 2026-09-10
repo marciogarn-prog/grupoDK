@@ -46,7 +46,7 @@
   <meta charset="utf-8">
   <title>${esc(titulo)}</title>
   <style>
-    @page { size: A4; margin: 10mm; }
+    @page { size: A4 landscape; margin: 10mm; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111; padding: 16px; background: #fff; }
     h1 { margin: 0 0 6px; font-size: 18px; }
     .meta { margin: 0 0 12px; font-size: 12px; color: #333; }
@@ -62,9 +62,10 @@
     .portal-rotatividade-dia__col { padding: 8px; }
     .portal-rotatividade-dia__col--ent { border-right: 1px solid #ccc; }
     .portal-rotatividade-dia__col-title { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: #333; }
-    .portal-rotatividade-row { display: grid; grid-template-columns: 6.2rem 1fr 7.5rem 5.2rem; gap: 4px 6px; font-size: 11px; padding: 3px 0; border-bottom: 1px solid #eee; color: #111; }
+    .portal-rotatividade-row { display: grid; grid-template-columns: 6.4rem minmax(12rem, 2.2fr) minmax(7rem, 1.2fr) 5.4rem; gap: 4px 8px; font-size: 11px; padding: 3px 0; border-bottom: 1px solid #eee; color: #111; align-items: start; }
     .portal-rotatividade-row__proto { font-weight: 700; }
-    .portal-rotatividade-row__cli { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .portal-rotatividade-row__cli { white-space: normal; overflow: visible; word-break: break-word; }
+    .portal-rotatividade-row__vei { white-space: normal; overflow: visible; }
     .portal-rotatividade-row__val { text-align: right; }
     .portal-rotatividade-empty { margin: 0; font-size: 11px; color: #555; }
     .portal-inatividade-row--head { font-size: 9px; text-transform: uppercase; color: #555; font-weight: 700; }
@@ -94,6 +95,7 @@
     body.um-dia .portal-rotatividade-dia__col-title { margin-bottom: 3px; font-size: 9px; }
     body.um-dia .portal-rotatividade-row { font-size: 9px; padding: 1px 0; gap: 2px 5px; }
     @media print {
+      @page { size: A4 landscape; margin: 10mm; }
       body { padding: 8px; }
       body.um-dia { padding: 0; }
       .portal-rotatividade-dia { break-inside: avoid; }

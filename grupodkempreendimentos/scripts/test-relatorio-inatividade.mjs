@@ -171,6 +171,11 @@ record(
   ui.includes("portal-inatividade-row--roubo") && css.includes("portal-inatividade-row--roubo")
 );
 record("PDF de um dia compacta a folha", read("dk-relatorio-operacao-pdf.js").includes("um-dia") && read("dk-relatorio-operacao-pdf.js").includes("modo: \"inatividade\""));
+record(
+  "PDF da rotatividade em paisagem com nome do cliente visível",
+  read("dk-relatorio-operacao-pdf.js").includes("A4 landscape") &&
+    read("dk-relatorio-operacao-pdf.js").includes("overflow: visible")
+);
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes relatório de inatividade ---`);
