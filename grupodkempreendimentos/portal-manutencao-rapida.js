@@ -17,7 +17,9 @@
     { id: "pix", label: "PIX" },
     { id: "especie", label: "Espécie" },
     { id: "cartao", label: "Cartão" },
+    { id: "naoSeAplica", label: "NÃO SE APLICA" },
   ];
+  const FORMAS_PAGAS = FORMAS.filter((f) => f.id !== "naoSeAplica");
 
   let relModo = "geral";
 
@@ -219,10 +221,12 @@
       setMsg("Marque pelo menos um serviço rápido.");
       return;
     }
-    const valor = parseValor(document.getElementById("portalManutRapidaValor")?.value || "");
     const formas = formasMarcadas();
-    if (valor > 0 && !FORMAS.some((f) => formas[f.id])) {
-      setMsg("Marque PIX, espécie ou cartão.");
+    let valor = parseValor(document.getElementById("portalManutRapidaValor")?.value || "");
+    if (formas.naoSeAplica) {
+      valor = 0;
+    } else if (valor > 0 && !FORMAS_PAGAS.some((f) => formas[f.id])) {
+      setMsg("Marque PIX, espécie ou cartão. Se o serviço é da DK Locadora, marque NÃO SE APLICA.");
       return;
     }
     const op = operador();
@@ -434,6 +438,19 @@
     });
     const valor = document.getElementById("portalManutRapidaValor");
     valor?.addEventListener("input", () => maskValor(valor));
+    document.querySelectorAll("[data-manut-rapida-pag]").forEach((el) => {
+      el.addEventListener("change", () => {
+        if (el.getAttribute("data-manut-rapida-pag") === "naoSeAplica" && el.checked) {
+          document.querySelectorAll("[data-manut-rapida-pag]").forEach((o) => {
+            if (o !== el) o.checked = false;
+          });
+          if (valor) valor.value = formatBrl(0);
+        } else if (el.checked) {
+          const nsa = document.querySelector('[data-manut-rapida-pag="naoSeAplica"]');
+          if (nsa) nsa.checked = false;
+        }
+      });
+    });
 
     document.getElementById("portalManutRapidaGravarBtn")?.addEventListener("click", () => gravar());
     document.getElementById("portalManutRelatorioGeralBtn")?.addEventListener("click", () => openRel("geral"));

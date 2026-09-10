@@ -2193,7 +2193,8 @@
           "portalManutRelatorioGeralBtn",
           "portalManutRelatorioMotoBtn",
           "portalManutLancRelatorioModal",
-          "portalSetorRelatorioBtnLocados"
+          "portalSetorRelatorioBtnLocados",
+          "NÃO SE APLICA"
         ],
         "portal-manutencao-rapida.js": [
           "dk_manutencoes_rapidas_v1",
@@ -2209,6 +2210,33 @@
           "portal-manut-rapida",
           "portal-manut-locados-split",
           "portal-manut-dia"
+        ]
+      }
+    },
+    {
+      "id": "fin-ceo-receita-manutencao",
+      "descricao": "Na manutenção rápida existe NÃO SE APLICA (serviço da DK Locadora, cliente não paga). No FINANCEIRO CEO → Painel executivo, a caixa Receita prevista da Locadora mostra três números: Receita locação, Receita da manutenção (pagamentos do cliente) e Total (soma dos dois).",
+      "ficheiros": {
+        "index.html": [
+          "NÃO SE APLICA",
+          "finCeoKpiReceitaManutencao",
+          "finCeoKpiReceitaLocadoraTotal",
+          "Receita da manutenção",
+          "Receita locação"
+        ],
+        "portal-manutencao-rapida.js": [
+          "naoSeAplica",
+          "NÃO SE APLICA"
+        ],
+        "portal-financeiro-ceo.js": [
+          "receitaManutencaoMes",
+          "registroManutencaoPagaCliente",
+          "dk_manutencoes_rapidas_v1",
+          "finCeoKpiReceitaManutencao"
+        ],
+        "styles.css": [
+          "fin-kpi__trio",
+          "finCeoKpiReceitaManutencao"
         ]
       }
     }

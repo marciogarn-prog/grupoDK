@@ -21,6 +21,8 @@ function readLocal(rel) {
 
 const html = readLocal("index.html");
 record("HTML: KPI receita Locadora", html.includes('id="finCeoKpiReceitaLocadora"'));
+record("HTML: KPI receita da manutenção", html.includes('id="finCeoKpiReceitaManutencao"') && html.includes("Receita da manutenção"));
+record("HTML: KPI total locação + manutenção", html.includes('id="finCeoKpiReceitaLocadoraTotal"'));
 record("HTML: KPI receita Centro", html.includes('id="finCeoKpiReceitaCentro"'));
 record("HTML: KPI receita Construtora", html.includes('id="finCeoKpiReceitaConstrutora"'));
 record("HTML: KPI receita total do mês", html.includes('id="finCeoKpiReceita"'));
@@ -111,6 +113,16 @@ if (calc) {
     "calcReceitasPorUnidade devolve as 3 unidades",
     Math.abs(pack.locadora - locSet) < 0.01 && pack.centro === centroSet && pack.construtora === constrSet
   );
+
+  const manutRows = [
+    { criadoEm: "2026-09-10T15:00:00-03:00", valorPago: 80, formas: { pix: true } },
+    { criadoEm: "2026-09-10T16:00:00-03:00", valorPago: 50, formas: { naoSeAplica: true } },
+    { criadoEm: "2026-08-05T12:00:00-03:00", valorPago: 200, formas: { especie: true } },
+  ];
+  const recManutSet = calc.receitaManutencaoMes(2026, 8, manutRows);
+  record("Manutenção: soma só o que o cliente pagou no mês", recManutSet === 80, `esperado 80, obtido ${recManutSet}`);
+  record("Manutenção: NÃO SE APLICA não entra na receita", recManutSet === 80);
+  record("Manutenção: mês anterior isolado", calc.receitaManutencaoMes(2026, 7, manutRows) === 200);
 }
 
 const pass = results.filter((r) => r.ok).length;

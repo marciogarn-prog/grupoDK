@@ -1194,6 +1194,56 @@
     return receitaSemanalParaMensal(receitaSemanalLocadora(locs), y, m);
   }
 
+  const CAD_MANUTENCOES_RAPIDAS_KEY = "dk_manutencoes_rapidas_v1";
+
+  function carregarManutencoesRapidas() {
+    let arr = [];
+    if (typeof window.loadCadastro === "function") {
+      try {
+        arr = window.loadCadastro(CAD_MANUTENCOES_RAPIDAS_KEY) || [];
+      } catch {
+        arr = [];
+      }
+    } else {
+      try {
+        const raw = localStorage.getItem(CAD_MANUTENCOES_RAPIDAS_KEY);
+        arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) arr = [];
+      } catch {
+        arr = [];
+      }
+    }
+    return arr;
+  }
+
+  function dataManutencaoRapida(r) {
+    const ms = Date.parse(r?.criadoEm || r?.createdAt || "");
+    if (!Number.isFinite(ms)) return null;
+    const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ms));
+    const [yy, mm, dd] = ymd.split("-").map(Number);
+    if (!yy || !mm) return null;
+    return new Date(yy, mm - 1, dd);
+  }
+
+  function registroManutencaoPagaCliente(r) {
+    if (!r || r.formas?.naoSeAplica) return false;
+    return (Number(r.valorPago) || 0) > 0;
+  }
+
+  /** Pagamentos do cliente na manutenção rápida do mês (NÃO SE APLICA não entra). */
+  function receitaManutencaoMes(ano, mes, rows) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    let total = 0;
+    (rows || carregarManutencoesRapidas()).forEach((r) => {
+      if (!registroManutencaoPagaCliente(r)) return;
+      const dt = dataManutencaoRapida(r);
+      if (!dt || dt.getFullYear() !== y || dt.getMonth() !== m) return;
+      total += Number(r.valorPago) || 0;
+    });
+    return total;
+  }
+
   const UNIDADE_FIN_KEY = "dk_unidade_financeiro_v1";
 
   function carregarUnidadeFinanceiro() {
@@ -1247,9 +1297,10 @@
     const m = Number.isFinite(mes) ? mes : new Date().getMonth();
     const rows = uniRows ?? carregarUnidadeFinanceiro();
     const locadora = receitaPrevistaLocadora(locs, y, m);
+    const manutencao = receitaManutencaoMes(y, m);
     const centro = receitaPrevistaCentroAutomotivo(y, m, rows);
     const construtora = receitaPrevistaConstrutora(y, m, rows);
-    return { locadora, centro, construtora, total: locadora + centro + construtora };
+    return { locadora, manutencao, centro, construtora, total: locadora + manutencao + centro + construtora };
   }
 
   function receitaPrevistaMes(ano, mes, locs, uniRows) {
@@ -2556,11 +2607,15 @@
     const kpiRecLoc = document.getElementById("finCeoKpiReceitaLocadora");
     const kpiRecCentro = document.getElementById("finCeoKpiReceitaCentro");
     const kpiRecConstr = document.getElementById("finCeoKpiReceitaConstrutora");
-    const recUn = proj.receitasUnidade || { locadora: 0, centro: 0, construtora: 0, total: 0 };
+    const recUn = proj.receitasUnidade || { locadora: 0, manutencao: 0, centro: 0, construtora: 0, total: 0 };
+    const kpiRecManut = document.getElementById("finCeoKpiReceitaManutencao");
+    const kpiRecLocTot = document.getElementById("finCeoKpiReceitaLocadoraTotal");
 
     if (kpiDesp) kpiDesp.textContent = brl(proj.endivMesAtual);
     if (kpiReceita) kpiReceita.textContent = brl(proj.receitaMesAtual);
     if (kpiRecLoc) kpiRecLoc.textContent = brl(recUn.locadora);
+    if (kpiRecManut) kpiRecManut.textContent = brl(recUn.manutencao || 0);
+    if (kpiRecLocTot) kpiRecLocTot.textContent = brl((recUn.locadora || 0) + (recUn.manutencao || 0));
     if (kpiRecCentro) kpiRecCentro.textContent = brl(recUn.centro);
     if (kpiRecConstr) kpiRecConstr.textContent = brl(recUn.construtora);
     if (kpiMargem) kpiMargem.textContent = brl(proj.capacidadeLivre);
@@ -4897,6 +4952,7 @@
     receitaSemanalLocadora,
     receitaSemanalParaMensal,
     receitaPrevistaLocadora,
+    receitaManutencaoMes,
     receitaPrevistaCentroAutomotivo,
     receitaPrevistaConstrutora,
     calcReceitasPorUnidade,

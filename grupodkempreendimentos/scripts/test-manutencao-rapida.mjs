@@ -26,7 +26,7 @@ record("Locados mantém o fluxo azul ENVIAR PARA MANUTENÇÃO", html.includes("E
 record("Botão RELATÓRIO de setor continua em Locados", locados.includes("portalSetorRelatorioBtnLocados") && locados.includes("RELATÓRIO"));
 record("Painel verde Manutenção rápida com placa e KM", locados.includes("portalManutRapidaPanel") && locados.includes("portalManutRapidaPlaca") && locados.includes("portalManutRapidaKm"));
 record("Seis serviços rápidos", ["oleo", "kit", "pastilhaDianteira", "pastilhaTraseira", "pneuDianteiro", "pneuTraseiro"].every((id) => locados.includes(`data-manut-rapida-serv="${id}"`)));
-record("Valor pago e PIX / espécie / cartão", locados.includes("Valor pago pelo cliente") && locados.includes('data-manut-rapida-pag="pix"') && locados.includes('data-manut-rapida-pag="especie"') && locados.includes('data-manut-rapida-pag="cartao"'));
+record("Valor pago e PIX / espécie / cartão / NÃO SE APLICA", locados.includes("Valor pago pelo cliente") && locados.includes('data-manut-rapida-pag="pix"') && locados.includes('data-manut-rapida-pag="especie"') && locados.includes('data-manut-rapida-pag="cartao"') && locados.includes('data-manut-rapida-pag="naoSeAplica"') && locados.includes("NÃO SE APLICA"));
 record("Sem campo de moto reserva no painel rápido", !locados.includes("portalManutRapidaReserva") && js.includes("sem moto reserva"));
 record("Registro do dia e relatórios", locados.includes("portalManutDiaRegistro") && locados.includes("portalManutRelatorioGeralBtn") && locados.includes("Relatório por moto"));
 record("Modal de relatório por período", html.includes("portalManutLancRelatorioModal") && html.includes("portalManutLancRelDe"));
