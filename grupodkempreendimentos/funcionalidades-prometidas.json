@@ -2072,7 +2072,9 @@
           "__DK_financeiroCeoAbrirAtalhoLocadora",
           "isAtalhoLocadora",
           "CAT_DK_LOCADORA",
-          "LEAD_DESPESA_ATALHO"
+          "LEAD_DESPESA_ATALHO",
+          "__DK_pullCloudSnapshotSilentMerge",
+          "__DK_financeiroCeoRefreshDespesas"
         ],
         "styles.css": [
           "fin-ceo-atalho-locadora"
@@ -2279,6 +2281,26 @@
           "portal-manut-os-caixa",
           "portal-manut-os-cals",
           "portal-manut-os-grupo__serv"
+        ]
+      }
+    },
+    {
+      "id": "fin-despesas-sync-admin",
+      "descricao": "Cadastro de despesas (FINANCEIRO e FINANCEIRO CEO) não some na nuvem quando outro administrador (ex.: Marcus) envia snapshot sem essa chave. O atalho Cadastro de despesas puxa a nuvem e redesenha a lista.",
+      "ficheiros": {
+        "lib/dk-append-only-merge.cjs": [
+          "dk_financeiro_ceo_despesas_v1",
+          "mergeFinanceiroCeoDespesas",
+          "mergeFinanceiroCeoSituacaoPag"
+        ],
+        "portal-financeiro-ceo.js": [
+          "__DK_financeiroCeoRefreshDespesas",
+          "__DK_financeiroCeoAbrirAtalhoLocadora",
+          "__DK_pullCloudSnapshotSilentMerge"
+        ],
+        "portal-supabase-sync.js": [
+          "dk_financeiro_ceo_despesas_v1",
+          "__DK_financeiroCeoRefreshDespesas"
         ]
       }
     }

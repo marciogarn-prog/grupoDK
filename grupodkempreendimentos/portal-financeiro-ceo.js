@@ -4868,6 +4868,10 @@
     if (paneAberto === "dashboard") renderDashboard();
   };
 
+  window.__DK_financeiroCeoRefreshDespesas = function __DK_financeiroCeoRefreshDespesas() {
+    if (paneAberto === "despesas") renderCadastroDespesas();
+  };
+
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
     migrarFontesLegadoParaCartoes();
@@ -4905,6 +4909,29 @@
       return;
     }
     abrirPane("despesas");
+    const afterSync = () => {
+      if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+        try {
+          window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_despesas_v1");
+          window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_situacao_pag_v1");
+        } catch {
+          /* ignore */
+        }
+      }
+      renderCadastroDespesas();
+    };
+    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true }))
+        .catch(() => {})
+        .then(() => {
+          afterSync();
+          if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+            void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+          }
+        });
+    } else {
+      afterSync();
+    }
   };
 
   window.__DK_financeiroCeoLimparAtalhoLocadora = function __DK_financeiroCeoLimparAtalhoLocadora() {

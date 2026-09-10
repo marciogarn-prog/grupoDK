@@ -20,7 +20,7 @@ function check(name, cond) {
 
 const existing = {
   dk_clientes_cadastro: [{ cpf: "02357896582", nome: "HEMERSON" }],
-  dk_veiculos_cadastro: [{ placa: "QYR9B66", modelo: "X" }],
+  dk_veiculos_cadastro: [{ placa: "QYR9B66", modelo: "X", cadastradoPorCpf: "03037897430" }],
   dk_locacoes_cadastro: [
     {
       numeroContrato: "2026072401",
@@ -91,6 +91,26 @@ const colabCpfs = (colabOut.dk_funcionarios_access || []).map((f) => String(f.cp
 check("colaborador Jesimiel nao some no snapshot menor", colabCpfs.includes("80163513104"));
 check("colaborador Wylkaline nao some no snapshot menor", colabCpfs.includes("09831728548"));
 check("semente Nilza entra na uniao", colabCpfs.includes("00445040556"));
+
+const despExisting = {
+  dk_financeiro_ceo_despesas_v1: [
+    { id: "ceo-marcus-1", descricao: "PRO-LABORE MARCUS", valor: 17000, categoria: "DK_LOCADORA" },
+    { id: "ceo-outro-2", descricao: "ALUGUEL", valor: 5000, categoria: "DK_LOCADORA" },
+  ],
+};
+const despIncoming = { dk_clientes_cadastro: [] };
+const despOut = neverLoseCadastroPayload(despExisting, despIncoming);
+check(
+  "despesa CEO nao some se o outro PC nao enviar a chave",
+  Array.isArray(despOut.dk_financeiro_ceo_despesas_v1) &&
+    despOut.dk_financeiro_ceo_despesas_v1.some((d) => d.id === "ceo-marcus-1") &&
+    despOut.dk_financeiro_ceo_despesas_v1.some((d) => d.id === "ceo-outro-2")
+);
+const despWipe = neverLoseCadastroPayload(despExisting, { dk_financeiro_ceo_despesas_v1: [] });
+check(
+  "despesa CEO nao some se o snapshot vier vazio",
+  Array.isArray(despWipe.dk_financeiro_ceo_despesas_v1) && despWipe.dk_financeiro_ceo_despesas_v1.length === 2
+);
 const mergedColab = mergeFuncionariosAccess(colabExisting.dk_funcionarios_access, colabIncoming.dk_funcionarios_access);
 check(
   "merge por CPF une 5 colaboradores",

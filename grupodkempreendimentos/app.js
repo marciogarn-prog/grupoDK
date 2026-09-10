@@ -3191,6 +3191,52 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     return Array.from(byId.values());
   }
 
+  if (
+    key === "dk_financeiro_ceo_despesas_v1" ||
+    key === "dk_financeiro_despesas_v1" ||
+    key === "dk_financeiro_ceo_fontes_v1" ||
+    key === "dk_financeiro_ceo_cartoes_v1"
+  ) {
+    const byId = new Map();
+    const add = (r) => {
+      if (!r || typeof r !== "object") return;
+      const id = String(r.id || "").trim();
+      if (!id) return;
+      const ex = byId.get(id);
+      if (!ex) {
+        byId.set(id, { ...r });
+        return;
+      }
+      const score = (x) =>
+        Number(x.updatedAt || 0) || Date.parse(x.cadastradoEm || x.criadoEm || x.updated_at || 0) || 0;
+      byId.set(id, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    const out = Array.from(byId.values());
+    return key === "dk_financeiro_despesas_v1" ? out.filter((x) => !x.deleted) : out;
+  }
+
+  if (key === "dk_financeiro_ceo_situacao_pag_v1") {
+    const byChave = new Map();
+    const add = (r) => {
+      if (!r || typeof r !== "object") return;
+      const chave = String(r.chave || "").trim();
+      if (!chave) return;
+      const ex = byChave.get(chave);
+      if (!ex) {
+        byChave.set(chave, { ...r, chave });
+        return;
+      }
+      const pago = ex.situacao === "PAGO" || r.situacao === "PAGO";
+      const pagoEm = [ex.pagoEm, r.pagoEm].filter(Boolean).sort().slice(-1)[0] || "";
+      byChave.set(chave, { chave, situacao: pago ? "PAGO" : "A_PAGAR", pagoEm });
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byChave.values());
+  }
+
   return incoming;
 }
 
