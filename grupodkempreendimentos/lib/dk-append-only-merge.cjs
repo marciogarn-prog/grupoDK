@@ -477,6 +477,7 @@ function mergeFuncionariosAccess(previousList, incomingList) {
       return;
     }
     const senha = String(f.senha || "").trim() || String(prev.senha || "").trim();
+    const senhaHash = String(f.senhaHash || "").trim() || String(prev.senhaHash || "").trim();
     const nome = String(f.nome || "").trim() || String(prev.nome || "").trim();
     const funcao = String(f.funcao || "").trim() || String(prev.funcao || "").trim();
     const dataIngresso = String(f.dataIngresso || "").trim() || String(prev.dataIngresso || "").trim();
@@ -498,6 +499,7 @@ function mergeFuncionariosAccess(previousList, incomingList) {
       ...f,
       cpf,
       senha,
+      senhaHash,
       nome,
       funcao,
       dataIngresso,

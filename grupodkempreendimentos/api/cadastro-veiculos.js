@@ -4,7 +4,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeVeiculosCadastro } = require("../lib/dk-append-only-merge.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
 
@@ -49,6 +49,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const writeGate = await requireModuleAccess(req, "veiculo");
+      if (!writeGate.ok) {
+        return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
+      }
       let body = req.body;
       if (typeof body === "string") {
         try {

@@ -10,7 +10,7 @@ const {
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
 } = require("../lib/dk-deploy-channel-api.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:clientes_cadastro:v1";
 
@@ -87,6 +87,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const writeGate = await requireModuleAccess(req, "cliente");
+      if (!writeGate.ok) {
+        return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
+      }
       let body = req.body;
       if (typeof body === "string") {
         try {

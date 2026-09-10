@@ -8,7 +8,14 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, findFuncionario, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const {
+  filterIncomingByModules,
+  restoreCredentialFields,
+  stripSecretsFromPayload,
+  normalizeOperacaoAccess,
+  ownerWriteAccess,
+} = require("../lib/dk-portal-module-access.cjs");
 const {
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
@@ -846,15 +853,10 @@ async function handler(req, res) {
         channel === "default" && payload
           ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
           : payload;
-      if (gate.typ === "cliente" && safePayload && Array.isArray(safePayload.dk_funcionarios_access)) {
-        safePayload.dk_funcionarios_access = safePayload.dk_funcionarios_access.map((f) =>
-          f && typeof f === "object" ? { ...f, senha: "" } : f
-        );
-      }
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        payload: safePayload,
+        payload: stripSecretsFromPayload(safePayload),
         updated_at: row?.updated_at || null,
         source: "redis",
       });
@@ -891,6 +893,23 @@ async function handler(req, res) {
       const wipeKeys = Array.isArray(body.wipe_keys)
         ? body.wipe_keys.filter((k) => typeof k === "string")
         : [];
+      const isOwner = gate.service || String(gate.role || "").trim() === "owner";
+      if ((replace || wipeKeys.length) && !isOwner) {
+        return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "snapshot_replace" });
+      }
+      let acessos = ownerWriteAccess();
+      if (!isOwner && gate.typ === "equipa") {
+        const f = findFuncionario(existingPayload, onlyDigits(gate.cpf).slice(0, 11));
+        acessos = f && String(f.role || "").trim() === "owner"
+          ? ownerWriteAccess()
+          : normalizeOperacaoAccess(f?.acessos, f?.role || "operacao");
+      }
+      incoming = restoreCredentialFields(existingPayload, incoming);
+      incoming = filterIncomingByModules(existingPayload, incoming, acessos, {
+        isOwner: isOwner || (gate.typ === "equipa" && String(gate.role || "") === "owner"),
+        isService: Boolean(gate.service),
+        isCliente: gate.typ === "cliente",
+      });
       let payload;
       if (wipeKeys.length) {
         payload = existingPayload ? { ...existingPayload, ...incoming } : { ...incoming };

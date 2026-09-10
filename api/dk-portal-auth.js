@@ -14,6 +14,10 @@ const {
   onlyDigits,
   normalizeProto,
   signingSecret,
+  verifySecretAgainstRecord,
+  needsPasswordUpgrade,
+  clienteAuthRecord,
+  persistPasswordUpgrade,
 } = require("../lib/dk-portal-auth.cjs");
 
 function parseBody(req) {
@@ -62,8 +66,15 @@ module.exports = async function handler(req, res) {
   if (tipo === "equipa") {
     const roleWanted = String(body.role || "").trim();
     const f = findFuncionario(payload, cpf);
-    if (!f || String(f.senha || "").trim() !== senha) {
+    if (!f || !verifySecretAgainstRecord(senha, f)) {
       return res.status(401).json({ ok: false, reason: "invalid_credentials" });
+    }
+    if (needsPasswordUpgrade(f)) {
+      try {
+        await persistPasswordUpgrade("equipa", cpf, senha);
+      } catch {
+        /* login continua; hash na próxima vez */
+      }
     }
     if (f.blocked) return res.status(403).json({ ok: false, reason: "blocked" });
     const role = String(f.role || "").trim();
@@ -82,9 +93,16 @@ module.exports = async function handler(req, res) {
     const proto = normalizeProto(body.protocolo);
     if (!proto) return res.status(400).json({ ok: false, reason: "protocolo" });
     const c = findCliente(payload, cpf);
-    const senhaCadastro = String(c?.senha || "123456").trim() || "123456";
-    if (!c || senhaCadastro !== senha) {
+    const rec = clienteAuthRecord(c);
+    if (!c || !verifySecretAgainstRecord(senha, rec)) {
       return res.status(401).json({ ok: false, reason: "invalid_credentials" });
+    }
+    if (needsPasswordUpgrade(rec)) {
+      try {
+        await persistPasswordUpgrade("cliente", cpf, senha);
+      } catch {
+        /* login continua */
+      }
     }
     if (!clienteTemProtocolo(payload, cpf, proto)) {
       return res.status(403).json({ ok: false, reason: "protocolo" });

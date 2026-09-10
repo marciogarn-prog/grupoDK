@@ -31,7 +31,7 @@
 const mockClientes = [
   {
     cpf: "11111111111",
-    senha: "1234",
+    senha: "",
     nome: "Joao Silva",
     contrato: {
       numero: "DK-2026-001",
@@ -51,7 +51,7 @@ const mockClientes = [
   },
   {
     cpf: "22222222222",
-    senha: "1234",
+    senha: "",
     nome: "Ana Souza",
     contrato: {
       numero: "DK-2026-002",
@@ -73,23 +73,37 @@ const mockClientes = [
 
 const SESSION_UNLOCK_SALVAR_CLIENTE_KEY = "dk_unlock_salvar_cliente_v1";
 const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
-const OPERACAO_ACCESS_TARGETS = ["cliente", "veiculo", "locacao", "funcionario"];
+const OPERACAO_ACCESS_TARGETS = [
+  "cliente",
+  "veiculo",
+  "locacao",
+  "manutencao",
+  "lancamentoAluguel",
+  "lancamentoMultas",
+  "lancamentoManutencao",
+  "comunicacaoVendas",
+  "comunicacaoManutencao",
+  "lancamentoDespesa",
+  "funcionario",
+  "estoque",
+  "sistemaMiel",
+];
 const funcionariosAccess = [
   {
     cpf: "03037897430",
-    senha: "110499@Gb",
+    senha: "",
     nome: "Márcio Santos",
     role: "owner",
   },
   {
     cpf: "00445040556",
-    senha: "041310@Nm",
+    senha: "",
     nome: "Nilza Santos",
     role: "operacao",
   },
   {
     cpf: "06523244440",
-    senha: "110499Gb@",
+    senha: "",
     nome: "Marcus Santos",
     role: "operacao",
   },

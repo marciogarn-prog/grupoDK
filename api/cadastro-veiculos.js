@@ -4,6 +4,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeVeiculosCadastro } = require("../lib/dk-append-only-merge.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
 
@@ -22,12 +23,16 @@ function parseRedisArray(raw) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
+  }
+
+  if (await enforceRateLimit(req, res, "cadastro-veiculos", 30)) return;
+  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+  if (!gate.ok) {
+    return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
   if (!isRedisKvConfigured()) {
@@ -44,6 +49,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const writeGate = await requireModuleAccess(req, "veiculo");
+      if (!writeGate.ok) {
+        return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
+      }
       let body = req.body;
       if (typeof body === "string") {
         try {

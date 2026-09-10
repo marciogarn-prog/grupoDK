@@ -3348,6 +3348,39 @@
     portalHydrateFuncionariosForLogin();
   }
 
+  function portalAutenticarEquipaPorCpfValidado(role, cpf, funcionarioHint) {
+    const funcionario =
+      funcionarioHint && onlyDigits(String(funcionarioHint.cpf || "")) === cpf
+        ? funcionarioHint
+        : funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === cpf);
+    if (!funcionario) {
+      return {
+        ok: false,
+        msg:
+          "CPF ou senha inválidos. Se o cadastro foi feito noutro computador, aguarde alguns segundos e tente de novo (ou Ctrl+F5).",
+      };
+    }
+    if (role === "administrador") {
+      if (funcionario.role !== "owner") {
+        return { ok: false, msg: "Este CPF não tem perfil de administrador." };
+      }
+    } else if (funcionario.role === "owner") {
+      return { ok: false, msg: "Administrador: use a opção Administrador acima." };
+    } else if (funcionario.role !== "operacao") {
+      return { ok: false, msg: "Perfil sem permissão de colaborador." };
+    }
+    if (funcionario.blocked) {
+      return { ok: false, msg: "Acesso bloqueado." };
+    }
+    if (portalFuncionarioTemLimiteHorario(funcionario) && typeof window.__DK_colabHorarioStatus === "function") {
+      const st = window.__DK_colabHorarioStatus(funcionario.horarioAcesso);
+      if (st && st.permitido === false) {
+        return { ok: false, msg: st.motivo || "Fora do horário de acesso." };
+      }
+    }
+    return { ok: true, funcionario };
+  }
+
   function portalAutenticarEquipaPorCpfSenha(role, cpf, senha) {
     const funcionario = funcionariosAccess.find(
       (f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha
@@ -3417,6 +3450,32 @@
         const remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
         if (!remote.ok && !remote.networkError) {
           loginFeedback.textContent = remote.msg || "CPF ou senha inválidos.";
+          return;
+        }
+        if (remote.ok) {
+          const hint =
+            funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === cpf) ||
+            remote.funcionario;
+          const authRemote = portalAutenticarEquipaPorCpfValidado(role, cpf, hint);
+          if (!authRemote.ok) {
+            loginFeedback.textContent = authRemote.msg;
+            return;
+          }
+          const funcionario = authRemote.funcionario;
+          if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
+            portalColaboradorSenhaPendente = funcionario;
+            hideAllPanels();
+            panelSenha?.classList.remove("hidden");
+            portalSyncAuthAutofillState();
+            const n1 = document.getElementById("nova-senha");
+            const n2 = document.getElementById("nova-senha-2");
+            const sf = document.getElementById("senha-feedback");
+            if (n1) n1.value = "";
+            if (n2) n2.value = "";
+            if (sf) sf.textContent = "";
+            return;
+          }
+          portalMostrarEscolhaPlataforma(funcionario);
           return;
         }
       }
@@ -9387,7 +9446,7 @@
         : undefined;
     funcionariosAccess.push({
       cpf: cpfRaw,
-      senha: "123456",
+      senha: typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456",
       nome,
       role: "operacao",
       blocked: false,

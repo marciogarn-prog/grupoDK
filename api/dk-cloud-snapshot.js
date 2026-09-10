@@ -8,7 +8,20 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro, neverLoseCadastroPayload } = require("../lib/dk-append-only-merge.cjs");
+const { applyApiCors, enforceRateLimit, requirePortalAuth, findFuncionario, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const {
+  filterIncomingByModules,
+  restoreCredentialFields,
+  stripSecretsFromPayload,
+  normalizeOperacaoAccess,
+  ownerWriteAccess,
+} = require("../lib/dk-portal-module-access.cjs");
+const {
+  mergeLocacoesCadastro,
+  mergeFuncionariosAccess,
+  neverLoseCadastroPayload,
+  isLocacaoFantasmaCadastro,
+} = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -82,7 +95,9 @@ function oficialRecordYmd(record, key) {
   const protoYmd = locacaoProtocolYmd(record);
   if (protoYmd && String(key || "").includes("locac")) return protoYmd;
   const k = String(key);
-  const fields = k.includes("locacoes")
+  const fields = k.includes("notificac")
+    ? ["criadoEm", "createdAt", "dataPagamento"]
+    : k.includes("locacoes")
     ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
     : k.includes("lancamento") || k.includes("manutencoes")
       ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
@@ -115,6 +130,59 @@ function locacaoNcSetFromPayload(payload) {
   return set;
 }
 
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
+/** Protocolos inválidos (prefixo ≠ data início / duplicata). */
+const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
+  "2026122501",
+  "2026082801",
+  /* Seeds da demo (caderno teste / AAA·BBB·CCC) — nunca no oficial. */
+  "2025010101",
+  "2025010102",
+  "2025010103",
+  "2026010101",
+  "2026010102",
+  "2026010104",
+]);
+const OFICIAL_LOCACOES_NC_SEEDS = new Set([
+  "2025010101",
+  "2025010102",
+  "2025010103",
+  "2026010101",
+  "2026010102",
+  "2026010104",
+]);
+/** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
+const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
+  "AAA0A00",
+  "AAA0A01",
+  "AAA0A02",
+  "BBB0B00",
+  "CCC0C00",
+]);
+
+function isLocacaoNcOficialmenteBloqueado(r) {
+  const nc = String(r?.numeroContrato || r?.protocolo || "").replace(/\D/g, "");
+  if (!nc || !OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
+  if (OFICIAL_LOCACOES_NC_SEEDS.has(nc)) return true;
+  const protoYmd = locacaoProtocolYmd(r);
+  const inicioYmd = oficialParseYmd(r?.inicio || r?.dataInicio);
+  if (protoYmd && inicioYmd && protoYmd === inicioYmd) return false;
+  return true;
+}
+
+function isLocacaoSeedDemoOficialProibida(r) {
+  if (!r || typeof r !== "object") return false;
+  const nc = String(r?.numeroContrato || r?.protocolo || "").replace(/\D/g, "");
+  if (nc && OFICIAL_LOCACOES_NC_SEEDS.has(nc)) return true;
+  const placa = placaNormKey(r);
+  if (placa && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa)) return true;
+  if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
+  const cpf = cpfDigitsKey(r);
+  if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpf)) return true;
+  if (/^TESTE[- ]?\d/i.test(String(r.nome || "").trim())) return true;
+  return false;
+}
+
 function cpfDigitsKey(record) {
   return String(record?.cpf || "").replace(/\D/g, "");
 }
@@ -133,7 +201,7 @@ function cadastroKeepSetsFromPayload(payload) {
   for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
     for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
       const d = cpfDigitsKey(r);
-      if (d.length === 11) cpf.add(d);
+      if (d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) cpf.add(d);
     }
   }
   for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
@@ -166,10 +234,26 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     const keyCutoff = oficialCutoffForKey(k);
+    const isNotif = String(k).includes("notificac");
     const isLoc = String(k).includes("locac");
-    const isCli = String(k).includes("cliente");
+    const isCli = String(k).includes("cliente") && !isNotif;
     const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
+      const cpfEarly = cpfDigitsKey(r);
+      if (isNotif) {
+        if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
+        if (!String(r?.mensagem || "").trim()) return false;
+        const ymdN = oficialRecordYmd(r, k);
+        if (!ymdN) return true;
+        return ymdN >= keyCutoff;
+      }
+      if (isCli && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
+      if (isLoc && isLocacaoNcOficialmenteBloqueado(r)) return false;
+      /* Fantasmas (placa LOC/TST ou sem CPF) nunca passam — mesmo com origemPortal ou keepNc. */
+      if (isLoc && isLocacaoFantasmaCadastro(r)) return false;
+      /* Seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx / 202601010x). */
+      if (isLoc && isLocacaoSeedDemoOficialProibida(r)) return false;
+      if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
@@ -240,9 +324,7 @@ const DEMO_TEN_CAP_KEYS = [
 ];
 
 function applyCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  applyApiCors(res);
 }
 
 function parseBody(req) {
@@ -636,6 +718,7 @@ function mergePayloads(existing, incoming) {
     "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
     "dk_pagamentos_auditoria_v1",
+    "dk_funcionarios_access",
   ]);
   const out = { ...existing, ...incoming };
   if (
@@ -645,6 +728,15 @@ function mergePayloads(existing, incoming) {
     out.dk_locacoes_cadastro = mergeLocacoesCadastroArrays(
       existing.dk_locacoes_cadastro,
       incoming.dk_locacoes_cadastro
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_funcionarios_access") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_funcionarios_access")
+  ) {
+    out.dk_funcionarios_access = mergeFuncionariosAccess(
+      existing.dk_funcionarios_access,
+      incoming.dk_funcionarios_access
     );
   }
   for (const k of fullReplaceKeys) {
@@ -719,6 +811,14 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
+  if (await enforceRateLimit(req, res, "cloud-snapshot", req.method === "POST" ? 30 : 60)) {
+    return;
+  }
+  const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+  if (!gate.ok) {
+    return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  }
+
   if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
@@ -756,7 +856,7 @@ async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        payload: safePayload,
+        payload: stripSecretsFromPayload(safePayload),
         updated_at: row?.updated_at || null,
         source: "redis",
       });
@@ -793,6 +893,23 @@ async function handler(req, res) {
       const wipeKeys = Array.isArray(body.wipe_keys)
         ? body.wipe_keys.filter((k) => typeof k === "string")
         : [];
+      const isOwner = gate.service || String(gate.role || "").trim() === "owner";
+      if ((replace || wipeKeys.length) && !isOwner) {
+        return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "snapshot_replace" });
+      }
+      let acessos = ownerWriteAccess();
+      if (!isOwner && gate.typ === "equipa") {
+        const f = findFuncionario(existingPayload, onlyDigits(gate.cpf).slice(0, 11));
+        acessos = f && String(f.role || "").trim() === "owner"
+          ? ownerWriteAccess()
+          : normalizeOperacaoAccess(f?.acessos, f?.role || "operacao");
+      }
+      incoming = restoreCredentialFields(existingPayload, incoming);
+      incoming = filterIncomingByModules(existingPayload, incoming, acessos, {
+        isOwner: isOwner || (gate.typ === "equipa" && String(gate.role || "") === "owner"),
+        isService: Boolean(gate.service),
+        isCliente: gate.typ === "cliente",
+      });
       let payload;
       if (wipeKeys.length) {
         payload = existingPayload ? { ...existingPayload, ...incoming } : { ...incoming };
@@ -814,6 +931,8 @@ async function handler(req, res) {
           : stripInternalPayloadKeys(lockedIncoming);
         if (existingPayload) {
           payload = applyDepositNoShrink(existingPayload, payload);
+        }
+        if (existingPayload) {
           payload = applyOficialClientesVeiculosNoShrink(existingPayload, payload);
           payload = capOficialVirginProtocolos(existingPayload, payload);
           payload = neverLoseCadastroPayload(existingPayload, payload);

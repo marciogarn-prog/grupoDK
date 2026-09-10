@@ -149,9 +149,9 @@
   let clienteTrocaSenhaPendente = null;
 
   const MOCK_CLIENTES = [
-    { cpf: "11111111111", senha: "1234", nome: "Joao Silva" },
-    { cpf: "22222222222", senha: "1234", nome: "Ana Souza" },
-    { cpf: "00000000001", senha: "123456", nome: "TESTE-001" },
+    { cpf: "11111111111", senha: "", nome: "Joao Silva" },
+    { cpf: "22222222222", senha: "", nome: "Ana Souza" },
+    { cpf: "00000000001", senha: "", nome: "TESTE-001" },
   ];
 
   const $ = (id) => document.getElementById(id);
