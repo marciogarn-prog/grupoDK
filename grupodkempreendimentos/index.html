@@ -35,12 +35,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260909nuvem-lock">
+  <link rel="stylesheet" href="styles.css?v=20260910manut-rapida">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
-  <script src="dk-oficial-cadastro-guard.js?v=20260904avisos-fix"></script>
+  <script src="dk-oficial-cadastro-guard.js?v=20260910manut-rapida"></script>
   <script src="dk-pwa-update.js?v=20260908excel-dt"></script>
 </head>
 <body>
@@ -2864,7 +2864,60 @@
                 <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnLocados" data-setor-relatorio="">RELATÓRIO</button>
               </div>
               <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadOperacao">Pesquise a placa e encaminhe para manutenção.</p>
-              <div id="portalChecklistHostOperacao" class="portal-checklist-host"></div>
+              <div class="portal-manut-locados-split">
+                <div class="portal-manut-locados-split__corretiva">
+                  <div id="portalChecklistHostOperacao" class="portal-checklist-host"></div>
+                </div>
+                <section class="portal-manut-rapida" id="portalManutRapidaPanel" aria-labelledby="portalManutRapidaTitulo">
+                  <h4 id="portalManutRapidaTitulo" class="portal-manut-rapida__title">Manutenção rápida</h4>
+                  <p class="subtext portal-manut-rapida__lead">Sem moto reserva. Marque o serviço feito e grave.</p>
+                  <div class="portal-manut-rapida__grid">
+                    <label class="portal-field portal-field--combobox portal-manut-rapida__placa">
+                      <span>Placa</span>
+                      <div class="portal-combobox">
+                        <input type="text" id="portalManutRapidaPlaca" maxlength="10" autocomplete="off" placeholder="Digite ou escolha a placa" aria-autocomplete="list" aria-expanded="false" aria-controls="portalManutRapidaPlacaLista">
+                        <div id="portalManutRapidaPlacaLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Placas locadas neste plano" hidden></div>
+                      </div>
+                    </label>
+                    <label class="portal-field portal-manut-rapida__km">
+                      <span>KM</span>
+                      <input type="text" id="portalManutRapidaKm" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Quilometragem">
+                    </label>
+                    <div class="portal-manut-rapida__servicos" role="group" aria-label="Serviços rápidos">
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="oleo"><span>Troca de óleo</span></label>
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="kit"><span>Troca de kit</span></label>
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pastilhaDianteira"><span>Troca de pastilha dianteira</span></label>
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pastilhaTraseira"><span>Troca de pastilha traseira</span></label>
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pneuDianteiro"><span>Troca de pneu dianteiro</span></label>
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pneuTraseiro"><span>Troca de pneu traseiro</span></label>
+                    </div>
+                    <label class="portal-field portal-manut-rapida__valor">
+                      <span>Valor pago pelo cliente</span>
+                      <input type="text" id="portalManutRapidaValor" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00">
+                    </label>
+                    <div class="portal-manut-rapida__formas" role="group" aria-label="Forma de pagamento">
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="pix"><span>PIX</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="especie"><span>Espécie</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="cartao"><span>Cartão</span></label>
+                    </div>
+                  </div>
+                  <div class="portal-manut-rapida__acoes">
+                    <button type="button" class="btn-primary" id="portalManutRapidaGravarBtn">Gravar manutenção rápida</button>
+                    <p id="portalManutRapidaMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+                  </div>
+                </section>
+              </div>
+              <section class="portal-manut-dia" id="portalManutDiaRegistro" aria-label="Lançamentos registados" aria-labelledby="portalManutDiaTitulo">
+                <div class="portal-manut-dia__head">
+                  <h4 id="portalManutDiaTitulo" class="portal-manut-dia__title">Registro do dia</h4>
+                  <div class="portal-manut-relatorio-btns">
+                    <button type="button" class="btn-primary btn-secondary-outline" id="portalManutRelatorioGeralBtn">Relatório geral</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="portalManutRelatorioMotoBtn">Relatório por moto</button>
+                  </div>
+                </div>
+                <p class="subtext" id="portalManutDiaResumo">Nenhum lançamento hoje.</p>
+                <div id="portalManutDiaRegistroBody" class="portal-manut-dia__body"></div>
+              </section>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
               <div class="operacao-inline-form__title-row portal-setor-relatorio-head">
@@ -4996,6 +5049,23 @@
     </div>
   </div>
 
+  <div id="portalManutLancRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalManutLancRelatorioTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalManutLancRelatorioBackdrop"></div>
+    <div class="portal-modal__card">
+      <h3 id="portalManutLancRelatorioTitulo" class="portal-modal__title">Relatório de manutenções</h3>
+      <div class="portal-manut-rel-filtros">
+        <label class="portal-field"><span>De</span><input type="text" id="portalManutLancRelDe" maxlength="10" placeholder="DD/MM/AAAA" inputmode="numeric"></label>
+        <label class="portal-field"><span>Até</span><input type="text" id="portalManutLancRelAte" maxlength="10" placeholder="DD/MM/AAAA" inputmode="numeric"></label>
+        <label class="portal-field" id="portalManutLancRelPlacaWrap"><span>Placa</span><input type="text" id="portalManutLancRelPlaca" maxlength="10" autocomplete="off" placeholder="Obrigatória no relatório por moto"></label>
+      </div>
+      <div id="portalManutLancRelatorioLista" class="portal-manut-dia__body"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalManutLancRelatorioImprimirBtn">Imprimir</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalManutLancRelatorioFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalLancAluguelConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-lanc-aluguel-confirm></div>
     <div class="portal-modal__card">
@@ -5203,7 +5273,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
   <script src="dk-portal-api-auth.js?v=20260910porteiro"></script>
-  <script src="app.js?v=20260910rotat-paisagem" defer></script>
+  <script src="app.js?v=20260910manut-rapida" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5213,7 +5283,7 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260910rotat-paisagem" defer></script>
+  <script src="portal-locadora-ui.js?v=20260910manut-rapida" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260908excel-dt"></script>
@@ -5260,9 +5330,10 @@
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
+  <script src="portal-manutencao-rapida.js?v=20260910manut-rapida" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260910nuvem-livre" defer></script>
+  <script src="portal-supabase-sync.js?v=20260910manut-rapida" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

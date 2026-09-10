@@ -2176,6 +2176,41 @@
           "fin-excel-date-kids"
         ]
       }
+    },
+    {
+      "id": "manutencao-rapida-locados",
+      "descricao": "Em Locados 1–3, o fluxo azul (placa, reserva, ENVIAR PARA MANUTENÇÃO) permanece. À direita, Manutenção rápida: placa, KM, seis serviços (óleo, kit, pastilha dianteira/traseira, pneu dianteiro/traseiro), valor pago pelo cliente, PIX/espécie/cartão, sem moto reserva. Abaixo, registro do dia. Relatório geral por período e relatório individual por moto. O botão RELATÓRIO de setor continua.",
+      "ficheiros": {
+        "index.html": [
+          "portalManutRapidaPanel",
+          "portalManutRapidaPlaca",
+          "portalManutRapidaKm",
+          "portalManutRapidaValor",
+          "portalManutRapidaGravarBtn",
+          "Troca de óleo",
+          "Valor pago pelo cliente",
+          "portalManutDiaRegistro",
+          "portalManutRelatorioGeralBtn",
+          "portalManutRelatorioMotoBtn",
+          "portalManutLancRelatorioModal",
+          "portalSetorRelatorioBtnLocados"
+        ],
+        "portal-manutencao-rapida.js": [
+          "dk_manutencoes_rapidas_v1",
+          "sem moto reserva",
+          "Troca de pastilha dianteira",
+          "Relatório por moto"
+        ],
+        "portal-locadora-ui.js": [
+          "__DK_portalManutRapidaOnLocadosOpen",
+          "__DK_portalListPlacasLocadosAtivas"
+        ],
+        "styles.css": [
+          "portal-manut-rapida",
+          "portal-manut-locados-split",
+          "portal-manut-dia"
+        ]
+      }
     }
   ]
 }

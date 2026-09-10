@@ -13493,3 +13493,199 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 #estoqueTableSaldo.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
   color: #ffd54f;
 }
+
+.portal-manut-relatorio-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.portal-manut-locados-split {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(18rem, 1fr);
+  gap: 0.85rem 1rem;
+  align-items: start;
+}
+
+.portal-manut-locados-split__corretiva {
+  min-width: 0;
+}
+
+.portal-manut-rapida {
+  min-width: 0;
+  padding: 0.7rem 0.85rem 0.85rem;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: var(--radius);
+  background: rgba(20, 83, 45, 0.18);
+}
+
+.portal-manut-rapida__title {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.portal-manut-rapida__lead {
+  margin: 0 0 0.65rem;
+}
+
+.portal-manut-rapida__grid {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) repeat(3, minmax(6.5rem, 1fr));
+  gap: 0.45rem 0.55rem;
+  align-items: end;
+}
+
+.portal-manut-rapida__placa {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+
+.portal-manut-rapida__km {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+}
+
+.portal-manut-rapida__servicos {
+  grid-column: 2 / -1;
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem 0.4rem;
+  align-content: end;
+}
+
+.portal-manut-rapida__placa input,
+.portal-manut-rapida__km input {
+  border-color: #eab308;
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.35);
+}
+
+.portal-manut-rapida__valor {
+  grid-column: 1;
+  margin: 0.15rem 0 0;
+}
+
+.portal-manut-rapida__valor input {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.4);
+}
+
+.portal-manut-rapida__formas {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.45rem 0.75rem;
+  padding-bottom: 0.15rem;
+}
+
+.portal-manut-dia__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.portal-manut-rapida__chk {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fef9c3;
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-manut-rapida__chk input {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0.05rem 0 0;
+  flex: 0 0 auto;
+  accent-color: #eab308;
+  cursor: pointer;
+}
+
+.portal-manut-rapida__chk--pag {
+  color: #fecaca;
+}
+
+.portal-manut-rapida__chk--pag input {
+  accent-color: #dc2626;
+}
+
+.portal-manut-rapida__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.portal-manut-dia {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.portal-manut-dia__title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.portal-manut-dia__body {
+  overflow: auto;
+  max-height: 14rem;
+}
+
+.portal-manut-dia table,
+.portal-manut-rel-filtros + .portal-manut-dia__body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.portal-manut-dia th,
+.portal-manut-dia td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.28rem 0.35rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.portal-manut-rel-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.portal-manut-rel-filtros .portal-field {
+  min-width: 9rem;
+}
+
+@media (max-width: 980px) {
+  .portal-manut-locados-split {
+    grid-template-columns: 1fr;
+  }
+  .portal-manut-rapida__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .portal-manut-rapida__servicos {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .portal-manut-rapida__valor,
+  .portal-manut-rapida__formas {
+    grid-column: 1 / -1;
+  }
+}

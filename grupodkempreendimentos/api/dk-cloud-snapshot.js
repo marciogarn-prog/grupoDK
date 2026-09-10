@@ -45,6 +45,7 @@ const OFICIAL_GUARD_KEYS = [
   "dk_locacoes_cadastro",
   "dk_locacoes_quadro_geral",
   "dk_manutencoes_cadastro",
+  "dk_manutencoes_rapidas_v1",
   "dk_portal_checklist_historico_v1",
   "dk_portal_checklist_movimentacoes_v1",
   "dk_lancamentos_aluguel",
