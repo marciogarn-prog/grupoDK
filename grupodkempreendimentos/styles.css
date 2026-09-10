@@ -13712,6 +13712,169 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   min-width: 9rem;
 }
 
+.portal-manut-locados-head-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem 0.5rem;
+}
+
+.portal-manut-os-caixa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.4rem;
+  margin: 0;
+  padding: 0.38rem 0.7rem;
+  border: 2px solid #dc2626;
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.55);
+  color: #fecaca;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.portal-manut-os-rel-btn {
+  flex: 0 0 auto;
+  font-size: 0.74rem !important;
+  padding: 0.4rem 0.65rem !important;
+  letter-spacing: 0.02em;
+}
+
+.portal-manut-os-tela-card {
+  max-width: min(980px, 96vw);
+}
+
+.portal-manut-os-cals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin: 0 0 0.85rem;
+}
+
+.portal-manut-os-cal {
+  padding: 0.55rem 0.65rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.portal-manut-os-cal__tit {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+}
+
+.portal-manut-os-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.portal-manut-os-cal__nav strong {
+  text-transform: capitalize;
+  font-size: 0.88rem;
+}
+
+.portal-manut-os-cal__nav .btn-primary {
+  min-width: 2.1rem;
+  padding: 0.2rem 0.45rem !important;
+}
+
+.portal-manut-os-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.18rem;
+}
+
+.portal-manut-os-cal__dow,
+.portal-manut-os-cal__vazio,
+.portal-manut-os-cal__dia {
+  min-height: 1.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+}
+
+.portal-manut-os-cal__dow {
+  font-weight: 700;
+  color: #fde68a;
+}
+
+.portal-manut-os-cal__dia {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+}
+
+.portal-manut-os-cal__dia.is-range {
+  background: rgba(220, 38, 38, 0.22);
+}
+
+.portal-manut-os-cal__dia.is-sel {
+  background: #dc2626;
+  border-color: #fecaca;
+  font-weight: 800;
+}
+
+.portal-manut-os-consulta-placa {
+  max-width: 22rem;
+  margin: 0 0 0.75rem;
+}
+
+.portal-manut-os-tela-corpo {
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.portal-manut-os-grupo {
+  margin: 0 0 0.85rem;
+}
+
+.portal-manut-os-grupo__dia {
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.95rem;
+}
+
+.portal-manut-os-grupo__placa h5,
+.portal-manut-os-veiculo-placa {
+  margin: 0.45rem 0 0.2rem;
+  font-size: 0.92rem;
+}
+
+.portal-manut-os-grupo__os {
+  margin: 0.25rem 0 0.1rem;
+  font-size: 0.82rem;
+}
+
+.portal-manut-os-grupo__serv {
+  margin: 0 0 0.08rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.portal-manut-os-grupo__valor {
+  margin: 0.1rem 0 0.4rem 0.9rem;
+  font-weight: 700;
+}
+
+@media (max-width: 780px) {
+  .portal-manut-os-cals {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .portal-manut-locados-split {
     grid-template-columns: 1fr;

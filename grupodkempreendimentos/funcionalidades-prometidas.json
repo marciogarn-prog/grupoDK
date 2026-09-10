@@ -2247,6 +2247,40 @@
           "finCeoKpiReceitaManutencao"
         ]
       }
+    },
+    {
+      "id": "manutencao-os-relatorios",
+      "descricao": "Em Locados, a caixinha vermelha mostra o contador de OS gerado pelo sistema (OS000001 em diante), sem o operador editar. O lançamento de manutenção rápida já existente vira OS000001. No espaço ao lado do RELATÓRIO de setor: Relatório por período (dois calendários, placas agrupadas por dia com serviços e valores) e Relatório por veículo (consulta da placa, histórico com OS, KM, um serviço por linha e valores pagos).",
+      "ficheiros": {
+        "index.html": [
+          "portalManutOsCaixa",
+          "OS000001",
+          "portalManutRelPeriodoBtn",
+          "Relatório por período",
+          "portalManutRelVeiculoBtn",
+          "Relatório por veículo",
+          "portalManutOsTela",
+          "portalManutOsCalDeGrid",
+          "portalManutOsCalAteGrid",
+          "Consulta da placa",
+          "portalSetorRelatorioBtnLocados"
+        ],
+        "portal-manutencao-rapida.js": [
+          "formatOs",
+          "OS000001",
+          "padStart(6, \"0\")",
+          "backfillOs",
+          "htmlPeriodoAgrupado",
+          "htmlVeiculoAgrupado",
+          "Consulta da placa",
+          "portalManutOsCaixa"
+        ],
+        "styles.css": [
+          "portal-manut-os-caixa",
+          "portal-manut-os-cals",
+          "portal-manut-os-grupo__serv"
+        ]
+      }
     }
   ]
 }

@@ -3178,7 +3178,13 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         return;
       }
       const score = (x) => Date.parse(x.criadoEm || x.createdAt || 0) || Number(x.id) || 0;
-      byId.set(fallback, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+      const merged = score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex };
+      const osA = String(ex.os || "").trim();
+      const osB = String(r.os || "").trim();
+      if (osA && !osB) merged.os = osA;
+      else if (osB && !osA) merged.os = osB;
+      else if (osA && osB) merged.os = osA;
+      byId.set(fallback, merged);
     };
     prev.forEach(add);
     incoming.forEach(add);
