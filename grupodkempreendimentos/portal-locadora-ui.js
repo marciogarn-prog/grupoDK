@@ -2248,36 +2248,8 @@
     const proto = normProtoClienteGate(protoRaw);
     if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
     if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) {
-      return { ok: false, msg: "Nuvem DK indisponível neste momento." };
-    }
-    try {
-      const label = dkPortalSnapshotLabel();
-      const { data, error } = await client
-        .from("dk_cloud_snapshots")
-        .select("payload")
-        .eq("label", label)
-        .maybeSingle();
-      if (error || !data?.payload) {
-        return {
-          ok: false,
-          msg: "Não foi possível consultar a nuvem DK. Tente novamente.",
-        };
-      }
-      const p = data.payload;
-      return matchClienteProtocoloEmListas(
-        cpf,
-        proto,
-        p.dk_clientes_cadastro,
-        p.dk_locacoes_cadastro
-      );
-    } catch {
-      return {
-        ok: false,
-        msg: "Erro ao consultar a nuvem DK. Verifique a internet.",
-      };
-    }
+    /* Porteiro: o browser não lê o Supabase. O gate /api/cliente-app-gate usa a nuvem oficial. */
+    return { ok: false, msg: "Não foi possível consultar a nuvem DK. Tente novamente." };
   }
 
   async function validateClienteProtocoloParaAppRemote(cpfDigits, protoRaw) {

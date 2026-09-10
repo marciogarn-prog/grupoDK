@@ -58,13 +58,9 @@ async function fetchSupabaseSnapshot(channel = "default") {
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     "https://ppxtwqvzgujllfzarpuz.supabase.co";
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    "";
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
   if (!key) {
-    return { ok: false, reason: "supabase_key_missing", payload: null, updatedAt: null };
+    return { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
   }
 
   const url = `${base.replace(/\/$/, "")}/rest/v1/dk_cloud_snapshots?label=eq.${label}&select=payload,updated_at`;

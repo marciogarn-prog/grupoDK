@@ -1,9 +1,9 @@
 /**
- * Sincronização localStorage DK ↔ nuvem redundante:
- * 1) Supabase (dk_cloud_snapshots) — primário
- * 2) Redis Upstash via /api/dk-cloud-snapshot — cópia de segurança (Vercel)
+ * Sincronização localStorage DK ↔ nuvem:
+ * 1) Redis Upstash via /api/dk-cloud-snapshot — oficial (login + token)
+ * 2) Supabase dk_cloud_snapshots — cópia via porteiro no servidor (SERVICE_ROLE)
  *
- * Se um falhar, o portal tenta o outro no pull/push.
+ * O browser não fala com o Supabase. Se o Redis falhar, o GET tenta o porteiro.
  */
 (function portalSupabaseSync() {
   const REDUNDANT_SNAPSHOT_API = "dk-cloud-snapshot";
@@ -487,6 +487,22 @@
         code: "timeout",
         userMessage:
           "Supabase demorou demais a responder (snapshot grande). Metadados vão para Redis; tente «Guardar na nuvem» de novo mais tarde.",
+        isOutage: false,
+      };
+    }
+    if (lower.includes("doorman_key_missing")) {
+      return {
+        code: "doorman_key",
+        userMessage:
+          "Dados no Redis. A cópia Supabase do servidor ainda não tem a chave do porteiro (SUPABASE_SERVICE_ROLE_KEY).",
+        isOutage: false,
+      };
+    }
+    if (lower.includes("42501") || lower.includes("permission denied")) {
+      return {
+        code: "42501",
+        userMessage:
+          "Dados no Redis. A cópia Supabase do servidor precisa do GRANT a service_role (SQL do porteiro).",
         isOutage: false,
       };
     }
@@ -1430,24 +1446,9 @@
   window.__DK_refreshCloudBarVisibility = refreshCloudBarVisibility;
 
   async function probeSupabaseCloudHealth() {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return { ok: false, reason: "not_configured" };
-    try {
-      const { error } = await withCloudTimeout(
-        client.from("dk_cloud_snapshots").select("label").eq("label", dkSnapshotLabel()).limit(1),
-        8000,
-        "supabase_health_timeout"
-      );
-      if (error) {
-        updateSupabaseStatusBanner(false, error.message || String(error));
-        return { ok: false, reason: error.message };
-      }
-      updateSupabaseStatusBanner(true, "");
-      return { ok: true };
-    } catch (e) {
-      updateSupabaseStatusBanner(false, String(e?.message || e));
-      return { ok: false, reason: String(e?.message || e) };
-    }
+    /* Porteiro: o browser não fala com o Supabase. A faixa 42501 some. */
+    updateSupabaseStatusBanner(true, "");
+    return { ok: true, reason: "doorman_server" };
   }
 
   function resolveRedundantSnapshotApiUrls() {
@@ -1513,6 +1514,7 @@
       bodyPayload._dkFullReplaceKeys = ["dk_comprovantes_cliente_pendentes"];
     }
     const postTimeoutMs = opts && opts.skipShrink ? 90000 : 45000;
+    let lastSupabase = { ok: false, reason: "" };
     for (let i = 0; i < urls.length; i += 1) {
       try {
         const res = await fetchWithCloudTimeout(
@@ -1531,6 +1533,7 @@
         const data = await res.json().catch(() => ({}));
         if (res.ok && data?.ok) {
           anyOk = true;
+          if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
           lastErr = data?.reason || data?.error || res.statusText;
         }
@@ -1539,37 +1542,12 @@
         if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot POST", e);
       }
     }
-    return { ok: anyOk, error: lastErr };
+    return { ok: anyOk, error: lastErr, supabase: lastSupabase };
   }
 
-  async function pushLocacaoDocumentoSupabaseBackground(doc, updatedAt) {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__ || !doc?.id) return false;
-    try {
-      const [supaRow, redisRow] = await Promise.all([
-        withCloudTimeout(fetchSupabaseSnapshotPayload(), 7000, "supabase_timeout").catch(() => null),
-        fetchRedundantSnapshotPayload(),
-      ]);
-      const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
-      const merged = mergeLocacaoDocumentosV1(
-        [{ ...doc, enviadoCliente: true }],
-        cloudPayload.dk_locacao_documentos_v1
-      );
-      const fullPayload = { ...cloudPayload, dk_locacao_documentos_v1: merged };
-      const supabasePayload = shrinkPayloadForSupabaseStorage(fullPayload);
-      const { error } = await withCloudTimeout(
-        client.from("dk_cloud_snapshots").upsert(
-          { label: dkSnapshotLabel(), payload: supabasePayload, updated_at: updatedAt },
-          { onConflict: "label" }
-        ),
-        45000,
-        "supabase_upsert_timeout"
-      );
-      return !error;
-    } catch (e) {
-      console.warn("[DK docs locação] push Supabase", e);
-      return false;
-    }
+  async function pushLocacaoDocumentoSupabaseBackground() {
+    /* Porteiro: o POST da API já espelha no Supabase. */
+    return false;
   }
 
   /** Push parcial: só o documento enviado (PDF incluído) — evita falha do snapshot completo. */
@@ -1618,15 +1596,8 @@
   }
 
   async function fetchSupabaseSnapshotPayload() {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return null;
-    const { data, error } = await client
-      .from("dk_cloud_snapshots")
-      .select("payload, updated_at")
-      .eq("label", dkSnapshotLabel())
-      .maybeSingle();
-    if (error || !data?.payload) return null;
-    return { ...data, source: "supabase" };
+    /* Porteiro: leitura anónima bloqueada. O GET da API (Redis) é a nuvem oficial. */
+    return null;
   }
 
   let clienteSnapshotCache = { at: 0, data: null };
@@ -1748,7 +1719,7 @@
 
   function formatPushResultMessage(supaOk, redisOk, supaErr, redisErr) {
     if (supaOk && redisOk) {
-      return { text: "Dados guardados na nuvem (Supabase + cópia Redis).", tone: "ok" };
+      return { text: "Dados guardados na nuvem (Redis + cópia Supabase).", tone: "ok" };
     }
     if (supaOk && !redisOk) {
       return {
@@ -3160,30 +3131,9 @@
     return Array.from(byId.values());
   }
 
-  async function pushComunicacaoSupabaseBackground(arr, updatedAt) {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return false;
-    try {
-      const [supaRow, redisRow] = await Promise.all([
-        withCloudTimeout(fetchSupabaseSnapshotPayload(), 7000, "supabase_timeout").catch(() => null),
-        fetchRedundantSnapshotPayload(),
-      ]);
-      const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
-      const merged = mergeComunicacaoOperacaoArrays(arr, cloudPayload.dk_comunicacao_operacao_v1);
-      const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
-      const { error } = await withCloudTimeout(
-        client.from("dk_cloud_snapshots").upsert(
-          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
-          { onConflict: "label" }
-        ),
-        8000,
-        "supabase_upsert_timeout"
-      );
-      return !error;
-    } catch (e) {
-      console.warn("[DK comunicacao] push Supabase", e);
-      return false;
-    }
+  async function pushComunicacaoSupabaseBackground() {
+    /* Porteiro: o POST da API já espelha no Supabase. */
+    return false;
   }
 
   /** Push leve: uma ou todas as mensagens cliente↔operação. */
@@ -3509,40 +3459,17 @@
     let supaErr = "";
     let redisErr = "";
 
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      const row = {
-        label: dkSnapshotLabel(),
-        payload: shrinkPayloadForSupabaseStorage(payload),
-        updated_at: updatedAt,
-      };
-      try {
-        const { error } = await withCloudTimeout(
-          client.from("dk_cloud_snapshots").upsert(row, { onConflict: "label" }),
-          45000,
-          "supabase_upsert_timeout"
-        );
-        if (error) {
-          supaErr = error.message || String(error);
-          if (error.code) supaErr = `${error.code}: ${supaErr}`;
-          console.error("[DK cloud] Supabase push", error);
-        } else {
-          supaOk = true;
-        }
-      } catch (e) {
-        supaErr = String(e?.message || e);
-        console.warn("[DK cloud] Supabase push timeout", e);
-      }
-    } else {
-      supaErr = "Supabase não configurado";
-    }
-
     const red = await pushRedundantSnapshotPayload(payload, updatedAt, {
       replace: forceReplace,
       fullReplaceComprovantes,
     });
     redisOk = red.ok;
     if (!redisOk) redisErr = String(red.error || "Redis indisponível");
+    if (red.supabase && red.supabase.ok) {
+      supaOk = true;
+    } else {
+      supaErr = String((red.supabase && red.supabase.reason) || "doorman");
+    }
 
     updateSupabaseStatusBanner(supaOk, supaErr);
 
@@ -3943,7 +3870,7 @@
     if (recusarOpcaoNuvemSeNaoAdmin()) return;
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    setMsg("A guardar na nuvem (Supabase + cópia Redis)…", "muted");
+    setMsg("A guardar na nuvem (Redis + cópia Supabase)…", "muted");
     const r = await runTrackedCloudPush(() => upsertSnapshotRow(true));
     if (!r || !r.ok) return;
     if (r.supaOk && r.redisOk) {

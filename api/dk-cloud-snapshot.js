@@ -2,12 +2,19 @@
  * Snapshot completo DK (localStorage) — cópia redundante em Upstash Redis.
  * Quando Supabase falhar, o portal usa GET/POST nesta API.
  *
- * Variáveis Vercel: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+ * Variáveis Vercel: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
+ * SUPABASE_SERVICE_ROLE_KEY (porteiro — espelho no Supabase; nunca no browser)
  *
  * GET  /api/dk-cloud-snapshot → { ok, payload, updated_at, source: "redis" }
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const {
+  isSupabaseDoormanConfigured,
+  fetchSnapshotByLabel,
+  upsertSnapshotByLabel,
+  withDoormanTimeout,
+} = require("../lib/dk-supabase-doorman.cjs");
 const { applyApiCors, enforceRateLimit, requirePortalAuth, findFuncionario, onlyDigits } = require("../lib/dk-portal-auth.cjs");
 const {
   filterIncomingByModules,
@@ -832,6 +839,26 @@ async function handler(req, res) {
     if (req.method === "GET") {
       const raw = await redis.get(REDIS_KEY);
       if (!raw) {
+        const mirror = isSupabaseDoormanConfigured()
+          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
+          : { ok: false, payload: null, updatedAt: null };
+        if (mirror && mirror.payload && typeof mirror.payload === "object") {
+          const safeFallback =
+            channel === "default"
+              ? sanitizePayloadForOficial(
+                  mirror.payload,
+                  oficialTodayYmd(),
+                  cadastroKeepSetsFromPayload(mirror.payload)
+                )
+              : mirror.payload;
+          return res.status(200).json({
+            ok: true,
+            label: LABEL,
+            payload: stripSecretsFromPayload(safeFallback),
+            updated_at: mirror.updatedAt || null,
+            source: "supabase",
+          });
+        }
         return res.status(200).json({
           ok: true,
           label: LABEL,
@@ -949,11 +976,19 @@ async function handler(req, res) {
       payload.dk_dados_seguros_v1 = true;
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
+      const supabase = isSupabaseDoormanConfigured()
+        ? await withDoormanTimeout(
+            upsertSnapshotByLabel(LABEL, payload, updatedAt),
+            8000,
+            "supabase_timeout"
+          )
+        : { ok: false, reason: "doorman_key_missing" };
       return res.status(200).json({
         ok: true,
         label: LABEL,
         updated_at: updatedAt,
         source: "redis",
+        supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
         replace,
         keys: Object.keys(payload).length,
       });
