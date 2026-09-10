@@ -1225,9 +1225,15 @@
     return new Date(yy, mm - 1, dd);
   }
 
+  function valorPagoManutencao(r) {
+    const n = Number(r?.valorPago);
+    if (Number.isFinite(n) && n > 0) return n;
+    return Math.abs(parseValor(r?.valorPago)) || 0;
+  }
+
   function registroManutencaoPagaCliente(r) {
     if (!r || r.formas?.naoSeAplica) return false;
-    return (Number(r.valorPago) || 0) > 0;
+    return valorPagoManutencao(r) > 0;
   }
 
   /** Pagamentos do cliente na manutenção rápida do mês (NÃO SE APLICA não entra). */
@@ -1239,7 +1245,7 @@
       if (!registroManutencaoPagaCliente(r)) return;
       const dt = dataManutencaoRapida(r);
       if (!dt || dt.getFullYear() !== y || dt.getMonth() !== m) return;
-      total += Number(r.valorPago) || 0;
+      total += valorPagoManutencao(r);
     });
     return total;
   }
@@ -4858,6 +4864,10 @@
     });
   }
 
+  window.__DK_financeiroCeoRefreshReceita = function __DK_financeiroCeoRefreshReceita() {
+    if (paneAberto === "dashboard") renderDashboard();
+  };
+
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
     migrarFontesLegadoParaCartoes();
@@ -4869,6 +4879,20 @@
       return;
     }
     abrirPane("dashboard");
+    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true }))
+        .catch(() => {})
+        .then(() => {
+          if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+            try {
+              window.__DK_invalidateCadastroParseCache("dk_manutencoes_rapidas_v1");
+            } catch {
+              /* ignore */
+            }
+          }
+          renderDashboard();
+        });
+    }
   };
 
   window.__DK_financeiroCeoAbrirAtalhoLocadora = function __DK_financeiroCeoAbrirAtalhoLocadora() {

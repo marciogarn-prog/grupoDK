@@ -604,6 +604,7 @@
     "dk_portal_veiculos_cadastro",
     "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
+    "dk_manutencoes_rapidas_v1",
   ]);
 
   function normalizeLocacoesContratoAtivoList(arr) {
@@ -1334,6 +1335,13 @@
     if (typeof window.__DK_invalidateCadastroParseCache === "function") {
       try {
         window.__DK_invalidateCadastroParseCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_financeiroCeoRefreshReceita === "function") {
+      try {
+        window.__DK_financeiroCeoRefreshReceita();
       } catch {
         /* ignore */
       }

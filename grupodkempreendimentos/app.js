@@ -3165,6 +3165,26 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     return dropLocacoesProtocoloSubstituido([...byNc.values(), ...byFallback.values()]);
   }
 
+  if (key === CAD_MANUTENCOES_RAPIDAS_KEY) {
+    const byId = new Map();
+    const add = (r) => {
+      if (!r || typeof r !== "object") return;
+      const id = String(r.id || "").trim();
+      const fallback = id || [r.placa, r.criadoEm || r.createdAt, r.valorPago].filter(Boolean).join("|");
+      if (!fallback) return;
+      const ex = byId.get(fallback);
+      if (!ex) {
+        byId.set(fallback, { ...r });
+        return;
+      }
+      const score = (x) => Date.parse(x.criadoEm || x.createdAt || 0) || Number(x.id) || 0;
+      byId.set(fallback, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byId.values());
+  }
+
   return incoming;
 }
 

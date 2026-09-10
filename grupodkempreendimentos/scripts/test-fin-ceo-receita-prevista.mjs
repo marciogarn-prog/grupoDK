@@ -5,6 +5,7 @@
 import fs from "fs";
 import path from "path";
 import vm from "vm";
+import { createRequire } from "module";
 import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -123,7 +124,22 @@ if (calc) {
   record("Manutenção: soma só o que o cliente pagou no mês", recManutSet === 80, `esperado 80, obtido ${recManutSet}`);
   record("Manutenção: NÃO SE APLICA não entra na receita", recManutSet === 80);
   record("Manutenção: mês anterior isolado", calc.receitaManutencaoMes(2026, 7, manutRows) === 200);
+  record(
+    "Manutenção: aceita valor em texto",
+    calc.receitaManutencaoMes(2026, 8, [{ criadoEm: "2026-09-10T12:00:00-03:00", valorPago: "R$ 25,50", formas: { pix: true } }]) === 25.5
+  );
 }
+
+const require = createRequire(import.meta.url);
+const { neverLoseCadastroPayload } = require(path.join(ROOT, "..", "lib", "dk-append-only-merge.cjs"));
+const kept = neverLoseCadastroPayload(
+  { dk_manutencoes_rapidas_v1: [{ id: "MR-1", valorPago: 80, origemPortal: true }] },
+  { dk_clientes_cadastro: [] }
+);
+record(
+  "Nuvem não perde manutenção rápida se o outro PC não enviar a chave",
+  Array.isArray(kept.dk_manutencoes_rapidas_v1) && kept.dk_manutencoes_rapidas_v1.length === 1
+);
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes receita prevista CEO ---`);

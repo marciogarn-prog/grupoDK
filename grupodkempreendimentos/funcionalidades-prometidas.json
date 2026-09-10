@@ -2231,8 +2231,16 @@
         "portal-financeiro-ceo.js": [
           "receitaManutencaoMes",
           "registroManutencaoPagaCliente",
+          "valorPagoManutencao",
           "dk_manutencoes_rapidas_v1",
           "finCeoKpiReceitaManutencao"
+        ],
+        "app.js": [
+          "CAD_MANUTENCOES_RAPIDAS_KEY"
+        ],
+        "portal-supabase-sync.js": [
+          "dk_manutencoes_rapidas_v1",
+          "__DK_financeiroCeoRefreshReceita"
         ],
         "styles.css": [
           "fin-kpi__trio",
