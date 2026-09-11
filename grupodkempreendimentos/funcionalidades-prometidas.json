@@ -2383,6 +2383,35 @@
       }
     },
     {
+      "id": "fin-intervalo-filtro-excel",
+      "descricao": "No FINANCEIRO → 6 Intervalo de pagamentos, cada coluna da tabela tem filtro estilo Excel (▾) com ordenar, pesquisar e marcar valores. Nas colunas Último e Próximo projetado as datas agrupam por ano e mês.",
+      "ficheiros": {
+        "index.html": [
+          "finIntervaloTabela",
+          "Filtro estilo Excel",
+          "Último",
+          "Próximo projetado",
+          "ano e mês"
+        ],
+        "portal-financeiro-modulos.js": [
+          "INTERVALO_COLS",
+          "abrirIntervaloExcelFiltroPopup",
+          "intervaloExcelState",
+          "type: \"date\"",
+          "Próximo projetado"
+        ],
+        "portal-financeiro-ceo.js": [
+          "renderExcelDateTreeHtml",
+          "MESES_FILTRO_PT",
+          "opts.force"
+        ],
+        "styles.css": [
+          "fin-excel-th",
+          "fin-excel-filter-btn"
+        ]
+      }
+    },
+    {
       "id": "manutencao-rapida-sugestao-oleo",
       "descricao": "Na Manutenção rápida, à frente de Troca de óleo existe a caixa Sugestão. O valor fica congelado até o operador reajustar; ao marcar Troca de óleo ele aparece em Valor pago pelo cliente, que continua editável. Limpar ou gravar o lançamento não apaga a sugestão. O valor gravado entra em Receita da manutenção no FINANCEIRO.",
       "ficheiros": {

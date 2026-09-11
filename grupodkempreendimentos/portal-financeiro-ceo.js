@@ -3850,7 +3850,10 @@
   }
 
   function excelDateLooksLikeDates(uniques) {
-    const arr = Array.isArray(uniques) ? uniques : [];
+    const arr = (Array.isArray(uniques) ? uniques : []).filter((v) => {
+      const s = String(v || "").trim();
+      return s && s !== "—" && s !== "-" && s !== "(Vazias)";
+    });
     if (!arr.length) return false;
     const n = arr.filter((v) => parseExcelDateLabel(v)).length;
     return n >= 1 && n >= arr.length * 0.5;
@@ -3918,8 +3921,8 @@
     return true;
   }
 
-  function applyExcelDateTreeToPop(pop, uniques, isAll, selected, escFn) {
-    if (!excelDateLooksLikeDates(uniques)) return false;
+  function applyExcelDateTreeToPop(pop, uniques, isAll, selected, escFn, opts) {
+    if (!(opts && opts.force) && !excelDateLooksLikeDates(uniques)) return false;
     const list = pop.querySelector("[data-excel-list]");
     if (!list) return false;
     list.innerHTML = renderExcelDateTreeHtml(uniques, isAll, selected, escFn);

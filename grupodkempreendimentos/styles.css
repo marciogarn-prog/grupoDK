@@ -7031,6 +7031,20 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   display: none;
 }
 
+.fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+}
+
+.fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+.fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}
+
 .fin-table--relacao .fin-excel-th {
   white-space: nowrap;
   vertical-align: middle;

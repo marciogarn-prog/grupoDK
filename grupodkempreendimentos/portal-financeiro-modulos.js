@@ -1321,7 +1321,49 @@
     return { n, media, mediana, desvio: Math.sqrt(varc), min: s[0], max: s[n - 1] };
   }
 
-  function renderIntervalo() {
+  const INTERVALO_COLS = [
+    { key: "nome", label: "Cliente", type: "text" },
+    { key: "n", label: "Pagamentos", type: "num" },
+    { key: "media", label: "Média (d)", type: "num" },
+    { key: "mediana", label: "Mediana", type: "num" },
+    { key: "desvio", label: "Desvio", type: "num" },
+    { key: "ultimo", label: "Último", type: "date" },
+    { key: "proj", label: "Próximo projetado", type: "date" },
+    { key: "total", label: "Total pago", type: "num" },
+  ];
+  let intervaloExcelState = { sortKey: "n", sortDir: "desc", cols: {} };
+  let intervaloExcelOpenKey = "";
+  let intervaloExcelBound = false;
+
+  function intCellDisplay(row, key) {
+    if (key === "nome") return String(row.nome || "—");
+    if (key === "n") return String(row.n || 0);
+    if (key === "media" || key === "mediana" || key === "desvio") {
+      return row.n > 1 ? (Number(row[key]) || 0).toFixed(1) : "—";
+    }
+    if (key === "ultimo") return row.ultimo ? fmtBrDate(row.ultimo) || "—" : "—";
+    if (key === "proj") return row.proj ? fmtBrDate(row.proj) || "—" : "—";
+    if (key === "total") return brl(row.total);
+    return String(row[key] ?? "—");
+  }
+
+  function intCellSortValue(row, key) {
+    const col = INTERVALO_COLS.find((c) => c.key === key);
+    if (col?.type === "date") {
+      const d = row[key];
+      return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+    }
+    if (col?.type === "num") return Number(row[key]) || 0;
+    return nk(String(row[key] ?? ""));
+  }
+
+  function intExcelSortLabels(type) {
+    if (type === "num") return { asc: "↑ Menor → maior", desc: "↓ Maior → menor" };
+    if (type === "date") return { asc: "↑ Mais antiga", desc: "↓ Mais recente" };
+    return { asc: "↑ Ordenar A a Z", desc: "↓ Ordenar Z a A" };
+  }
+
+  function coletarLinhasIntervalo() {
     const byCli = new Map();
     coletarPagamentos().forEach((p) => {
       const key = p.cpf || p.protocolo || p.nome || "—";
@@ -1329,12 +1371,10 @@
       byCli.get(key).pags.push(p);
     });
     const linhas = [];
-    const todosGaps = [];
     byCli.forEach((cli) => {
       const pags = cli.pags.slice().sort((a, b) => a.dt - b.dt);
       const gaps = [];
       for (let i = 1; i < pags.length; i++) gaps.push(daysBetween(pags[i - 1].dt, pags[i].dt));
-      gaps.forEach((g) => todosGaps.push(g));
       const st = stats(gaps);
       const ultimo = pags[pags.length - 1];
       const proj = ultimo && st.n ? addDays(ultimo.dt, Math.round(st.media) || 7) : null;
@@ -1347,12 +1387,234 @@
         desvio: st.desvio,
         min: st.min,
         max: st.max,
+        gaps,
         ultimo: ultimo ? ultimo.dt : null,
         proj,
         total: pags.reduce((s, p) => s + p.valor, 0),
       });
     });
-    linhas.sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, "pt-BR"));
+    return linhas;
+  }
+
+  function aplicarIntervaloExcelFiltroSort(rows) {
+    let out = (rows || []).slice();
+    INTERVALO_COLS.forEach((col) => {
+      const set = intervaloExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(intCellDisplay(r, col.key)));
+    });
+    const sk = intervaloExcelState.sortKey || "n";
+    const dir = intervaloExcelState.sortDir === "desc" ? -1 : 1;
+    out.sort((a, b) => {
+      const va = intCellSortValue(a, sk);
+      const vb = intCellSortValue(b, sk);
+      if (typeof va === "number" && typeof vb === "number") {
+        if (va !== vb) return (va - vb) * dir;
+      } else {
+        const cmp = String(va).localeCompare(String(vb), "pt-BR");
+        if (cmp) return cmp * dir;
+      }
+      return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
+    });
+    return out;
+  }
+
+  function valoresUnicosIntervalo(rows, key) {
+    const map = new Map();
+    (rows || []).forEach((r) => {
+      const label = intCellDisplay(r, key);
+      if (!map.has(label)) map.set(label, intCellSortValue(r, key));
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => {
+        const col = INTERVALO_COLS.find((c) => c.key === key);
+        if (col?.type === "num" || col?.type === "date") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
+        return String(a[0]).localeCompare(String(b[0]), "pt-BR");
+      })
+      .map(([label]) => label);
+  }
+
+  function linhasIntervaloAntesDaColuna(openKey) {
+    let out = coletarLinhasIntervalo();
+    INTERVALO_COLS.forEach((col) => {
+      if (col.key === openKey) return;
+      const set = intervaloExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(intCellDisplay(r, col.key)));
+    });
+    return out;
+  }
+
+  function fecharIntervaloExcelFiltroPopup() {
+    intervaloExcelOpenKey = "";
+    document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
+    document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
+  }
+
+  function abrirIntervaloExcelFiltroPopup(btn, key) {
+    fecharIntervaloExcelFiltroPopup();
+    if (typeof fecharExcelFiltroPopup === "function") fecharExcelFiltroPopup();
+    const col = INTERVALO_COLS.find((c) => c.key === key);
+    if (!col || !btn) return;
+    intervaloExcelOpenKey = key;
+    btn.classList.add("is-open");
+    const baseRows = linhasIntervaloAntesDaColuna(key);
+    const uniques = valoresUnicosIntervalo(baseRows, key);
+    const selected = intervaloExcelState.cols[key];
+    const isAll = !(selected instanceof Set);
+    const sortLbl = intExcelSortLabels(col.type);
+    const pop = document.createElement("div");
+    pop.className = "fin-excel-filter-pop";
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Filtro ${col.label}`);
+    pop.innerHTML = `
+      <div class="fin-excel-filter-pop__sort">
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="asc">${esc(sortLbl.asc)}</button>
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="desc">${esc(sortLbl.desc)}</button>
+      </div>
+      <label class="fin-excel-filter-pop__search">
+        <input type="search" placeholder="Pesquisar…" autocomplete="off" aria-label="Pesquisar valores" data-excel-search>
+      </label>
+      <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
+      <div class="fin-excel-filter-pop__list" data-excel-list>
+        ${uniques
+          .map((v, i) => {
+            const checked = isAll || selected.has(v) ? "checked" : "";
+            return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${esc(v)}</span></label>`;
+          })
+          .join("") || `<p class="subtext">Sem valores.</p>`}
+      </div>
+      <div class="fin-excel-filter-pop__actions">
+        <button type="button" class="btn-primary" data-excel-ok>OK</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-cancel>Cancelar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-clear>Limpar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const rect = btn.getBoundingClientRect();
+    const popW = Math.max(260, Math.min(340, window.innerWidth - 16));
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4;
+    pop.style.width = `${popW}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => {
+      const h = pop.offsetHeight;
+      if (top + h > window.innerHeight - 8) {
+        pop.style.top = `${Math.max(8, rect.top - h - 4)}px`;
+      }
+    });
+
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const leafVisible = (el) =>
+      typeof window.__DK_excelDateLeafVisible === "function"
+        ? window.__DK_excelDateLeafVisible(pop, el)
+        : el.closest(".fin-excel-filter-pop__item")?.style.display !== "none";
+    const syncAll = () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter(leafVisible);
+      allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+    const usedDateTree =
+      typeof window.__DK_excelDateTreeApply === "function"
+        ? window.__DK_excelDateTreeApply(pop, uniques, isAll, selected, esc, { force: col.type === "date" })
+        : false;
+    if (!usedDateTree) {
+      search?.addEventListener("input", () => {
+        const q = nk(search.value);
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          const t = nk(lab.textContent || "");
+          lab.style.display = !q || t.includes(q) ? "" : "none";
+        });
+        syncAll();
+      });
+      allCb?.addEventListener("change", () => {
+        pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+          if (lab.style.display === "none") return;
+          const cb = lab.querySelector("[data-excel-idx]");
+          if (cb) cb.checked = allCb.checked;
+        });
+      });
+      pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    }
+    pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
+      intervaloExcelState.sortKey = key;
+      intervaloExcelState.sortDir = "asc";
+      fecharIntervaloExcelFiltroPopup();
+      renderIntervalo();
+    });
+    pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
+      intervaloExcelState.sortKey = key;
+      intervaloExcelState.sortDir = "desc";
+      fecharIntervaloExcelFiltroPopup();
+      renderIntervalo();
+    });
+    pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter(leafVisible);
+      const pool = visible.length ? visible : boxes;
+      const checked = pool
+        .filter((el) => el.checked)
+        .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
+        .filter((v) => v != null);
+      if (!checked.length || checked.length === pool.length) {
+        delete intervaloExcelState.cols[key];
+      } else {
+        intervaloExcelState.cols[key] = new Set(checked);
+      }
+      fecharIntervaloExcelFiltroPopup();
+      renderIntervalo();
+    });
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharIntervaloExcelFiltroPopup());
+    pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
+      delete intervaloExcelState.cols[key];
+      if (intervaloExcelState.sortKey === key) {
+        intervaloExcelState.sortKey = "n";
+        intervaloExcelState.sortDir = "desc";
+      }
+      fecharIntervaloExcelFiltroPopup();
+      renderIntervalo();
+    });
+    search?.focus();
+  }
+
+  function bindIntervaloExcel() {
+    if (intervaloExcelBound) return;
+    intervaloExcelBound = true;
+    const pane = document.getElementById("financeiroPaneIntervalo");
+    pane?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-excel-col]");
+      if (!btn || !pane.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-excel-col") || "";
+      if (intervaloExcelOpenKey === key) {
+        fecharIntervaloExcelFiltroPopup();
+        return;
+      }
+      abrirIntervaloExcelFiltroPopup(btn, key);
+    });
+    document.addEventListener("mousedown", (e) => {
+      if (!intervaloExcelOpenKey) return;
+      const pop = document.querySelector(".fin-excel-filter-pop");
+      const t = e.target;
+      if (pop?.contains(t)) return;
+      if (t?.closest?.("[data-excel-col]")) return;
+      fecharIntervaloExcelFiltroPopup();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && intervaloExcelOpenKey) fecharIntervaloExcelFiltroPopup();
+    });
+  }
+
+  function renderIntervalo() {
+    fecharIntervaloExcelFiltroPopup();
+    bindIntervaloExcel();
+    const base = coletarLinhasIntervalo();
+    const linhas = aplicarIntervaloExcelFiltroSort(base);
+    const todosGaps = [];
+    linhas.forEach((r) => (r.gaps || []).forEach((g) => todosGaps.push(g)));
     const glob = stats(todosGaps);
     const kpis = document.getElementById("finIntervaloKpis");
     if (kpis) {
@@ -1381,14 +1643,26 @@
         : '<p class="subtext">É preciso pelo menos dois pagamentos por cliente para calcular intervalos.</p>';
     }
     const tab = document.getElementById("finIntervaloTabela");
-    if (tab) {
-      tab.innerHTML = `<table class="fin-table"><thead><tr>
-        <th>Cliente</th><th>Pagamentos</th><th>Média (d)</th><th>Mediana</th><th>Desvio</th>
-        <th>Último</th><th>Próximo projetado</th><th>Total pago</th>
-      </tr></thead><tbody>${
-        linhas
-          .map(
-            (r) => `<tr>
+    if (!tab) return;
+    const head = INTERVALO_COLS.map((col) => {
+      const filtered = intervaloExcelState.cols[col.key] instanceof Set;
+      const active = filtered || intervaloExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
+        <span class="fin-excel-th__label">${esc(col.label)}</span>
+        <button type="button" class="fin-excel-filter-btn${filtered ? " is-filtered" : ""}" data-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
+      </th>`;
+    }).join("");
+    if (!base.length) {
+      tab.innerHTML = `<table class="fin-table"><thead><tr>${head}</tr></thead><tbody><tr><td colspan="8">Sem pagamentos registados.</td></tr></tbody></table>`;
+      return;
+    }
+    if (!linhas.length) {
+      tab.innerHTML = `<table class="fin-table"><thead><tr>${head}</tr></thead><tbody><tr><td colspan="8" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr></tbody></table>`;
+      return;
+    }
+    tab.innerHTML = `<table class="fin-table"><thead><tr>${head}</tr></thead><tbody>${linhas
+      .map(
+        (r) => `<tr>
               <td>${esc(r.nome)}${r.cpf ? `<br><span class="subtext">${esc(r.cpf)}</span>` : ""}</td>
               <td>${r.n}</td>
               <td>${r.n > 1 ? r.media.toFixed(1) : "—"}</td>
@@ -1398,10 +1672,8 @@
               <td>${r.proj ? esc(fmtBrDate(r.proj)) : "—"}</td>
               <td>${esc(brl(r.total))}</td>
             </tr>`
-          )
-          .join("") || '<tr><td colspan="8">Sem pagamentos registados.</td></tr>'
-      }</tbody></table>`;
-    }
+      )
+      .join("")}</tbody></table>`;
   }
 
   function newDespesaId() {
@@ -2753,6 +3025,7 @@
 
   function fecharExcelFiltroPopup() {
     relacaoExcelOpenKey = "";
+    intervaloExcelOpenKey = "";
     document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
     document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
   }
@@ -2832,9 +3105,9 @@
       const visible = boxes.filter(leafVisible);
       allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
     };
-    const usedDateTree =
+      const usedDateTree =
       typeof window.__DK_excelDateTreeApply === "function"
-        ? window.__DK_excelDateTreeApply(pop, uniques, isAll, selected, esc)
+        ? window.__DK_excelDateTreeApply(pop, uniques, isAll, selected, esc, { force: col.type === "date" })
         : false;
     if (!usedDateTree) {
       search?.addEventListener("input", () => {
