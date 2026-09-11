@@ -12444,6 +12444,14 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   overflow: auto;
 }
 
+.portal-modal__card--fin-ceo-nuvem-ok {
+  border: 1px solid #22c55e;
+}
+
+.portal-modal__card--fin-ceo-nuvem-erro {
+  border: 1px solid #ef4444;
+}
+
 .fin-ceo-desp-confirm-lead {
   margin: 0 0 0.75rem;
 }

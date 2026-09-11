@@ -2292,7 +2292,7 @@
     },
     {
       "id": "fin-despesas-sync-admin",
-      "descricao": "Cadastrar despesa e A PAGAR enviam na hora para a nuvem e mostram se gravou. PAGO não rebaixa por nuvem/operador. Edição do CEO com updatedAt mais novo não volta atrás. Abrir a tela sobe primeiro e só depois une. Só o administrador CEO (CPF da sessão) altera ou exclui. Lançamento na nuvem não some no merge.",
+      "descricao": "Cadastrar despesa e A PAGAR enviam na hora para a nuvem e mostram se gravou. Alteração só aparece na lista depois de gravar na nuvem; falha desfaz e mostra janela de erro. PAGO não rebaixa por nuvem/operador. Edição do CEO com updatedAt mais novo não volta atrás. Abrir a tela sobe primeiro e só depois une. Só o administrador CEO (CPF da sessão) altera ou exclui. Lançamento na nuvem não some no merge.",
       "ficheiros": {
         "lib/dk-append-only-merge.cjs": [
           "dk_financeiro_ceo_despesas_v1",
@@ -2318,7 +2318,14 @@
           "pagamentosExcluidos",
           "bloquearEscritaFinanceiroCeo",
           "carimboCeoEscrita",
-          "ceoAutoridade"
+          "ceoAutoridade",
+          "gravarFinanceiroCeoComSeguranca",
+          "restaurarFinanceiroCeoLocal",
+          "SISTEMA NÃO CONSEGUIU GUARDAR OS DADOS EM SEGURANÇA, TENTE MAIS TARDE",
+          "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO"
+        ],
+        "index.html": [
+          "finCeoDespNuvemResultModal"
         ],
         "portal-supabase-sync.js": [
           "dk_financeiro_ceo_despesas_v1",

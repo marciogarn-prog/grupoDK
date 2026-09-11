@@ -5,7 +5,10 @@
 (function portalFinanceiroCeo() {
   const DESPESAS_CEO_KEY = "dk_financeiro_ceo_despesas_v1";
   const SITUACAO_PAG_CEO_KEY = "dk_financeiro_ceo_situacao_pag_v1";
+  const MSG_NUVEM_ERRO = "SISTEMA NÃO CONSEGUIU GUARDAR OS DADOS EM SEGURANÇA, TENTE MAIS TARDE";
+  const MSG_NUVEM_OK = "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO";
   const TITULAR_CEO_CPF = "03037897430";
+  let finCeoGravacaoEmCurso = false;
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
@@ -144,7 +147,85 @@
     return Boolean(push.ok === true || push.redisOk || push.source === "redis" || push.source === "both");
   }
 
-  async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk) {
+  function lerCadastroArrayCru(key) {
+    if (typeof window.loadCadastro === "function") {
+      try {
+        const arr = window.loadCadastro(key);
+        return JSON.parse(JSON.stringify(Array.isArray(arr) ? arr : []));
+      } catch {
+        /* ignore */
+      }
+    }
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function snapshotFinanceiroCeoLocal() {
+    return {
+      despesas: lerCadastroArrayCru(DESPESAS_CEO_KEY),
+      situacao: lerCadastroArrayCru(SITUACAO_PAG_CEO_KEY),
+    };
+  }
+
+  function restaurarFinanceiroCeoLocal(snap) {
+    if (!snap) return;
+    const despesas = Array.isArray(snap.despesas) ? snap.despesas : [];
+    const situacao = Array.isArray(snap.situacao) ? snap.situacao : [];
+    if (typeof window.saveCadastro === "function") {
+      try {
+        window.saveCadastro(DESPESAS_CEO_KEY, despesas, { allowShrink: true });
+        window.saveCadastro(SITUACAO_PAG_CEO_KEY, situacao, { allowShrink: true });
+        return;
+      } catch {
+        /* ignore */
+      }
+    }
+    try {
+      localStorage.setItem(DESPESAS_CEO_KEY, JSON.stringify(despesas));
+      localStorage.setItem(SITUACAO_PAG_CEO_KEY, JSON.stringify(situacao));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function fecharModalResultadoNuvem() {
+    const modal = document.getElementById("finCeoDespNuvemResultModal");
+    if (!modal || modal.dataset.finCeoNuvemKind === "wait") return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    delete modal.dataset.finCeoNuvemKind;
+  }
+
+  function abrirModalResultadoNuvem(kind, texto) {
+    const modal = document.getElementById("finCeoDespNuvemResultModal");
+    const card = document.getElementById("finCeoDespNuvemResultCard");
+    const titulo = document.getElementById("finCeoDespNuvemResultTitulo");
+    const p = document.getElementById("finCeoDespNuvemResultTexto");
+    const btn = document.getElementById("finCeoDespNuvemResultOkBtn");
+    if (!modal) return;
+    if (p) p.textContent = texto;
+    if (titulo) {
+      titulo.textContent =
+        kind === "ok" ? "Dados gravados com segurança" : kind === "erro" ? "Gravação não concluída" : "A gravar";
+    }
+    card?.classList.toggle("portal-modal__card--fin-ceo-nuvem-ok", kind === "ok");
+    card?.classList.toggle("portal-modal__card--fin-ceo-nuvem-erro", kind === "erro");
+    if (btn) {
+      btn.hidden = kind === "wait";
+      btn.disabled = kind === "wait";
+    }
+    modal.dataset.finCeoNuvemKind = kind;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    if (kind !== "wait") btn?.focus();
+  }
+
+  async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk, opts) {
+    const exigirNuvem = Boolean(opts && opts.exigirNuvem);
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
         window.__DK_markLocalDataAuthority();
@@ -153,7 +234,7 @@
       }
     }
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
-      if (feedbackEl) {
+      if (feedbackEl && !exigirNuvem) {
         feedbackEl.textContent =
           "Gravado neste PC. Sem função de nuvem — não feche o browser até o envio existir.";
       }
@@ -163,20 +244,63 @@
     try {
       const r = await window.__DK_pushCloudSnapshotNow({ force: true });
       if (nuvemPushResultOk(r)) {
-        if (feedbackEl) feedbackEl.textContent = mensagemOk || "Gravado na nuvem.";
+        if (exigirNuvem && r && r.skipped) {
+          return { ok: false, r, reason: "skipped" };
+        }
+        if (feedbackEl) feedbackEl.textContent = mensagemOk || MSG_NUVEM_OK;
         return { ok: true, r };
       }
-      if (feedbackEl) {
+      if (feedbackEl && !exigirNuvem) {
         feedbackEl.textContent =
           "FALHOU o envio à nuvem. Os dados estão neste PC. Não feche o browser — clique de novo em Cadastrar despesa ou A PAGAR.";
       }
       return { ok: false, r };
     } catch (err) {
-      if (feedbackEl) {
+      if (feedbackEl && !exigirNuvem) {
         feedbackEl.textContent =
           "FALHOU o envio à nuvem. Os dados estão neste PC. Não feche o browser — tente de novo.";
       }
       return { ok: false, error: err };
+    }
+  }
+
+  function atualizarTelasAposDespesaGravada() {
+    renderListaDespesas();
+    renderResumoCadastroDespesas();
+    renderDashboard();
+    if (paneAberto === "relatorio") aplicarRelatorio();
+    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
+    if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
+    if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
+  }
+
+  async function gravarFinanceiroCeoComSeguranca(aplicarMutacao, aposSucesso) {
+    if (finCeoGravacaoEmCurso) return { ok: false, reason: "em_curso" };
+    finCeoGravacaoEmCurso = true;
+    const snap = snapshotFinanceiroCeoLocal();
+    const fb = document.getElementById("finCeoDespFeedback");
+    try {
+      aplicarMutacao();
+      abrirModalResultadoNuvem("wait", "A gravar os dados com segurança…");
+      if (fb) fb.textContent = "A gravar os dados com segurança…";
+      const r = await enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true });
+      if (!r || r.ok !== true) {
+        restaurarFinanceiroCeoLocal(snap);
+        abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
+        if (fb) fb.textContent = MSG_NUVEM_ERRO;
+        return { ok: false, r };
+      }
+      if (typeof aposSucesso === "function") aposSucesso();
+      abrirModalResultadoNuvem("ok", MSG_NUVEM_OK);
+      if (fb) fb.textContent = MSG_NUVEM_OK;
+      return { ok: true, r };
+    } catch (err) {
+      restaurarFinanceiroCeoLocal(snap);
+      abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
+      if (fb) fb.textContent = MSG_NUVEM_ERRO;
+      return { ok: false, error: err };
+    } finally {
+      finCeoGravacaoEmCurso = false;
     }
   }
 
@@ -1123,6 +1247,7 @@
   }
 
   function abrirModalConfirmPagoDespesa(row) {
+    if (finCeoGravacaoEmCurso) return;
     const modal = document.getElementById("finCeoDespPagoModal");
     if (!modal || !row?._d || !row?._p) return;
     finCeoDespPagoPending = {
@@ -1158,15 +1283,14 @@
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
+    if (finCeoGravacaoEmCurso) return;
     const pending = finCeoDespPagoPending;
     if (!pending) return;
-    marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data);
     fecharModalConfirmPagoDespesa();
-    renderListaDespesas();
-    if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
-    if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
-    const fb = document.getElementById("finCeoDespFeedback");
-    await enviarFinanceiroCeoNuvem(fb, "Pagamento marcado PAGO e gravado na nuvem.");
+    await gravarFinanceiroCeoComSeguranca(
+      () => marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data),
+      () => atualizarTelasAposDespesaGravada()
+    );
   }
 
   function bindCalendariosCeo(root) {
@@ -3399,6 +3523,7 @@
   }
 
   function abrirModalConfirmDespesa(entry, editMeta = null) {
+    if (finCeoGravacaoEmCurso) return;
     finCeoDespConfirmPending = { entry, edit: editMeta };
     const resumo = document.getElementById("finCeoDespConfirmResumo");
     if (resumo) resumo.innerHTML = montarHtmlResumoDespesaConfirm(entry, editMeta);
@@ -3427,48 +3552,7 @@
     document.getElementById("finCeoDespConfirmSimBtn")?.focus();
   }
 
-  function persistirDespesaEdicao(entry, editMeta) {
-    if (bloquearEscritaFinanceiroCeo()) return;
-    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
-      const fbBlock = document.getElementById("finCeoDespFeedback");
-      if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
-      return;
-    }
-    const fb = document.getElementById("finCeoDespFeedback");
-    let list = loadDespesasCeo();
-    const result =
-      editMeta.mode === "single"
-        ? aplicarEditarEvento(list, editMeta.despesaId, editMeta.pagamentoNumero, entry)
-        : aplicarEditarFuturo(list, editMeta.despesaId, editMeta.pagamentoNumero, entry);
-    if (!result.ok) {
-      if (fb) fb.textContent = "Não foi possível aplicar a edição — despesa não encontrada.";
-      return;
-    }
-    ultimaDespesaSalvaId = result.savedId || entry.id;
-    saveDespesasCeo(result.list);
-    migrarSituacaoAposEdicaoParcela(editMeta, entry);
-    const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
-    const escopo =
-      editMeta.mode === "single"
-        ? `pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} atualizado`
-        : `${pagos.length} pagamento(s) futuro(s) atualizado(s)`;
-    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). Situação continua A PAGAR até o CEO marcar PAGO. A enviar para a nuvem…`;
-    finCeoDespEditState = null;
-    if (lancamentoEhCartaoCredito(entry)) manterFormAposLancamentoCartao(entry);
-    else limparFormDespesa();
-    if (fb) fb.textContent = msg;
-    renderListaDespesas();
-    renderResumoCadastroDespesas();
-    renderDashboard();
-    if (paneAberto === "relatorio") aplicarRelatorio();
-    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    if (!lancamentoEhCartaoCredito(entry)) {
-      document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-    void enviarFinanceiroCeoNuvem(fb, `Despesa editada — ${escopo}. Gravado na nuvem.`);
-  }
-
-  function persistirDespesaEntry(entry) {
+  async function persistirDespesaEdicao(entry, editMeta) {
     if (bloquearEscritaFinanceiroCeo()) return;
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       const fbBlock = document.getElementById("finCeoDespFeedback");
@@ -3477,51 +3561,83 @@
     }
     const fb = document.getElementById("finCeoDespFeedback");
     const list = loadDespesasCeo();
-    list.push(
-      carimboCeoEscrita({
-        ...entry,
-        cadastradoEm: entry.cadastradoEm,
-        dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
-      })
-    );
-    ultimaDespesaSalvaId = entry.id;
-    saveDespesasCeo(list);
-    const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
-    const ehCartao = lancamentoEhCartaoCredito(entry);
-    if (ehCartao) manterFormAposLancamentoCartao(entry);
-    else limparFormDespesa();
-    if (fb) {
-      fb.textContent = `Despesa cadastrada neste PC — ${pagos.length} pagamento(s) de ${brl(entry.valor)}. A enviar para a nuvem…`;
+    const result =
+      editMeta.mode === "single"
+        ? aplicarEditarEvento(list, editMeta.despesaId, editMeta.pagamentoNumero, entry)
+        : aplicarEditarFuturo(list, editMeta.despesaId, editMeta.pagamentoNumero, entry);
+    if (!result.ok) {
+      if (fb) fb.textContent = "Não foi possível aplicar a edição — despesa não encontrada.";
+      return;
     }
-    renderListaDespesas();
-    renderResumoCadastroDespesas();
-    renderDashboard();
-    if (paneAberto === "relatorio") aplicarRelatorio();
-    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    if (!ehCartao) {
-      document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-    void enviarFinanceiroCeoNuvem(
-      fb,
-      ehCartao
-        ? `Despesa gravada na nuvem — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Cartão e data mantidos para o próximo lançamento.`
-        : `Despesa gravada na nuvem — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}).`
+    await gravarFinanceiroCeoComSeguranca(
+      () => {
+        saveDespesasCeo(result.list);
+        migrarSituacaoAposEdicaoParcela(editMeta, entry);
+      },
+      () => {
+        ultimaDespesaSalvaId = result.savedId || entry.id;
+        finCeoDespEditState = null;
+        if (lancamentoEhCartaoCredito(entry)) manterFormAposLancamentoCartao(entry);
+        else limparFormDespesa();
+        atualizarTelasAposDespesaGravada();
+        if (!lancamentoEhCartaoCredito(entry)) {
+          document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
     );
   }
 
-  function confirmarDespesaModal() {
+  async function persistirDespesaEntry(entry) {
+    if (bloquearEscritaFinanceiroCeo()) return;
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      const fbBlock = document.getElementById("finCeoDespFeedback");
+      if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
+      return;
+    }
+    await gravarFinanceiroCeoComSeguranca(
+      () => {
+        const list = loadDespesasCeo();
+        list.push(
+          carimboCeoEscrita({
+            ...entry,
+            cadastradoEm: entry.cadastradoEm,
+            dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
+          })
+        );
+        saveDespesasCeo(list);
+      },
+      () => {
+        ultimaDespesaSalvaId = entry.id;
+        const ehCartao = lancamentoEhCartaoCredito(entry);
+        /* Cartão e data mantidos para o próximo lançamento */
+        if (ehCartao) manterFormAposLancamentoCartao(entry);
+        else limparFormDespesa();
+        atualizarTelasAposDespesaGravada();
+        if (!ehCartao) {
+          document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
+    );
+  }
+
+  async function confirmarDespesaModal() {
+    if (finCeoGravacaoEmCurso) return;
     const pending = finCeoDespConfirmPending;
     if (!pending) return;
     const entry = pending.entry || pending;
     const editMeta = pending.edit || null;
     fecharModalConfirmDespesa();
-    if (editMeta) persistirDespesaEdicao(entry, editMeta);
-    else persistirDespesaEntry(entry);
+    if (editMeta) await persistirDespesaEdicao(entry, editMeta);
+    else await persistirDespesaEntry(entry);
   }
 
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
+    if (finCeoGravacaoEmCurso) {
+      if (fb) fb.textContent = "Aguarde a gravação em segurança terminar.";
+      return;
+    }
     if (bloquearEscritaFinanceiroCeo(fb)) return;
     if (fb && !finCeoDespEditState) fb.textContent = "";
     const entry = coletarEntryDespesaForm(fb);
@@ -4609,6 +4725,7 @@
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
+    if (finCeoGravacaoEmCurso) return;
     if (!isSessaoTitularCeoCpf()) {
       const fb = document.getElementById("finCeoDespFeedback");
       if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
@@ -4623,14 +4740,10 @@
     excluidos.add(pag);
     const next = [...list];
     next[idx] = { ...atual, pagamentosExcluidos: [...excluidos], updatedAt: Date.now() };
-    saveDespesasCeo(next);
-    renderListaDespesas();
-    renderResumoCadastroDespesas();
-    renderDashboard();
-    if (paneAberto === "relatorio") aplicarRelatorio();
-    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    const fb = document.getElementById("finCeoDespFeedback");
-    void enviarFinanceiroCeoNuvem(fb, "Exclusão do CEO gravada na nuvem. O lançamento não volta nos outros PCs.");
+    void gravarFinanceiroCeoComSeguranca(
+      () => saveDespesasCeo(next),
+      () => atualizarTelasAposDespesaGravada()
+    );
   }
 
   function mesLabelCurtoCeo(d) {
@@ -4965,6 +5078,13 @@
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
     document.getElementById("finCeoDespPagoSimBtn")?.addEventListener("click", confirmarPagoDespesaModal);
     document.getElementById("finCeoDespPagoNaoBtn")?.addEventListener("click", fecharModalConfirmPagoDespesa);
+    document.getElementById("finCeoDespNuvemResultOkBtn")?.addEventListener("click", fecharModalResultadoNuvem);
+    document
+      .querySelectorAll("[data-fin-ceo-desp-nuvem-result-ok]")
+      .forEach((el) => el.addEventListener("click", fecharModalResultadoNuvem));
+    document.getElementById("finCeoDespNuvemResultModal")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") fecharModalResultadoNuvem();
+    });
     document
       .querySelectorAll("[data-fin-ceo-desp-pago-cancel]")
       .forEach((el) => el.addEventListener("click", fecharModalConfirmPagoDespesa));
