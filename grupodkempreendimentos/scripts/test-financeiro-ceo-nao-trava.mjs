@@ -22,8 +22,9 @@ const apiJs = fs.readFileSync(path.join(ROOT, "api/cadastro-financeiro-ceo.js"),
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const syncJs = fs.readFileSync(path.join(ROOT, "portal-supabase-sync.js"), "utf8");
 
-rec("API não lê snapshot em todo POST", apiJs.includes("loadDedicatedOrSeed") && !apiJs.includes("loadUniao("), "");
-rec("API POST não devolve o pacote inteiro", apiJs.includes("count:") && !/return res\.status\(200\)\.json\(\{\s*ok: true,\s*data: merged/.test(apiJs), "");
+rec("API grava em bloco HASH", apiJs.includes("aplicarBlocoHash") && apiJs.includes("patch: true") && apiJs.includes("dk:portal:financeiro_ceo:despesas:h"), "");
+rec("API POST não devolve o pacote inteiro", apiJs.includes("gravados") && !/return res\.status\(200\)\.json\(\{\s*ok: true,\s*data: merged/.test(apiJs), "");
+rec("cliente envia só o bloco", ceoJs.includes("montarPayloadBlocoCeo") && ceoJs.includes("aplicarBlocoNaTela") && ceoJs.includes("patch: true"), "");
 rec("lista pagina 80 linhas", ceoJs.includes("CEO_LISTA_PAGINA = 80") && ceoJs.includes("linhas.slice(0, ceoListaLimiteVisivel)"), "");
 rec("gravação sem snapshot gordo", ceoJs.includes("pushFinanceiroCeoParaNuvem") && !/enviarFinanceiroCeoNuvem[\s\S]{0,400}__DK_pushCloudSnapshotNow/.test(ceoJs), "");
 rec("mutação sem hook de nuvem", ceoJs.includes("__DK_runWithoutCloudPush") && syncJs.includes("function runWithoutCloudPush"), "");
@@ -56,6 +57,11 @@ const milhares = Array.from({ length: 400 }, (_, i) => ({
 }));
 const visiveis = milhares.slice(0, 80);
 rec("40k linhas não entram no DOM de uma vez", visiveis.length === 80 && milhares.length === 400, `${visiveis.length}/${milhares.length}`);
+
+const blocoPago = { situacao: [sit] };
+rec("bloco de pagamento não leva a base inteira", blocoPago.situacao.length === 1 && !blocoPago.despesas, "");
+const blocoLancar = { despesas: depoisLancar };
+rec("bloco de lançamento é só o registo novo", blocoLancar.despesas.length === 1, String(blocoLancar.despesas.length));
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n--- ${results.length - failed.length}/${results.length} testes cadastro despesas não trava ---`);

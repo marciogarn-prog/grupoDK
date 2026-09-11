@@ -18,6 +18,7 @@
   const CEO_LISTA_SORT_VENCIMENTO = "__vencimento_ceo";
   const CEO_LISTA_PAGINA = 80;
   let ceoListaLimiteVisivel = CEO_LISTA_PAGINA;
+  let ceoTotaisBloco = null;
   const CEO_GRAF_SORT_NATURAL = "__natural_graf";
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
@@ -322,11 +323,22 @@
     }
   }
 
-  async function pushFinanceiroCeoParaNuvem() {
+  function montarPayloadBlocoCeo(bloco) {
+    if (!bloco || typeof bloco !== "object") return null;
+    const data = {};
+    if (Array.isArray(bloco.despesas) && bloco.despesas.length) data.dk_financeiro_ceo_despesas_v1 = bloco.despesas;
+    if (Array.isArray(bloco.situacao) && bloco.situacao.length) data.dk_financeiro_ceo_situacao_pag_v1 = bloco.situacao;
+    if (Array.isArray(bloco.fontes) && bloco.fontes.length) data.dk_financeiro_ceo_fontes_v1 = bloco.fontes;
+    if (Array.isArray(bloco.cartoes) && bloco.cartoes.length) data.dk_financeiro_ceo_cartoes_v1 = bloco.cartoes;
+    return Object.keys(data).length ? data : null;
+  }
+
+  async function pushFinanceiroCeoParaNuvem(bloco) {
+    const patch = montarPayloadBlocoCeo(bloco);
     const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
       method: "POST",
       headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
-      body: JSON.stringify({ data: bundleFinanceiroCeoLocal() }),
+      body: JSON.stringify(patch ? { patch: true, bloco: true, data: patch } : { data: bundleFinanceiroCeoLocal() }),
       cache: "no-store",
     }, 8000);
     const j = await r.json().catch(() => ({}));
@@ -345,7 +357,7 @@
     }
     if (feedbackEl) feedbackEl.textContent = "A enviar para a nuvem…";
     try {
-      const r = await pushFinanceiroCeoParaNuvem();
+      const r = await pushFinanceiroCeoParaNuvem(opts && opts.bloco);
       if (r && r.ok === true) {
         if (feedbackEl) feedbackEl.textContent = mensagemOk || MSG_NUVEM_OK;
         return { ok: true, r: r.r };
@@ -374,7 +386,89 @@
     if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
   }
 
-  async function gravarFinanceiroCeoComSeguranca(aplicarMutacao, aposSucesso) {
+  function pintarTotaisBlocoCeo() {
+    const totEl = document.getElementById("finCeoDespEndivTotalValor");
+    const abertoEl = document.getElementById("finCeoDespEndivAbertoValor");
+    const totHint = document.getElementById("finCeoDespEndivTotalHint");
+    const abertoHint = document.getElementById("finCeoDespEndivAbertoHint");
+    if (!totEl || !abertoEl || !ceoTotaisBloco) return;
+    totEl.textContent = brl(ceoTotaisBloco.total);
+    abertoEl.textContent = brl(ceoTotaisBloco.aberto);
+    if (totHint) totHint.textContent = `${ceoTotaisBloco.qtd} lançamento(s) na tabela`;
+    if (abertoHint) {
+      abertoHint.textContent =
+        ceoTotaisBloco.qtdAberto === 1 ? "1 parcela a pagar" : `${ceoTotaisBloco.qtdAberto} parcelas a pagar`;
+    }
+  }
+
+  function ajustarTotaisBlocoCeo(delta) {
+    if (!ceoTotaisBloco) {
+      ceoTotaisBloco = { total: 0, aberto: 0, qtd: 0, qtdAberto: 0 };
+    }
+    ceoTotaisBloco.total += Number(delta.total) || 0;
+    ceoTotaisBloco.aberto += Number(delta.aberto) || 0;
+    ceoTotaisBloco.qtd += Number(delta.qtd) || 0;
+    ceoTotaisBloco.qtdAberto += Number(delta.qtdAberto) || 0;
+    if (ceoTotaisBloco.qtd < 0) ceoTotaisBloco.qtd = 0;
+    if (ceoTotaisBloco.qtdAberto < 0) ceoTotaisBloco.qtdAberto = 0;
+    pintarTotaisBlocoCeo();
+  }
+
+  function aplicarBlocoNaTela(blocoUi) {
+    if (!blocoUi || !blocoUi.tipo) {
+      atualizarTelasAposDespesaGravada();
+      return;
+    }
+    const body = document.getElementById("finCeoDespesasBody");
+    const wrap = document.getElementById("finCeoDespesasTableWrap");
+    const valor = Number(blocoUi.valor) || 0;
+    if (blocoUi.tipo === "pagar") {
+      const tr = body?.querySelector(
+        `tr[data-ceo-desp-id="${String(blocoUi.despesaId).replace(/"/g, "")}"][data-ceo-pag="${Number(blocoUi.pagNum) || 1}"]`
+      );
+      if (tr) {
+        const cel = tr.querySelector(".fin-ceo-desp-lista__cel-situacao");
+        if (cel) cel.innerHTML = `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--pago" aria-label="Pago">PAGO</span>`;
+        tr.classList.remove("fin-ceo-desp-row--vencida");
+        body.appendChild(tr);
+      }
+      ajustarTotaisBlocoCeo({ aberto: -valor, qtdAberto: -1 });
+      return;
+    }
+    if (blocoUi.tipo === "apagar") {
+      const tr = body?.querySelector(
+        `tr[data-ceo-desp-id="${String(blocoUi.despesaId).replace(/"/g, "")}"][data-ceo-pag="${Number(blocoUi.pagNum) || 1}"]`
+      );
+      const eraAberto = tr && !tr.querySelector(".fin-ceo-desp-situacao-btn--pago");
+      tr?.remove();
+      ajustarTotaisBlocoCeo({
+        total: -valor,
+        aberto: eraAberto ? -valor : 0,
+        qtd: -1,
+        qtdAberto: eraAberto ? -1 : 0,
+      });
+      return;
+    }
+    if (blocoUi.tipo === "lancar" && blocoUi.despesa) {
+      const d = normalizeDespesa(blocoUi.despesa);
+      const { tipo, desc } = detalheDespesaLista(d);
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      const linhas = pagos.map((p, idx) => ceoListaLinhaFromPagamento(d, p, tipo, desc, idx === 0));
+      if (body && linhas.length) {
+        wrap?.classList.add("fin-ceo-desp-lista--com-dados");
+        const vazia = body.querySelector(".fin-ceo-desp-lista__vazia");
+        if (vazia) body.innerHTML = "";
+        const html = linhas.map(renderListaDespesaRowHtml).join("");
+        body.insertAdjacentHTML("afterbegin", html);
+      }
+      const soma = linhas.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+      ajustarTotaisBlocoCeo({ total: soma, aberto: soma, qtd: linhas.length, qtdAberto: linhas.length });
+      return;
+    }
+    atualizarTelasAposDespesaGravada();
+  }
+
+  async function gravarFinanceiroCeoComSeguranca(aplicarMutacao, aposSucesso, bloco) {
     if (finCeoGravacaoEmCurso) return { ok: false, reason: "em_curso" };
     finCeoGravacaoEmCurso = true;
     const snap = snapshotFinanceiroCeoLocal();
@@ -388,7 +482,7 @@
       abrirModalResultadoNuvem("wait", "A gravar os dados com segurança…");
       if (fb) fb.textContent = "A gravar os dados com segurança…";
       const r = await Promise.race([
-        enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true }),
+        enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true, bloco }),
         new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 10000)),
       ]);
       if (!r || r.ok !== true) {
@@ -1413,9 +1507,21 @@
     const pending = finCeoDespPagoPending;
     if (!pending) return;
     fecharModalConfirmPagoDespesa();
+    const sit = carimboCeoEscrita({
+      chave: chaveSituacaoPagamento(pending.despesaId, pending.pagNum, pending.data),
+      situacao: "PAGO",
+      pagoEm: new Date().toISOString(),
+    });
     await gravarFinanceiroCeoComSeguranca(
       () => marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data),
-      () => atualizarTelasAposDespesaGravada()
+      () =>
+        aplicarBlocoNaTela({
+          tipo: "pagar",
+          despesaId: pending.despesaId,
+          pagNum: pending.pagNum,
+          valor: Number(pending.row?.valor) || 0,
+        }),
+      { situacao: [sit] }
     );
   }
 
@@ -3411,6 +3517,7 @@
     const base = linhasBase || [];
     const filtradas = linhas || [];
     const totais = calcularTotaisEndividamentoLista(filtradas);
+    ceoTotaisBloco = { ...totais };
 
     if (!base.length) {
       totEl.textContent = "—";
@@ -3712,6 +3819,8 @@
       if (fb) fb.textContent = "Não foi possível aplicar a edição — despesa não encontrada.";
       return;
     }
+    const idsBloco = new Set([String(editMeta.despesaId || ""), String(result.savedId || "")].filter(Boolean));
+    const despesasBloco = result.list.filter((d) => idsBloco.has(String(d.id)));
     await gravarFinanceiroCeoComSeguranca(
       () => {
         saveDespesasCeo(result.list);
@@ -3726,7 +3835,8 @@
         if (!lancamentoEhCartaoCredito(entry)) {
           document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
-      }
+      },
+      { despesas: despesasBloco }
     );
   }
 
@@ -3737,16 +3847,15 @@
       if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
       return;
     }
+    const rec = carimboCeoEscrita({
+      ...entry,
+      cadastradoEm: entry.cadastradoEm,
+      dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
+    });
     await gravarFinanceiroCeoComSeguranca(
       () => {
         const list = loadDespesasCeo();
-        list.push(
-          carimboCeoEscrita({
-            ...entry,
-            cadastradoEm: entry.cadastradoEm,
-            dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
-          })
-        );
+        list.push(rec);
         saveDespesasCeo(list);
       },
       () => {
@@ -3755,11 +3864,12 @@
         /* Cartão e data mantidos para o próximo lançamento */
         if (ehCartao) manterFormAposLancamentoCartao(entry);
         else limparFormDespesa();
-        atualizarTelasAposDespesaGravada();
+        aplicarBlocoNaTela({ tipo: "lancar", despesa: rec });
         if (!ehCartao) {
           document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
-      }
+      },
+      { despesas: [rec] }
     );
   }
 
@@ -4882,10 +4992,14 @@
     const excluidos = new Set(Array.isArray(atual.pagamentosExcluidos) ? atual.pagamentosExcluidos.map(Number) : []);
     excluidos.add(pag);
     const next = [...list];
-    next[idx] = { ...atual, pagamentosExcluidos: [...excluidos], updatedAt: Date.now() };
+    const nextRec = { ...atual, pagamentosExcluidos: [...excluidos], updatedAt: Date.now() };
+    next[idx] = nextRec;
+    const pagos = expandirPagamentosDespesa(normalizeDespesa(atual), normalizeDespesa(atual).repeticoes);
+    const parcela = pagos.find((p) => Number(p.numero) === pag);
     void gravarFinanceiroCeoComSeguranca(
       () => saveDespesasCeo(next),
-      () => atualizarTelasAposDespesaGravada()
+      () => aplicarBlocoNaTela({ tipo: "apagar", despesaId: id, pagNum: pag, valor: Number(parcela?.valor) || 0 }),
+      { despesas: [nextRec] }
     );
   }
 

@@ -2327,7 +2327,10 @@
           "pushFinanceiroCeoParaNuvem",
           "CEO_LISTA_PAGINA = 80",
           "__DK_runWithoutCloudPush",
-          "finCeoDespesasMostrarMais"
+          "finCeoDespesasMostrarMais",
+          "montarPayloadBlocoCeo",
+          "aplicarBlocoNaTela",
+          "patch: true"
         ],
         "index.html": [
           "finCeoDespNuvemResultModal",
@@ -2336,7 +2339,8 @@
         "api/cadastro-financeiro-ceo.js": [
           "dk:portal:financeiro_ceo:v1",
           "mergeFinanceiroCeoSituacaoPag",
-          "loadDedicatedOrSeed"
+          "aplicarBlocoHash",
+          "patch: true"
         ],
         "portal-supabase-sync.js": [
           "dk_financeiro_ceo_despesas_v1",

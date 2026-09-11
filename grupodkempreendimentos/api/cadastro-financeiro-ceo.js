@@ -1,6 +1,6 @@
 /**
- * Despesas e pagamentos do FINANCEIRO CEO — canal próprio (não depende do snapshot gordo).
- * GET une Redis dedicado + arrays do snapshot. POST faz união append-only.
+ * Despesas e pagamentos do FINANCEIRO CEO — canal próprio em blocos.
+ * POST com patch=true grava só os registos enviados (HASH). Não relê nem regrava a base inteira.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -13,6 +13,11 @@ const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess }
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
+const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
+const HASH_SIT = "dk:portal:financeiro_ceo:situacao:h";
+const HASH_FONT = "dk:portal:financeiro_ceo:fontes:h";
+const HASH_CART = "dk:portal:financeiro_ceo:cartoes:h";
+const HASH_DESP_UNI = "dk:portal:financeiro_despesas:h";
 
 const BUNDLE_KEYS = [
   "dk_financeiro_ceo_despesas_v1",
@@ -21,6 +26,14 @@ const BUNDLE_KEYS = [
   "dk_financeiro_ceo_cartoes_v1",
   "dk_financeiro_despesas_v1",
 ];
+
+const HASH_BY_KEY = {
+  dk_financeiro_ceo_despesas_v1: { hash: HASH_DESP, id: (r) => String(r?.id || "").trim() },
+  dk_financeiro_ceo_situacao_pag_v1: { hash: HASH_SIT, id: (r) => String(r?.chave || "").trim() },
+  dk_financeiro_ceo_fontes_v1: { hash: HASH_FONT, id: (r) => String(r?.id || "").trim() },
+  dk_financeiro_ceo_cartoes_v1: { hash: HASH_CART, id: (r) => String(r?.id || "").trim() },
+  dk_financeiro_despesas_v1: { hash: HASH_DESP_UNI, id: (r) => String(r?.id || "").trim() },
+};
 
 function emptyBundle() {
   const out = {};
@@ -78,17 +91,71 @@ function bundleTemDados(bundle) {
   return BUNDLE_KEYS.some((k) => asArray(bundle && bundle[k]).length > 0);
 }
 
-/** Canal quente: só o Redis dedicado. Snapshot gordo só na 1ª semente. */
-async function loadDedicatedOrSeed(redis) {
-  const rawDed = await redis.get(STORAGE_KEY);
-  const dedicated = parseDedicated(rawDed);
-  if (bundleTemDados(dedicated)) return dedicated;
-  const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
-  const seeded = mergeBundles(parseSnapshotFin(rawSnap), dedicated);
-  if (bundleTemDados(seeded)) {
-    await redis.set(STORAGE_KEY, JSON.stringify(seeded));
+function rowsFromHash(map) {
+  if (!map || typeof map !== "object") return [];
+  const out = [];
+  for (const v of Object.values(map)) {
+    const row = typeof v === "string" ? parseJson(v) : v;
+    if (row && typeof row === "object") out.push(row);
   }
-  return seeded;
+  return out;
+}
+
+async function hashesTemDados(redis) {
+  const n = await redis.hlen(HASH_DESP);
+  return Number(n) > 0;
+}
+
+async function gravarHashBloco(redis, key, rows) {
+  const meta = HASH_BY_KEY[key];
+  if (!meta) return 0;
+  const fields = {};
+  for (const row of asArray(rows)) {
+    const id = meta.id(row);
+    if (!id) continue;
+    fields[id] = JSON.stringify(row);
+  }
+  const n = Object.keys(fields).length;
+  if (!n) return 0;
+  await redis.hset(meta.hash, fields);
+  return n;
+}
+
+async function aplicarBlocoHash(redis, incoming) {
+  let gravados = 0;
+  for (const k of BUNDLE_KEYS) {
+    gravados += await gravarHashBloco(redis, k, incoming[k]);
+  }
+  return gravados;
+}
+
+async function loadFromHashes(redis) {
+  const [desp, sit, font, cart, uni] = await Promise.all([
+    redis.hgetall(HASH_DESP),
+    redis.hgetall(HASH_SIT),
+    redis.hgetall(HASH_FONT),
+    redis.hgetall(HASH_CART),
+    redis.hgetall(HASH_DESP_UNI),
+  ]);
+  return {
+    dk_financeiro_ceo_despesas_v1: rowsFromHash(desp),
+    dk_financeiro_ceo_situacao_pag_v1: rowsFromHash(sit),
+    dk_financeiro_ceo_fontes_v1: rowsFromHash(font),
+    dk_financeiro_ceo_cartoes_v1: rowsFromHash(cart),
+    dk_financeiro_despesas_v1: rowsFromHash(uni),
+  };
+}
+
+async function seedHashesIfEmpty(redis) {
+  if (await hashesTemDados(redis)) return loadFromHashes(redis);
+  const rawDed = await redis.get(STORAGE_KEY);
+  let bundle = parseDedicated(rawDed);
+  if (!bundleTemDados(bundle)) {
+    const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
+    bundle = mergeBundles(parseSnapshotFin(rawSnap), bundle);
+  }
+  if (bundleTemDados(bundle)) await aplicarBlocoHash(redis, bundle);
+  return bundle;
 }
 
 module.exports = async function handler(req, res) {
@@ -110,7 +177,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const data = await loadDedicatedOrSeed(redis);
+      const data = await seedHashesIfEmpty(redis);
       return res.status(200).json({ ok: true, data });
     }
 
@@ -128,9 +195,15 @@ module.exports = async function handler(req, res) {
         }
       }
       const incoming = pickBundle(body?.data && typeof body.data === "object" ? body.data : body);
-      const existing = await loadDedicatedOrSeed(redis);
+      const isPatch = body?.patch === true || body?.bloco === true;
+      if (isPatch) {
+        if (!(await hashesTemDados(redis))) await seedHashesIfEmpty(redis);
+        const gravados = await aplicarBlocoHash(redis, incoming);
+        return res.status(200).json({ ok: true, patch: true, gravados });
+      }
+      const existing = await seedHashesIfEmpty(redis);
       const merged = mergeBundles(existing, incoming);
-      await redis.set(STORAGE_KEY, JSON.stringify(merged));
+      await aplicarBlocoHash(redis, merged);
       return res.status(200).json({
         ok: true,
         count: {
