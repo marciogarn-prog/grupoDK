@@ -7524,7 +7524,7 @@ function isLocacaoFantasmaCadastro(loc) {
   if (isLocacaoSeedDemoOficialProibida(loc)) return true;
   const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
   const placa = normalizePlate(String(loc.placa || ""));
-  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa) || /^TESTE/i.test(placa)) return true;
   if (loc.__dkSeedTesteReserva === true) return true;
   if (cpf.length !== 11) {
     const nome = String(loc.nome || "").trim();
@@ -7542,6 +7542,51 @@ function isLocacaoElegivelParaProtocoloAutomatico(loc) {
   const placa = normalizePlate(String(loc.placa || ""));
   if (!placa || placa.length < 7) return false;
   return true;
+}
+
+/** Protocolo só existe com cliente, CPF, placa, data de início, KM inicial e valor de aluguel. */
+function locacaoProtocoloTemIntegridadeMinima(loc, opts) {
+  const o = opts && typeof opts === "object" ? opts : {};
+  if (!loc || typeof loc !== "object") return { ok: false, falta: "dados" };
+  if (typeof isLocacaoFantasmaCadastro === "function" && isLocacaoFantasmaCadastro(loc)) {
+    return { ok: false, falta: "teste" };
+  }
+  const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
+  if (cpf.length !== 11) return { ok: false, falta: "CPF" };
+  const nome = String(loc.nome || loc.nomeCliente || loc.cliente || "").trim();
+  if (!nome || nome === "—" || /^TESTE[- ]?\d/i.test(nome)) return { ok: false, falta: "cliente" };
+  const placa = normalizePlate(String(loc.placa || ""));
+  if (!placa || placa.length < 7) return { ok: false, falta: "placa" };
+  const inicio = String(loc.inicio || loc.dataInicio || "").trim();
+  const dt = typeof parseBrDate === "function" ? parseBrDate(inicio) : null;
+  if (!inicio || !dt || Number.isNaN(dt.getTime())) return { ok: false, falta: "data de início" };
+  const km = String(loc.kmInicial ?? loc.odometroInicio ?? "").replace(/\D/g, "");
+  if (o.requireKmInicial !== false && km === "") return { ok: false, falta: "KM inicial" };
+  const parseVal =
+    typeof parseCurrencyBR === "function"
+      ? parseCurrencyBR
+      : (v) => {
+          const n = Number(
+            String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".")
+          );
+          return Number.isFinite(n) ? n : 0;
+        };
+  let valor = Number(parseVal(loc.valorLocacao));
+  if (!(valor > 0)) {
+    const sem = Number(parseVal(loc.valorSemanal || loc.valorParcela));
+    const inv = Number(parseVal(loc.valorInvestimento));
+    if (sem > 0 && sem >= inv) valor = Math.max(0, sem - inv);
+    else valor = Math.max(0, sem);
+  }
+  if (!(valor > 0)) return { ok: false, falta: "valor de aluguel" };
+  if (o.requireClienteCadastro) {
+    const cli = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpf) : null;
+    if (!cli || !String(cli.nome || "").trim()) return { ok: false, falta: "cliente cadastrado" };
+  }
+  return { ok: true };
 }
 
 function ensureNumeroContratoForLocacoes() {
@@ -17009,6 +17054,7 @@ ensureNumeroContratoForLocacoes();
 purgeLocacoesFantasmaCadastro();
 if (typeof window !== "undefined") {
   window.__DK_isLocacaoFantasmaCadastro = isLocacaoFantasmaCadastro;
+  window.__DK_locacaoProtocoloTemIntegridadeMinima = locacaoProtocoloTemIntegridadeMinima;
   window.__DK_purgeLocacoesFantasmaCadastro = purgeLocacoesFantasmaCadastro;
 }
 fixKnownRentalValueOverrides();

@@ -20313,21 +20313,43 @@
     const tempoN = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
     const periodoLocacao = tempoN ? `${tempoN} dia(s)` : "";
     const marcaModelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
-    const clientes =
-      typeof loadPortalClientesCadastro === "function"
-        ? loadPortalClientesCadastro()
-        : typeof loadCadastro === "function" && typeof PORTAL_CLIENTES_KEY !== "undefined"
-          ? loadCadastro(PORTAL_CLIENTES_KEY)
-          : [];
-    const cliente = clientes.find((c) => dig(String(c.cpf || "")) === cpfDigits);
-    const nomeCliente =
-      String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
-      String(cliente?.nome || "").trim() ||
-      (typeof getPortalClienteKnownRecord === "function" ? String(getPortalClienteKnownRecord(cpfDigits)?.nome || "").trim() : "");
+    const cliente =
+      (typeof findClienteByCpfCadastro === "function" && findClienteByCpfCadastro(cpfDigits)) ||
+      (typeof getPortalClienteKnownRecord === "function" && getPortalClienteKnownRecord(cpfDigits)) ||
+      null;
+    const nomeCliente = String(cliente?.nome || "").trim();
+    if (!nomeCliente) {
+      if (msg) {
+        msg.textContent =
+          "Protocolo exige um cliente já cadastrado com este CPF. Cadastre o cliente antes da locação.";
+      }
+      return;
+    }
+    const kmIniDigits = digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroInicio")?.value);
+    if (!String(document.getElementById("operacaoLocacaoOdometroInicio")?.value || "").replace(/\D/g, "")) {
+      if (msg) msg.textContent = "Protocolo exige o KM inicial (ODOMETRO INICIO).";
+      return;
+    }
     const veiculoCad =
-      typeof findPortalVeiculoByPlaca === "function"
-        ? findPortalVeiculoByPlaca(plate)
-        : null;
+      (typeof findPortalVeiculoByPlaca === "function" && findPortalVeiculoByPlaca(plate)) ||
+      (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+        ? loadCadastro(CAD_VEICULOS_KEY).find((v) => {
+            const pl =
+              typeof normalizePlate === "function"
+                ? normalizePlate(String(v?.placa || ""))
+                : String(v?.placa || "")
+                    .trim()
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "");
+            return pl === plate;
+          })
+        : null);
+    if (!veiculoCad) {
+      if (msg) {
+        msg.textContent = "Protocolo exige uma placa já cadastrada no Cadastro de veículo.";
+      }
+      return;
+    }
     let modalidade = "";
     if (isPortalPlanoMeuTransporteKey(planoNome)) {
       modalidade = getOperacaoLocacaoModalidadeMarcada() || inferOperacaoLocacaoModalidadeDoFormulario();
@@ -20454,12 +20476,25 @@
       tabela: "",
       valorParcela: valorSemanal,
       clienteCodigo,
-      kmInicial: digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroInicio")?.value),
+      kmInicial: kmIniDigits,
       kmFinal: digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroFim")?.value),
       ambiente: PORTAL_AMBIENTE_REAL,
       origemPortal: true,
       ...portalResolveResponsavelStamp(prev),
     };
+
+    if (typeof locacaoProtocoloTemIntegridadeMinima === "function") {
+      const gate = locacaoProtocoloTemIntegridadeMinima(baseRecord, {
+        requireKmInicial: true,
+        requireClienteCadastro: true,
+      });
+      if (!gate.ok) {
+        if (msg) {
+          msg.textContent = `Protocolo exige cliente, CPF, placa, data de início, KM inicial e valor de aluguel. Falta: ${gate.falta}.`;
+        }
+        return;
+      }
+    }
 
     const doSaveLocacao = () => {
       if (prev) {

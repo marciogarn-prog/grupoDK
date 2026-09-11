@@ -724,6 +724,14 @@ async function runSuite() {
       "campo CÓD. + placeholder do último cliente"
     );
     record(
+      "protocolo exige cliente, placa, data, KM e valor",
+      appJsProto.includes("locacaoProtocoloTemIntegridadeMinima") &&
+        portalUiProto.includes("Protocolo exige um cliente já cadastrado") &&
+        portalUiProto.includes("Protocolo exige o KM inicial") &&
+        html.includes("não é criado"),
+      "sem integridade o protocolo não grava"
+    );
+    record(
       "cadastro locação confirmação com resumo",
       html.includes("portalLocacaoConfirmModal") &&
         html.includes("portalLocacaoConfirmResumo") &&

@@ -2521,6 +2521,28 @@
           "portal-manut-lanc-vis-print"
         ]
       }
+    },
+    {
+      "id": "protocolo-exige-integridade-minima",
+      "descricao": "Um protocolo de locação só é criado com cliente cadastrado, CPF, placa cadastrada, data de início, KM inicial e valor de aluguel. Faltando qualquer item o cadastro é bloqueado. A Relação de pagamento por cliente não lista protocolo sem essa integridade (nem placa TESTE).",
+      "ficheiros": {
+        "app.js": [
+          "locacaoProtocoloTemIntegridadeMinima",
+          "requireClienteCadastro",
+          "KM inicial"
+        ],
+        "portal-locadora-ui.js": [
+          "Protocolo exige um cliente já cadastrado",
+          "Protocolo exige o KM inicial",
+          "Protocolo exige uma placa já cadastrada"
+        ],
+        "portal-financeiro-modulos.js": [
+          "locacaoProtocoloTemIntegridadeMinima"
+        ],
+        "index.html": [
+          "o protocolo <strong>não é criado</strong>"
+        ]
+      }
     }
   ]
 }

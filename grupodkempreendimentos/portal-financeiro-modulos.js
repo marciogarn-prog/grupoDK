@@ -2877,6 +2877,12 @@
     locacoesCadastro().forEach((loc) => {
       const proto = String(loc?.numeroContrato || "").trim();
       if (!proto && !String(loc?.cpf || "").trim()) return;
+      if (typeof locacaoProtocoloTemIntegridadeMinima === "function") {
+        const gate = locacaoProtocoloTemIntegridadeMinima(loc, { requireKmInicial: false });
+        if (!gate.ok) return;
+      } else if (typeof window.__DK_isLocacaoFantasmaCadastro === "function" && window.__DK_isLocacaoFantasmaCadastro(loc)) {
+        return;
+      }
       const ativo = locacaoEstaAtiva(loc);
       const cpf = String(loc?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const cli = clientePorCpf(cpf);

@@ -189,7 +189,7 @@
     if (!record || typeof record !== "object") return true;
     const placa = normalizePlateLocal(record.placa);
     const cpf = cpfDigits(record).slice(0, 11);
-    if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+    if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa) || /^TESTE/i.test(placa)) return true;
     if (OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) {
       return true;
     }

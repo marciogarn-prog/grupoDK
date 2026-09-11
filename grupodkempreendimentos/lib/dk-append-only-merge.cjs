@@ -68,7 +68,7 @@ function isLocacaoFantasmaCadastro(l) {
   if (!l || typeof l !== "object") return true;
   const placa = normalizePlate(l.placa);
   const cpf = onlyDigits(l.cpf).slice(0, 11);
-  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa) || /^TESTE/i.test(placa)) return true;
   if (l.__dkSeedTesteReserva === true) return true;
   if (cpf.length !== 11) {
     const nome = String(l.nome || "").trim();
