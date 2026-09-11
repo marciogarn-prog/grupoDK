@@ -26898,12 +26898,6 @@
     }
 
     async function dkPortalPullAndMergeAll() {
-      if (
-        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
-        window.__DK_isLocalDataAuthorityActive()
-      ) {
-        return;
-      }
       await Promise.all([
         dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
         dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),

@@ -726,6 +726,8 @@ async function runSuite() {
         cloudSyncJs.includes("bypassLocalAuthority") &&
         cloudSyncJs.includes("mergeFinanceiroCeoSituacaoPagArrays") &&
         cloudSyncJs.includes("pullFinanceiroCeoKeysFromCloud") &&
+        cloudSyncJs.includes("pullCadastroOperacionalFromCloud") &&
+        cloudSyncJs.includes("persistCadastroOperacionalFromMerged") &&
         finCeoJs.includes("enviarFinanceiroCeoNuvem") &&
         finCeoJs.includes("sincronizarFinanceiroCeoAbrir") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&

@@ -1909,6 +1909,13 @@
         if (locacoesCloudMergeWouldChangeLocal(cloudPayload)) return true;
         continue;
       }
+      if (k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro") {
+        if (typeof mergeCadastroHistoricoImutavel === "function") {
+          const merged = mergeCadastroHistoricoImutavel(k, Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+          if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        } else if (JSON.stringify(a) !== JSON.stringify(b)) return true;
+        continue;
+      }
       if (k === "dk_comprovantes_cliente_pendentes") {
         const merged = mergeComprovantesClientePendentes(b, a);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
@@ -3028,6 +3035,48 @@
     return out;
   }
 
+  function persistCadastroOperacionalFromMerged(mergedPayload) {
+    if (!mergedPayload || typeof mergedPayload !== "object") return;
+    const keys = [
+      "dk_clientes_cadastro",
+      "dk_portal_clientes_cadastro",
+      "dk_veiculos_cadastro",
+      "dk_portal_veiculos_cadastro",
+      "dk_locacoes_cadastro",
+    ];
+    suppressCloudHook = true;
+    try {
+      for (const k of keys) {
+        if (!Array.isArray(mergedPayload[k])) continue;
+        const atual = readLocalJsonArray(k);
+        let merged = mergedPayload[k];
+        if (k === "dk_locacoes_cadastro") {
+          const mergeFn =
+            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+              ? window.__DK_mergeLocacoesCadastroCliente
+              : mergeLocacoesCadastroBeforePush;
+          merged = mergeFn(atual, mergedPayload[k]);
+        } else if (typeof mergeCadastroHistoricoImutavel === "function") {
+          merged = mergeCadastroHistoricoImutavel(k, atual, mergedPayload[k]);
+        }
+        if (typeof saveCadastro === "function") {
+          saveCadastro(k, merged);
+        } else {
+          localStorage.setItem(k, JSON.stringify(merged));
+        }
+      }
+    } finally {
+      suppressCloudHook = false;
+    }
+    if (typeof window.__DK_refreshOperacaoClienteCodigoEditavel === "function") {
+      try {
+        window.__DK_refreshOperacaoClienteCodigoEditavel();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   function persistMergedPayloadToLocal(mergedPayload) {
     suppressCloudHook = true;
     try {
@@ -3352,10 +3401,85 @@
     return { ok: true, applied: changed };
   }
 
+  async function pullCadastroOperacionalFromCloud() {
+    const data = await fetchCloudSnapshotPayload();
+    if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
+      return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
+    }
+    const payload = data.payload;
+    const keys = [
+      "dk_clientes_cadastro",
+      "dk_portal_clientes_cadastro",
+      "dk_veiculos_cadastro",
+      "dk_portal_veiculos_cadastro",
+      "dk_locacoes_cadastro",
+    ];
+    let changed = false;
+    suppressCloudHook = true;
+    try {
+      for (const k of keys) {
+        if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
+        const cloudArr = Array.isArray(payload[k]) ? payload[k] : [];
+        const localArr = readLocalJsonArray(k);
+        let merged;
+        if (k === "dk_locacoes_cadastro") {
+          const mergeFn =
+            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+              ? window.__DK_mergeLocacoesCadastroCliente
+              : mergeLocacoesCadastroBeforePush;
+          merged = mergeFn(localArr, cloudArr);
+        } else if (typeof mergeCadastroHistoricoImutavel === "function") {
+          merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
+        } else {
+          merged = localArr;
+        }
+        if (JSON.stringify(merged) === JSON.stringify(localArr)) continue;
+        if (typeof saveCadastro === "function") {
+          saveCadastro(k, merged);
+        } else {
+          localStorage.setItem(k, JSON.stringify(merged));
+        }
+        if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+          try {
+            window.__DK_invalidateCadastroParseCache(k);
+          } catch {
+            /* ignore */
+          }
+        }
+        changed = true;
+      }
+    } finally {
+      suppressCloudHook = false;
+    }
+    if (changed) {
+      try {
+        window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
+      } catch {
+        /* ignore */
+      }
+      if (typeof window.__DK_refreshOperacaoClienteCodigoEditavel === "function") {
+        try {
+          window.__DK_refreshOperacaoClienteCodigoEditavel();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+        try {
+          window.__DK_portalRefreshOperacaoLocal();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return { ok: true, applied: changed };
+  }
+
   async function pullAppendOnlyKeysFromCloud() {
     const com = await pullComunicacaoOperacaoFromCloudMerge();
     const fin = await pullFinanceiroCeoKeysFromCloud();
-    return { ...com, financeiro: fin };
+    const cad = await pullCadastroOperacionalFromCloud();
+    return { ...com, financeiro: fin, cadastro: cad };
   }
 
   function preserveCloudCadastrosWhenLocalEmpty(localPayload, cloudPayload) {
@@ -3511,6 +3635,7 @@
       } else {
         payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
       }
+      persistCadastroOperacionalFromMerged(payload);
       if (!isLocalDataAuthorityActive() && !fullReplaceComprovantes) {
         persistMergedPayloadToLocal(payload);
       }
@@ -3836,7 +3961,7 @@
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
   async function scheduleBackgroundCloudPullIfStale() {
     if (isLocalDataAuthorityActive() && !isClienteAppPage()) {
-      return pullComunicacaoOperacaoFromCloudMerge();
+      return pullAppendOnlyKeysFromCloud();
     }
     const forceDemoBootstrap = demoNeedsCloudCadastroBootstrap();
     const now = Date.now();

@@ -2318,6 +2318,22 @@
           "mergeFinanceiroCeoSituacaoPagArrays"
         ]
       }
+    },
+    {
+      "id": "cadastro-cliente-quantitativo-nuvem",
+      "descricao": "O total de clientes cadastrados é o mesmo em todos os PCs: autoridade local não impede unir dk_clientes_cadastro da nuvem; o envio grava a união de volta neste PC; abrir Cadastro de cliente puxa a API de cadastro mesmo com autoridade local.",
+      "ficheiros": {
+        "portal-supabase-sync.js": [
+          "pullCadastroOperacionalFromCloud",
+          "persistCadastroOperacionalFromMerged",
+          "dk_clientes_cadastro"
+        ],
+        "portal-locadora-ui.js": [
+          "dkPortalPullAndMergeAll",
+          "refreshOperacaoClienteTotalCadastrados",
+          "countOperacaoClientesCadastrados"
+        ]
+      }
     }
   ]
 }
