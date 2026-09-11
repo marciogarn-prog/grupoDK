@@ -194,7 +194,8 @@
 
   function fecharModalResultadoNuvem() {
     const modal = document.getElementById("finCeoDespNuvemResultModal");
-    if (!modal || modal.dataset.finCeoNuvemKind === "wait") return;
+    if (!modal) return;
+    if (modal.dataset.finCeoNuvemKind === "wait" && finCeoGravacaoEmCurso) return;
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
     delete modal.dataset.finCeoNuvemKind;
@@ -224,6 +225,97 @@
     if (kind !== "wait") btn?.focus();
   }
 
+  function headersFinanceiroCeoApi() {
+    return typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+  }
+
+  function bundleFinanceiroCeoLocal() {
+    return {
+      dk_financeiro_ceo_despesas_v1: lerCadastroArrayCru(DESPESAS_CEO_KEY),
+      dk_financeiro_ceo_situacao_pag_v1: lerCadastroArrayCru(SITUACAO_PAG_CEO_KEY),
+      dk_financeiro_ceo_fontes_v1: lerCadastroArrayCru(FONTES_CEO_KEY),
+      dk_financeiro_ceo_cartoes_v1: lerCadastroArrayCru(CARTOES_CEO_KEY),
+    };
+  }
+
+  function persistBundleFinanceiroCeo(data) {
+    if (!data || typeof data !== "object") return;
+    const pairs = [
+      [DESPESAS_CEO_KEY, data.dk_financeiro_ceo_despesas_v1],
+      [SITUACAO_PAG_CEO_KEY, data.dk_financeiro_ceo_situacao_pag_v1],
+      [FONTES_CEO_KEY, data.dk_financeiro_ceo_fontes_v1],
+      [CARTOES_CEO_KEY, data.dk_financeiro_ceo_cartoes_v1],
+    ];
+    for (const [key, arr] of pairs) {
+      if (!Array.isArray(arr)) continue;
+      if (typeof window.saveCadastro === "function") {
+        try {
+          window.saveCadastro(key, arr, { allowShrink: true });
+          continue;
+        } catch {
+          /* ignore */
+        }
+      }
+      try {
+        localStorage.setItem(key, JSON.stringify(arr));
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+      try {
+        window.__DK_invalidateCadastroParseCache(DESPESAS_CEO_KEY);
+        window.__DK_invalidateCadastroParseCache(SITUACAO_PAG_CEO_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  async function fetchFinanceiroCeoComTimeout(url, init, ms) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = window.setTimeout(() => {
+      try {
+        ctrl?.abort();
+      } catch {
+        /* ignore */
+      }
+    }, ms || 12000);
+    try {
+      return await fetch(url, ctrl ? { ...init, signal: ctrl.signal } : init);
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  async function pullFinanceiroCeoDaNuvem() {
+    try {
+      const r = await fetchFinanceiroCeoComTimeout(`/api/cadastro-financeiro-ceo?nocache=${Date.now()}`, {
+        headers: headersFinanceiroCeoApi(),
+        cache: "no-store",
+      }, 12000);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !j.data || typeof j.data !== "object") return false;
+      persistBundleFinanceiroCeo(j.data);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function pushFinanceiroCeoParaNuvem() {
+    const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
+      method: "POST",
+      headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
+      body: JSON.stringify({ data: bundleFinanceiroCeoLocal() }),
+      cache: "no-store",
+    }, 12000);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) return { ok: false, r: j, status: r.status };
+    if (j.data && typeof j.data === "object") persistBundleFinanceiroCeo(j.data);
+    return { ok: true, r: j };
+  }
+
   async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk, opts) {
     const exigirNuvem = Boolean(opts && opts.exigirNuvem);
     if (typeof window.__DK_markLocalDataAuthority === "function") {
@@ -233,22 +325,15 @@
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
-      if (feedbackEl && !exigirNuvem) {
-        feedbackEl.textContent =
-          "Gravado neste PC. Sem função de nuvem — não feche o browser até o envio existir.";
-      }
-      return { ok: false, reason: "sem_push" };
-    }
     if (feedbackEl) feedbackEl.textContent = "A enviar para a nuvem…";
     try {
-      const r = await window.__DK_pushCloudSnapshotNow({ force: true });
-      if (nuvemPushResultOk(r)) {
-        if (exigirNuvem && r && r.skipped) {
-          return { ok: false, r, reason: "skipped" };
-        }
+      const r = await pushFinanceiroCeoParaNuvem();
+      if (r && r.ok === true) {
         if (feedbackEl) feedbackEl.textContent = mensagemOk || MSG_NUVEM_OK;
-        return { ok: true, r };
+        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+          void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+        }
+        return { ok: true, r: r.r };
       }
       if (feedbackEl && !exigirNuvem) {
         feedbackEl.textContent =
@@ -283,7 +368,10 @@
       aplicarMutacao();
       abrirModalResultadoNuvem("wait", "A gravar os dados com segurança…");
       if (fb) fb.textContent = "A gravar os dados com segurança…";
-      const r = await enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true });
+      const r = await Promise.race([
+        enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true }),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 15000)),
+      ]);
       if (!r || r.ok !== true) {
         restaurarFinanceiroCeoLocal(snap);
         abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
@@ -1185,6 +1273,9 @@
           chave,
           situacao: raw?.situacao === "PAGO" ? "PAGO" : "A_PAGAR",
           pagoEm: String(raw?.pagoEm || "").trim(),
+          updatedAt: Number(raw?.updatedAt || 0) || 0,
+          updatedByCpf: raw?.updatedByCpf || "",
+          ceoAutoridade: Boolean(raw?.ceoAutoridade),
         });
       });
     };
@@ -5187,6 +5278,9 @@
   }
 
   async function sincronizarFinanceiroCeoAbrir() {
+    if (typeof window.__DK_portalPullFinanceiroCeo === "function") {
+      await window.__DK_portalPullFinanceiroCeo().catch(() => {});
+    }
     if (typeof window.__DK_portalPullManutencoesRapidas === "function") {
       await window.__DK_portalPullManutencoesRapidas().catch(() => {});
     }
@@ -5198,14 +5292,20 @@
       }
     }
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      await window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+      await Promise.race([
+        window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
     }
     if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      await window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {});
+      await Promise.race([
+        window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ]);
     }
     invalidarCacheFinanceiroCeo();
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      await window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+      void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
     }
   }
 
@@ -5259,6 +5359,9 @@
       b.setAttribute("aria-expanded", "false");
     });
   };
+
+  window.__DK_portalPullFinanceiroCeo = pullFinanceiroCeoDaNuvem;
+  window.__DK_portalPushFinanceiroCeo = pushFinanceiroCeoParaNuvem;
 
   window.__DK_mergeFinanceiroCeoCartoes = function mergeFinanceiroCeoCartoes(localArr, cloudArr) {
     const map = new Map();

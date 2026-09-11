@@ -2322,7 +2322,13 @@
           "gravarFinanceiroCeoComSeguranca",
           "restaurarFinanceiroCeoLocal",
           "SISTEMA NÃO CONSEGUIU GUARDAR OS DADOS EM SEGURANÇA, TENTE MAIS TARDE",
-          "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO"
+          "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO",
+          "/api/cadastro-financeiro-ceo",
+          "pushFinanceiroCeoParaNuvem"
+        ],
+        "api/cadastro-financeiro-ceo.js": [
+          "dk:portal:financeiro_ceo:v1",
+          "mergeFinanceiroCeoSituacaoPag"
         ],
         "index.html": [
           "finCeoDespNuvemResultModal"

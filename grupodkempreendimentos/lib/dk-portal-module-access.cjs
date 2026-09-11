@@ -63,6 +63,7 @@ const API_MODULE = {
   "cadastro-veiculos": "veiculo",
   "cadastro-locacoes": "locacao",
   "cadastro-manutencoes-rapidas": "manutencao",
+  "cadastro-financeiro-ceo": "lancamentoDespesa",
 };
 
 const METADATA_KEYS = new Set([

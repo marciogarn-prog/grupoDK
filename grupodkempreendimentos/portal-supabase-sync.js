@@ -3433,6 +3433,14 @@
   }
 
   async function pullFinanceiroCeoKeysFromCloud() {
+    if (typeof window.__DK_portalPullFinanceiroCeo === "function") {
+      try {
+        const ok = await window.__DK_portalPullFinanceiroCeo();
+        if (ok) return { ok: true, source: "cadastro-financeiro-ceo" };
+      } catch {
+        /* cai no snapshot */
+      }
+    }
     const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
       return { ok: false, skipped: true, reason: "no_cloud_snapshot" };

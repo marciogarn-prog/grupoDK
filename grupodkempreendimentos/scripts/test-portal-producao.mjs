@@ -120,6 +120,16 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
+    const finCeoJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260911fin-pag`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "A PAGAR do CEO grava no canal próprio",
+      finCeoJs.includes("/api/cadastro-financeiro-ceo") &&
+        finCeoJs.includes("pushFinanceiroCeoParaNuvem") &&
+        finCeoJs.includes('reason: "timeout"'),
+      "pagamento não fica preso no snapshot gordo"
+    );
     const tagSeq = await page.evaluate(() => {
       if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };
       const fromFmt = nextTagByTipo("CARRO", [
