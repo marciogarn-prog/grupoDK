@@ -220,13 +220,78 @@
     return out;
   }
 
-  function formasMarcadas() {
+  function formasMarcadasNoGrupo(grupo) {
+    const root = document.querySelector(`[data-manut-rapida-pag-grupo="${grupo}"]`);
+    const attr = Number(grupo) === 2 ? "data-manut-rapida-pag2" : "data-manut-rapida-pag";
     const out = {};
     FORMAS.forEach((f) => {
-      const el = document.querySelector(`[data-manut-rapida-pag="${f.id}"]`);
+      const el = root?.querySelector(`[${attr}="${f.id}"]`);
       out[f.id] = Boolean(el && el.checked);
     });
     return out;
+  }
+
+  function formasMarcadas() {
+    const a = formasMarcadasNoGrupo(1);
+    const b = formasMarcadasNoGrupo(2);
+    const out = {};
+    FORMAS.forEach((f) => {
+      out[f.id] = Boolean(a[f.id] || b[f.id]);
+    });
+    if ((a.pix || a.especie || a.cartao || b.pix || b.especie || b.cartao) && (valorGrupo(1) > 0 || valorGrupo(2) > 0)) {
+      out.naoSeAplica = Boolean(a.naoSeAplica && b.naoSeAplica);
+    }
+    return out;
+  }
+
+  function valorGrupo(grupo) {
+    const id = Number(grupo) === 2 ? "portalManutRapidaValor2" : "portalManutRapidaValor";
+    const formas = formasMarcadasNoGrupo(grupo);
+    if (formas.naoSeAplica) return 0;
+    return parseValor(document.getElementById(id)?.value || "");
+  }
+
+  function atualizarTotalPago() {
+    const el = document.getElementById("portalManutRapidaValorTotal");
+    if (!el) return;
+    const tot = valorGrupo(1) + valorGrupo(2);
+    el.value = tot > 0 ? formatBrl(tot) : formatBrl(0);
+  }
+
+  function ehAdminManutencao() {
+    return typeof window.__DK_getPortalSessaoAdminRole === "function" && window.__DK_getPortalSessaoAdminRole() === "owner";
+  }
+
+  function hidratarDataLancamento() {
+    const inp = document.getElementById("portalManutRapidaData");
+    if (!inp) return;
+    if (!parseBrDate(inp.value)) inp.value = ymdToBr(todayYmd());
+  }
+
+  function dataLancamentoYmd() {
+    return parseBrDate(document.getElementById("portalManutRapidaData")?.value || "") || todayYmd();
+  }
+
+  function ymdDoRegistro(r) {
+    const ymd = String(r?.dataLancamento || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd;
+    return ymdFromIso(r?.createdAt || r?.criadoEm);
+  }
+
+  function ultimoKmTrocaOleo(placa) {
+    const p = nkPlate(placa);
+    if (!p) return "";
+    const rows = persistOsBackfill()
+      .filter((r) => nkPlate(r.placa) === p && r.servicos && r.servicos.oleo)
+      .sort((a, b) => Date.parse(b.criadoEm || b.createdAt || 0) - Date.parse(a.criadoEm || a.createdAt || 0));
+    const last = rows[0];
+    return last ? onlyDigits(last.kmAtual || last.km || "") : "";
+  }
+
+  function preencherKmOleoDaPlaca(placa) {
+    const el = document.getElementById("portalManutRapidaKmOleo");
+    if (!el) return;
+    el.value = ultimoKmTrocaOleo(placa) || "";
   }
 
   function labelsServicos(rec) {
@@ -240,6 +305,17 @@
   }
 
   function labelsFormas(rec) {
+    const partes = [];
+    const pushParte = (formas, valor) => {
+      if (!formas || formas.naoSeAplica || !(Number(valor) > 0)) return;
+      const lab = FORMAS_PAGAS.filter((x) => formas[x.id]).map((x) => x.label).join("/");
+      if (lab) partes.push(`${lab} ${formatBrl(valor)}`);
+    };
+    if (rec.formas1 || rec.formas2 || rec.valorPago1 != null || rec.valorPago2 != null) {
+      pushParte(rec.formas1, rec.valorPago1);
+      pushParte(rec.formas2, rec.valorPago2);
+      if (partes.length) return partes.join(" + ");
+    }
     const f = rec.formas || {};
     return FORMAS.filter((x) => f[x.id]).map((x) => x.label).join(" + ") || "—";
   }
@@ -300,6 +376,10 @@
     const panel = document.getElementById("portalManutRapidaPlacaLista");
     const inp = document.getElementById("portalManutRapidaPlaca");
     if (!panel) return;
+    if (!nkPlate(q)) {
+      hidePlacaLista();
+      return;
+    }
     const rows = listPlacas(q).slice(0, 40);
     if (!rows.length) {
       hidePlacaLista();
@@ -411,18 +491,28 @@
     if (atual > 0 && atual !== lastSugestaoOleoAplicada) return;
     valor.value = sug > 0 ? formatBrl(sug) : "";
     lastSugestaoOleoAplicada = sug;
+    atualizarTotalPago();
   }
 
   function limparForm() {
     const placa = document.getElementById("portalManutRapidaPlaca");
     const km = document.getElementById("portalManutRapidaKm");
+    const kmOleo = document.getElementById("portalManutRapidaKmOleo");
     const valor = document.getElementById("portalManutRapidaValor");
+    const valor2 = document.getElementById("portalManutRapidaValor2");
+    const data = document.getElementById("portalManutRapidaData");
     if (placa) placa.value = "";
     if (km) km.value = "";
+    if (kmOleo) kmOleo.value = "";
     if (valor) valor.value = "";
-    document.querySelectorAll("[data-manut-rapida-serv], [data-manut-rapida-pag]").forEach((el) => {
-      el.checked = false;
-    });
+    if (valor2) valor2.value = "";
+    if (data) data.value = ymdToBr(todayYmd());
+    document
+      .querySelectorAll("[data-manut-rapida-serv], [data-manut-rapida-pag], [data-manut-rapida-pag2]")
+      .forEach((el) => {
+        el.checked = false;
+      });
+    atualizarTotalPago();
     hidePlacaLista();
   }
 
@@ -438,29 +528,57 @@
       setMsg("Marque pelo menos um serviço rápido.");
       return;
     }
-    const formas = formasMarcadas();
-    let valor = parseValor(document.getElementById("portalManutRapidaValor")?.value || "");
-    if (!formas.naoSeAplica && serv.oleo && valor <= 0) {
-      valor = readSugestaoOleo();
+    const g1 = formasMarcadasNoGrupo(1);
+    const g2 = formasMarcadasNoGrupo(2);
+    let v1 = valorGrupo(1);
+    let v2 = valorGrupo(2);
+    if (!g1.naoSeAplica && serv.oleo && v1 <= 0) {
+      v1 = readSugestaoOleo();
     }
-    if (formas.naoSeAplica) {
-      valor = 0;
-    } else if (valor > 0 && !FORMAS_PAGAS.some((f) => formas[f.id])) {
-      setMsg("Marque PIX, espécie ou cartão. Se o serviço é da DK Locadora, marque NÃO SE APLICA.");
+    if (g1.naoSeAplica) v1 = 0;
+    if (g2.naoSeAplica) v2 = 0;
+    const temPago1 = FORMAS_PAGAS.some((f) => g1[f.id]);
+    const temPago2 = FORMAS_PAGAS.some((f) => g2[f.id]);
+    if (v1 > 0 && !temPago1 && !g1.naoSeAplica) {
+      setMsg("Na 1ª caixa, marque PIX, espécie ou cartão. Se o serviço é da DK Locadora, marque NÃO SE APLICA.");
       return;
     }
+    if (v2 > 0 && !temPago2 && !g2.naoSeAplica) {
+      setMsg("Na 2ª caixa, marque PIX, espécie ou cartão. Se o serviço é da DK Locadora, marque NÃO SE APLICA.");
+      return;
+    }
+    if (v1 <= 0 && v2 <= 0 && !g1.naoSeAplica && !g2.naoSeAplica) {
+      setMsg("Informe o valor e a forma (PIX, espécie ou cartão) ou marque NÃO SE APLICA.");
+      return;
+    }
+    const valor = v1 + v2;
+    const formas = {
+      pix: Boolean(g1.pix || g2.pix),
+      especie: Boolean(g1.especie || g2.especie),
+      cartao: Boolean(g1.cartao || g2.cartao),
+      naoSeAplica: valor <= 0 && Boolean(g1.naoSeAplica || g2.naoSeAplica),
+    };
     const op = operador();
     const atuais = persistOsBackfill();
     const os = formatOs(proximoOsNumero(atuais));
+    const kmAtual = onlyDigits(document.getElementById("portalManutRapidaKm")?.value || "");
+    const kmOleo = onlyDigits(document.getElementById("portalManutRapidaKmOleo")?.value || "");
     const rec = {
       id: `MR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       tipo: "rapida",
       os,
       placa,
-      km: onlyDigits(document.getElementById("portalManutRapidaKm")?.value || ""),
+      km: kmAtual,
+      kmAtual,
+      kmOleoAnterior: kmOleo,
       servicos: serv,
       valorPago: valor,
+      valorPago1: v1,
+      valorPago2: v2,
       formas,
+      formas1: g1,
+      formas2: g2,
+      dataLancamento: dataLancamentoYmd(),
       plano: typeof window.__DK_portalGetManutSetorAtivo === "function" ? window.__DK_portalGetManutSetorAtivo() : "",
       criadoEm: new Date().toISOString(),
       cadastradoPorCpf: op.cpf || "",
@@ -483,6 +601,7 @@
   function linhasDoPeriodo(deYmd, ateYmd, placaFiltro) {
     const rapidas = persistOsBackfill().map((r) => ({
       createdAt: r.criadoEm,
+      dataLancamento: r.dataLancamento || "",
       tipo: "Rápida",
       os: r.os || "",
       placa: r.placa,
@@ -490,8 +609,9 @@
       servicos: listaLabelsServicos(r),
       valor: r.valorPago,
       forma: labelsFormas(r),
-      km: r.km || "",
+      km: r.kmAtual || r.km || "",
       operador: r.cadastradoPorNome || "—",
+      operadorCpf: r.cadastradoPorCpf || "",
     }));
     const corretivas = loadArr(SETOR_KEY)
       .filter((r) => {
@@ -512,12 +632,13 @@
         forma: "—",
         km: "",
         operador: r.operadorLabel || r.operadorNome || "—",
+        operadorCpf: r.operadorCpf || r.cadastradoPorCpf || "",
       }));
     const placa = nkPlate(placaFiltro);
     return rapidas
       .concat(corretivas)
       .filter((r) => {
-        const ymd = ymdFromIso(r.createdAt);
+        const ymd = ymdDoRegistro(r);
         if (deYmd && ymd && ymd < deYmd) return false;
         if (ateYmd && ymd && ymd > ateYmd) return false;
         if (placa && nkPlate(r.placa) !== placa) return false;
@@ -617,16 +738,26 @@
     const list = persistOsBackfill();
     atualizarCaixaOs(list);
     const ymd = todayYmd();
-    const rows = linhasDoPeriodo(ymd, ymd, "");
+    const admin = ehAdminManutencao();
+    const cpfOp = onlyDigits(operador().cpf);
+    let rows = linhasDoPeriodo("", "", "").filter((r) => ymdFromIso(r.createdAt) === ymd);
+    if (!admin) {
+      rows = rows.filter((r) => onlyDigits(r.operadorCpf) === cpfOp);
+    }
     const resumo = document.getElementById("portalManutDiaResumo");
     const body = document.getElementById("portalManutDiaRegistroBody");
+    const tit = document.getElementById("portalManutDiaTitulo");
+    if (tit) tit.textContent = admin ? "Registro do dia — todos os operadores" : "Registro do dia";
     if (resumo) {
       const nRap = rows.filter((r) => r.tipo === "Rápida").length;
       const nCor = rows.filter((r) => r.tipo === "Corretiva").length;
       const tot = rows.filter((r) => r.tipo === "Rápida").reduce((s, r) => s + (Number(r.valor) || 0), 0);
+      const quem = admin ? "de todos" : "os seus";
       resumo.textContent = rows.length
-        ? `${rows.length} lançamento(s) hoje · ${nRap} rápida(s) · ${nCor} corretiva(s) · ${formatBrl(tot)}`
-        : "Nenhum lançamento hoje.";
+        ? `${rows.length} lançamento(s) hoje (${quem}) · ${nRap} rápida(s) · ${nCor} corretiva(s) · ${formatBrl(tot)}`
+        : admin
+          ? "Nenhum lançamento hoje."
+          : "Nenhum lançamento seu hoje.";
     }
     if (body) body.innerHTML = tabelaHtml(rows);
   }
@@ -850,14 +981,16 @@
     const placaInp = document.getElementById("portalManutRapidaPlaca");
     placaInp?.addEventListener("input", () => {
       placaInp.value = String(placaInp.value || "").toUpperCase();
-      renderPlacaLista(placaInp.value);
+      if (nkPlate(placaInp.value)) renderPlacaLista(placaInp.value);
+      else hidePlacaLista();
+      preencherKmOleoDaPlaca(placaInp.value);
     });
-    placaInp?.addEventListener("focus", () => renderPlacaLista(placaInp.value));
     document.getElementById("portalManutRapidaPlacaLista")?.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-placa]");
       if (!btn) return;
       if (placaInp) placaInp.value = btn.getAttribute("data-placa") || "";
       hidePlacaLista();
+      preencherKmOleoDaPlaca(placaInp?.value || "");
     });
     document.addEventListener(
       "click",
@@ -873,7 +1006,15 @@
       km.value = onlyDigits(km.value).slice(0, 8);
     });
     const valor = document.getElementById("portalManutRapidaValor");
-    valor?.addEventListener("input", () => maskValor(valor));
+    valor?.addEventListener("input", () => {
+      maskValor(valor);
+      atualizarTotalPago();
+    });
+    const valor2 = document.getElementById("portalManutRapidaValor2");
+    valor2?.addEventListener("input", () => {
+      maskValor(valor2);
+      atualizarTotalPago();
+    });
     const sugOleo = document.getElementById("portalManutRapidaSugestaoOleo");
     sugOleo?.addEventListener("mousedown", (ev) => ev.stopPropagation());
     sugOleo?.addEventListener("click", (ev) => ev.stopPropagation());
@@ -887,22 +1028,45 @@
       aplicarSugestaoOleoNoValor();
     });
     hidratarSugestaoOleo();
-    document.querySelectorAll("[data-manut-rapida-pag]").forEach((el) => {
-      el.addEventListener("change", () => {
-        if (el.getAttribute("data-manut-rapida-pag") === "naoSeAplica" && el.checked) {
-          document.querySelectorAll("[data-manut-rapida-pag]").forEach((o) => {
-            if (o !== el) o.checked = false;
-          });
-          if (valor) valor.value = formatBrl(0);
-        } else if (el.checked) {
-          const nsa = document.querySelector('[data-manut-rapida-pag="naoSeAplica"]');
-          if (nsa) nsa.checked = false;
-          aplicarSugestaoOleoNoValor();
-        }
+    function bindFormasGrupo(attr, valorEl, aplicarSugestao) {
+      document.querySelectorAll(`[${attr}]`).forEach((el) => {
+        el.addEventListener("change", () => {
+          const id = el.getAttribute(attr);
+          if (id === "naoSeAplica" && el.checked) {
+            document.querySelectorAll(`[${attr}]`).forEach((o) => {
+              if (o !== el) o.checked = false;
+            });
+            if (valorEl) valorEl.value = formatBrl(0);
+          } else if (el.checked) {
+            const nsa = document.querySelector(`[${attr}="naoSeAplica"]`);
+            if (nsa) nsa.checked = false;
+            document.querySelectorAll(`[${attr}]`).forEach((o) => {
+              if (o !== el && o.getAttribute(attr) !== "naoSeAplica") o.checked = false;
+            });
+            if (aplicarSugestao) aplicarSugestaoOleoNoValor();
+          }
+          atualizarTotalPago();
+        });
       });
-    });
+    }
+    bindFormasGrupo("data-manut-rapida-pag", valor, true);
+    bindFormasGrupo("data-manut-rapida-pag2", valor2, false);
+
+    hidratarDataLancamento();
+    atualizarTotalPago();
+    const painel = document.getElementById("portalManutRapidaPanel");
+    if (painel && typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(painel);
+    }
+    if (painel && typeof window.bindDateMasksInContainer === "function") {
+      window.bindDateMasksInContainer(painel);
+    }
 
     document.getElementById("portalManutRapidaGravarBtn")?.addEventListener("click", () => gravar());
+    document.getElementById("portalManutRapidaLimparBtn")?.addEventListener("click", () => {
+      limparForm();
+      setMsg("");
+    });
     document.getElementById("portalManutRelatorioGeralBtn")?.addEventListener("click", () => openRel("geral"));
     document.getElementById("portalManutRelatorioMotoBtn")?.addEventListener("click", () => openRel("moto"));
     document.getElementById("portalManutLancRelatorioFecharBtn")?.addEventListener("click", () => closeRel());
@@ -984,6 +1148,8 @@
 
   window.__DK_portalManutRapidaOnLocadosOpen = function () {
     hidratarSugestaoOleo();
+    hidratarDataLancamento();
+    atualizarTotalPago();
     renderDia();
   };
   window.__DK_portalManutRapidaRefreshDia = renderDia;

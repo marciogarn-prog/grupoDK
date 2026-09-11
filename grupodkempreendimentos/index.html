@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260911fin-seguro">
+  <link rel="stylesheet" href="styles.css?v=20260911manut-pag2">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2898,10 +2898,20 @@
                       <div id="portalManutRapidaPlacaLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Placas da frota" hidden></div>
                     </div>
                   </label>
-                  <label class="portal-field portal-manut-rapida__km">
-                    <span>KM</span>
-                    <input type="text" id="portalManutRapidaKm" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Quilometragem">
+                  <label class="portal-field portal-manut-rapida__data">
+                    <span>Data</span>
+                    <input type="text" id="portalManutRapidaData" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data do lançamento" title="Hoje por sugestão. Clique para abrir o calendário ou edite se for retroativo.">
                   </label>
+                  <div class="portal-manut-rapida__km-dupla">
+                    <label class="portal-field portal-manut-rapida__km portal-manut-rapida__km--oleo">
+                      <span>KM última troca de óleo</span>
+                      <input type="text" id="portalManutRapidaKmOleo" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="—" readonly>
+                    </label>
+                    <label class="portal-field portal-manut-rapida__km portal-manut-rapida__km--atual">
+                      <span>KM atual</span>
+                      <input type="text" id="portalManutRapidaKm" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Quilometragem">
+                    </label>
+                  </div>
                   <div class="portal-manut-rapida__servicos" role="group" aria-label="Serviços rápidos">
                     <div class="portal-manut-rapida__oleo-row">
                       <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="oleo"><span>Troca de óleo</span></label>
@@ -2916,19 +2926,38 @@
                     <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pneuDianteiro"><span>Troca de pneu dianteiro</span></label>
                     <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pneuTraseiro"><span>Troca de pneu traseiro</span></label>
                   </div>
-                  <label class="portal-field portal-manut-rapida__valor">
-                    <span>Valor pago pelo cliente</span>
-                    <input type="text" id="portalManutRapidaValor" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00">
-                  </label>
-                  <div class="portal-manut-rapida__formas" role="group" aria-label="Forma de pagamento">
-                    <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="pix"><span>PIX</span></label>
-                    <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="especie"><span>Espécie</span></label>
-                    <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="cartao"><span>Cartão</span></label>
-                    <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag portal-manut-rapida__chk--nsa"><input type="checkbox" data-manut-rapida-pag="naoSeAplica"><span>NÃO SE APLICA</span></label>
+                  <div class="portal-manut-rapida__pag-bloco" data-manut-rapida-pag-grupo="1">
+                    <label class="portal-field portal-manut-rapida__valor">
+                      <span>Valor pago pelo cliente</span>
+                      <input type="text" id="portalManutRapidaValor" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00">
+                    </label>
+                    <div class="portal-manut-rapida__formas" role="group" aria-label="1ª forma de pagamento">
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="pix"><span>PIX</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="especie"><span>Espécie</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag="cartao"><span>Cartão</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag portal-manut-rapida__chk--nsa"><input type="checkbox" data-manut-rapida-pag="naoSeAplica"><span>NÃO SE APLICA</span></label>
+                    </div>
                   </div>
+                  <div class="portal-manut-rapida__pag-bloco" data-manut-rapida-pag-grupo="2">
+                    <label class="portal-field portal-manut-rapida__valor">
+                      <span>Valor pago pelo cliente (2ª opção)</span>
+                      <input type="text" id="portalManutRapidaValor2" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00">
+                    </label>
+                    <div class="portal-manut-rapida__formas" role="group" aria-label="2ª forma de pagamento">
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag2="pix"><span>PIX</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag2="especie"><span>Espécie</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag"><input type="checkbox" data-manut-rapida-pag2="cartao"><span>Cartão</span></label>
+                      <label class="portal-manut-rapida__chk portal-manut-rapida__chk--pag portal-manut-rapida__chk--nsa"><input type="checkbox" data-manut-rapida-pag2="naoSeAplica"><span>NÃO SE APLICA</span></label>
+                    </div>
+                  </div>
+                  <label class="portal-field portal-manut-rapida__total">
+                    <span>Total</span>
+                    <input type="text" id="portalManutRapidaValorTotal" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" readonly>
+                  </label>
                 </div>
                 <div class="portal-manut-rapida__acoes">
                   <button type="button" class="btn-primary" id="portalManutRapidaGravarBtn">Gravar manutenção rápida</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="portalManutRapidaLimparBtn">Limpar dados</button>
                   <p id="portalManutRapidaMsg" class="portal-feedback" role="status" aria-live="polite"></p>
                 </div>
               </section>
@@ -5385,7 +5414,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
   <script src="dk-portal-api-auth.js?v=20260910porteiro"></script>
-  <script src="app.js?v=20260911fin-seguro" defer></script>
+  <script src="app.js?v=20260911manut-pag2" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5395,11 +5424,11 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260911fin-seguro" defer></script>
+  <script src="portal-locadora-ui.js?v=20260911manut-pag2" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911int-excel"></script>
-  <script src="portal-financeiro-ceo.js?v=20260911fin-seguro" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260911manut-pag2" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -5442,10 +5471,10 @@
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
-  <script src="portal-manutencao-rapida.js?v=20260911sugestao-oleo" defer></script>
+  <script src="portal-manutencao-rapida.js?v=20260911manut-pag2" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260911fin-seguro" defer></script>
+  <script src="portal-supabase-sync.js?v=20260911manut-pag2" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

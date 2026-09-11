@@ -13795,7 +13795,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .portal-manut-rapida__grid {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) repeat(3, minmax(6.5rem, 1fr));
+  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) repeat(2, minmax(6.5rem, 1fr));
   gap: 0.45rem 0.55rem;
   align-items: end;
 }
@@ -13806,14 +13806,31 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   margin: 0;
 }
 
-.portal-manut-rapida__km {
-  grid-column: 1;
+.portal-manut-rapida__data {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+}
+
+.portal-manut-rapida__data input {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+}
+
+.portal-manut-rapida__km-dupla {
+  grid-column: 1 / 3;
   grid-row: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.55rem;
+}
+
+.portal-manut-rapida__km {
   margin: 0;
 }
 
 .portal-manut-rapida__servicos {
-  grid-column: 2 / -1;
+  grid-column: 3 / -1;
   grid-row: 1 / span 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -13860,8 +13877,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.35);
 }
 
+.portal-manut-rapida__pag-bloco {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: 0.45rem 0.55rem;
+  align-items: end;
+}
+
 .portal-manut-rapida__valor {
-  grid-column: 1;
   margin: 0.15rem 0 0;
 }
 
@@ -13871,12 +13895,22 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .portal-manut-rapida__formas {
-  grid-column: 2 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 0.45rem 0.75rem;
   padding-bottom: 0.15rem;
+}
+
+.portal-manut-rapida__total {
+  grid-column: 1 / 3;
+  margin: 0.15rem 0 0;
+}
+
+.portal-manut-rapida__total input {
+  border-color: #f5d76e;
+  box-shadow: 0 0 0 1px rgba(245, 215, 110, 0.4);
+  font-weight: 700;
 }
 
 .portal-manut-dia__head {
@@ -14148,12 +14182,16 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   .portal-manut-rapida__grid {
     grid-template-columns: 1fr 1fr;
   }
-  .portal-manut-rapida__servicos {
+  .portal-manut-rapida__servicos,
+  .portal-manut-rapida__placa,
+  .portal-manut-rapida__data,
+  .portal-manut-rapida__km-dupla,
+  .portal-manut-rapida__pag-bloco,
+  .portal-manut-rapida__total {
     grid-column: 1 / -1;
     grid-row: auto;
   }
-  .portal-manut-rapida__valor,
-  .portal-manut-rapida__formas {
-    grid-column: 1 / -1;
+  .portal-manut-rapida__pag-bloco {
+    grid-template-columns: 1fr;
   }
 }

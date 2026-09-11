@@ -80,6 +80,12 @@ const limparFn = js.slice(js.indexOf("function limparForm"), js.indexOf("functio
 record("Sugestão persistida e copiada para o valor", js.includes("dk_manutencao_rapida_sugestao_oleo_v1") && js.includes("aplicarSugestaoOleoNoValor") && js.includes("hidratarSugestaoOleo"));
 record("Limpar o lançamento não apaga a caixa Sugestão", limparFn.includes("portalManutRapidaValor") && !limparFn.includes("SugestaoOleo") && !limparFn.includes("sugestao"));
 record("Valor continua editável e gravado em valorPago", locados.includes('id="portalManutRapidaValor"') && js.includes("valorPago: valor"));
+record("Duas caixas de pagamento e total", locados.includes("portalManutRapidaValor2") && locados.includes("portalManutRapidaValorTotal") && locados.includes("Total") && js.includes("atualizarTotalPago"));
+record("KM última troca de óleo e KM atual", locados.includes("portalManutRapidaKmOleo") && locados.includes("KM última troca de óleo") && locados.includes("KM atual") && js.includes("ultimoKmTrocaOleo"));
+record("Calendário com data de hoje editável", locados.includes("portalManutRapidaData") && locados.includes("data-dk-cal") && js.includes("hidratarDataLancamento") && js.includes("dataLancamento"));
+record("Botão Limpar dados", locados.includes("portalManutRapidaLimparBtn") && locados.includes("Limpar dados"));
+record("Lista de placas só ao digitar", js.includes("if (!nkPlate(q))") && !js.includes('addEventListener("focus", () => renderPlacaLista'));
+record("Registro do dia: operador vê o dele, admin vê todos", js.includes("ehAdminManutencao") && js.includes("todos os operadores"));
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes manutenção rápida ---`);

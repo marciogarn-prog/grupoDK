@@ -1454,6 +1454,11 @@
   }
 
   function dataManutencaoRapida(r) {
+    const ymdLanc = String(r?.dataLancamento || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ymdLanc)) {
+      const [yy, mm, dd] = ymdLanc.split("-").map(Number);
+      if (yy && mm) return new Date(yy, mm - 1, dd);
+    }
     const ms = Date.parse(r?.criadoEm || r?.createdAt || "");
     if (!Number.isFinite(ms)) return null;
     const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ms));
@@ -1469,8 +1474,10 @@
   }
 
   function registroManutencaoPagaCliente(r) {
-    if (!r || r.formas?.naoSeAplica) return false;
-    return valorPagoManutencao(r) > 0;
+    if (!r) return false;
+    if (valorPagoManutencao(r) > 0) return true;
+    if (r.formas?.naoSeAplica) return false;
+    return false;
   }
 
   /** Pagamentos do cliente na manutenção rápida do mês (NÃO SE APLICA não entra). */

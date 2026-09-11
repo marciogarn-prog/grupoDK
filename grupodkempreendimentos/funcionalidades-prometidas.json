@@ -2447,6 +2447,39 @@
           "dk_manutencao_rapida_sugestao_oleo_v1"
         ]
       }
+    },
+    {
+      "id": "manutencao-rapida-duas-formas-km-data",
+      "descricao": "Na Manutenção rápida: duas caixas de valor pago com forma cada uma e Total embaixo; Limpar dados ao lado de Gravar; KM última troca de óleo + KM atual; calendário com data de hoje editável para retroativo; lista de placas só ao digitar; registro do dia o operador vê o dele e o administrador vê o de todos.",
+      "ficheiros": {
+        "index.html": [
+          "portalManutRapidaValor2",
+          "portalManutRapidaValorTotal",
+          "portalManutRapidaKmOleo",
+          "portalManutRapidaData",
+          "portalManutRapidaLimparBtn",
+          "Limpar dados",
+          "KM última troca de óleo",
+          "KM atual",
+          "Total"
+        ],
+        "portal-manutencao-rapida.js": [
+          "portalManutRapidaValor2",
+          "atualizarTotalPago",
+          "ultimoKmTrocaOleo",
+          "ehAdminManutencao",
+          "hidratarDataLancamento",
+          "dataLancamento",
+          "if (!nkPlate(q))",
+          "portalManutRapidaLimparBtn"
+        ],
+        "styles.css": [
+          "portal-manut-rapida__pag-bloco",
+          "portal-manut-rapida__total",
+          "portal-manut-rapida__km-dupla",
+          "portal-manut-rapida__data"
+        ]
+      }
     }
   ]
 }
