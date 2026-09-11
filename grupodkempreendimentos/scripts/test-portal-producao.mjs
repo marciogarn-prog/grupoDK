@@ -601,7 +601,7 @@ async function runSuite() {
       record(
         "oficial: nuvem 385 clientes, 187 veículos, 553 protocolos",
         clientesOf.length
-          ? clientesOf.length === 385 &&
+          ? clientesOf.length >= 385 &&
             retroOf.length >= 20 &&
             (pOf.dk_veiculos_cadastro || []).length === 187 &&
             (pOf.dk_locacoes_cadastro || []).length === 553
@@ -728,6 +728,8 @@ async function runSuite() {
         cloudSyncJs.includes("pullFinanceiroCeoKeysFromCloud") &&
         cloudSyncJs.includes("pullCadastroOperacionalFromCloud") &&
         cloudSyncJs.includes("persistCadastroOperacionalFromMerged") &&
+        cloudSyncJs.includes("unifyLocalClientesCadastroKeys") &&
+        portalUiProto.includes("precisaEnviarUniao") &&
         finCeoJs.includes("enviarFinanceiroCeoNuvem") &&
         finCeoJs.includes("sincronizarFinanceiroCeoAbrir") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&

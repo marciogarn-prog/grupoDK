@@ -1762,6 +1762,11 @@
         cloudMeta.payload.dk_cliente_notificacoes
       );
     }
+    if (typeof mergeCadastroHistoricoImutavel === "function") {
+      for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+        out[k] = mergeCadastroHistoricoImutavel(k, localPayload[k], cloudMeta.payload[k]);
+      }
+    }
     return out;
   }
 
@@ -3074,6 +3079,32 @@
     return out;
   }
 
+  function countClientesCpfUnicos(arr) {
+    const seen = new Set();
+    for (const c of Array.isArray(arr) ? arr : []) {
+      const cpf = String(c?.cpf || "").replace(/\D/g, "");
+      if (cpf.length === 11) seen.add(cpf);
+    }
+    return seen.size;
+  }
+
+  function unifyLocalClientesCadastroKeys() {
+    const a = readLocalJsonArray("dk_clientes_cadastro");
+    const b = readLocalJsonArray("dk_portal_clientes_cadastro");
+    const unified =
+      typeof mergeCadastroHistoricoImutavel === "function"
+        ? mergeCadastroHistoricoImutavel("dk_clientes_cadastro", a, b)
+        : a;
+    const sameA = JSON.stringify(unified) === JSON.stringify(a);
+    const sameB = JSON.stringify(unified) === JSON.stringify(b);
+    if (sameA && sameB) return unified;
+    for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+      if (typeof saveCadastro === "function") saveCadastro(k, unified);
+      else localStorage.setItem(k, JSON.stringify(unified));
+    }
+    return unified;
+  }
+
   function persistCadastroOperacionalFromMerged(mergedPayload) {
     if (!mergedPayload || typeof mergedPayload !== "object") return;
     const keys = [
@@ -3104,6 +3135,7 @@
           localStorage.setItem(k, JSON.stringify(merged));
         }
       }
+      unifyLocalClientesCadastroKeys();
     } finally {
       suppressCloudHook = false;
     }
@@ -3487,8 +3519,28 @@
         }
         changed = true;
       }
+      const unified = unifyLocalClientesCadastroKeys();
+      const cloudCli = [
+        ...(Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : []),
+        ...(Array.isArray(payload.dk_portal_clientes_cadastro) ? payload.dk_portal_clientes_cadastro : []),
+      ];
+      if (countClientesCpfUnicos(unified) > countClientesCpfUnicos(cloudCli)) {
+        changed = true;
+        if (typeof window.__DK_portalPushCadastroToCloud === "function") {
+          void window.__DK_portalPushCadastroToCloud();
+        } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+          void window.__DK_pushCloudSnapshotNow();
+        }
+      }
     } finally {
       suppressCloudHook = false;
+    }
+    if (typeof window.__DK_refreshOperacaoClienteTotalCadastrados === "function") {
+      try {
+        window.__DK_refreshOperacaoClienteTotalCadastrados();
+      } catch {
+        /* ignore */
+      }
     }
     if (changed) {
       try {

@@ -2342,12 +2342,25 @@
         "portal-supabase-sync.js": [
           "pullCadastroOperacionalFromCloud",
           "persistCadastroOperacionalFromMerged",
-          "dk_clientes_cadastro"
+          "dk_clientes_cadastro",
+          "unifyLocalClientesCadastroKeys",
+          "countClientesCpfUnicos"
         ],
         "portal-locadora-ui.js": [
           "dkPortalPullAndMergeAll",
           "refreshOperacaoClienteTotalCadastrados",
-          "countOperacaoClientesCadastrados"
+          "countOperacaoClientesCadastrados",
+          "dkPortalCountCpfUnicos",
+          "precisaEnviarUniao"
+        ],
+        "lib/dk-deploy-channel-api.cjs": [
+          "mergeClientesCadastro",
+          "LEGACY_CLIENTES_KEY",
+          "snapshot+legacy"
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "mergeCadastroKeepSets",
+          "cadastroKeepSetsFromPayload(incoming)"
         ]
       }
     },

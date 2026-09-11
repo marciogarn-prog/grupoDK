@@ -872,12 +872,18 @@
 
   function countOperacaoClientesCadastrados() {
     const seen = new Set();
-    if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return 0;
+    if (typeof loadCadastro !== "function") return 0;
+    const keys = [];
+    if (typeof CAD_CLIENTES_KEY !== "undefined") keys.push(CAD_CLIENTES_KEY);
+    if (typeof PORTAL_CLIENTES_KEY !== "undefined") keys.push(PORTAL_CLIENTES_KEY);
+    if (!keys.length) keys.push("dk_clientes_cadastro", "dk_portal_clientes_cadastro");
     try {
-      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
-        const cpf =
-          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-        if (cpf.length === 11) seen.add(cpf);
+      keys.forEach((key) => {
+        loadCadastro(key).forEach((c) => {
+          const cpf =
+            typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+          if (cpf.length === 11) seen.add(cpf);
+        });
       });
     } catch {
       /* ignore */
@@ -26884,12 +26890,28 @@
       };
     }
 
+    function dkPortalCountCpfUnicos(list) {
+      const seen = new Set();
+      const dig = (cpf) =>
+        typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
+      (list || []).forEach((c) => {
+        const cpf = dig(c && c.cpf);
+        if (cpf.length === 11) seen.add(cpf);
+      });
+      return seen.size;
+    }
+
     async function dkPortalPullOne(apiFile, storageKey, mergeFn) {
       const urls = dkPortalSyncApiUrlsFor(apiFile);
       for (let i = 0; i < urls.length; i += 1) {
         const url = urls[i];
         try {
-          const r = await fetch(url, { method: "GET" });
+          const r = await fetch(url, {
+            method: "GET",
+            headers: {
+              ...(typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {}),
+            },
+          });
           const j = await r.json().catch(() => ({}));
           if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
           const local = loadCadastro(storageKey);
@@ -26898,11 +26920,20 @@
             return;
           }
           const merged = mergeFn(local, j.data);
-          if (JSON.stringify(merged) === JSON.stringify(local)) return;
-          dkPortalCadastroSyncSuppressPush = true;
-          origSave(storageKey, merged);
-          dkPortalCadastroSyncSuppressPush = false;
-          dkPortalScheduleFullCadastroSnapshotPush();
+          const localSame = JSON.stringify(merged) === JSON.stringify(local);
+          if (!localSame) {
+            dkPortalCadastroSyncSuppressPush = true;
+            origSave(storageKey, merged);
+            dkPortalCadastroSyncSuppressPush = false;
+          }
+          /* Se este PC tem clientes a mais, envia a união — senão o outro PC fica com menos. */
+          const precisaEnviarUniao =
+            storageKey === CAD_CLIENTES_KEY
+              ? dkPortalCountCpfUnicos(merged) > dkPortalCountCpfUnicos(j.data)
+              : Array.isArray(merged) && merged.length > (j.data || []).length;
+          if (!localSame || precisaEnviarUniao) {
+            dkPortalScheduleFullCadastroSnapshotPush();
+          }
           return;
         } catch (e) {
           if (i === urls.length - 1) {

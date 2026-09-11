@@ -285,7 +285,11 @@
     const protoYmd = locacaoProtocolYmd(record);
     if (cadastroKeyFamily(key) === "locacao" && protoYmd && protoYmd < locacoesCutoffYmd()) return false;
     const ymd = protoYmd && cadastroKeyFamily(key) === "locacao" ? protoYmd : extractRecordYmd(record, key);
-    if (!ymd) return false;
+    if (!ymd) {
+      /* Cliente com CPF válido sem data: conta e sincroniza (não some noutro PC). */
+      if (cadastroKeyFamily(key) === "cliente" && cpfDigits(record).length === 11) return true;
+      return false;
+    }
     return ymd >= cutoff;
   }
 

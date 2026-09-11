@@ -24,6 +24,7 @@ const {
   ownerWriteAccess,
 } = require("../lib/dk-portal-module-access.cjs");
 const {
+  mergeClientesCadastro,
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
@@ -233,6 +234,17 @@ function normalizeKeepSets(keepLocacaoNc) {
     };
   }
   return { nc: new Set(), cpf: new Set(), placa: new Set() };
+}
+
+/** União das chaves já na nuvem com as que este PC está a enviar — não apaga cliente extra. */
+function mergeCadastroKeepSets(a, b) {
+  const A = normalizeKeepSets(a);
+  const B = normalizeKeepSets(b);
+  return {
+    nc: new Set([...A.nc, ...B.nc]),
+    cpf: new Set([...A.cpf, ...B.cpf]),
+    placa: new Set([...A.placa, ...B.placa]),
+  };
 }
 
 function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepLocacaoNc) {
@@ -500,6 +512,10 @@ function applyCadastroLock(existing, incoming) {
     const inc = incoming[k];
     const ex = existing[k];
     if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
+    if (k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro") {
+      out[k] = mergeClientesCadastro(ex, inc);
+      continue;
+    }
     if (inc.length > ex.length) out[k] = ex;
   }
   return out;
@@ -914,7 +930,10 @@ async function handler(req, res) {
         incoming = sanitizePayloadForOficial(
           incoming,
           oficialTodayYmd(),
-          cadastroKeepSetsFromPayload(existingPayload)
+          mergeCadastroKeepSets(
+            cadastroKeepSetsFromPayload(existingPayload),
+            cadastroKeepSetsFromPayload(incoming)
+          )
         );
       }
       const replace = body.replace === true || body.mode === "replace";
@@ -969,7 +988,10 @@ async function handler(req, res) {
       payload = sanitizePayloadForOficial(
         payload,
         oficialTodayYmd(),
-        cadastroKeepSetsFromPayload(existingPayload || payload)
+        mergeCadastroKeepSets(
+          cadastroKeepSetsFromPayload(existingPayload || payload),
+          cadastroKeepSetsFromPayload(incoming)
+        )
       );
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);

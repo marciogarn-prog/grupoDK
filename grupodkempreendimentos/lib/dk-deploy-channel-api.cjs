@@ -1,6 +1,8 @@
 /**
  * Canal oficial nas APIs Vercel (Redis / gate app cliente).
  */
+const { mergeClientesCadastro, mergeLocacoesCadastro } = require("./dk-append-only-merge.cjs");
+
 const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
 
 const LEGACY_CLIENTES_KEY = "dk:portal:clientes_cadastro:v1";
@@ -52,23 +54,24 @@ function resolveDeployChannel() {
 }
 
 async function fetchPortalCadastrosFromRedis(redis) {
-  const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
-  const payload = parseSnapshotPayload(rawSnap);
-  if (payload) {
-    const clientes = Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
-    const locs = Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
-    if (clientes.length || locs.length) {
-      return { clientes, locs, source: "snapshot", channel: "default" };
-    }
-  }
-  const [rawClientes, rawLocs] = await Promise.all([
+  const [rawSnap, rawClientes, rawLocs] = await Promise.all([
+    redis.get(REDIS_SNAPSHOT_KEY),
     redis.get(LEGACY_CLIENTES_KEY),
     redis.get(LEGACY_LOCACOES_KEY),
   ]);
+  const payload = parseSnapshotPayload(rawSnap);
+  const snapCli = Array.isArray(payload?.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
+  const snapPortal = Array.isArray(payload?.dk_portal_clientes_cadastro)
+    ? payload.dk_portal_clientes_cadastro
+    : [];
+  const legacyCli = parseRedisArray(rawClientes);
+  const clientes = mergeClientesCadastro(mergeClientesCadastro(snapCli, snapPortal), legacyCli);
+  const snapLocs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
+  const locs = snapLocs.length ? mergeLocacoesCadastro(snapLocs, parseRedisArray(rawLocs)) : parseRedisArray(rawLocs);
   return {
-    clientes: parseRedisArray(rawClientes),
-    locs: parseRedisArray(rawLocs),
-    source: "legacy",
+    clientes,
+    locs,
+    source: payload ? "snapshot+legacy" : "legacy",
     channel: "default",
   };
 }
