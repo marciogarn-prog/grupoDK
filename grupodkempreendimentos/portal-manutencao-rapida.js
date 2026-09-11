@@ -243,10 +243,24 @@
   }
 
   function listPlacas(q) {
+    const needle = nkPlate(q);
+    const seen = new Set();
+    const out = [];
+    const add = (raw, extra) => {
+      const placa = nkPlate(raw);
+      if (!placa || seen.has(placa)) return;
+      if (needle && !placa.includes(needle)) return;
+      seen.add(placa);
+      out.push({ placa, extra: extra || "" });
+    };
     if (typeof window.__DK_portalListPlacasLocadosAtivas === "function") {
-      return window.__DK_portalListPlacasLocadosAtivas(q) || [];
+      (window.__DK_portalListPlacasLocadosAtivas(q) || []).forEach((r) => add(r.placa || r, r.nome || r.modelo || ""));
     }
-    return [];
+    VEIC_KEYS.forEach((key) => {
+      loadArr(key).forEach((v) => add(v.placa, v.modelo || v.nome || ""));
+    });
+    out.sort((a, b) => String(a.placa).localeCompare(String(b.placa)));
+    return out;
   }
 
   function listPlacasConsulta(q) {

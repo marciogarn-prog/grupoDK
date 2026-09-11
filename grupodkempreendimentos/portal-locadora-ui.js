@@ -3553,6 +3553,7 @@
     [
       "operacaoInlineLancamentoManutencao",
       "manutencaoInlineEmOperacao",
+      "manutencaoInlineRapida",
       "manutencaoInlineEmManutencao",
       "manutencaoInlineDisponiveis",
       "manutencaoInlineReserva",
@@ -3576,6 +3577,7 @@
     "btn-operacao-lancamento-manutencao",
     "btn-manutencao-locados",
     "btn-manutencao-disponiveis",
+    "btn-manutencao-rapida",
     "btn-manutencao-em-manutencao",
   ];
 
@@ -4426,9 +4428,6 @@
     if (leadEl) leadEl.textContent = meta.lead;
     document.getElementById("portalSetorRelatorioBtnLocados")?.setAttribute("data-setor-relatorio", sub);
     portalAttachChecklistWorkspace("operacao");
-    if (typeof window.__DK_portalManutRapidaOnLocadosOpen === "function") {
-      window.__DK_portalManutRapidaOnLocadosOpen();
-    }
     /* Locados: só pesquisa de placa + enviar para manutenção (sem check-list). */
     document.getElementById("portalChecklistMount")?.classList.add("hidden");
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
@@ -9024,6 +9023,22 @@
     );
     syncManutDispSubButtons(null);
     syncManutDispReservaSubnav(false);
+  });
+
+  function openManutencaoRapidaIndependente() {
+    portalRefreshOperacaoLocal();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(false);
+    document.getElementById("manutencaoInlineRapida")?.classList.remove("hidden");
+    syncManutencaoSidebarButtons("btn-manutencao-rapida");
+    if (typeof window.__DK_portalManutRapidaOnLocadosOpen === "function") {
+      window.__DK_portalManutRapidaOnLocadosOpen();
+    }
+    window.setTimeout(() => document.getElementById("portalManutRapidaPlaca")?.focus(), 40);
+  }
+
+  document.getElementById("btn-manutencao-rapida")?.addEventListener("click", () => {
+    openManutencaoRapidaIndependente();
   });
 
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
@@ -26966,6 +26981,10 @@
         "btn-manutencao-em-manutencao",
         "Escolha uma das opções em «Em manutenção» à esquerda (6 Triagem, 7–10)."
       );
+      return;
+    }
+    if (panelId === "manutencaoInlineRapida" || btnId === "btn-manutencao-rapida") {
+      openManutencaoRapidaIndependente();
       return;
     }
     if (panelId === "manutencaoInlineEmOperacao" || btnId === "btn-manutencao-locados") {
