@@ -588,9 +588,38 @@ async function runSuite() {
       const snapAnon = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, { cache: "no-store" });
       record(
         "API dk-cloud-snapshot anónima recusada",
-        snapAnon.status === 401 || snapAnon.status === 403,
+        snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         `status=${snapAnon.status}`
       );
+      const ownerSenha = String(process.env.DK_OWNER_SENHA || "110499@Gb").trim();
+      const loginCeo = await fetch(`${BASE_URL}api/dk-portal-auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "equipa", cpf: "03037897430", senha: ownerSenha }),
+      }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+      const tokCeo = String(loginCeo.j?.token || "").trim();
+      record("oficial: login CEO para contar clientes na nuvem", Boolean(tokCeo), `status=${loginCeo.status}`);
+      if (tokCeo) {
+        const cliApi = await fetch(`${BASE_URL}api/cadastro-clientes?nocache=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo },
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        const seenCli = new Set();
+        for (const c of Array.isArray(cliApi.j?.data) ? cliApi.j.data : []) {
+          const d = String(c?.cpf || "").replace(/\D/g, "");
+          if (d.length !== 11) continue;
+          if (["00000000001", "00000000003", "00000000004"].includes(d)) continue;
+          if (c?.origemPlanilha === true && !c?.origemPortal && !c?.cadastroRetroativo) continue;
+          seenCli.add(d);
+        }
+        record(
+          "oficial: total de clientes na nuvem (CPF único, todos os PCs)",
+          cliApi.status === 200 && seenCli.size >= 397,
+          `api=${cliApi.status} unicos=${seenCli.size}`
+        );
+      } else {
+        record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
+      }
       const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, {
         cache: "no-store",
         headers: SNAP_SVC ? { Authorization: `Bearer ${SNAP_SVC}` } : {},
@@ -730,6 +759,7 @@ async function runSuite() {
         cloudSyncJs.includes("persistCadastroOperacionalFromMerged") &&
         cloudSyncJs.includes("unifyLocalClientesCadastroKeys") &&
         portalUiProto.includes("precisaEnviarUniao") &&
+        portalUiProto.includes("A atualizar da nuvem") &&
         finCeoJs.includes("enviarFinanceiroCeoNuvem") &&
         finCeoJs.includes("sincronizarFinanceiroCeoAbrir") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&

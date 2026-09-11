@@ -907,8 +907,8 @@
     const total = countOperacaoClientesCadastrados();
     const el = document.getElementById("operacaoClienteTotalCadastrados");
     if (el) {
-      el.textContent =
-        total === 1 ? "1 cliente cadastrado" : `${total} clientes cadastrados`;
+      const label = total === 1 ? "cliente cadastrado" : "clientes cadastrados";
+      el.innerHTML = `<span translate="no" class="operacao-cliente-total__n">${total}</span> ${label}`;
     }
     return total;
   }
@@ -24966,12 +24966,29 @@
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
-    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
-    refreshOperacaoClienteCodigoEditavel();
+    const totalEl = document.getElementById("operacaoClienteTotalCadastrados");
+    if (totalEl) totalEl.textContent = "A atualizar da nuvem…";
+    void (async () => {
+      if (typeof window.__DK_pullFromCloudOnScreenChange === "function") {
+        try {
+          await window.__DK_pullFromCloudOnScreenChange();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (typeof window.__DK_portalPushCadastroToCloud === "function") {
+        try {
+          await window.__DK_portalPushCadastroToCloud();
+        } catch {
+          /* ignore */
+        }
+      }
+      refreshOperacaoClienteCodigoEditavel();
+    })();
   });
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     portalOperacaoOnScreenChange();

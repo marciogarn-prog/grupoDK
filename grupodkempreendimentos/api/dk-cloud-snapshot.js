@@ -274,9 +274,9 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       /* Seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx / 202601010x). */
       if (isLoc && isLocacaoSeedDemoOficialProibida(r)) return false;
       if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
-      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         isLoc &&
         ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
@@ -556,9 +556,9 @@ function capOficialVirginProtocolos(existing, merged) {
   for (const k of keys) {
     if (!Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
-      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         String(k).includes("locac") &&
         ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||

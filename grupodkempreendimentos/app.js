@@ -2966,6 +2966,7 @@ function mergeCadastroClienteHistorico(ex, incoming) {
   });
   if (ex?.origemPortal || incoming?.origemPortal) merged.origemPortal = true;
   if (ex?.cadastroRetroativo || incoming?.cadastroRetroativo) merged.cadastroRetroativo = true;
+  if (merged.origemPortal || merged.cadastroRetroativo) delete merged.origemPlanilha;
   merged.updatedAt = Math.max(Number(ex?.updatedAt || 0), Number(incoming?.updatedAt || 0), Date.now());
   return merged;
 }

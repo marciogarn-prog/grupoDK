@@ -271,9 +271,9 @@
     ) {
       return false;
     }
-    if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
     if (record && typeof record === "object" && record.origemPortal === true) return true;
+    if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     if (
       cadastroKeyFamily(key) === "locacao" &&
       ((Array.isArray(record?.portalLancamentosAluguel) && record.portalLancamentosAluguel.length) ||

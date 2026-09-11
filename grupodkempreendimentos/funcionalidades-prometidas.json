@@ -2351,7 +2351,13 @@
           "refreshOperacaoClienteTotalCadastrados",
           "countOperacaoClientesCadastrados",
           "dkPortalCountCpfUnicos",
-          "precisaEnviarUniao"
+          "precisaEnviarUniao",
+          "A atualizar da nuvem"
+        ],
+        "dk-oficial-cadastro-guard.js": [
+          "cadastroRetroativo === true) return true",
+          "origemPortal === true) return true",
+          "origemPlanilha === true) return false"
         ],
         "lib/dk-deploy-channel-api.cjs": [
           "mergeClientesCadastro",
