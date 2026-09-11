@@ -2288,18 +2288,28 @@
     },
     {
       "id": "fin-despesas-sync-admin",
-      "descricao": "Cadastro de despesas (FINANCEIRO e FINANCEIRO CEO) não some na nuvem quando outro administrador (ex.: Marcus) envia snapshot sem essa chave. O atalho puxa a nuvem mesmo com autoridade local (bypassLocalAuthority). Confirmações PAGO unem por chave, não por id.",
+      "descricao": "Cadastrar despesa e A PAGAR enviam na hora para a nuvem e mostram se gravou. PAGO nunca rebaixa para A PAGAR. Abrir a tela sobe primeiro e só depois une. Só o administrador CEO (CPF da sessão) exclui. Lançamento na nuvem não some no merge.",
       "ficheiros": {
         "lib/dk-append-only-merge.cjs": [
           "dk_financeiro_ceo_despesas_v1",
           "mergeFinanceiroCeoDespesas",
-          "mergeFinanceiroCeoSituacaoPag"
+          "mergeFinanceiroCeoSituacaoPag",
+          "pagamentosExcluidos"
+        ],
+        "app.js": [
+          "dk_financeiro_ceo_despesas_v1",
+          "dk_financeiro_ceo_situacao_pag_v1",
+          "pagamentosExcluidos"
         ],
         "portal-financeiro-ceo.js": [
           "__DK_financeiroCeoRefreshDespesas",
           "__DK_financeiroCeoAbrirAtalhoLocadora",
           "__DK_pullCloudSnapshotSilentMerge",
-          "bypassLocalAuthority: true"
+          "bypassLocalAuthority: true",
+          "enviarFinanceiroCeoNuvem",
+          "sincronizarFinanceiroCeoAbrir",
+          "isSessaoTitularCeoCpf",
+          "pagamentosExcluidos"
         ],
         "portal-supabase-sync.js": [
           "dk_financeiro_ceo_despesas_v1",

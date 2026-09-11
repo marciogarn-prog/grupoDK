@@ -715,6 +715,9 @@ async function runSuite() {
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
+    const finCeoJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
     record(
       "trocar tela: pull só após upload confirmado neste PC",
       cloudSyncJs.includes("awaitAutoCloudPushConfirmed") &&
@@ -723,6 +726,8 @@ async function runSuite() {
         cloudSyncJs.includes("bypassLocalAuthority") &&
         cloudSyncJs.includes("mergeFinanceiroCeoSituacaoPagArrays") &&
         cloudSyncJs.includes("pullFinanceiroCeoKeysFromCloud") &&
+        finCeoJs.includes("enviarFinanceiroCeoNuvem") &&
+        finCeoJs.includes("sincronizarFinanceiroCeoAbrir") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&
         portalUiProto.includes("__DK_pullFromCloudOnScreenChange"),
       "salvar=upload; trocar tela espera push OK antes do download"

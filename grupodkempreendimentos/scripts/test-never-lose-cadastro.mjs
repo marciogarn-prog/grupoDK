@@ -140,6 +140,28 @@ check(
       (r) => r.chave === "ceo-outro-2#1#10/09/2026" && r.situacao === "PAGO"
     )
 );
+const exclExisting = {
+  dk_financeiro_ceo_despesas_v1: [
+    { id: "ceo-marcus-1", descricao: "PRO-LABORE MARCUS", valor: 17000, pagamentosExcluidos: [2] },
+  ],
+};
+const exclIncoming = {
+  dk_financeiro_ceo_despesas_v1: [
+    { id: "ceo-marcus-1", descricao: "PRO-LABORE MARCUS", valor: 17000, pagamentosExcluidos: [1] },
+  ],
+};
+const exclOut = neverLoseCadastroPayload(exclExisting, exclIncoming);
+check(
+  "exclusao do CEO une parcelas e nao apaga a despesa",
+  Array.isArray(exclOut.dk_financeiro_ceo_despesas_v1) &&
+    exclOut.dk_financeiro_ceo_despesas_v1.some(
+      (d) =>
+        d.id === "ceo-marcus-1" &&
+        Array.isArray(d.pagamentosExcluidos) &&
+        d.pagamentosExcluidos.includes(1) &&
+        d.pagamentosExcluidos.includes(2)
+    )
+);
 const mergedColab = mergeFuncionariosAccess(colabExisting.dk_funcionarios_access, colabIncoming.dk_funcionarios_access);
 check(
   "merge por CPF une 5 colaboradores",

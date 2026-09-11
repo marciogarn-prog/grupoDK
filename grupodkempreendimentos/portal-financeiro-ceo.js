@@ -5,6 +5,7 @@
 (function portalFinanceiroCeo() {
   const DESPESAS_CEO_KEY = "dk_financeiro_ceo_despesas_v1";
   const SITUACAO_PAG_CEO_KEY = "dk_financeiro_ceo_situacao_pag_v1";
+  const TITULAR_CEO_CPF = "03037897430";
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
@@ -101,6 +102,64 @@
     "Atalho do FINANCEIRO: mesma base do FINANCEIRO CEO, filtrada automaticamente para <strong>DK Locadora</strong>. Novos lançamentos gravam só nessa categoria.";
   let modoAtalhoLocadora = false;
   const panel = document.getElementById("panel-financeiro-ceo-locadora");
+
+  function isSessaoTitularCeoCpf() {
+    if (typeof window.__DK_portalTitularPodeUsarVerComo === "function") {
+      return window.__DK_portalTitularPodeUsarVerComo() === true;
+    }
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      const s = raw ? JSON.parse(raw) : null;
+      const cpf = String(s?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      return cpf === TITULAR_CEO_CPF && String(s?.role || "").trim() === "owner";
+    } catch {
+      return false;
+    }
+  }
+
+  function nuvemPushResultOk(push) {
+    if (!push || push.ok === false) return false;
+    if (push.skipped && (push.reason === "android_somente_leitura" || push.reason === "offline_mode")) {
+      return true;
+    }
+    return Boolean(push.ok === true || push.redisOk || push.source === "redis" || push.source === "both");
+  }
+
+  async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk) {
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      try {
+        window.__DK_markLocalDataAuthority();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
+      if (feedbackEl) {
+        feedbackEl.textContent =
+          "Gravado neste PC. Sem função de nuvem — não feche o browser até o envio existir.";
+      }
+      return { ok: false, reason: "sem_push" };
+    }
+    if (feedbackEl) feedbackEl.textContent = "A enviar para a nuvem…";
+    try {
+      const r = await window.__DK_pushCloudSnapshotNow({ force: true });
+      if (nuvemPushResultOk(r)) {
+        if (feedbackEl) feedbackEl.textContent = mensagemOk || "Gravado na nuvem.";
+        return { ok: true, r };
+      }
+      if (feedbackEl) {
+        feedbackEl.textContent =
+          "FALHOU o envio à nuvem. Os dados estão neste PC. Não feche o browser — clique de novo em Cadastrar despesa ou A PAGAR.";
+      }
+      return { ok: false, r };
+    } catch (err) {
+      if (feedbackEl) {
+        feedbackEl.textContent =
+          "FALHOU o envio à nuvem. Os dados estão neste PC. Não feche o browser — tente de novo.";
+      }
+      return { ok: false, error: err };
+    }
+  }
 
   function isAtalhoLocadora() {
     return Boolean(modoAtalhoLocadora);
@@ -842,6 +901,8 @@
           repeticoes: d.repeticoes,
           dataEvento: d.dataEvento instanceof Date ? fmtBrDate(d.dataEvento) : raw?.dataEvento || fmtBrDate(d.dataEvento),
           cadastradoEm: d.cadastradoEm || raw?.cadastradoEm || "",
+          pagamentosExcluidos: d.pagamentosExcluidos,
+          deleted: d.deleted,
         });
       });
     };
@@ -863,20 +924,18 @@
 
   function saveDespesasCeo(list) {
     const payload = Array.isArray(list) ? list : [];
-    try {
-      localStorage.setItem(DESPESAS_CEO_KEY, JSON.stringify(payload));
-    } catch {
-      /* ignore */
-    }
     if (typeof window.saveCadastro === "function") {
       try {
-        window.saveCadastro(DESPESAS_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+        window.saveCadastro(DESPESAS_CEO_KEY, payload);
+        return;
       } catch {
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    try {
+      localStorage.setItem(DESPESAS_CEO_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
     }
   }
 
@@ -904,7 +963,26 @@
           }))
           .filter((p) => p.valor > 0)
       : [];
-    return { id, categoria, rubrica, tipoParticular, cartaoCredito, descricao, subcategoria, periodic, valor, repeticoes, dataEvento, parcelas, cadastradoEm: cadastradoEmDespesa(raw, id) };
+    const pagamentosExcluidos = Array.isArray(raw?.pagamentosExcluidos)
+      ? [...new Set(raw.pagamentosExcluidos.map((n) => Number(n) || 0).filter((n) => n > 0))]
+      : [];
+    return {
+      id,
+      categoria,
+      rubrica,
+      tipoParticular,
+      cartaoCredito,
+      descricao,
+      subcategoria,
+      periodic,
+      valor,
+      repeticoes,
+      dataEvento,
+      parcelas,
+      cadastradoEm: cadastradoEmDespesa(raw, id),
+      pagamentosExcluidos,
+      deleted: raw?.deleted === true,
+    };
   }
 
   function extrairTsDoId(id) {
@@ -964,35 +1042,32 @@
       try {
         ingest(window.loadCadastro(SITUACAO_PAG_CEO_KEY));
       } catch {
-        ingest([]);
+        /* ignore */
       }
-    } else {
-      try {
-        const raw = localStorage.getItem(SITUACAO_PAG_CEO_KEY);
-        ingest(raw ? JSON.parse(raw) : []);
-      } catch {
-        ingest([]);
-      }
+    }
+    try {
+      const raw = localStorage.getItem(SITUACAO_PAG_CEO_KEY);
+      ingest(raw ? JSON.parse(raw) : []);
+    } catch {
+      /* ignore */
     }
     return map;
   }
 
   function saveSituacaoPagamentosMap(map) {
     const payload = Array.from(map.values());
-    try {
-      localStorage.setItem(SITUACAO_PAG_CEO_KEY, JSON.stringify(payload));
-    } catch {
-      /* ignore */
-    }
     if (typeof window.saveCadastro === "function") {
       try {
-        window.saveCadastro(SITUACAO_PAG_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+        window.saveCadastro(SITUACAO_PAG_CEO_KEY, payload);
+        return;
       } catch {
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    try {
+      localStorage.setItem(SITUACAO_PAG_CEO_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
     }
   }
 
@@ -1043,7 +1118,7 @@
     modal?.setAttribute("aria-hidden", "true");
   }
 
-  function confirmarPagoDespesaModal() {
+  async function confirmarPagoDespesaModal() {
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
@@ -1054,6 +1129,8 @@
     renderListaDespesas();
     if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
     if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
+    const fb = document.getElementById("finCeoDespFeedback");
+    await enviarFinanceiroCeoNuvem(fb, "Pagamento marcado PAGO e gravado na nuvem.");
   }
 
   function bindCalendariosCeo(root) {
@@ -2977,9 +3054,12 @@
     if (isAtalhoLocadora()) list = list.filter((d) => d.categoria === CAT_DK_LOCADORA);
     const rows = [];
     list.forEach((d) => {
+      if (d.deleted) return;
+      const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
       const pagos = expandirPagamentosDespesa(d, d.repeticoes);
       const { tipo, desc } = detalheDespesaLista(d);
       pagos.forEach((p, idx) => {
+        if (excluidos.has(Number(p.numero))) return;
         rows.push(ceoListaLinhaFromPagamento(d, p, tipo, desc, idx === 0));
       });
     });
@@ -3060,7 +3140,9 @@
   function renderListaDespesaRowHtml(row) {
     const d = row._d;
     const p = row._p;
-    const excluir = `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}" data-pag="${p.numero}">Excluir</button>`;
+    const excluir = isSessaoTitularCeoCpf()
+      ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}" data-pag="${p.numero}">Excluir</button>`
+      : "";
     const acoes = `<div class="fin-ceo-desp-row-acoes">
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
@@ -3304,15 +3386,11 @@
       editMeta.mode === "single"
         ? `pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} atualizado`
         : `${pagos.length} pagamento(s) futuro(s) atualizado(s)`;
-    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). Veja na tabela abaixo.`;
+    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). A enviar para a nuvem…`;
     finCeoDespEditState = null;
     if (lancamentoEhCartaoCredito(entry)) manterFormAposLancamentoCartao(entry);
     else limparFormDespesa();
-    if (fb) {
-      fb.textContent = lancamentoEhCartaoCredito(entry)
-        ? `${msg} Cartão e data mantidos para o próximo lançamento.`
-        : msg;
-    }
+    if (fb) fb.textContent = msg;
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
@@ -3321,6 +3399,7 @@
     if (!lancamentoEhCartaoCredito(entry)) {
       document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    void enviarFinanceiroCeoNuvem(fb, `Despesa editada — ${escopo}. Gravado na nuvem.`);
   }
 
   function persistirDespesaEntry(entry) {
@@ -3343,9 +3422,7 @@
     if (ehCartao) manterFormAposLancamentoCartao(entry);
     else limparFormDespesa();
     if (fb) {
-      fb.textContent = ehCartao
-        ? `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Cartão e data mantidos para o próximo lançamento.`
-        : `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Veja na tabela abaixo.`;
+      fb.textContent = `Despesa cadastrada neste PC — ${pagos.length} pagamento(s) de ${brl(entry.valor)}. A enviar para a nuvem…`;
     }
     renderListaDespesas();
     renderResumoCadastroDespesas();
@@ -3355,6 +3432,12 @@
     if (!ehCartao) {
       document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    void enviarFinanceiroCeoNuvem(
+      fb,
+      ehCartao
+        ? `Despesa gravada na nuvem — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Cartão e data mantidos para o próximo lançamento.`
+        : `Despesa gravada na nuvem — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}).`
+    );
   }
 
   function confirmarDespesaModal() {
@@ -4448,19 +4531,33 @@
     return { list: next, ok: true };
   }
 
-  /** Excluir some da lista: cada linha (PAGAMENTO 01, 02…) tem o próprio Excluir. */
+  /** Excluir some da lista: cada linha (PAGAMENTO 01, 02…) tem o próprio Excluir. Só o CEO. */
   function excluirDespesa(id, pagNum) {
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
-    const result = aplicarExcluirPagamentoDespesa(loadDespesasCeo(), id, pagNum || 1);
-    if (!result.ok) return;
-    saveDespesasCeo(result.list);
+    if (!isSessaoTitularCeoCpf()) {
+      const fb = document.getElementById("finCeoDespFeedback");
+      if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
+      return;
+    }
+    const list = loadDespesasCeo();
+    const idx = list.findIndex((d) => String(d.id) === String(id));
+    if (idx < 0) return;
+    const pag = Math.max(1, Number(pagNum) || 1);
+    const atual = list[idx];
+    const excluidos = new Set(Array.isArray(atual.pagamentosExcluidos) ? atual.pagamentosExcluidos.map(Number) : []);
+    excluidos.add(pag);
+    const next = [...list];
+    next[idx] = { ...atual, pagamentosExcluidos: [...excluidos], updatedAt: Date.now() };
+    saveDespesasCeo(next);
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
+    const fb = document.getElementById("finCeoDespFeedback");
+    void enviarFinanceiroCeoNuvem(fb, "Exclusão do CEO gravada na nuvem. O lançamento não volta nos outros PCs.");
   }
 
   function mesLabelCurtoCeo(d) {
@@ -4841,6 +4938,11 @@
       }
       const btnExcluir = ev.target.closest(".fin-ceo-desp-excluir");
       if (btnExcluir) {
+        if (!isSessaoTitularCeoCpf()) {
+          const fb = document.getElementById("finCeoDespFeedback");
+          if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
+          return;
+        }
         const id = btnExcluir.getAttribute("data-id");
         const pag = Number(btnExcluir.getAttribute("data-pag")) || 1;
         if (id && window.confirm("Excluir este pagamento? A linha some da lista.")) {
@@ -4872,6 +4974,34 @@
     if (paneAberto === "despesas") renderCadastroDespesas();
   };
 
+  function invalidarCacheFinanceiroCeo() {
+    if (typeof window.__DK_invalidateCadastroParseCache !== "function") return;
+    try {
+      window.__DK_invalidateCadastroParseCache("dk_manutencoes_rapidas_v1");
+      window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_despesas_v1");
+      window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_situacao_pag_v1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function sincronizarFinanceiroCeoAbrir() {
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      try {
+        window.__DK_markLocalDataAuthority();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      await window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    }
+    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      await window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {});
+    }
+    invalidarCacheFinanceiroCeo();
+  }
+
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
     migrarFontesLegadoParaCartoes();
@@ -4883,22 +5013,9 @@
       return;
     }
     abrirPane("dashboard");
-    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }))
-        .catch(() => {})
-        .then(() => {
-          if (typeof window.__DK_invalidateCadastroParseCache === "function") {
-            try {
-              window.__DK_invalidateCadastroParseCache("dk_manutencoes_rapidas_v1");
-              window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_despesas_v1");
-              window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_situacao_pag_v1");
-            } catch {
-              /* ignore */
-            }
-          }
-          renderDashboard();
-        });
-    }
+    void sincronizarFinanceiroCeoAbrir().then(() => {
+      renderDashboard();
+    });
   };
 
   window.__DK_financeiroCeoAbrirAtalhoLocadora = function __DK_financeiroCeoAbrirAtalhoLocadora() {
@@ -4911,29 +5028,9 @@
       return;
     }
     abrirPane("despesas");
-    const afterSync = () => {
-      if (typeof window.__DK_invalidateCadastroParseCache === "function") {
-        try {
-          window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_despesas_v1");
-          window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_situacao_pag_v1");
-        } catch {
-          /* ignore */
-        }
-      }
+    void sincronizarFinanceiroCeoAbrir().then(() => {
       renderCadastroDespesas();
-    };
-    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }))
-        .catch(() => {})
-        .then(() => {
-          afterSync();
-          if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-            void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
-          }
-        });
-    } else {
-      afterSync();
-    }
+    });
   };
 
   window.__DK_financeiroCeoLimparAtalhoLocadora = function __DK_financeiroCeoLimparAtalhoLocadora() {
@@ -4971,29 +5068,34 @@
 
   window.__DK_mergeFinanceiroCeoDespesas = function mergeFinanceiroCeoDespesas(localArr, cloudArr) {
     const map = new Map();
-    [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
+    const add = (raw) => {
       const d = normalizeDespesa(raw);
-      map.set(d.id, d);
-    });
+      const prev = map.get(d.id);
+      if (!prev) {
+        map.set(d.id, d);
+        return;
+      }
+      const excluidos = [...new Set([...(prev.pagamentosExcluidos || []), ...(d.pagamentosExcluidos || [])])];
+      map.set(d.id, { ...prev, ...d, pagamentosExcluidos: excluidos, deleted: prev.deleted === true || d.deleted === true });
+    };
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
+    (Array.isArray(localArr) ? localArr : []).forEach(add);
     return Array.from(map.values());
   };
 
   window.__DK_mergeFinanceiroCeoSituacaoPag = function mergeFinanceiroCeoSituacaoPag(localArr, cloudArr) {
     const map = new Map();
-    [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
-      const chave = String(raw?.chave || "").trim();
+    const add = (raw) => {
+      if (!raw || typeof raw !== "object") return;
+      const chave = String(raw.chave || "").trim();
       if (!chave) return;
       const prev = map.get(chave);
-      const pagoEm = String(raw?.pagoEm || "").trim();
-      const prevEm = String(prev?.pagoEm || "").trim();
-      if (!prev || Date.parse(pagoEm) >= Date.parse(prevEm)) {
-        map.set(chave, {
-          chave,
-          situacao: raw?.situacao === "PAGO" ? "PAGO" : "A_PAGAR",
-          pagoEm: pagoEm || prevEm,
-        });
-      }
-    });
+      const pago = prev?.situacao === "PAGO" || raw.situacao === "PAGO";
+      const pagoEm = [prev?.pagoEm, raw.pagoEm].filter(Boolean).sort().slice(-1)[0] || "";
+      map.set(chave, { chave, situacao: pago ? "PAGO" : "A_PAGAR", pagoEm });
+    };
+    (Array.isArray(localArr) ? localArr : []).forEach(add);
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
     return Array.from(map.values());
   };
 

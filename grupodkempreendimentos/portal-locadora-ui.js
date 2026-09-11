@@ -26948,6 +26948,7 @@
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
+  window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
   window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
@@ -27043,6 +27044,7 @@
   window.__DK_portalRefreshMielAcesso = refreshPortalMielHomeAcesso;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
+  window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_isPortalAdministradorTitularCeo = isPortalAdministradorTitularCeo;
   window.__DK_portalAndroidSomenteLeitura = portalAndroidSomenteLeitura;
   window.__DK_portalAndroidBloquearEscrita = portalAndroidBloquearEscrita;

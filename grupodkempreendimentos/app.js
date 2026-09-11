@@ -3209,7 +3209,15 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       }
       const score = (x) =>
         Number(x.updatedAt || 0) || Date.parse(x.cadastradoEm || x.criadoEm || x.updated_at || 0) || 0;
-      byId.set(id, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+      const newer = score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex };
+      const excluidos = [
+        ...new Set(
+          [...(Array.isArray(ex.pagamentosExcluidos) ? ex.pagamentosExcluidos : []), ...(Array.isArray(r.pagamentosExcluidos) ? r.pagamentosExcluidos : [])]
+            .map((n) => Number(n) || 0)
+            .filter((n) => n > 0)
+        ),
+      ];
+      byId.set(id, { ...newer, pagamentosExcluidos: excluidos, deleted: ex.deleted === true || r.deleted === true });
     };
     prev.forEach(add);
     incoming.forEach(add);
@@ -3307,7 +3315,11 @@ function saveCadastro(key, list, opts) {
     key === CAD_VEICULOS_KEY ||
     key === PORTAL_VEICULOS_KEY ||
     key === FROTA_VEICULOS_KEY ||
-    key === CAD_LOCACOES_KEY;
+    key === CAD_LOCACOES_KEY ||
+    key === "dk_financeiro_ceo_despesas_v1" ||
+    key === "dk_financeiro_ceo_situacao_pag_v1" ||
+    key === "dk_financeiro_ceo_fontes_v1" ||
+    key === "dk_financeiro_ceo_cartoes_v1";
   let next = applyClienteCodigoPadraoNaLista(key, Array.isArray(list) ? list : []);
   if (typeof window.__DK_filterOficialCadastroArray === "function") {
     next = window.__DK_filterOficialCadastroArray(key, next);
