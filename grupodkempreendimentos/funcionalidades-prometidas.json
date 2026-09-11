@@ -2324,20 +2324,26 @@
           "SISTEMA NÃO CONSEGUIU GUARDAR OS DADOS EM SEGURANÇA, TENTE MAIS TARDE",
           "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO",
           "/api/cadastro-financeiro-ceo",
-          "pushFinanceiroCeoParaNuvem"
+          "pushFinanceiroCeoParaNuvem",
+          "CEO_LISTA_PAGINA = 80",
+          "__DK_runWithoutCloudPush",
+          "finCeoDespesasMostrarMais"
+        ],
+        "index.html": [
+          "finCeoDespNuvemResultModal",
+          "finCeoDespesasMostrarMais"
         ],
         "api/cadastro-financeiro-ceo.js": [
           "dk:portal:financeiro_ceo:v1",
-          "mergeFinanceiroCeoSituacaoPag"
-        ],
-        "index.html": [
-          "finCeoDespNuvemResultModal"
+          "mergeFinanceiroCeoSituacaoPag",
+          "loadDedicatedOrSeed"
         ],
         "portal-supabase-sync.js": [
           "dk_financeiro_ceo_despesas_v1",
           "__DK_financeiroCeoRefreshDespesas",
           "pullFinanceiroCeoKeysFromCloud",
-          "mergeFinanceiroCeoSituacaoPagArrays"
+          "mergeFinanceiroCeoSituacaoPagArrays",
+          "__DK_runWithoutCloudPush"
         ]
       }
     },

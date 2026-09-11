@@ -9,12 +9,15 @@
   const MSG_NUVEM_OK = "DADOS GRAVADOS COM SEGURANÇA, SIGA PARA O PRÓXIMO LANÇAMENTO";
   const TITULAR_CEO_CPF = "03037897430";
   let finCeoGravacaoEmCurso = false;
+  let finCeoNuvemWaitWatchdog = 0;
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
   const CARTAO_BANCOS_MEM_KEY = "dk_financeiro_ceo_cartao_bancos_v1";
   const CARTAO_DOCS_MEM_KEY = "dk_financeiro_ceo_cartao_docs_v1";
   const CEO_LISTA_SORT_VENCIMENTO = "__vencimento_ceo";
+  const CEO_LISTA_PAGINA = 80;
+  let ceoListaLimiteVisivel = CEO_LISTA_PAGINA;
   const CEO_GRAF_SORT_NATURAL = "__natural_graf";
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
@@ -222,6 +225,18 @@
     modal.dataset.finCeoNuvemKind = kind;
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    if (finCeoNuvemWaitWatchdog) {
+      window.clearTimeout(finCeoNuvemWaitWatchdog);
+      finCeoNuvemWaitWatchdog = 0;
+    }
+    if (kind === "wait") {
+      finCeoNuvemWaitWatchdog = window.setTimeout(() => {
+        finCeoNuvemWaitWatchdog = 0;
+        if (modal.dataset.finCeoNuvemKind !== "wait") return;
+        finCeoGravacaoEmCurso = false;
+        abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
+      }, 11000);
+    }
     if (kind !== "wait") btn?.focus();
   }
 
@@ -240,36 +255,40 @@
 
   function persistBundleFinanceiroCeo(data) {
     if (!data || typeof data !== "object") return;
-    const pairs = [
-      [DESPESAS_CEO_KEY, data.dk_financeiro_ceo_despesas_v1],
-      [SITUACAO_PAG_CEO_KEY, data.dk_financeiro_ceo_situacao_pag_v1],
-      [FONTES_CEO_KEY, data.dk_financeiro_ceo_fontes_v1],
-      [CARTOES_CEO_KEY, data.dk_financeiro_ceo_cartoes_v1],
-    ];
-    for (const [key, arr] of pairs) {
-      if (!Array.isArray(arr)) continue;
-      if (typeof window.saveCadastro === "function") {
+    const gravar = () => {
+      const pairs = [
+        [DESPESAS_CEO_KEY, data.dk_financeiro_ceo_despesas_v1],
+        [SITUACAO_PAG_CEO_KEY, data.dk_financeiro_ceo_situacao_pag_v1],
+        [FONTES_CEO_KEY, data.dk_financeiro_ceo_fontes_v1],
+        [CARTOES_CEO_KEY, data.dk_financeiro_ceo_cartoes_v1],
+      ];
+      for (const [key, arr] of pairs) {
+        if (!Array.isArray(arr)) continue;
+        if (typeof window.saveCadastro === "function") {
+          try {
+            window.saveCadastro(key, arr, { allowShrink: true });
+            continue;
+          } catch {
+            /* ignore */
+          }
+        }
         try {
-          window.saveCadastro(key, arr, { allowShrink: true });
-          continue;
+          localStorage.setItem(key, JSON.stringify(arr));
         } catch {
           /* ignore */
         }
       }
-      try {
-        localStorage.setItem(key, JSON.stringify(arr));
-      } catch {
-        /* ignore */
+      if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+        try {
+          window.__DK_invalidateCadastroParseCache(DESPESAS_CEO_KEY);
+          window.__DK_invalidateCadastroParseCache(SITUACAO_PAG_CEO_KEY);
+        } catch {
+          /* ignore */
+        }
       }
-    }
-    if (typeof window.__DK_invalidateCadastroParseCache === "function") {
-      try {
-        window.__DK_invalidateCadastroParseCache(DESPESAS_CEO_KEY);
-        window.__DK_invalidateCadastroParseCache(SITUACAO_PAG_CEO_KEY);
-      } catch {
-        /* ignore */
-      }
-    }
+    };
+    if (typeof window.__DK_runWithoutCloudPush === "function") window.__DK_runWithoutCloudPush(gravar);
+    else gravar();
   }
 
   async function fetchFinanceiroCeoComTimeout(url, init, ms) {
@@ -280,7 +299,7 @@
       } catch {
         /* ignore */
       }
-    }, ms || 12000);
+    }, ms || 8000);
     try {
       return await fetch(url, ctrl ? { ...init, signal: ctrl.signal } : init);
     } finally {
@@ -293,7 +312,7 @@
       const r = await fetchFinanceiroCeoComTimeout(`/api/cadastro-financeiro-ceo?nocache=${Date.now()}`, {
         headers: headersFinanceiroCeoApi(),
         cache: "no-store",
-      }, 12000);
+      }, 8000);
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok || !j.data || typeof j.data !== "object") return false;
       persistBundleFinanceiroCeo(j.data);
@@ -309,10 +328,9 @@
       headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
       body: JSON.stringify({ data: bundleFinanceiroCeoLocal() }),
       cache: "no-store",
-    }, 12000);
+    }, 8000);
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) return { ok: false, r: j, status: r.status };
-    if (j.data && typeof j.data === "object") persistBundleFinanceiroCeo(j.data);
     return { ok: true, r: j };
   }
 
@@ -330,9 +348,6 @@
       const r = await pushFinanceiroCeoParaNuvem();
       if (r && r.ok === true) {
         if (feedbackEl) feedbackEl.textContent = mensagemOk || MSG_NUVEM_OK;
-        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-          void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
-        }
         return { ok: true, r: r.r };
       }
       if (feedbackEl && !exigirNuvem) {
@@ -352,10 +367,10 @@
   function atualizarTelasAposDespesaGravada() {
     renderListaDespesas();
     renderResumoCadastroDespesas();
-    renderDashboard();
+    if (paneAberto === "dashboard") renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
+    if (paneAberto === "periodo") renderResumoPeriodoCeo();
     if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
   }
 
@@ -365,25 +380,45 @@
     const snap = snapshotFinanceiroCeoLocal();
     const fb = document.getElementById("finCeoDespFeedback");
     try {
-      aplicarMutacao();
+      if (typeof window.__DK_runWithoutCloudPush === "function") {
+        window.__DK_runWithoutCloudPush(aplicarMutacao);
+      } else {
+        aplicarMutacao();
+      }
       abrirModalResultadoNuvem("wait", "A gravar os dados com segurança…");
       if (fb) fb.textContent = "A gravar os dados com segurança…";
       const r = await Promise.race([
         enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true }),
-        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 15000)),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 10000)),
       ]);
       if (!r || r.ok !== true) {
-        restaurarFinanceiroCeoLocal(snap);
+        if (typeof window.__DK_runWithoutCloudPush === "function") {
+          window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
+        } else {
+          restaurarFinanceiroCeoLocal(snap);
+        }
         abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
         if (fb) fb.textContent = MSG_NUVEM_ERRO;
         return { ok: false, r };
       }
-      if (typeof aposSucesso === "function") aposSucesso();
       abrirModalResultadoNuvem("ok", MSG_NUVEM_OK);
       if (fb) fb.textContent = MSG_NUVEM_OK;
+      if (typeof aposSucesso === "function") {
+        window.setTimeout(() => {
+          try {
+            aposSucesso();
+          } catch {
+            /* ignore */
+          }
+        }, 0);
+      }
       return { ok: true, r };
     } catch (err) {
-      restaurarFinanceiroCeoLocal(snap);
+      if (typeof window.__DK_runWithoutCloudPush === "function") {
+        window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
+      } else {
+        restaurarFinanceiroCeoLocal(snap);
+      }
       abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
       if (fb) fb.textContent = MSG_NUVEM_ERRO;
       return { ok: false, error: err };
@@ -3478,8 +3513,18 @@
       renderTotaisEndividamentoLista([], linhasBase);
       return;
     }
-    body.innerHTML = linhas.map(renderListaDespesaRowHtml).join("");
+    const visiveis = linhas.slice(0, ceoListaLimiteVisivel);
+    body.innerHTML = visiveis.map(renderListaDespesaRowHtml).join("");
     renderTotaisEndividamentoLista(linhas, linhasBase);
+    const mais = document.getElementById("finCeoDespesasMostrarMais");
+    if (mais) {
+      const resto = Math.max(0, linhas.length - visiveis.length);
+      mais.hidden = resto <= 0;
+      mais.textContent =
+        resto > 0
+          ? `Mostrar mais ${Math.min(CEO_LISTA_PAGINA, resto)} de ${linhas.length} lançamentos`
+          : "Todos os lançamentos visíveis";
+    }
   }
 
   function renderCadastroDespesas() {
@@ -5054,7 +5099,10 @@
       bindCalendariosCeo(document.getElementById("finCeoPaneSimulacao"));
       renderResumoSimulacaoCeo();
     }
-    if (id === "despesas") renderCadastroDespesas();
+    if (id === "despesas") {
+      ceoListaLimiteVisivel = CEO_LISTA_PAGINA;
+      renderCadastroDespesas();
+    }
     if (id === "grafico-despesas") renderGraficoDespesas();
     if (id === "relatorio") renderRelatorio();
     if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
@@ -5171,6 +5219,10 @@
       });
     }
 
+    document.getElementById("finCeoDespesasMostrarMais")?.addEventListener("click", () => {
+      ceoListaLimiteVisivel += CEO_LISTA_PAGINA;
+      renderListaDespesas();
+    });
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
@@ -5291,22 +5343,10 @@
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      await Promise.race([
-        window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {}),
-        new Promise((resolve) => setTimeout(resolve, 5000)),
-      ]);
-    }
     if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      await Promise.race([
-        window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {}),
-        new Promise((resolve) => setTimeout(resolve, 5000)),
-      ]);
+      void window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {});
     }
     invalidarCacheFinanceiroCeo();
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
-    }
   }
 
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {

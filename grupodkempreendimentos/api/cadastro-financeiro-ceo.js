@@ -74,9 +74,21 @@ function mergeBundles(a, b) {
   };
 }
 
-async function loadUniao(redis) {
-  const [rawSnap, rawDed] = await Promise.all([redis.get(REDIS_SNAPSHOT_KEY), redis.get(STORAGE_KEY)]);
-  return mergeBundles(parseSnapshotFin(rawSnap), parseDedicated(rawDed));
+function bundleTemDados(bundle) {
+  return BUNDLE_KEYS.some((k) => asArray(bundle && bundle[k]).length > 0);
+}
+
+/** Canal quente: só o Redis dedicado. Snapshot gordo só na 1ª semente. */
+async function loadDedicatedOrSeed(redis) {
+  const rawDed = await redis.get(STORAGE_KEY);
+  const dedicated = parseDedicated(rawDed);
+  if (bundleTemDados(dedicated)) return dedicated;
+  const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
+  const seeded = mergeBundles(parseSnapshotFin(rawSnap), dedicated);
+  if (bundleTemDados(seeded)) {
+    await redis.set(STORAGE_KEY, JSON.stringify(seeded));
+  }
+  return seeded;
 }
 
 module.exports = async function handler(req, res) {
@@ -98,7 +110,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const data = await loadUniao(redis);
+      const data = await loadDedicatedOrSeed(redis);
       return res.status(200).json({ ok: true, data });
     }
 
@@ -116,10 +128,16 @@ module.exports = async function handler(req, res) {
         }
       }
       const incoming = pickBundle(body?.data && typeof body.data === "object" ? body.data : body);
-      const existing = await loadUniao(redis);
+      const existing = await loadDedicatedOrSeed(redis);
       const merged = mergeBundles(existing, incoming);
       await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, data: merged });
+      return res.status(200).json({
+        ok: true,
+        count: {
+          dk_financeiro_ceo_despesas_v1: merged.dk_financeiro_ceo_despesas_v1.length,
+          dk_financeiro_ceo_situacao_pag_v1: merged.dk_financeiro_ceo_situacao_pag_v1.length,
+        },
+      });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

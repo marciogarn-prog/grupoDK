@@ -1811,6 +1811,16 @@
     return { text: `Erro ao guardar na nuvem: ${detail}`, tone: null };
   }
 
+  function runWithoutCloudPush(fn) {
+    const prev = suppressCloudHook;
+    suppressCloudHook = true;
+    try {
+      return fn();
+    } finally {
+      suppressCloudHook = prev;
+    }
+  }
+
   function scheduleCloudPushDebounced() {
     if (suppressCloudHook || window.__DK_suppressPortalCadastroPush === true) return;
     if (window.__DK_IS_OFFLINE_MODE__ === true) {
@@ -3870,6 +3880,7 @@
   try {
     window.__DK_pushCloudSnapshotNow = pushCloudSnapshotNow;
     window.__DK_awaitAutoCloudPushConfirmed = awaitAutoCloudPushConfirmed;
+    window.__DK_runWithoutCloudPush = runWithoutCloudPush;
   } catch {
     /* ignore */
   }
