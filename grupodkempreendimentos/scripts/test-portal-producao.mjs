@@ -130,6 +130,16 @@ async function runSuite() {
         finCeoPagJs.includes('reason: "timeout"'),
       "pagamento não fica preso no snapshot gordo"
     );
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260911supa-pt`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "faixa Supabase em português",
+      syncSupaPtJs.includes("Cópia Supabase não confirmou") &&
+        syncSupaPtJs.includes("Os dados estão no Redis (nuvem principal).") &&
+        !/userMessage: `Supabase: \$\{text/.test(syncSupaPtJs),
+      "Área da equipa sem a palavra técnica doorman"
+    );
     const tagSeq = await page.evaluate(() => {
       if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };
       const fromFmt = nextTagByTipo("CARRO", [

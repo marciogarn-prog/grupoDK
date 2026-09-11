@@ -496,7 +496,20 @@
       return {
         code: "doorman_key",
         userMessage:
-          "Dados no Redis. A cópia Supabase do servidor ainda não tem a chave do porteiro (SUPABASE_SERVICE_ROLE_KEY).",
+          "Cópia Supabase sem chave no servidor. Os dados estão no Redis (nuvem principal).",
+        isOutage: false,
+      };
+    }
+    if (
+      lower === "doorman" ||
+      lower.includes("doorman") ||
+      lower.includes("supabase_http") ||
+      lower.includes("supabase_empty")
+    ) {
+      return {
+        code: "doorman",
+        userMessage:
+          "Cópia Supabase não confirmou. Os dados estão no Redis (nuvem principal).",
         isOutage: false,
       };
     }
@@ -523,7 +536,11 @@
         isOutage: true,
       };
     }
-    return { code: "error", userMessage: `Supabase: ${text.slice(0, 180)}`, isOutage: false };
+    return {
+      code: "error",
+      userMessage: "Cópia Supabase não confirmou. Os dados estão no Redis (nuvem principal).",
+      isOutage: false,
+    };
   }
 
   function updateSupabaseStatusBanner(supaOk, supaErr) {

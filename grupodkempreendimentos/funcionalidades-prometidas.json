@@ -2548,6 +2548,17 @@
       }
     },
     {
+      "id": "faixa-supabase-portugues",
+      "descricao": "Na Área da equipa, a faixa vermelha da cópia Supabase fala em português: Cópia Supabase não confirmou. Os dados estão no Redis (nuvem principal). Não mostra a palavra técnica doorman.",
+      "ficheiros": {
+        "portal-supabase-sync.js": [
+          "Cópia Supabase não confirmou",
+          "Os dados estão no Redis (nuvem principal).",
+          "Cópia Supabase sem chave no servidor"
+        ]
+      }
+    },
+    {
       "id": "banner-cpf-operadores-logados",
       "descricao": "Na faixa LOGADO COMO ADMINISTRADOR CEO 03037897430 aparecem também os CPF dos outros operadores que estão logados (portalAdminBannerOperadoresCpfs), no mesmo sítio.",
       "ficheiros": {
