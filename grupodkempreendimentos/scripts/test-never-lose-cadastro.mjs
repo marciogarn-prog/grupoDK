@@ -216,6 +216,24 @@ check(
   keepExisting.dk_locacoes_cadastro.length === 1
 );
 
+const editKeep = neverLoseCadastroPayload(
+  {
+    dk_financeiro_ceo_despesas_v1: [
+      { id: "ceo-consorcio-1", descricao: "CONSORCIOS", valor: 5960.66, updatedAt: 2000, cadastradoEm: "2026-01-01", ceoAutoridade: true },
+    ],
+  },
+  {
+    dk_financeiro_ceo_despesas_v1: [
+      { id: "ceo-consorcio-1", descricao: "CONSORCIOS", valor: 5660.5, updatedAt: 1000, cadastradoEm: "2026-01-01" },
+    ],
+  }
+);
+check(
+  "edicao CEO mais nova nao volta atras no snapshot antigo",
+  Array.isArray(editKeep.dk_financeiro_ceo_despesas_v1) &&
+    editKeep.dk_financeiro_ceo_despesas_v1.some((d) => d.id === "ceo-consorcio-1" && Number(d.valor) === 5960.66)
+);
+
 const sugKept = neverLoseCadastroPayload(
   { dk_manutencao_rapida_sugestao_oleo_v1: { oleo: 40, updatedAt: "2026-09-11T10:00:00.000Z" } },
   { dk_clientes_cadastro: [] }

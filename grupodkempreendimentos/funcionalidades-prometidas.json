@@ -2292,13 +2292,15 @@
     },
     {
       "id": "fin-despesas-sync-admin",
-      "descricao": "Cadastrar despesa e A PAGAR enviam na hora para a nuvem e mostram se gravou. PAGO nunca rebaixa para A PAGAR. Abrir a tela sobe primeiro e só depois une. Só o administrador CEO (CPF da sessão) exclui. Lançamento na nuvem não some no merge.",
+      "descricao": "Cadastrar despesa e A PAGAR enviam na hora para a nuvem e mostram se gravou. PAGO não rebaixa por nuvem/operador. Edição do CEO com updatedAt mais novo não volta atrás. Abrir a tela sobe primeiro e só depois une. Só o administrador CEO (CPF da sessão) altera ou exclui. Lançamento na nuvem não some no merge.",
       "ficheiros": {
         "lib/dk-append-only-merge.cjs": [
           "dk_financeiro_ceo_despesas_v1",
           "mergeFinanceiroCeoDespesas",
           "mergeFinanceiroCeoSituacaoPag",
-          "pagamentosExcluidos"
+          "pagamentosExcluidos",
+          "pickFinanceiroCeoRegistro",
+          "ceoAutoridade"
         ],
         "app.js": [
           "dk_financeiro_ceo_despesas_v1",
@@ -2313,7 +2315,10 @@
           "enviarFinanceiroCeoNuvem",
           "sincronizarFinanceiroCeoAbrir",
           "isSessaoTitularCeoCpf",
-          "pagamentosExcluidos"
+          "pagamentosExcluidos",
+          "bloquearEscritaFinanceiroCeo",
+          "carimboCeoEscrita",
+          "ceoAutoridade"
         ],
         "portal-supabase-sync.js": [
           "dk_financeiro_ceo_despesas_v1",

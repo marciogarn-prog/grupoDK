@@ -2760,14 +2760,22 @@
     if (typeof window.__DK_mergeFinanceiroCeoDespesas === "function") {
       return window.__DK_mergeFinanceiroCeoDespesas(localArr, cloudArr);
     }
+    const score = (x) => Number(x?.updatedAt || 0) || Date.parse(x?.cadastradoEm || 0) || 0;
     const byId = new Map();
-    for (const arr of [localArr, cloudArr]) {
+    for (const arr of [cloudArr, localArr]) {
       if (!Array.isArray(arr)) continue;
       for (const row of arr) {
         if (!row || typeof row !== "object") continue;
         const id = String(row.id || "");
         if (!id) continue;
-        byId.set(id, row);
+        const ex = byId.get(id);
+        if (!ex) {
+          byId.set(id, row);
+          continue;
+        }
+        const se = score(ex);
+        const sr = score(row);
+        byId.set(id, sr > se ? { ...ex, ...row } : se > sr ? { ...row, ...ex } : ex);
       }
     }
     return Array.from(byId.values());

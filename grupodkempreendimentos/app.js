@@ -3209,7 +3209,10 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       }
       const score = (x) =>
         Number(x.updatedAt || 0) || Date.parse(x.cadastradoEm || x.criadoEm || x.updated_at || 0) || 0;
-      const newer = score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex };
+      const se = score(ex);
+      const sr = score(r);
+      const newer =
+        sr > se ? { ...ex, ...r } : se > sr ? { ...r, ...ex } : r.ceoAutoridade && !ex.ceoAutoridade ? { ...ex, ...r } : { ...r, ...ex };
       const excluidos = [
         ...new Set(
           [...(Array.isArray(ex.pagamentosExcluidos) ? ex.pagamentosExcluidos : []), ...(Array.isArray(r.pagamentosExcluidos) ? r.pagamentosExcluidos : [])]
@@ -3236,9 +3239,16 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         byChave.set(chave, { ...r, chave });
         return;
       }
-      const pago = ex.situacao === "PAGO" || r.situacao === "PAGO";
-      const pagoEm = [ex.pagoEm, r.pagoEm].filter(Boolean).sort().slice(-1)[0] || "";
-      byChave.set(chave, { chave, situacao: pago ? "PAGO" : "A_PAGAR", pagoEm });
+      const scoreSit = (x) => Number(x.updatedAt || 0) || Date.parse(x.pagoEm || 0) || 0;
+      const se = scoreSit(ex);
+      const sr = scoreSit(r);
+      let winner = sr > se ? r : ex;
+      if (se === sr) {
+        const pago = ex.situacao === "PAGO" || r.situacao === "PAGO";
+        winner = { ...winner, situacao: pago ? "PAGO" : "A_PAGAR" };
+      }
+      const pagoEm = [ex.pagoEm, r.pagoEm].filter(Boolean).sort().slice(-1)[0] || winner.pagoEm || "";
+      byChave.set(chave, { ...winner, chave, pagoEm });
     };
     prev.forEach(add);
     incoming.forEach(add);

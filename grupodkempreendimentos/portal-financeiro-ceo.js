@@ -117,6 +117,25 @@
     }
   }
 
+  function bloquearEscritaFinanceiroCeo(fb) {
+    if (isSessaoTitularCeoCpf()) return false;
+    const el = fb || document.getElementById("finCeoDespFeedback");
+    if (el) {
+      el.textContent =
+        "Só o administrador CEO pode alterar o financeiro. Nuvem, sistema e operador não gravam nem desfazem o que o CEO salvou.";
+    }
+    return true;
+  }
+
+  function carimboCeoEscrita(extra) {
+    return {
+      ...(extra && typeof extra === "object" ? extra : {}),
+      updatedAt: Date.now(),
+      updatedByCpf: TITULAR_CEO_CPF,
+      ceoAutoridade: true,
+    };
+  }
+
   function nuvemPushResultOk(push) {
     if (!push || push.ok === false) return false;
     if (push.skipped && (push.reason === "android_somente_leitura" || push.reason === "offline_mode")) {
@@ -903,6 +922,9 @@
           cadastradoEm: d.cadastradoEm || raw?.cadastradoEm || "",
           pagamentosExcluidos: d.pagamentosExcluidos,
           deleted: d.deleted,
+          updatedAt: d.updatedAt,
+          updatedByCpf: d.updatedByCpf,
+          ceoAutoridade: d.ceoAutoridade,
         });
       });
     };
@@ -923,6 +945,7 @@
   }
 
   function saveDespesasCeo(list) {
+    if (bloquearEscritaFinanceiroCeo()) return;
     const payload = Array.isArray(list) ? list : [];
     if (typeof window.saveCadastro === "function") {
       try {
@@ -982,6 +1005,9 @@
       cadastradoEm: cadastradoEmDespesa(raw, id),
       pagamentosExcluidos,
       deleted: raw?.deleted === true,
+      updatedAt: Number(raw?.updatedAt || 0) || 0,
+      updatedByCpf: String(raw?.updatedByCpf || "").replace(/\D/g, "").slice(0, 11),
+      ceoAutoridade: raw?.ceoAutoridade === true,
     };
   }
 
@@ -1055,6 +1081,7 @@
   }
 
   function saveSituacaoPagamentosMap(map) {
+    if (bloquearEscritaFinanceiroCeo()) return;
     const payload = Array.from(map.values());
     if (typeof window.saveCadastro === "function") {
       try {
@@ -1081,9 +1108,17 @@
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
+    if (bloquearEscritaFinanceiroCeo()) return;
     const map = loadSituacaoPagamentosMap();
     const chave = chaveSituacaoPagamento(despesaId, pagNum, data);
-    map.set(chave, { chave, situacao: "PAGO", pagoEm: new Date().toISOString() });
+    map.set(
+      chave,
+      carimboCeoEscrita({
+        chave,
+        situacao: "PAGO",
+        pagoEm: new Date().toISOString(),
+      })
+    );
     saveSituacaoPagamentosMap(map);
   }
 
@@ -1119,6 +1154,7 @@
   }
 
   async function confirmarPagoDespesaModal() {
+    if (bloquearEscritaFinanceiroCeo()) return;
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
@@ -2779,7 +2815,7 @@
 
   function serializarDespesa(d) {
     const n = normalizeDespesa(d);
-    return {
+    return carimboCeoEscrita({
       id: n.id,
       categoria: n.categoria,
       rubrica: n.rubrica,
@@ -2792,7 +2828,9 @@
       dataEvento: fmtBrDate(n.dataEvento),
       cadastradoEm: n.cadastradoEm || new Date().toISOString(),
       parcelas: n.parcelas,
-    };
+      pagamentosExcluidos: n.pagamentosExcluidos,
+      deleted: n.deleted,
+    });
   }
 
   function getPagamentoDespesa(d, numero) {
@@ -2882,7 +2920,12 @@
     const pag = getPagamentoDespesa(desp, pagNum);
     if (!pag) return;
 
-    finCeoDespEditState = { mode, despesaId: desp.id, pagamentoNumero: pagNum };
+    finCeoDespEditState = {
+      mode,
+      despesaId: desp.id,
+      pagamentoNumero: pagNum,
+      dataOriginal: fmtBrDate(pag.data),
+    };
 
     renderCategoriaSelect();
     renderRubricaSelect();
@@ -2922,6 +2965,7 @@
   }
 
   function iniciarEdicaoDespesa(id, pagNum, mode) {
+    if (bloquearEscritaFinanceiroCeo()) return;
     const raw = loadDespesasCeo().find((d) => String(d.id) === String(id));
     if (!raw) return;
     if (isAtalhoLocadora() && raw.categoria !== CAT_DK_LOCADORA) return;
@@ -2983,6 +3027,21 @@
       }
     }
     return { list: replacement, ok: true, savedId };
+  }
+
+  function migrarSituacaoAposEdicaoParcela(editMeta, entry) {
+    if (!editMeta?.despesaId) return;
+    const oldDate = editMeta.dataOriginal || entry.dataEvento;
+    const newId = ultimaDespesaSalvaId || editMeta.despesaId;
+    const newPag = editMeta.mode === "single" ? 1 : editMeta.pagamentoNumero;
+    const oldChave = chaveSituacaoPagamento(editMeta.despesaId, editMeta.pagamentoNumero, oldDate);
+    const newChave = chaveSituacaoPagamento(newId, newPag, entry.dataEvento);
+    if (!oldChave || oldChave === newChave) return;
+    const map = loadSituacaoPagamentosMap();
+    const old = map.get(oldChave);
+    if (!old || map.has(newChave)) return;
+    map.set(newChave, carimboCeoEscrita({ ...old, chave: newChave }));
+    saveSituacaoPagamentosMap(map);
   }
 
   function aplicarEditarFuturo(list, despesaId, pagNum, newEntry) {
@@ -3140,18 +3199,23 @@
   function renderListaDespesaRowHtml(row) {
     const d = row._d;
     const p = row._p;
-    const excluir = isSessaoTitularCeoCpf()
+    const podeCeo = isSessaoTitularCeoCpf();
+    const excluir = podeCeo
       ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}" data-pag="${p.numero}">Excluir</button>`
       : "";
-    const acoes = `<div class="fin-ceo-desp-row-acoes">
+    const acoes = podeCeo
+      ? `<div class="fin-ceo-desp-row-acoes">
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
           ${excluir}
-        </div>`;
+        </div>`
+      : `<div class="fin-ceo-desp-row-acoes"></div>`;
     const situacaoHtml =
       row.situacao === "PAGO"
         ? `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--pago" aria-label="Pago">PAGO</span>`
-        : `<button type="button" class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" data-ceo-desp-marcar-pago="1" aria-label="Marcar como pago">A PAGAR</button>`;
+        : podeCeo
+          ? `<button type="button" class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" data-ceo-desp-marcar-pago="1" aria-label="Marcar como pago">A PAGAR</button>`
+          : `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" aria-label="A pagar">A PAGAR</span>`;
     const vencidaCls = linhaDespesaVencidaNaoPaga(row) ? " fin-ceo-desp-row--vencida" : "";
     return `<tr class="${vencidaCls.trim()}" data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
           <td><strong>${esc(row.pagamentoLabel)}</strong></td>
@@ -3364,6 +3428,7 @@
   }
 
   function persistirDespesaEdicao(entry, editMeta) {
+    if (bloquearEscritaFinanceiroCeo()) return;
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       const fbBlock = document.getElementById("finCeoDespFeedback");
       if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
@@ -3381,12 +3446,13 @@
     }
     ultimaDespesaSalvaId = result.savedId || entry.id;
     saveDespesasCeo(result.list);
+    migrarSituacaoAposEdicaoParcela(editMeta, entry);
     const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
     const escopo =
       editMeta.mode === "single"
         ? `pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} atualizado`
         : `${pagos.length} pagamento(s) futuro(s) atualizado(s)`;
-    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). A enviar para a nuvem…`;
+    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). Situação continua A PAGAR até o CEO marcar PAGO. A enviar para a nuvem…`;
     finCeoDespEditState = null;
     if (lancamentoEhCartaoCredito(entry)) manterFormAposLancamentoCartao(entry);
     else limparFormDespesa();
@@ -3403,6 +3469,7 @@
   }
 
   function persistirDespesaEntry(entry) {
+    if (bloquearEscritaFinanceiroCeo()) return;
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       const fbBlock = document.getElementById("finCeoDespFeedback");
       if (fbBlock) fbBlock.textContent = "Versão Android: somente visualização. Nada é lançado pelo celular.";
@@ -3410,11 +3477,13 @@
     }
     const fb = document.getElementById("finCeoDespFeedback");
     const list = loadDespesasCeo();
-    list.push({
-      ...entry,
-      cadastradoEm: entry.cadastradoEm,
-      dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
-    });
+    list.push(
+      carimboCeoEscrita({
+        ...entry,
+        cadastradoEm: entry.cadastradoEm,
+        dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
+      })
+    );
     ultimaDespesaSalvaId = entry.id;
     saveDespesasCeo(list);
     const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
@@ -3453,6 +3522,7 @@
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
+    if (bloquearEscritaFinanceiroCeo(fb)) return;
     if (fb && !finCeoDespEditState) fb.textContent = "";
     const entry = coletarEntryDespesaForm(fb);
     if (!entry) return;
@@ -4936,6 +5006,7 @@
         const pag = Number(tr?.getAttribute("data-ceo-pag")) || 1;
         const linhasAll = coletarLinhasExcelListaDespesas();
         const row = linhasAll.find((r) => String(r._d?.id) === String(id) && r._p?.numero === pag);
+        if (bloquearEscritaFinanceiroCeo()) return;
         if (row && row.situacao !== "PAGO") abrirModalConfirmPagoDespesa(row);
         return;
       }
@@ -5003,6 +5074,9 @@
       await window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }).catch(() => {});
     }
     invalidarCacheFinanceiroCeo();
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      await window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    }
   }
 
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
@@ -5070,6 +5144,7 @@
   window.__DK_mergeFinanceiroCeoFontes = window.__DK_mergeFinanceiroCeoCartoes;
 
   window.__DK_mergeFinanceiroCeoDespesas = function mergeFinanceiroCeoDespesas(localArr, cloudArr) {
+    const score = (x) => Number(x?.updatedAt || 0) || Date.parse(x?.cadastradoEm || 0) || 0;
     const map = new Map();
     const add = (raw) => {
       const d = normalizeDespesa(raw);
@@ -5078,8 +5153,16 @@
         map.set(d.id, d);
         return;
       }
+      const se = score(prev);
+      const sr = score(d);
+      const newer = sr > se ? { ...prev, ...d } : se > sr ? { ...d, ...prev } : prev.ceoAutoridade ? prev : { ...prev, ...d };
       const excluidos = [...new Set([...(prev.pagamentosExcluidos || []), ...(d.pagamentosExcluidos || [])])];
-      map.set(d.id, { ...prev, ...d, pagamentosExcluidos: excluidos, deleted: prev.deleted === true || d.deleted === true });
+      map.set(d.id, {
+        ...newer,
+        pagamentosExcluidos: excluidos,
+        deleted: prev.deleted === true || d.deleted === true,
+        ceoAutoridade: prev.ceoAutoridade === true || d.ceoAutoridade === true,
+      });
     };
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
     (Array.isArray(localArr) ? localArr : []).forEach(add);
@@ -5087,15 +5170,26 @@
   };
 
   window.__DK_mergeFinanceiroCeoSituacaoPag = function mergeFinanceiroCeoSituacaoPag(localArr, cloudArr) {
+    const score = (x) => Number(x?.updatedAt || 0) || Date.parse(x?.pagoEm || 0) || 0;
     const map = new Map();
     const add = (raw) => {
       if (!raw || typeof raw !== "object") return;
       const chave = String(raw.chave || "").trim();
       if (!chave) return;
       const prev = map.get(chave);
-      const pago = prev?.situacao === "PAGO" || raw.situacao === "PAGO";
-      const pagoEm = [prev?.pagoEm, raw.pagoEm].filter(Boolean).sort().slice(-1)[0] || "";
-      map.set(chave, { chave, situacao: pago ? "PAGO" : "A_PAGAR", pagoEm });
+      if (!prev) {
+        map.set(chave, { ...raw, chave });
+        return;
+      }
+      const se = score(prev);
+      const sr = score(raw);
+      let winner = sr > se ? raw : prev;
+      if (se === sr) {
+        const pago = prev.situacao === "PAGO" || raw.situacao === "PAGO";
+        winner = { ...winner, situacao: pago ? "PAGO" : "A_PAGAR" };
+      }
+      const pagoEm = [prev.pagoEm, raw.pagoEm].filter(Boolean).sort().slice(-1)[0] || winner.pagoEm || "";
+      map.set(chave, { ...winner, chave, pagoEm });
     };
     (Array.isArray(localArr) ? localArr : []).forEach(add);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
