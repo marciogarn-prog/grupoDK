@@ -257,17 +257,44 @@
   function persistBundleFinanceiroCeo(data) {
     if (!data || typeof data !== "object") return;
     const gravar = () => {
+      const local = bundleFinanceiroCeoLocal();
+      const mergeDesp =
+        typeof window.__DK_mergeFinanceiroCeoDespesas === "function"
+          ? window.__DK_mergeFinanceiroCeoDespesas
+          : (a, b) => [...(a || []), ...(b || [])];
+      const mergeSit =
+        typeof window.__DK_mergeFinanceiroCeoSituacaoPag === "function"
+          ? window.__DK_mergeFinanceiroCeoSituacaoPag
+          : (a, b) => [...(a || []), ...(b || [])];
+      const mergeCard =
+        typeof window.__DK_mergeFinanceiroCeoCartoes === "function"
+          ? window.__DK_mergeFinanceiroCeoCartoes
+          : (a, b) => [...(a || []), ...(b || [])];
+      const unido = {
+        dk_financeiro_ceo_despesas_v1: Array.isArray(data.dk_financeiro_ceo_despesas_v1)
+          ? mergeDesp(local.dk_financeiro_ceo_despesas_v1, data.dk_financeiro_ceo_despesas_v1)
+          : local.dk_financeiro_ceo_despesas_v1,
+        dk_financeiro_ceo_situacao_pag_v1: Array.isArray(data.dk_financeiro_ceo_situacao_pag_v1)
+          ? mergeSit(local.dk_financeiro_ceo_situacao_pag_v1, data.dk_financeiro_ceo_situacao_pag_v1)
+          : local.dk_financeiro_ceo_situacao_pag_v1,
+        dk_financeiro_ceo_fontes_v1: Array.isArray(data.dk_financeiro_ceo_fontes_v1)
+          ? mergeCard(local.dk_financeiro_ceo_fontes_v1, data.dk_financeiro_ceo_fontes_v1)
+          : local.dk_financeiro_ceo_fontes_v1,
+        dk_financeiro_ceo_cartoes_v1: Array.isArray(data.dk_financeiro_ceo_cartoes_v1)
+          ? mergeCard(local.dk_financeiro_ceo_cartoes_v1, data.dk_financeiro_ceo_cartoes_v1)
+          : local.dk_financeiro_ceo_cartoes_v1,
+      };
       const pairs = [
-        [DESPESAS_CEO_KEY, data.dk_financeiro_ceo_despesas_v1],
-        [SITUACAO_PAG_CEO_KEY, data.dk_financeiro_ceo_situacao_pag_v1],
-        [FONTES_CEO_KEY, data.dk_financeiro_ceo_fontes_v1],
-        [CARTOES_CEO_KEY, data.dk_financeiro_ceo_cartoes_v1],
+        [DESPESAS_CEO_KEY, unido.dk_financeiro_ceo_despesas_v1],
+        [SITUACAO_PAG_CEO_KEY, unido.dk_financeiro_ceo_situacao_pag_v1],
+        [FONTES_CEO_KEY, unido.dk_financeiro_ceo_fontes_v1],
+        [CARTOES_CEO_KEY, unido.dk_financeiro_ceo_cartoes_v1],
       ];
       for (const [key, arr] of pairs) {
         if (!Array.isArray(arr)) continue;
         if (typeof window.saveCadastro === "function") {
           try {
-            window.saveCadastro(key, arr, { allowShrink: true });
+            window.saveCadastro(key, arr);
             continue;
           } catch {
             /* ignore */
@@ -315,7 +342,7 @@
         cache: "no-store",
       }, 8000);
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok || !j.data || typeof j.data !== "object") return false;
+      if (!r.ok || !j.ok || !j.data || typeof j.data !== "object" || j.vazio) return false;
       persistBundleFinanceiroCeo(j.data);
       return true;
     } catch {
@@ -335,10 +362,11 @@
 
   async function pushFinanceiroCeoParaNuvem(bloco) {
     const patch = montarPayloadBlocoCeo(bloco);
+    if (!patch) return { ok: false, reason: "bloco_vazio" };
     const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
       method: "POST",
       headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
-      body: JSON.stringify(patch ? { patch: true, bloco: true, data: patch } : { data: bundleFinanceiroCeoLocal() }),
+      body: JSON.stringify({ patch: true, bloco: true, data: patch }),
       cache: "no-store",
     }, 8000);
     const j = await r.json().catch(() => ({}));
@@ -3820,7 +3848,11 @@
       return;
     }
     const idsBloco = new Set([String(editMeta.despesaId || ""), String(result.savedId || "")].filter(Boolean));
-    const despesasBloco = result.list.filter((d) => idsBloco.has(String(d.id)));
+    let despesasBloco = result.list.filter((d) => idsBloco.has(String(d.id)));
+    if (!despesasBloco.length) {
+      const um = result.list.find((d) => String(d.id) === String(result.savedId || editMeta.despesaId));
+      if (um) despesasBloco = [um];
+    }
     await gravarFinanceiroCeoComSeguranca(
       () => {
         saveDespesasCeo(result.list);

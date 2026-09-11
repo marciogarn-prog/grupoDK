@@ -24,7 +24,8 @@ const syncJs = fs.readFileSync(path.join(ROOT, "portal-supabase-sync.js"), "utf8
 
 rec("API grava em bloco HASH", apiJs.includes("aplicarBlocoHash") && apiJs.includes("patch: true") && apiJs.includes("dk:portal:financeiro_ceo:despesas:h"), "");
 rec("API POST não devolve o pacote inteiro", apiJs.includes("gravados") && !/return res\.status\(200\)\.json\(\{\s*ok: true,\s*data: merged/.test(apiJs), "");
-rec("cliente envia só o bloco", ceoJs.includes("montarPayloadBlocoCeo") && ceoJs.includes("aplicarBlocoNaTela") && ceoJs.includes("patch: true"), "");
+rec("PATCH não lê snapshot gordo", !apiJs.includes("cloud_snapshot") && /if \(isPatch\) \{\s*const gravados = await aplicarBlocoHash/.test(apiJs), "");
+rec("cliente envia só o bloco", ceoJs.includes("montarPayloadBlocoCeo") && ceoJs.includes("aplicarBlocoNaTela") && ceoJs.includes("patch: true") && ceoJs.includes('reason: "bloco_vazio"'), "");
 rec("lista pagina 80 linhas", ceoJs.includes("CEO_LISTA_PAGINA = 80") && ceoJs.includes("linhas.slice(0, ceoListaLimiteVisivel)"), "");
 rec("gravação sem snapshot gordo", ceoJs.includes("pushFinanceiroCeoParaNuvem") && !/enviarFinanceiroCeoNuvem[\s\S]{0,400}__DK_pushCloudSnapshotNow/.test(ceoJs), "");
 rec("mutação sem hook de nuvem", ceoJs.includes("__DK_runWithoutCloudPush") && syncJs.includes("function runWithoutCloudPush"), "");

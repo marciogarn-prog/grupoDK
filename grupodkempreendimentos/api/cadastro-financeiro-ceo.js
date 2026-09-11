@@ -12,7 +12,6 @@ const {
 const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
-const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
 const HASH_SIT = "dk:portal:financeiro_ceo:situacao:h";
 const HASH_FONT = "dk:portal:financeiro_ceo:fontes:h";
@@ -65,13 +64,6 @@ function parseJson(raw) {
 
 function parseDedicated(raw) {
   return pickBundle(parseJson(raw));
-}
-
-function parseSnapshotFin(raw) {
-  const row = parseJson(raw);
-  if (!row) return emptyBundle();
-  const payload = row.payload && typeof row.payload === "object" ? row.payload : row;
-  return pickBundle(payload);
 }
 
 function mergeBundles(a, b) {
@@ -148,14 +140,9 @@ async function loadFromHashes(redis) {
 
 async function seedHashesIfEmpty(redis) {
   if (await hashesTemDados(redis)) return loadFromHashes(redis);
-  const rawDed = await redis.get(STORAGE_KEY);
-  let bundle = parseDedicated(rawDed);
-  if (!bundleTemDados(bundle)) {
-    const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
-    bundle = mergeBundles(parseSnapshotFin(rawSnap), bundle);
-  }
+  const bundle = parseDedicated(await redis.get(STORAGE_KEY));
   if (bundleTemDados(bundle)) await aplicarBlocoHash(redis, bundle);
-  return bundle;
+  return bundleTemDados(bundle) ? bundle : emptyBundle();
 }
 
 module.exports = async function handler(req, res) {
@@ -178,7 +165,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const data = await seedHashesIfEmpty(redis);
-      return res.status(200).json({ ok: true, data });
+      return res.status(200).json({ ok: true, data, vazio: !bundleTemDados(data) });
     }
 
     if (req.method === "POST") {
@@ -197,20 +184,11 @@ module.exports = async function handler(req, res) {
       const incoming = pickBundle(body?.data && typeof body.data === "object" ? body.data : body);
       const isPatch = body?.patch === true || body?.bloco === true;
       if (isPatch) {
-        if (!(await hashesTemDados(redis))) await seedHashesIfEmpty(redis);
         const gravados = await aplicarBlocoHash(redis, incoming);
         return res.status(200).json({ ok: true, patch: true, gravados });
       }
-      const existing = await seedHashesIfEmpty(redis);
-      const merged = mergeBundles(existing, incoming);
-      await aplicarBlocoHash(redis, merged);
-      return res.status(200).json({
-        ok: true,
-        count: {
-          dk_financeiro_ceo_despesas_v1: merged.dk_financeiro_ceo_despesas_v1.length,
-          dk_financeiro_ceo_situacao_pag_v1: merged.dk_financeiro_ceo_situacao_pag_v1.length,
-        },
-      });
+      const gravados = await aplicarBlocoHash(redis, incoming);
+      return res.status(200).json({ ok: true, patch: false, gravados });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
