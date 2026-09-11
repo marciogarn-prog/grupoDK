@@ -2252,11 +2252,12 @@
     },
     {
       "id": "manutencao-os-relatorios",
-      "descricao": "Em Locados, a caixinha vermelha mostra o contador de OS gerado pelo sistema (OS000001 em diante), sem o operador editar. O lançamento de manutenção rápida já existente vira OS000001. No espaço ao lado do RELATÓRIO de setor: Relatório por período (dois calendários, placas agrupadas por dia com serviços e valores) e Relatório por veículo (consulta da placa, histórico com OS, KM, um serviço por linha e valores pagos).",
+      "descricao": "Em Locados, a caixinha vermelha mostra a próxima OS que o sistema vai gravar (OS000001, OS000002…), sem o operador editar. O lançamento de manutenção rápida já existente vira OS000001; a caixa passa a OS000002. No espaço ao lado do RELATÓRIO de setor: Relatório por período (dois calendários, placas agrupadas por dia com serviços e valores) e Relatório por veículo (consulta da placa, histórico com OS, KM, um serviço por linha e valores pagos).",
       "ficheiros": {
         "index.html": [
           "portalManutOsCaixa",
           "OS000001",
+          "Próxima OS",
           "portalManutRelPeriodoBtn",
           "Relatório por período",
           "portalManutRelVeiculoBtn",
@@ -2272,6 +2273,7 @@
           "OS000001",
           "padStart(6, \"0\")",
           "backfillOs",
+          "proximoOsNumero",
           "htmlPeriodoAgrupado",
           "htmlVeiculoAgrupado",
           "Consulta da placa",

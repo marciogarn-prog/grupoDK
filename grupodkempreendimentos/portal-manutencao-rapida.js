@@ -198,8 +198,7 @@
   function atualizarCaixaOs(list) {
     const el = document.getElementById("portalManutOsCaixa");
     if (!el) return;
-    const max = maxOsNumero(list || loadArr(STORAGE_KEY));
-    el.textContent = formatOs(max || 1);
+    el.textContent = formatOs(proximoOsNumero(list || loadArr(STORAGE_KEY)));
   }
 
   function operador() {

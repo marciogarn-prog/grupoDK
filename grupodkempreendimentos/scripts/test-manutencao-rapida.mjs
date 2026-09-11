@@ -64,6 +64,7 @@ function backfillOs(list) {
 const hoje = backfillOs([{ placa: "SOT0198", criadoEm: "2026-09-10T20:20:00.000Z", valorPago: 40 }]);
 record("Lançamento de hoje sem OS vira OS000001", hoje[0].os === "OS000001");
 record("Próximo lançamento recebe OS000002", formatOs(osNumero(hoje[0].os) + 1) === "OS000002");
+record("Caixa vermelha mostra a próxima OS", js.includes("formatOs(proximoOsNumero("));
 
 const { mergeManutencoesRapidas } = require("../lib/dk-append-only-merge.cjs");
 const mergedOs = mergeManutencoesRapidas(
