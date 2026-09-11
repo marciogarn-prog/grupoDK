@@ -2480,6 +2480,28 @@
           "portal-manut-rapida__data"
         ]
       }
+    },
+    {
+      "id": "manutencao-relatorio-visualizar-pdf",
+      "descricao": "No Relatório geral / por moto da Manutenção rápida, o botão é Visualizar. Abre o relatório em tela cheia, com PDF e Imprimir.",
+      "ficheiros": {
+        "index.html": [
+          "portalManutLancRelatorioVisualizarBtn",
+          "Visualizar",
+          "portalManutLancVisualizarTela",
+          "portalManutLancVisualizarPdfBtn",
+          "portalManutLancVisualizarImprimirBtn"
+        ],
+        "portal-manutencao-rapida.js": [
+          "abrirVisualizarRel",
+          "imprimirVisualizarRel",
+          "portalManutLancVisualizarTela"
+        ],
+        "styles.css": [
+          "portal-manut-lanc-vis",
+          "portal-manut-lanc-vis-print"
+        ]
+      }
     }
   ]
 }

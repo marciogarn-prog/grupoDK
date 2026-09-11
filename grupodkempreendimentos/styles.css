@@ -14137,6 +14137,87 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   padding-right: 0.25rem;
 }
 
+.portal-manut-lanc-vis {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #111;
+}
+
+.portal-manut-lanc-vis.hidden {
+  display: none;
+}
+
+.portal-manut-lanc-vis__card {
+  min-height: 100%;
+  padding: 1rem 1.4rem 2rem;
+  background: #f4f4f2;
+  color: #111;
+}
+
+.portal-manut-lanc-vis__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 1rem;
+  margin: 0 0 0.65rem;
+}
+
+.portal-manut-lanc-vis__title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #111;
+}
+
+.portal-manut-lanc-vis__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.portal-manut-lanc-vis__sub {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  color: #333;
+}
+
+.portal-manut-lanc-vis__corpo table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  background: #fff;
+}
+
+.portal-manut-lanc-vis__corpo th,
+.portal-manut-lanc-vis__corpo td {
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  color: #111;
+}
+
+.portal-manut-lanc-vis__corpo th {
+  background: #eee;
+}
+
+@media print {
+  body.portal-manut-lanc-vis-print * {
+    visibility: hidden;
+  }
+  body.portal-manut-lanc-vis-print .portal-manut-lanc-vis,
+  body.portal-manut-lanc-vis-print .portal-manut-lanc-vis * {
+    visibility: visible;
+  }
+  body.portal-manut-lanc-vis-print .portal-manut-lanc-vis {
+    position: static;
+    background: #fff;
+  }
+  body.portal-manut-lanc-vis-print .portal-manut-lanc-vis-no-print {
+    display: none !important;
+  }
+}
+
 .portal-manut-os-grupo {
   margin: 0 0 0.85rem;
 }

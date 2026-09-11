@@ -807,12 +807,49 @@
     lista.innerHTML = tabelaHtml(rowsRel());
   }
 
-  function imprimirRel() {
-    const rows = rowsRel();
+  function metaRelatorioLanc() {
     const de = document.getElementById("portalManutLancRelDe")?.value || "";
     const ate = document.getElementById("portalManutLancRelAte")?.value || "";
     const placa = relModo === "moto" ? nkPlate(document.getElementById("portalManutLancRelPlaca")?.value || "") : "";
     const titulo = relModo === "moto" ? `Relatório individual — ${placa || "placa"}` : "Relatório geral de manutenções";
+    return { de, ate, placa, titulo, rows: rowsRel() };
+  }
+
+  function abrirVisualizarRel() {
+    if (relModo === "moto" && !nkPlate(document.getElementById("portalManutLancRelPlaca")?.value || "")) {
+      setMsg("Informe a placa da moto.");
+      return;
+    }
+    const { de, ate, titulo, rows } = metaRelatorioLanc();
+    const tela = document.getElementById("portalManutLancVisualizarTela");
+    const tit = document.getElementById("portalManutLancVisualizarTitulo");
+    const sub = document.getElementById("portalManutLancVisualizarSub");
+    const corpo = document.getElementById("portalManutLancVisualizarCorpo");
+    if (tit) tit.textContent = titulo;
+    if (sub) sub.textContent = `Período ${de} a ${ate}. ${rows.length} lançamento(s). Grupo DK Empreendimentos.`;
+    if (corpo) corpo.innerHTML = tabelaHtml(rows);
+    if (tela) {
+      tela.classList.remove("hidden");
+      tela.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function fecharVisualizarRel() {
+    const tela = document.getElementById("portalManutLancVisualizarTela");
+    if (!tela) return;
+    tela.classList.add("hidden");
+    tela.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("portal-manut-lanc-vis-print");
+  }
+
+  function imprimirVisualizarRel() {
+    document.body.classList.add("portal-manut-lanc-vis-print");
+    window.print();
+    window.setTimeout(() => document.body.classList.remove("portal-manut-lanc-vis-print"), 400);
+  }
+
+  function imprimirRel() {
+    const { de, ate, titulo, rows } = metaRelatorioLanc();
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${esc(titulo)}</title>
       <style>
         body{font-family:Arial,sans-serif;color:#111;padding:1.2rem}
@@ -1071,7 +1108,10 @@
     document.getElementById("portalManutRelatorioMotoBtn")?.addEventListener("click", () => openRel("moto"));
     document.getElementById("portalManutLancRelatorioFecharBtn")?.addEventListener("click", () => closeRel());
     document.getElementById("portalManutLancRelatorioBackdrop")?.addEventListener("click", () => closeRel());
-    document.getElementById("portalManutLancRelatorioImprimirBtn")?.addEventListener("click", () => imprimirRel());
+    document.getElementById("portalManutLancRelatorioVisualizarBtn")?.addEventListener("click", () => abrirVisualizarRel());
+    document.getElementById("portalManutLancVisualizarFecharBtn")?.addEventListener("click", () => fecharVisualizarRel());
+    document.getElementById("portalManutLancVisualizarImprimirBtn")?.addEventListener("click", () => imprimirVisualizarRel());
+    document.getElementById("portalManutLancVisualizarPdfBtn")?.addEventListener("click", () => imprimirRel());
     document.getElementById("portalManutRelPeriodoBtn")?.addEventListener("click", () => openOsTela("periodo"));
     document.getElementById("portalManutRelVeiculoBtn")?.addEventListener("click", () => openOsTela("veiculo"));
     document.getElementById("portalManutOsTelaFecharBtn")?.addEventListener("click", () => closeOsTela());
@@ -1132,6 +1172,11 @@
       });
     });
     document.addEventListener("keydown", (ev) => {
+      const vis = document.getElementById("portalManutLancVisualizarTela");
+      if (vis && !vis.classList.contains("hidden") && ev.key === "Escape") {
+        fecharVisualizarRel();
+        return;
+      }
       const osModal = document.getElementById("portalManutOsTela");
       if (osModal && !osModal.classList.contains("hidden") && ev.key === "Escape") {
         closeOsTela();

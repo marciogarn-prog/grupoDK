@@ -33,6 +33,7 @@ record("Valor pago e PIX / espécie / cartão / NÃO SE APLICA", locados.include
 record("Sem campo de moto reserva no painel rápido", !locados.includes("portalManutRapidaReserva") && js.includes("sem moto reserva"));
 record("Registro do dia e relatórios", locados.includes("portalManutDiaRegistro") && locados.includes("portalManutRelatorioGeralBtn") && locados.includes("Relatório por moto"));
 record("Modal de relatório por período", html.includes("portalManutLancRelatorioModal") && html.includes("portalManutLancRelDe"));
+record("Relatório geral tem Visualizar e tela cheia com PDF e Imprimir", html.includes("portalManutLancRelatorioVisualizarBtn") && html.includes("portalManutLancVisualizarTela") && html.includes("portalManutLancVisualizarPdfBtn") && html.includes("portalManutLancVisualizarImprimirBtn") && js.includes("abrirVisualizarRel"));
 record("Caixa vermelha da OS não é campo editável", locados.includes('id="portalManutOsCaixa"') && locados.includes("OS000001") && !/<input[^>]+portalManutOsCaixa/.test(locados));
 record("Relatório por período e por veículo no cabeçalho", locados.includes("portalManutRelPeriodoBtn") && locados.includes("Relatório por período") && locados.includes("portalManutRelVeiculoBtn") && locados.includes("Relatório por veículo") && locados.includes("portalSetorRelatorioBtnLocados"));
 record("Tela com dois calendários e consulta da placa", html.includes("portalManutOsCalDeGrid") && html.includes("portalManutOsCalAteGrid") && html.includes("Consulta da placa") && html.includes("portalManutOsTelaPlaca"));
