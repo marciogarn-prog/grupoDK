@@ -55,6 +55,9 @@
   let despesasBound = false;
   let despesasGrafBound = false;
   let despesasRenderedIds = new Set();
+  let quantCalBound = false;
+  let quantCalMes = new Date();
+  let quantCalDia = null;
 
   function esc(s) {
     return String(s ?? "")
@@ -647,9 +650,37 @@
     return `<div class="fin-hbar${money ? " fin-hbar--money" : ""}">${blocks.join("")}</div>`;
   }
 
-  function agregarQuantitativoPorTipo() {
-    const byTipo = new Map();
+  function dataCadastroEquipamento(v) {
+    return parseBrDate(v?.dataCadastro);
+  }
+
+  function veiculosAteDia(dia) {
+    const all = veiculosCadastro();
+    if (!(dia instanceof Date) || Number.isNaN(dia.getTime())) return all;
+    const lim = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), 23, 59, 59, 999);
+    return all.filter((v) => {
+      const d = dataCadastroEquipamento(v);
+      if (!d) return true;
+      return d.getTime() <= lim.getTime();
+    });
+  }
+
+  function mapaNovosEquipamentosPorDia() {
+    const map = new Map();
     veiculosCadastro().forEach((v) => {
+      const d = dataCadastroEquipamento(v);
+      if (!d) return;
+      const k = ymd(d);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(v);
+    });
+    return map;
+  }
+
+  function agregarQuantitativoPorTipo(lista) {
+    const byTipo = new Map();
+    const src = Array.isArray(lista) ? lista : veiculosCadastro();
+    src.forEach((v) => {
       const label = tipoPlanilhaDeVeiculo(v);
       const categoria = categoriaFrotaVeiculo(v);
       const valor = valorAquisicaoVeiculo(v);
@@ -691,8 +722,128 @@
     return `<table class="fin-table"><thead><tr><th>TIPO</th><th>Categoria</th><th>${esc(valueHeader)}</th><th>%</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
+  const QUANT_MES_NOM = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+
+  function renderQuantCalendario() {
+    const host = document.getElementById("finQuantCalendario");
+    if (!host) return;
+    const novos = mapaNovosEquipamentosPorDia();
+    const view = new Date(quantCalMes.getFullYear(), quantCalMes.getMonth(), 1);
+    const ano = view.getFullYear();
+    const mes = view.getMonth();
+    const primeiroDow = view.getDay();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const hoje = ymd(new Date());
+    const sel = quantCalDia instanceof Date ? ymd(quantCalDia) : "";
+    const cells = [];
+    for (let i = 0; i < primeiroDow; i += 1) cells.push('<span class="fin-quant-cal__pad"></span>');
+    for (let d = 1; d <= diasNoMes; d += 1) {
+      const dt = new Date(ano, mes, d);
+      const key = ymd(dt);
+      const nNovos = (novos.get(key) || []).length;
+      const cls = ["fin-quant-cal__day"];
+      if (nNovos) cls.push("fin-quant-cal__day--novo");
+      if (key === hoje) cls.push("fin-quant-cal__day--hoje");
+      if (key === sel) cls.push("fin-quant-cal__day--sel");
+      const tit = nNovos
+        ? `${fmtBrDate(dt)} — ${nNovos} equipamento(s) cadastrado(s)`
+        : `${fmtBrDate(dt)} — sem cadastro novo`;
+      cells.push(
+        `<button type="button" class="${cls.join(" ")}" data-quant-ymd="${key}" title="${esc(tit)}" aria-label="${esc(tit)}">${d}</button>`
+      );
+    }
+    host.innerHTML = `<div class="fin-quant-cal__head">
+        <button type="button" class="fin-quant-cal__nav" data-quant-nav="-1" aria-label="Mês anterior">‹</button>
+        <strong class="fin-quant-cal__mes">${esc(QUANT_MES_NOM[mes])} ${ano}</strong>
+        <button type="button" class="fin-quant-cal__nav" data-quant-nav="1" aria-label="Mês seguinte">›</button>
+      </div>
+      <div class="fin-quant-cal__dows" aria-hidden="true"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+      <div class="fin-quant-cal__grid">${cells.join("")}</div>
+      <p class="fin-quant-cal__legenda"><span class="fin-quant-cal__dot"></span> Dia com cadastro de novos equipamentos</p>
+      <button type="button" class="btn-primary btn-secondary-outline fin-quant-cal__hoje" data-quant-hoje="1">Hoje — frota atual</button>`;
+    if (!quantCalBound) {
+      quantCalBound = true;
+      host.addEventListener("click", (e) => {
+        const nav = e.target.closest("[data-quant-nav]");
+        if (nav) {
+          const delta = Number(nav.getAttribute("data-quant-nav")) || 0;
+          quantCalMes = new Date(quantCalMes.getFullYear(), quantCalMes.getMonth() + delta, 1);
+          renderQuantCalendario();
+          return;
+        }
+        if (e.target.closest("[data-quant-hoje]")) {
+          const now = new Date();
+          quantCalMes = new Date(now.getFullYear(), now.getMonth(), 1);
+          quantCalDia = now;
+          renderQuantitativo();
+          return;
+        }
+        const btn = e.target.closest("[data-quant-ymd]");
+        if (!btn) return;
+        const [yy, mm, dd] = String(btn.getAttribute("data-quant-ymd") || "").split("-").map(Number);
+        if (!yy || !mm || !dd) return;
+        quantCalDia = new Date(yy, mm - 1, dd);
+        quantCalMes = new Date(yy, mm - 1, 1);
+        renderQuantitativo();
+      });
+    }
+  }
+
+  function renderQuantFotoDia(dia, novosNoDia, frota) {
+    const tit = document.getElementById("finQuantFotoTitulo");
+    const box = document.getElementById("finQuantFotoDia");
+    if (!tit || !box) return;
+    if (!(dia instanceof Date) || Number.isNaN(dia.getTime())) {
+      tit.hidden = true;
+      box.hidden = true;
+      tit.textContent = "";
+      box.innerHTML = "";
+      return;
+    }
+    const br = fmtBrDate(dia);
+    const nNovos = novosNoDia.length;
+    const nFrota = frota.length;
+    tit.hidden = false;
+    box.hidden = false;
+    tit.textContent = `Foto da frota em ${br} — como estávamos naquele dia (${nFrota} equipamento${nFrota === 1 ? "" : "s"} já cadastrado${nFrota === 1 ? "" : "s"}).`;
+    if (!nNovos) {
+      box.innerHTML = `<p class="subtext">Nenhum equipamento novo cadastrado em ${esc(br)}. Os números e o gráfico acima são a foto da frota até esse dia.</p>`;
+      return;
+    }
+    const linhas = novosNoDia
+      .slice()
+      .sort((a, b) => String(a.placa || "").localeCompare(String(b.placa || ""), "pt-BR"))
+      .map((v) => {
+        const placa = String(v.placa || "—").toUpperCase();
+        const tipo = tipoPlanilhaDeVeiculo(v);
+        const modelo = String(v.modelo || v.marca || "").trim() || "—";
+        const cat = categoriaFrotaVeiculo(v) === "CARRO" ? "Carro" : "Moto";
+        return `<li><strong>${esc(placa)}</strong> · ${esc(tipo)} · ${esc(cat)} · ${esc(modelo)}</li>`;
+      })
+      .join("");
+    box.innerHTML = `<p class="fin-quant-foto__lead">${nNovos} equipamento${nNovos === 1 ? "" : "s"} cadastrado${nNovos === 1 ? "" : "s"} neste dia:</p><ul class="fin-quant-foto__lista">${linhas}</ul>`;
+  }
+
   function renderQuantitativo() {
-    const agg = agregarQuantitativoPorTipo();
+    if (!(quantCalDia instanceof Date) || Number.isNaN(quantCalDia.getTime())) quantCalDia = new Date();
+    const dia = quantCalDia;
+    const frota = veiculosAteDia(dia);
+    const novosMap = mapaNovosEquipamentosPorDia();
+    const novosNoDia = novosMap.get(ymd(dia)) || [];
+    const agg = agregarQuantitativoPorTipo(frota);
     const rowsQtd = ordenarTiposMotoDepoisCarro(agg, "qtd").map((r) => ({
       label: r.label,
       value: r.qtd,
@@ -715,11 +866,13 @@
         <div class="fin-kpi"><span class="fin-kpi__lab">TIPOS</span><strong>${agg.length}</strong></div>
         <div class="fin-kpi"><span class="fin-kpi__lab">Aquisição</span><strong>${esc(brl(totalVal))}</strong></div>`;
     }
+    renderQuantCalendario();
+    renderQuantFotoDia(dia, novosNoDia, frota);
     const chart = document.getElementById("finQuantitativoChart");
     if (chart) {
       chart.innerHTML = rowsQtd.length
         ? svgHBar(rowsQtd)
-        : '<p class="subtext">Nenhum veículo no cadastro.</p>';
+        : '<p class="subtext">Nenhum veículo no cadastro até esta data.</p>';
     }
     const tab = document.getElementById("finQuantitativoTabela");
     if (tab) tab.innerHTML = tabelaQuantitativo(rowsQtd, "value", "Quantidade", totalQtd);

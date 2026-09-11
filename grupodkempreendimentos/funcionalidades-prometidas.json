@@ -2334,6 +2334,27 @@
           "countOperacaoClientesCadastrados"
         ]
       }
+    },
+    {
+      "id": "financeiro-quantitativo-calendario-foto",
+      "descricao": "No FINANCEIRO → Resumo de quantitativo há calendário com todas as datas acessíveis; dias com cadastro de novos equipamentos ficam numa cor diferente; ao escolher o dia o sistema mostra a foto de como estávamos naquele dia (frota até a data + lista dos equipamentos cadastrados no dia).",
+      "ficheiros": {
+        "index.html": [
+          "finQuantCalendario",
+          "finQuantFotoDia",
+          "foto de como estávamos naquele dia"
+        ],
+        "portal-financeiro-modulos.js": [
+          "fin-quant-cal__day--novo",
+          "Foto da frota em",
+          "mapaNovosEquipamentosPorDia",
+          "veiculosAteDia"
+        ],
+        "styles.css": [
+          "fin-quant-cal__day--novo",
+          "fin-quant-topo"
+        ]
+      }
     }
   ]
 }
