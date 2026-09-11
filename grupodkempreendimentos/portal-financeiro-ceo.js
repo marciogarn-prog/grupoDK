@@ -4884,12 +4884,14 @@
     }
     abrirPane("dashboard");
     if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true }))
+      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }))
         .catch(() => {})
         .then(() => {
           if (typeof window.__DK_invalidateCadastroParseCache === "function") {
             try {
               window.__DK_invalidateCadastroParseCache("dk_manutencoes_rapidas_v1");
+              window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_despesas_v1");
+              window.__DK_invalidateCadastroParseCache("dk_financeiro_ceo_situacao_pag_v1");
             } catch {
               /* ignore */
             }
@@ -4921,7 +4923,7 @@
       renderCadastroDespesas();
     };
     if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true }))
+      void Promise.resolve(window.__DK_pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true }))
         .catch(() => {})
         .then(() => {
           afterSync();

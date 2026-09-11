@@ -111,6 +111,35 @@ check(
   "despesa CEO nao some se o snapshot vier vazio",
   Array.isArray(despWipe.dk_financeiro_ceo_despesas_v1) && despWipe.dk_financeiro_ceo_despesas_v1.length === 2
 );
+const sitExisting = {
+  dk_financeiro_ceo_situacao_pag_v1: [
+    { chave: "ceo-marcus-1#1#10/09/2026", situacao: "PAGO", pagoEm: "2026-09-10T18:00:00.000Z" },
+  ],
+};
+const sitWipe = neverLoseCadastroPayload(sitExisting, { dk_financeiro_ceo_situacao_pag_v1: [] });
+check(
+  "confirmacao PAGO nao some se o snapshot vier sem id (une por chave)",
+  Array.isArray(sitWipe.dk_financeiro_ceo_situacao_pag_v1) &&
+    sitWipe.dk_financeiro_ceo_situacao_pag_v1.some(
+      (r) => r.chave === "ceo-marcus-1#1#10/09/2026" && r.situacao === "PAGO"
+    )
+);
+const sitMerge = neverLoseCadastroPayload(sitExisting, {
+  dk_financeiro_ceo_situacao_pag_v1: [
+    { chave: "ceo-marcus-1#1#10/09/2026", situacao: "A_PAGAR", pagoEm: "" },
+    { chave: "ceo-outro-2#1#10/09/2026", situacao: "PAGO", pagoEm: "2026-09-10T19:00:00.000Z" },
+  ],
+});
+check(
+  "PAGO do Marcus vence A PAGAR do outro PC na mesma chave",
+  Array.isArray(sitMerge.dk_financeiro_ceo_situacao_pag_v1) &&
+    sitMerge.dk_financeiro_ceo_situacao_pag_v1.some(
+      (r) => r.chave === "ceo-marcus-1#1#10/09/2026" && r.situacao === "PAGO"
+    ) &&
+    sitMerge.dk_financeiro_ceo_situacao_pag_v1.some(
+      (r) => r.chave === "ceo-outro-2#1#10/09/2026" && r.situacao === "PAGO"
+    )
+);
 const mergedColab = mergeFuncionariosAccess(colabExisting.dk_funcionarios_access, colabIncoming.dk_funcionarios_access);
 check(
   "merge por CPF une 5 colaboradores",

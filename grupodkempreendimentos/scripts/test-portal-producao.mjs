@@ -721,6 +721,8 @@ async function runSuite() {
         cloudSyncJs.includes("runTrackedCloudPush") &&
         cloudSyncJs.includes("await_push_failed") &&
         cloudSyncJs.includes("bypassLocalAuthority") &&
+        cloudSyncJs.includes("mergeFinanceiroCeoSituacaoPagArrays") &&
+        cloudSyncJs.includes("pullFinanceiroCeoKeysFromCloud") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&
         portalUiProto.includes("__DK_pullFromCloudOnScreenChange"),
       "salvar=upload; trocar tela espera push OK antes do download"
