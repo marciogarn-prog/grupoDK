@@ -837,6 +837,120 @@
     box.innerHTML = `<p class="fin-quant-foto__lead">${nNovos} equipamento${nNovos === 1 ? "" : "s"} cadastrado${nNovos === 1 ? "" : "s"} neste dia:</p><ul class="fin-quant-foto__lista">${linhas}</ul>`;
   }
 
+  function linhaEquipamentoFoto(v) {
+    const placa = String(v.placa || "—").toUpperCase();
+    const tipo = tipoPlanilhaDeVeiculo(v);
+    const modelo = String(v.modelo || v.marca || "").trim() || "—";
+    const cat = categoriaFrotaVeiculo(v) === "CARRO" ? "Carro" : "Moto";
+    const valor = valorAquisicaoVeiculo(v);
+    return `<li><strong>${esc(placa)}</strong> · ${esc(tipo)} · ${esc(cat)} · ${esc(modelo)} · ${esc(brl(valor))}</li>`;
+  }
+
+  function gruposAquisicoesTodosVeiculos() {
+    const map = new Map();
+    const semData = [];
+    veiculosCadastro().forEach((v) => {
+      const d = dataCadastroEquipamento(v);
+      if (!d) {
+        semData.push(v);
+        return;
+      }
+      const k = ymd(d);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(v);
+    });
+    const dias = [...map.keys()].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    return { dias, map, semData };
+  }
+
+  function htmlRelatorioAquisicoes() {
+    const { dias, map, semData } = gruposAquisicoesTodosVeiculos();
+    const total = veiculosCadastro().length;
+    const sortPlaca = (arr) =>
+      arr.slice().sort((a, b) => String(a.placa || "").localeCompare(String(b.placa || ""), "pt-BR"));
+    const blocos = dias.map((k) => {
+      const [yy, mm, dd] = k.split("-").map(Number);
+      const br = fmtBrDate(new Date(yy, mm - 1, dd));
+      const lista = sortPlaca(map.get(k) || []);
+      const n = lista.length;
+      const soma = lista.reduce((s, v) => s + valorAquisicaoVeiculo(v), 0);
+      return `<h5 class="fin-quant-rel__dia">Foto da frota em ${esc(br)} — ${n} equipamento${n === 1 ? "" : "s"} cadastrado${n === 1 ? "" : "s"} neste dia · ${esc(brl(soma))}</h5>
+        <p class="fin-quant-rel__lead">${n} equipamento${n === 1 ? "" : "s"} cadastrado${n === 1 ? "" : "s"} neste dia:</p>
+        <ul class="fin-quant-foto__lista">${lista.map(linhaEquipamentoFoto).join("")}</ul>`;
+    });
+    if (semData.length) {
+      const n = semData.length;
+      blocos.push(
+        `<h5 class="fin-quant-rel__dia">Sem data de cadastro — ${n} equipamento${n === 1 ? "" : "s"}</h5>
+        <ul class="fin-quant-foto__lista">${sortPlaca(semData).map(linhaEquipamentoFoto).join("")}</ul>`
+      );
+    }
+    if (!blocos.length) return '<p class="subtext">Nenhum veículo no cadastro.</p>';
+    return `<p class="fin-quant-rel__lead">Todos os veículos: <strong>${total}</strong>.</p>${blocos.join("")}`;
+  }
+
+  function abrirJanelaRelatorioAquisicoes(autoPrint) {
+    const corpo = htmlRelatorioAquisicoes();
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório de aquisições — Grupo DK</title>
+      <style>
+        body { font-family: Arial, sans-serif; color: #111; padding: 1.2rem; }
+        h1 { font-size: 1.2rem; margin: 0 0 0.35rem; }
+        h5 { font-size: 1rem; margin: 1rem 0 0.35rem; }
+        p { margin: 0 0 0.45rem; font-size: 0.92rem; }
+        ul { margin: 0 0 0.6rem; padding-left: 1.2rem; }
+        li { margin: 0.12rem 0; }
+        .acoes { margin: 0 0 1rem; display: flex; gap: 0.5rem; }
+        @media print { .acoes { display: none; } }
+      </style></head><body>
+      <div class="acoes">
+        <button type="button" onclick="window.print()">Imprimir</button>
+        <button type="button" onclick="window.print()">Gerar PDF</button>
+      </div>
+      <h1>Relatório de aquisições</h1>
+      <p>Todos os veículos da frota, organizados pelo dia de cadastro. Grupo DK Empreendimentos.</p>
+      ${corpo}
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    if (autoPrint) {
+      w.setTimeout(() => {
+        try {
+          w.print();
+        } catch {
+          /* ignore */
+        }
+      }, 250);
+    }
+  }
+
+  function bindQuantRelAquisicoes() {
+    if (window.__dkFinQuantRelAquisicoesBound) return;
+    window.__dkFinQuantRelAquisicoesBound = true;
+    document.getElementById("finQuantRelAquisicoesBtn")?.addEventListener("click", () => {
+      const box = document.getElementById("finQuantRelAquisicoes");
+      const body = document.getElementById("finQuantRelAquisicoesBody");
+      if (!box || !body) return;
+      body.innerHTML = htmlRelatorioAquisicoes();
+      box.classList.remove("hidden");
+      box.hidden = false;
+      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    document.getElementById("finQuantRelAquisicoesFecharBtn")?.addEventListener("click", () => {
+      const box = document.getElementById("finQuantRelAquisicoes");
+      if (!box) return;
+      box.classList.add("hidden");
+      box.hidden = true;
+    });
+    document.getElementById("finQuantRelAquisicoesImprimirBtn")?.addEventListener("click", () => {
+      abrirJanelaRelatorioAquisicoes(true);
+    });
+    document.getElementById("finQuantRelAquisicoesPdfBtn")?.addEventListener("click", () => {
+      abrirJanelaRelatorioAquisicoes(true);
+    });
+  }
+
   function renderQuantitativo() {
     if (!(quantCalDia instanceof Date) || Number.isNaN(quantCalDia.getTime())) quantCalDia = new Date();
     const dia = quantCalDia;
@@ -867,6 +981,7 @@
         <div class="fin-kpi"><span class="fin-kpi__lab">Aquisição</span><strong>${esc(brl(totalVal))}</strong></div>`;
     }
     renderQuantCalendario();
+    bindQuantRelAquisicoes();
     renderQuantFotoDia(dia, novosNoDia, frota);
     const chart = document.getElementById("finQuantitativoChart");
     if (chart) {

@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260911manut-rapida-btn">
+  <link rel="stylesheet" href="styles.css?v=20260911rel-aquis">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3733,7 +3733,22 @@
               <p class="subtext">Frota por TIPO: motos (cinza) em cima, carros (laranja) em baixo. Abaixo, o mesmo gráfico pelo valor total de aquisição. No calendário, o dia com cadastro de novos equipamentos fica marcado; ao escolher a data, aparece a foto de como estávamos naquele dia.</p>
               <div class="fin-quant-topo">
                 <div id="finQuantitativoKpis" class="fin-kpis"></div>
+                <div class="fin-quant-rel-slot">
+                  <button type="button" class="btn-primary" id="finQuantRelAquisicoesBtn">Relatório de aquisições</button>
+                </div>
                 <aside id="finQuantCalendario" class="fin-quant-cal" aria-label="Calendário de cadastro de novos equipamentos"></aside>
+              </div>
+              <div id="finQuantRelAquisicoes" class="fin-quant-rel hidden" hidden>
+                <div class="fin-quant-rel__head">
+                  <h4 class="fin-quant-rel__title">Relatório de aquisições</h4>
+                  <div class="fin-quant-rel__acoes">
+                    <button type="button" class="btn-primary" id="finQuantRelAquisicoesImprimirBtn">Imprimir</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="finQuantRelAquisicoesPdfBtn">Gerar PDF</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="finQuantRelAquisicoesFecharBtn">Fechar</button>
+                  </div>
+                </div>
+                <p class="subtext">Todos os veículos da frota, organizados pelo dia de cadastro — o mesmo padrão da foto do dia.</p>
+                <div id="finQuantRelAquisicoesBody"></div>
               </div>
               <p id="finQuantFotoTitulo" class="fin-quant-foto-tit" hidden></p>
               <div id="finQuantFotoDia" class="fin-quant-foto" hidden></div>
@@ -5353,7 +5368,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
   <script src="dk-portal-api-auth.js?v=20260910porteiro"></script>
-  <script src="app.js?v=20260911manut-rapida-btn" defer></script>
+  <script src="app.js?v=20260911rel-aquis" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5363,10 +5378,10 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260911manut-rapida-btn" defer></script>
+  <script src="portal-locadora-ui.js?v=20260911rel-aquis" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260911quant-cal"></script>
+  <script src="portal-financeiro-modulos.js?v=20260911rel-aquis"></script>
   <script src="portal-financeiro-ceo.js?v=20260911cli-sync" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>

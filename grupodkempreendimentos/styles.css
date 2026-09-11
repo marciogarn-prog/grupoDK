@@ -6577,10 +6577,64 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 .fin-quant-topo {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16.5rem, 19.5rem);
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14.5rem) minmax(16.5rem, 19.5rem);
   gap: 0.85rem 1.1rem;
   align-items: start;
   margin: 0.35rem 0 0.75rem;
+}
+
+.fin-quant-rel-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6.5rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+.fin-quant-rel-slot .btn-primary {
+  width: 100%;
+  white-space: normal;
+  line-height: 1.25;
+  padding: 0.7rem 0.55rem;
+}
+
+.fin-quant-rel {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(8, 8, 10, 0.45);
+}
+
+.fin-quant-rel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.fin-quant-rel__title {
+  margin: 0;
+}
+
+.fin-quant-rel__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fin-quant-rel__dia {
+  margin: 0.75rem 0 0.35rem;
+  font-weight: 700;
+}
+
+.fin-quant-rel__lead {
+  margin: 0 0 0.3rem;
 }
 
 .fin-quant-topo .fin-kpis {
