@@ -159,6 +159,7 @@
     "dk_locacoes_quadro_geral",
     "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
+    "dk_manutencao_rapida_sugestao_oleo_v1",
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_setor_movimentacoes_v1",
@@ -1213,6 +1214,36 @@
           ? parseFinanceiroStore(cloudObj)
           : mergeFinanceiroExtratos(localObj, cloudObj);
         localStorage.setItem(k, JSON.stringify(merged));
+        continue;
+      }
+      if (k === "dk_manutencao_rapida_sugestao_oleo_v1") {
+        let cloudObj = v;
+        if (typeof v === "string") {
+          try {
+            cloudObj = JSON.parse(v);
+          } catch {
+            cloudObj = null;
+          }
+        }
+        let localObj = null;
+        try {
+          const raw = localStorage.getItem(k);
+          localObj = raw ? JSON.parse(raw) : null;
+        } catch {
+          localObj = null;
+        }
+        const asObj = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : null);
+        const a = asObj(localObj);
+        const b = asObj(cloudObj);
+        let winner = b || a;
+        if (a && b && !replace) {
+          const tsA = Date.parse(a.updatedAt || 0) || 0;
+          const tsB = Date.parse(b.updatedAt || 0) || 0;
+          winner = tsB >= tsA ? b : a;
+        } else if (replace) {
+          winner = b || a;
+        }
+        if (winner) localStorage.setItem(k, JSON.stringify(winner));
         continue;
       }
       if (k === "dk_patrimonio_crlv_v1" || k === "dk_patrimonio_fotos_excluidas_v1") continue;

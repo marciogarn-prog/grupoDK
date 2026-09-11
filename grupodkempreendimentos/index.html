@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260911rel-aquis">
+  <link rel="stylesheet" href="styles.css?v=20260911sugestao-oleo">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2903,7 +2903,13 @@
                     <input type="text" id="portalManutRapidaKm" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Quilometragem">
                   </label>
                   <div class="portal-manut-rapida__servicos" role="group" aria-label="Serviços rápidos">
-                    <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="oleo"><span>Troca de óleo</span></label>
+                    <div class="portal-manut-rapida__oleo-row">
+                      <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="oleo"><span>Troca de óleo</span></label>
+                      <span class="portal-manut-rapida__sugestao">
+                        <span class="portal-manut-rapida__sugestao-lab">Sugestão</span>
+                        <input type="text" id="portalManutRapidaSugestaoOleo" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" aria-label="Sugestão de valor da troca de óleo">
+                      </span>
+                    </div>
                     <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="kit"><span>Troca de kit</span></label>
                     <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pastilhaDianteira"><span>Troca de pastilha dianteira</span></label>
                     <label class="portal-manut-rapida__chk"><input type="checkbox" data-manut-rapida-serv="pastilhaTraseira"><span>Troca de pastilha traseira</span></label>
@@ -5368,7 +5374,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
   <script src="dk-portal-api-auth.js?v=20260910porteiro"></script>
-  <script src="app.js?v=20260911rel-aquis" defer></script>
+  <script src="app.js?v=20260911sugestao-oleo" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5378,7 +5384,7 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260911rel-aquis" defer></script>
+  <script src="portal-locadora-ui.js?v=20260911sugestao-oleo" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911rel-aquis"></script>
@@ -5425,10 +5431,10 @@
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
-  <script src="portal-manutencao-rapida.js?v=20260911manut-rapida-btn" defer></script>
+  <script src="portal-manutencao-rapida.js?v=20260911sugestao-oleo" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260911cli-sync" defer></script>
+  <script src="portal-supabase-sync.js?v=20260911sugestao-oleo" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

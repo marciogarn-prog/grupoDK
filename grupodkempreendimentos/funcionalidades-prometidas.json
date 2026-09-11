@@ -2381,6 +2381,31 @@
           "fin-quant-rel__dia"
         ]
       }
+    },
+    {
+      "id": "manutencao-rapida-sugestao-oleo",
+      "descricao": "Na Manutenção rápida, à frente de Troca de óleo existe a caixa Sugestão. O valor fica congelado até o operador reajustar; ao marcar Troca de óleo ele aparece em Valor pago pelo cliente, que continua editável. Limpar ou gravar o lançamento não apaga a sugestão. O valor gravado entra em Receita da manutenção no FINANCEIRO.",
+      "ficheiros": {
+        "index.html": [
+          "portalManutRapidaSugestaoOleo",
+          "Sugestão",
+          "Troca de óleo",
+          "portalManutRapidaValor"
+        ],
+        "portal-manutencao-rapida.js": [
+          "dk_manutencao_rapida_sugestao_oleo_v1",
+          "aplicarSugestaoOleoNoValor",
+          "hidratarSugestaoOleo",
+          "portalManutRapidaSugestaoOleo"
+        ],
+        "styles.css": [
+          "portal-manut-rapida__sugestao",
+          "portal-manut-rapida__oleo-row"
+        ],
+        "portal-supabase-sync.js": [
+          "dk_manutencao_rapida_sugestao_oleo_v1"
+        ]
+      }
     }
   ]
 }

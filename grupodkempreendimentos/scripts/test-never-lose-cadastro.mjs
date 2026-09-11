@@ -216,5 +216,14 @@ check(
   keepExisting.dk_locacoes_cadastro.length === 1
 );
 
+const sugKept = neverLoseCadastroPayload(
+  { dk_manutencao_rapida_sugestao_oleo_v1: { oleo: 40, updatedAt: "2026-09-11T10:00:00.000Z" } },
+  { dk_clientes_cadastro: [] }
+);
+check(
+  "sugestão de óleo não some no snapshot menor",
+  sugKept.dk_manutencao_rapida_sugestao_oleo_v1 && sugKept.dk_manutencao_rapida_sugestao_oleo_v1.oleo === 40
+);
+
 console.log(`\n--- ${failed ? "FAIL" : "OK"} ---`);
 process.exit(failed ? 1 : 0);

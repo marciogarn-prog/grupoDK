@@ -5,6 +5,8 @@
  */
 (function portalManutencaoRapida() {
   const STORAGE_KEY = "dk_manutencoes_rapidas_v1";
+  const SUGESTAO_OLEO_KEY = "dk_manutencao_rapida_sugestao_oleo_v1";
+  let lastSugestaoOleoAplicada = 0;
   const SETOR_KEY = "dk_portal_setor_movimentacoes_v1";
   const VEIC_KEYS = ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"];
   const SERVICOS = [
@@ -353,6 +355,64 @@
     el.classList.toggle("portal-feedback--ok", Boolean(ok));
   }
 
+  function readSugestaoOleo() {
+    return parseValor(document.getElementById("portalManutRapidaSugestaoOleo")?.value || "");
+  }
+
+  function persistSugestaoOleo(opts) {
+    const n = readSugestaoOleo();
+    const payload = { oleo: n, updatedAt: new Date().toISOString() };
+    try {
+      localStorage.setItem(SUGESTAO_OLEO_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
+    if (opts && opts.push && typeof window.__DK_pushCloudSnapshotNow === "function") {
+      void window.__DK_pushCloudSnapshotNow();
+    }
+  }
+
+  function loadSugestaoOleo() {
+    let n = 0;
+    if (typeof window.loadCadastro === "function") {
+      const o = window.loadCadastro(SUGESTAO_OLEO_KEY);
+      if (o && typeof o === "object" && !Array.isArray(o)) n = Number(o.oleo) || 0;
+    }
+    if (!n) {
+      try {
+        const raw = localStorage.getItem(SUGESTAO_OLEO_KEY);
+        if (raw) {
+          const o = JSON.parse(raw);
+          n = typeof o === "object" && o ? Number(o.oleo) || parseValor(raw) : parseValor(raw);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function hidratarSugestaoOleo() {
+    const inp = document.getElementById("portalManutRapidaSugestaoOleo");
+    if (!inp) return;
+    const n = loadSugestaoOleo();
+    inp.value = n > 0 ? formatBrl(n) : "";
+    lastSugestaoOleoAplicada = n;
+  }
+
+  function aplicarSugestaoOleoNoValor() {
+    const oleo = document.querySelector('[data-manut-rapida-serv="oleo"]');
+    if (!oleo?.checked) return;
+    if (document.querySelector('[data-manut-rapida-pag="naoSeAplica"]')?.checked) return;
+    const valor = document.getElementById("portalManutRapidaValor");
+    if (!valor) return;
+    const sug = readSugestaoOleo();
+    const atual = parseValor(valor.value);
+    if (atual > 0 && atual !== lastSugestaoOleoAplicada) return;
+    valor.value = sug > 0 ? formatBrl(sug) : "";
+    lastSugestaoOleoAplicada = sug;
+  }
+
   function limparForm() {
     const placa = document.getElementById("portalManutRapidaPlaca");
     const km = document.getElementById("portalManutRapidaKm");
@@ -380,6 +440,9 @@
     }
     const formas = formasMarcadas();
     let valor = parseValor(document.getElementById("portalManutRapidaValor")?.value || "");
+    if (!formas.naoSeAplica && serv.oleo && valor <= 0) {
+      valor = readSugestaoOleo();
+    }
     if (formas.naoSeAplica) {
       valor = 0;
     } else if (valor > 0 && !FORMAS_PAGAS.some((f) => formas[f.id])) {
@@ -811,6 +874,19 @@
     });
     const valor = document.getElementById("portalManutRapidaValor");
     valor?.addEventListener("input", () => maskValor(valor));
+    const sugOleo = document.getElementById("portalManutRapidaSugestaoOleo");
+    sugOleo?.addEventListener("mousedown", (ev) => ev.stopPropagation());
+    sugOleo?.addEventListener("click", (ev) => ev.stopPropagation());
+    sugOleo?.addEventListener("input", () => {
+      maskValor(sugOleo);
+      persistSugestaoOleo();
+      aplicarSugestaoOleoNoValor();
+    });
+    sugOleo?.addEventListener("change", () => persistSugestaoOleo({ push: true }));
+    document.querySelector('[data-manut-rapida-serv="oleo"]')?.addEventListener("change", () => {
+      aplicarSugestaoOleoNoValor();
+    });
+    hidratarSugestaoOleo();
     document.querySelectorAll("[data-manut-rapida-pag]").forEach((el) => {
       el.addEventListener("change", () => {
         if (el.getAttribute("data-manut-rapida-pag") === "naoSeAplica" && el.checked) {
@@ -821,6 +897,7 @@
         } else if (el.checked) {
           const nsa = document.querySelector('[data-manut-rapida-pag="naoSeAplica"]');
           if (nsa) nsa.checked = false;
+          aplicarSugestaoOleoNoValor();
         }
       });
     });
@@ -906,6 +983,7 @@
   else bindOnce();
 
   window.__DK_portalManutRapidaOnLocadosOpen = function () {
+    hidratarSugestaoOleo();
     renderDia();
   };
   window.__DK_portalManutRapidaRefreshDia = renderDia;

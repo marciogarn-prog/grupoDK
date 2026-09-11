@@ -75,6 +75,11 @@ record("Merge da nuvem não apaga a OS", mergedOs[0] && mergedOs[0].os === "OS00
 record("Hooks ao abrir Locados", ui.includes("__DK_portalManutRapidaOnLocadosOpen") && ui.includes("__DK_portalListPlacasLocadosAtivas"));
 record("CSS split azul/verde e caixa branca", css.includes("portal-manut-locados-split") && css.includes("portal-manut-rapida") && css.includes("portal-manut-dia"));
 record("Script da manutenção rápida no index", html.includes("portal-manutencao-rapida.js"));
+record("Caixa Sugestão à frente de Troca de óleo", locados.includes("portalManutRapidaSugestaoOleo") && locados.includes("Sugestão") && locados.indexOf("Troca de óleo") < locados.indexOf("portalManutRapidaSugestaoOleo"));
+const limparFn = js.slice(js.indexOf("function limparForm"), js.indexOf("function gravar"));
+record("Sugestão persistida e copiada para o valor", js.includes("dk_manutencao_rapida_sugestao_oleo_v1") && js.includes("aplicarSugestaoOleoNoValor") && js.includes("hidratarSugestaoOleo"));
+record("Limpar o lançamento não apaga a caixa Sugestão", limparFn.includes("portalManutRapidaValor") && !limparFn.includes("SugestaoOleo") && !limparFn.includes("sugestao"));
+record("Valor continua editável e gravado em valorPago", locados.includes('id="portalManutRapidaValor"') && js.includes("valorPago: valor"));
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes manutenção rápida ---`);

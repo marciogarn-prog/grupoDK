@@ -13799,6 +13799,39 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   align-content: end;
 }
 
+.portal-manut-rapida__oleo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  grid-column: 1 / -1;
+}
+
+.portal-manut-rapida__sugestao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.portal-manut-rapida__sugestao-lab {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #f5d76e;
+}
+
+.portal-manut-rapida__sugestao input {
+  width: 6.4rem;
+  min-height: 1.85rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid #f5d76e;
+  border-radius: 0.3rem;
+  background: #111;
+  color: #fff;
+  font: inherit;
+}
+
 .portal-manut-rapida__placa input,
 .portal-manut-rapida__km input {
   border-color: #eab308;
