@@ -2523,6 +2523,26 @@
       }
     },
     {
+      "id": "banner-cpf-operadores-logados",
+      "descricao": "Na faixa LOGADO COMO ADMINISTRADOR CEO 03037897430 aparecem também os CPF dos outros operadores que estão logados (portalAdminBannerOperadoresCpfs), no mesmo sítio.",
+      "ficheiros": {
+        "index.html": [
+          "portalAdminBannerOperadoresCpfs",
+          "LOGADO COMO ADMINISTRADOR"
+        ],
+        "portal-locadora-ui.js": [
+          "portalPintarBannerOperadoresCpfs",
+          "portalPresencaEquipaTick",
+          "dk-equipa-presenca",
+          "portalAdminBannerOperadoresCpfs"
+        ],
+        "api/dk-equipa-presenca.js": [
+          "dk:portal:equipa_presenca:v1",
+          "vivo"
+        ]
+      }
+    },
+    {
       "id": "protocolo-exige-integridade-minima",
       "descricao": "Um protocolo de locação só é criado com cliente cadastrado, CPF, placa cadastrada, data de início, KM inicial e valor de aluguel. Faltando qualquer item o cadastro é bloqueado. A Relação de pagamento por cliente não lista protocolo sem essa integridade (nem placa TESTE).",
       "ficheiros": {

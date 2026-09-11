@@ -110,6 +110,81 @@
     }
   }
 
+  let portalPresencaEquipaTimer = 0;
+  let portalPresencaOutrosCpfs = [];
+
+  function portalPintarBannerOperadoresCpfs() {
+    const el = document.getElementById("portalAdminBannerOperadoresCpfs");
+    if (!el) return;
+    const outros = (portalPresencaOutrosCpfs || []).filter((c) => {
+      const d = String(c || "").replace(/\D/g, "").slice(0, 11);
+      return d.length === 11 && d !== DK_LOCADORA_ADMIN_CPF;
+    });
+    if (!outros.length) {
+      el.textContent = "";
+      el.hidden = true;
+      return;
+    }
+    el.textContent = ` · ${outros.join(" · ")}`;
+    el.hidden = false;
+  }
+
+  async function portalPresencaEquipaTick() {
+    if (!portalTemSessaoEquipaAtiva()) return;
+    const headers =
+      typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    try {
+      const r = await fetch("/api/dk-equipa-presenca", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ vivo: true }),
+        cache: "no-store",
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !Array.isArray(j.cpfs)) return;
+      if (!isPortalAdministradorLogado()) return;
+      portalPresencaOutrosCpfs = j.cpfs
+        .map((c) => String(c || "").replace(/\D/g, "").slice(0, 11))
+        .filter((c) => c.length === 11 && c !== DK_LOCADORA_ADMIN_CPF);
+      portalPintarBannerOperadoresCpfs();
+      requestAnimationFrame(() => portalSyncAdminBannerLayout());
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalPresencaEquipaStart() {
+    if (!portalTemSessaoEquipaAtiva()) return;
+    if (!portalPresencaEquipaTimer) {
+      portalPresencaEquipaTimer = setInterval(() => {
+        void portalPresencaEquipaTick();
+      }, 45000);
+    }
+    void portalPresencaEquipaTick();
+  }
+
+  function portalPresencaEquipaStop() {
+    if (portalPresencaEquipaTimer) {
+      clearInterval(portalPresencaEquipaTimer);
+      portalPresencaEquipaTimer = 0;
+    }
+    const headers =
+      typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    try {
+      void fetch("/api/dk-equipa-presenca", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ vivo: false }),
+        keepalive: true,
+        cache: "no-store",
+      });
+    } catch {
+      /* ignore */
+    }
+    portalPresencaOutrosCpfs = [];
+    portalPintarBannerOperadoresCpfs();
+  }
+
   function portalAtualizarBannerAdmin() {
     const banner = document.getElementById("portal-admin-banner");
     if (!banner) return;
@@ -153,6 +228,9 @@
       btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo));
     });
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente");
+    portalPintarBannerOperadoresCpfs();
+    if (portalTemSessaoEquipaAtiva()) portalPresencaEquipaStart();
+    else if (portalPresencaEquipaTimer) portalPresencaEquipaStop();
     portalSyncAmbienteCadastroAdminUi();
     refreshPortalMielHomeAcesso();
     refreshPortalEstoqueAcesso();
@@ -9719,6 +9797,7 @@
     portalLoginPendentePlataforma = null;
     portalLimparPlataformaUi();
     portalLimparAreaAtiva();
+    portalPresencaEquipaStop();
     if (typeof clearSession === "function") clearSession();
     try {
       localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);

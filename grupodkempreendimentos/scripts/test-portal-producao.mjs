@@ -95,6 +95,21 @@ async function runSuite() {
       html.includes("data-auto") ||
       html.includes("mascaras");
     record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
+    record(
+      "faixa admin mostra CPF dos operadores logados",
+      html.includes("portalAdminBannerOperadoresCpfs") && html.includes("portalAdminBannerLabel"),
+      "mesmo sítio do CPF do CEO"
+    );
+    const portalUiOpsJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "presença da equipa no banner do CEO",
+      portalUiOpsJs.includes("portalPintarBannerOperadoresCpfs") &&
+        portalUiOpsJs.includes("/api/dk-equipa-presenca") &&
+        portalUiOpsJs.includes("LOGADO COMO ADMINISTRADOR CEO 03037897430"),
+      "pulso + CPF dos outros operadores"
+    );
     const tagSeq = await page.evaluate(() => {
       if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };
       const fromFmt = nextTagByTipo("CARRO", [

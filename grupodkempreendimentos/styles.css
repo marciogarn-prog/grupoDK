@@ -9156,6 +9156,14 @@ body.dk-pwa-update-bar-visible {
   white-space: normal;
 }
 
+.portal-admin-banner__ops {
+  letter-spacing: 0.08em;
+}
+
+.portal-admin-banner__ops[hidden] {
+  display: none !important;
+}
+
 .portal-admin-ver-como {
   display: flex;
   flex-wrap: wrap;
