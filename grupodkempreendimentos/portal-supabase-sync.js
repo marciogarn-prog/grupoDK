@@ -3113,6 +3113,7 @@
       "dk_veiculos_cadastro",
       "dk_portal_veiculos_cadastro",
       "dk_locacoes_cadastro",
+      "dk_manutencoes_rapidas_v1",
     ];
     suppressCloudHook = true;
     try {
@@ -3484,6 +3485,7 @@
       "dk_veiculos_cadastro",
       "dk_portal_veiculos_cadastro",
       "dk_locacoes_cadastro",
+      "dk_manutencoes_rapidas_v1",
     ];
     let changed = false;
     suppressCloudHook = true;
@@ -3570,6 +3572,13 @@
     const com = await pullComunicacaoOperacaoFromCloudMerge();
     const fin = await pullFinanceiroCeoKeysFromCloud();
     const cad = await pullCadastroOperacionalFromCloud();
+    if (typeof window.__DK_portalSyncManutencoesRapidas === "function") {
+      try {
+        await window.__DK_portalSyncManutencoesRapidas();
+      } catch {
+        /* ignore */
+      }
+    }
     return { ...com, financeiro: fin, cadastro: cad };
   }
 

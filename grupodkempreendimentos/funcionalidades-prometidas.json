@@ -2523,6 +2523,25 @@
       }
     },
     {
+      "id": "manutencao-os-sync-todos-pcs",
+      "descricao": "OS da manutenção rápida do Irinaldo (e demais operadores) entram no Registro do dia e na receita da manutenção do FINANCEIRO CEO em qualquer PC. Canal /api/cadastro-manutencoes-rapidas; o dia usa dataLancamento, não só criadoEm.",
+      "ficheiros": {
+        "api/cadastro-manutencoes-rapidas.js": [
+          "dk:portal:manutencoes_rapidas:v1",
+          "mergeManutencoesRapidas"
+        ],
+        "portal-manutencao-rapida.js": [
+          "pullManutencoesDaNuvem",
+          "pushManutencoesParaNuvem",
+          "syncManutencoesComNuvem",
+          "ymdDoRegistro(r) === ymd"
+        ],
+        "portal-financeiro-ceo.js": [
+          "__DK_portalPullManutencoesRapidas"
+        ]
+      }
+    },
+    {
       "id": "banner-cpf-operadores-logados",
       "descricao": "Na faixa LOGADO COMO ADMINISTRADOR CEO 03037897430 aparecem também os CPF dos outros operadores que estão logados (portalAdminBannerOperadoresCpfs), no mesmo sítio.",
       "ficheiros": {

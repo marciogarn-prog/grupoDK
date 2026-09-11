@@ -110,6 +110,16 @@ async function runSuite() {
         portalUiOpsJs.includes("LOGADO COMO ADMINISTRADOR CEO 03037897430"),
       "pulso + CPF dos outros operadores"
     );
+    const manutRapidaJs = await fetch(`${BASE_URL}portal-manutencao-rapida.js?v=20260911os-sync`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "OS manutenção rápida sincroniza entre PCs",
+      manutRapidaJs.includes("pullManutencoesDaNuvem") &&
+        manutRapidaJs.includes("/api/cadastro-manutencoes-rapidas") &&
+        manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
+      "Registro do dia e receita CEO usam a união da nuvem"
+    );
     const tagSeq = await page.evaluate(() => {
       if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };
       const fromFmt = nextTagByTipo("CARRO", [

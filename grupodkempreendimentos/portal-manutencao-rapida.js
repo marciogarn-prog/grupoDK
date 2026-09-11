@@ -590,12 +590,75 @@
     if (typeof window.addAuditLog === "function") {
       addAuditLog("manutencao_rapida", "gravar", `${os} · ${placa} · ${labelsServicos(rec)}`);
     }
+    void pushManutencoesParaNuvem(next);
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       void window.__DK_pushCloudSnapshotNow();
     }
     limparForm();
     renderDia();
     setMsg(`Manutenção rápida gravada — ${os} · ${placa}.`, true);
+  }
+
+  function apiHeadersManut() {
+    return typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+  }
+
+  async function pullManutencoesDaNuvem() {
+    try {
+      const r = await fetch(`/api/cadastro-manutencoes-rapidas?nocache=${Date.now()}`, {
+        headers: apiHeadersManut(),
+        cache: "no-store",
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !Array.isArray(j.data)) return false;
+      const local = loadArr(STORAGE_KEY);
+      const merged =
+        typeof mergeCadastroHistoricoImutavel === "function"
+          ? mergeCadastroHistoricoImutavel(STORAGE_KEY, local, j.data)
+          : local.concat(j.data);
+      saveArr(STORAGE_KEY, merged);
+      if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+        window.__DK_invalidateCadastroParseCache(STORAGE_KEY);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function pushManutencoesParaNuvem(list) {
+    try {
+      const r = await fetch("/api/cadastro-manutencoes-rapidas", {
+        method: "POST",
+        headers: { ...apiHeadersManut(), "Content-Type": "application/json" },
+        body: JSON.stringify({ data: Array.isArray(list) ? list : loadArr(STORAGE_KEY) }),
+        cache: "no-store",
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !Array.isArray(j.data)) return false;
+      const local = loadArr(STORAGE_KEY);
+      const merged =
+        typeof mergeCadastroHistoricoImutavel === "function"
+          ? mergeCadastroHistoricoImutavel(STORAGE_KEY, local, j.data)
+          : j.data;
+      saveArr(STORAGE_KEY, merged);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function syncManutencoesComNuvem() {
+    await pullManutencoesDaNuvem();
+    await pushManutencoesParaNuvem(persistOsBackfill());
+    renderDia();
+    if (typeof window.__DK_financeiroCeoRefreshReceita === "function") {
+      try {
+        window.__DK_financeiroCeoRefreshReceita();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   function linhasDoPeriodo(deYmd, ateYmd, placaFiltro) {
@@ -740,7 +803,7 @@
     const ymd = todayYmd();
     const admin = ehAdminManutencao();
     const cpfOp = onlyDigits(operador().cpf);
-    let rows = linhasDoPeriodo("", "", "").filter((r) => ymdFromIso(r.createdAt) === ymd);
+    let rows = linhasDoPeriodo("", "", "").filter((r) => ymdDoRegistro(r) === ymd);
     if (!admin) {
       rows = rows.filter((r) => onlyDigits(r.operadorCpf) === cpfOp);
     }
@@ -1191,13 +1254,20 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindOnce);
   else bindOnce();
 
+  setTimeout(() => {
+    void syncManutencoesComNuvem();
+  }, 2200);
+
   window.__DK_portalManutRapidaOnLocadosOpen = function () {
     hidratarSugestaoOleo();
     hidratarDataLancamento();
     atualizarTotalPago();
     renderDia();
+    void syncManutencoesComNuvem();
   };
   window.__DK_portalManutRapidaRefreshDia = renderDia;
+  window.__DK_portalPullManutencoesRapidas = pullManutencoesDaNuvem;
+  window.__DK_portalSyncManutencoesRapidas = syncManutencoesComNuvem;
   window.__DK_manutOsFormat = formatOs;
   window.__DK_manutOsProximoNumero = proximoOsNumero;
   window.__DK_manutOsBackfill = backfillOs;

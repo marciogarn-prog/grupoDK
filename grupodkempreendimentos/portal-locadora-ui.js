@@ -27079,6 +27079,9 @@
         dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
         dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
         dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
+        typeof window.__DK_portalPullManutencoesRapidas === "function"
+          ? window.__DK_portalPullManutencoesRapidas()
+          : Promise.resolve(),
       ]);
     }
 

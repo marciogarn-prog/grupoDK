@@ -3328,6 +3328,7 @@ function saveCadastro(key, list, opts) {
     key === PORTAL_VEICULOS_KEY ||
     key === FROTA_VEICULOS_KEY ||
     key === CAD_LOCACOES_KEY ||
+    key === CAD_MANUTENCOES_RAPIDAS_KEY ||
     key === "dk_financeiro_ceo_despesas_v1" ||
     key === "dk_financeiro_ceo_situacao_pag_v1" ||
     key === "dk_financeiro_ceo_fontes_v1" ||

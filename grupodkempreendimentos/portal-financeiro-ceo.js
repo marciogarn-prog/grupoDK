@@ -5187,6 +5187,9 @@
   }
 
   async function sincronizarFinanceiroCeoAbrir() {
+    if (typeof window.__DK_portalPullManutencoesRapidas === "function") {
+      await window.__DK_portalPullManutencoesRapidas().catch(() => {});
+    }
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
         window.__DK_markLocalDataAuthority();

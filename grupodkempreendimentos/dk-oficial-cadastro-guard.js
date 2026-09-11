@@ -98,7 +98,7 @@
     cliente: ["dataCadastro", "createdAt", "updatedAt"],
     veiculo: ["dataCadastro", "createdAt", "updatedAt"],
     locacao: ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"],
-    lancamento: ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"],
+    lancamento: ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt", "criadoEm"],
     comprovante: ["createdAt", "criadoEm", "enviadoEm", "data", "dataPagamento"],
     documento: ["createdAt", "criadoEm", "enviadoClienteEm", "updatedAt"],
     notificacao: ["criadoEm", "createdAt", "dataPagamento"],
