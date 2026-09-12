@@ -15,7 +15,14 @@ const {
   upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("../lib/dk-supabase-doorman.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, findFuncionario, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const {
+  applyApiCors,
+  enforceRateLimit,
+  requirePortalAuth,
+  findFuncionario,
+  onlyDigits,
+  clientIp,
+} = require("../lib/dk-portal-auth.cjs");
 const {
   filterIncomingByModules,
   restoreCredentialFields,
@@ -835,12 +842,22 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (await enforceRateLimit(req, res, "cloud-snapshot", req.method === "POST" ? 30 : 60)) {
-    return;
-  }
   const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
   if (!gate.ok) {
+    if (await enforceRateLimit(req, res, "cloud-snapshot-anon", 20)) return;
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  }
+
+  const ident = gate.service
+    ? "svc"
+    : onlyDigits(gate.cpf).slice(0, 11) || `ip:${clientIp(req)}`;
+  const isPost = req.method === "POST";
+  if (
+    await enforceRateLimit(req, res, isPost ? "cloud-snapshot-post" : "cloud-snapshot-get", isPost ? 24 : 40, {
+      identity: ident,
+    })
+  ) {
+    return;
   }
 
   if (!isRedisKvConfigured()) {
@@ -915,6 +932,7 @@ async function handler(req, res) {
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
       let existingPayload = null;
+      let existingUpdatedAt = null;
       if (existingRaw) {
         let row = existingRaw;
         if (typeof existingRaw === "string") {
@@ -925,6 +943,7 @@ async function handler(req, res) {
           }
         }
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
+        if (row?.updated_at) existingUpdatedAt = String(row.updated_at);
       }
       if (channel === "default") {
         incoming = sanitizePayloadForOficial(
@@ -997,20 +1016,24 @@ async function handler(req, res) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
       payload.dk_dados_seguros_v1 = true;
-      const stored = { label: LABEL, payload, updated_at: updatedAt };
+      const incomingTs = Date.parse(updatedAt) || 0;
+      const existingTs = Date.parse(existingUpdatedAt || "") || 0;
+      const storedAt = existingTs > incomingTs ? existingUpdatedAt : updatedAt;
+      const stored = { label: LABEL, payload, updated_at: storedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       const supabase = isSupabaseDoormanConfigured()
         ? await withDoormanTimeout(
-            upsertSnapshotByLabel(LABEL, payload, updatedAt),
-            8000,
+            upsertSnapshotByLabel(LABEL, payload, storedAt),
+            20000,
             "supabase_timeout"
           )
         : { ok: false, reason: "doorman_key_missing" };
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        updated_at: updatedAt,
+        updated_at: storedAt,
         source: "redis",
+        persistencia: supabase && supabase.ok ? "supabase+redis" : "redis",
         supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
         replace,
         keys: Object.keys(payload).length,

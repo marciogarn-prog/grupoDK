@@ -1,5 +1,6 @@
 backups/
 _backup-fase-1a-*/
+_backup-snapshot-sync-20260912/
 *.zip
 node_modules/
 .cursor/*

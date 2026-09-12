@@ -226,11 +226,17 @@
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
   /** Sem intervalo mínimo: cada troca de tela baixa a última atualização. */
   const SCREEN_PULL_MIN_INTERVAL_MS = 0;
+  const SNAPSHOT_GET_CACHE_MS = 8000;
 
   let backgroundPullLastAt = 0;
   let backgroundPullInFlight = null;
   let screenPullLastAt = 0;
   let screenPullInFlight = null;
+  let snapshotGetInFlight = null;
+  let snapshotGetCache = { at: 0, data: null };
+  let lastPushedFingerprint = "";
+  let cloudPushDirty = false;
+  let cloudBackoffUntil = 0;
 
   let cloudPushTimer = null;
   /** Promise do upload automático em curso (ou a última cadeia ainda a concluir). */
@@ -513,6 +519,13 @@
         isOutage: false,
       };
     }
+    if (lower.includes("rate_limited") || lower === "429") {
+      return {
+        code: "rate_limited",
+        userMessage: "A nuvem pediu espera breve. Os dados ficam neste PC e sobem a seguir.",
+        isOutage: false,
+      };
+    }
     if (lower.includes("42501") || lower.includes("permission denied")) {
       return {
         code: "42501",
@@ -556,6 +569,9 @@
       return;
     }
     const info = describeSupabasePushError(supaErr);
+    if (info.code === "timeout" || info.code === "rate_limited") {
+      return;
+    }
     cloudSupabaseState.down = true;
     cloudSupabaseState.reason = info.userMessage;
     cloudSupabaseState.code = info.code;
@@ -1530,7 +1546,25 @@
     return [localUrl];
   }
 
-  async function fetchRedundantSnapshotPayload() {
+  function noteCloudRateLimit(res, data) {
+    const ra = Number(res && res.headers && res.headers.get && res.headers.get("Retry-After")) ||
+      Number(data && data.retryAfter) ||
+      8;
+    cloudBackoffUntil = Date.now() + Math.min(60000, Math.max(2000, ra * 1000));
+  }
+
+  function fingerprintCloudPayload(payload) {
+    try {
+      const s = JSON.stringify(payload || {});
+      let h = 0;
+      for (let i = 0; i < s.length; i += 97) h = (Math.imul(h, 33) + s.charCodeAt(i)) | 0;
+      return `${s.length}:${h}`;
+    } catch {
+      return "";
+    }
+  }
+
+  async function fetchRedundantSnapshotPayloadUncached() {
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       try {
@@ -1543,6 +1577,10 @@
           15000
         );
         const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          noteCloudRateLimit(res, data);
+          return null;
+        }
         if (!res.ok || !data?.ok) continue;
         if (!data.payload || typeof data.payload !== "object") return null;
         return {
@@ -1555,6 +1593,22 @@
       }
     }
     return null;
+  }
+
+  async function fetchRedundantSnapshotPayload() {
+    if (snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
+      return snapshotGetCache.data;
+    }
+    if (snapshotGetInFlight) return snapshotGetInFlight;
+    snapshotGetInFlight = fetchRedundantSnapshotPayloadUncached()
+      .then((row) => {
+        if (row && row.payload) snapshotGetCache = { at: Date.now(), data: row };
+        return row;
+      })
+      .finally(() => {
+        snapshotGetInFlight = null;
+      });
+    return snapshotGetInFlight;
   }
 
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
@@ -1596,8 +1650,14 @@
           postTimeoutMs
         );
         const data = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          noteCloudRateLimit(res, data);
+          lastErr = "rate_limited";
+          break;
+        }
         if (res.ok && data?.ok) {
           anyOk = true;
+          snapshotGetCache = { at: 0, data: null };
           if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
           lastErr = data?.reason || data?.error || res.statusText;
@@ -1633,6 +1693,7 @@
       const red = await pushRedundantSnapshotPayload(patch, updatedAt, { skipShrink: true });
       redisOk = red.ok;
       lastErr = red.error || null;
+      if (!redisOk && String(lastErr) === "rate_limited") break;
       if (!redisOk && attempt < 2) {
         await new Promise((r) => window.setTimeout(r, 450 * (attempt + 1)));
       }
@@ -1829,6 +1890,11 @@
       }
       return;
     }
+    if (cloudPushInFlight) {
+      cloudPushDirty = true;
+      return;
+    }
+    const wait = Math.max(CLOUD_PUSH_DEBOUNCE_MS, cloudBackoffUntil > Date.now() ? cloudBackoffUntil - Date.now() : 0);
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
@@ -1836,7 +1902,7 @@
         console.error(e);
         setMsg(String(e?.message || e), null);
       });
-    }, CLOUD_PUSH_DEBOUNCE_MS);
+    }, wait);
   }
 
   /**
@@ -1861,6 +1927,10 @@
       });
     cloudPushInFlight = p.finally(() => {
       if (cloudPushInFlight === p) cloudPushInFlight = null;
+      if (cloudPushDirty) {
+        cloudPushDirty = false;
+        scheduleCloudPushDebounced();
+      }
     });
     return cloudPushInFlight;
   }
@@ -3799,13 +3869,20 @@
     let supaErr = "";
     let redisErr = "";
 
+    const fp = fingerprintCloudPayload(payload);
+    if (fp && fp === lastPushedFingerprint && !forceReplace) {
+      return { ok: true, skipped: true, reason: "unchanged", supaOk: true, redisOk: true, source: "unchanged" };
+    }
+
     const red = await pushRedundantSnapshotPayload(payload, updatedAt, {
       replace: forceReplace,
       fullReplaceComprovantes,
     });
     redisOk = red.ok;
     if (!redisOk) redisErr = String(red.error || "Redis indisponível");
-    if (red.supabase && red.supabase.ok) {
+    if (String(red.error) === "rate_limited") {
+      supaErr = "rate_limited";
+    } else if (red.supabase && red.supabase.ok) {
       supaOk = true;
     } else {
       supaErr = String((red.supabase && red.supabase.reason) || "doorman");
@@ -3820,6 +3897,7 @@
     }
 
     noteCloudPushTimestamp(updatedAt);
+    if (fp) lastPushedFingerprint = fp;
     const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
     if (showUserMessages) setMsg(msg.text, msg.tone);
     return {
@@ -3954,10 +4032,16 @@
       const next = Array.isArray(cloudPayload[k]) ? cloudPayload[k] : [];
       const cur = readLocalJsonArray(k);
       if (JSON.stringify(cur) !== JSON.stringify(next)) {
-        if (typeof saveCadastro === "function") {
-          saveCadastro(k, next, { bypassImmutabilidadeCadastro: true });
-        } else {
-          localStorage.setItem(k, JSON.stringify(next));
+        const prevHook = suppressCloudHook;
+        suppressCloudHook = true;
+        try {
+          if (typeof saveCadastro === "function") {
+            saveCadastro(k, next, { bypassImmutabilidadeCadastro: true });
+          } else {
+            localStorage.setItem(k, JSON.stringify(next));
+          }
+        } finally {
+          suppressCloudHook = prevHook;
         }
         changed = true;
       }
@@ -3979,12 +4063,14 @@
     if (clientePage) {
       return pullClienteCloudSnapshotLight(opts);
     }
-    const consultaSync = await pullConsultaKeysFromCloud();
+    const data = await fetchCloudSnapshotPayload();
+    const consultaSync = data?.payload
+      ? { ok: true, changed: syncConsultaKeysFromCloudPayload(data.payload), source: data.source || "cloud" }
+      : { ok: false, skipped: true, reason: "no_cloud_snapshot" };
     if (isLocalDataAuthorityActive() && !clientePage && !bypassLocalAuthority) {
       const com = await pullAppendOnlyKeysFromCloud();
       return { ...com, consultaSync };
     }
-    const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
       return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
     }
@@ -4645,11 +4731,6 @@
         return { ok: false, error: e };
       });
     }
-    window.setTimeout(() => {
-      pullConsultaKeysFromCloud().catch((e) => {
-        console.warn("[DK cloud] consulta sync arranque", e);
-      });
-    }, 800);
     if (isLocalDataAuthorityActive()) return;
     const startSilentPull = () => {
       window.setTimeout(() => {

@@ -117,17 +117,22 @@ function requirePortalAuth(req, opts = {}) {
   return { ok: false, status: 403, reason: "forbidden" };
 }
 
-async function enforceRateLimit(req, res, bucket, maxPerMin) {
-  const ip = clientIp(req);
+async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
+  const identRaw = opts && opts.identity != null && String(opts.identity).trim()
+    ? String(opts.identity)
+    : clientIp(req);
+  const ident = String(identRaw).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 80) || "unknown";
   const window = Math.floor(Date.now() / 60000);
-  const key = `dk:rl:${bucket}:${ip}:${window}`;
+  const key = `dk:rl:${bucket}:${ident}:${window}`;
   try {
     if (!isRedisKvConfigured()) return false;
     const redis = createRedisClient();
     const n = Number(await redis.incr(key));
     if (n === 1) await redis.expire(key, 120);
     if (n > maxPerMin) {
-      res.status(429).json({ ok: false, reason: "rate_limited" });
+      const retryAfter = Math.max(1, 60 - (Math.floor(Date.now() / 1000) % 60));
+      res.setHeader("Retry-After", String(retryAfter));
+      res.status(429).json({ ok: false, reason: "rate_limited", retryAfter, bucket });
       return true;
     }
   } catch {

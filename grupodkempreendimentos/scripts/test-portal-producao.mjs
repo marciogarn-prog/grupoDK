@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260911fin-fix`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260912snap`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -144,7 +144,7 @@ async function runSuite() {
         finCeoPagJs.includes("patch: true"),
       "lançar/apagar/pagar só enviam o bloco"
     );
-    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260911supa-pt`, {
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260912snap`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
