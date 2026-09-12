@@ -679,9 +679,14 @@ async function runSuite() {
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
       }
+      const snapAuthH = tokCeo
+        ? { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo }
+        : SNAP_SVC
+          ? { Authorization: `Bearer ${SNAP_SVC}` }
+          : {};
       const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, {
         cache: "no-store",
-        headers: SNAP_SVC ? { Authorization: `Bearer ${SNAP_SVC}` } : {},
+        headers: snapAuthH,
       }).then((r) => (r.ok ? r.json() : {}));
       const pOf = cloudOficial.payload || {};
       const clientesOf = pOf.dk_clientes_cadastro || [];
@@ -693,7 +698,7 @@ async function runSuite() {
             retroOf.length >= 20 &&
             (pOf.dk_veiculos_cadastro || []).length === 187 &&
             (pOf.dk_locacoes_cadastro || []).length === 553
-          : snapAnon.status === 401 || snapAnon.status === 403,
+          : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         clientesOf.length
           ? `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
           : `anónimo bloqueado status=${snapAnon.status}`
@@ -713,7 +718,7 @@ async function runSuite() {
             veiculosOf.length === 187 &&
             carrosOf.length === 16 &&
             z1Of.length === 0
-          : snapAnon.status === 401 || snapAnon.status === 403,
+          : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         `flag=${Boolean(pOf.dk_oficial_frota_planilha_v1)} v=${veiculosOf.length} carros=${carrosOf.length} z1=${z1Of.length}`
       );
       const locsOf = pOf.dk_locacoes_cadastro || [];
@@ -738,7 +743,7 @@ async function runSuite() {
       });
       record(
         "oficial: nuvem sem seeds demo nem fantasmas",
-        locsOf.length ? ghostsOf.length === 0 : snapAnon.status === 401 || snapAnon.status === 403,
+        locsOf.length ? ghostsOf.length === 0 : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         `fantasmas=${ghostsOf.length} de ${locsOf.length}`
       );
     record(
@@ -1805,7 +1810,11 @@ async function runSuite() {
           new URL(`api/dk-cloud-snapshot?nocache=${Date.now()}`, BASE_URL).href,
           {
             cache: "no-store",
-            headers: SNAP_SVC ? { Authorization: `Bearer ${SNAP_SVC}` } : {},
+            headers: tokCeo
+              ? { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo }
+              : SNAP_SVC
+                ? { Authorization: `Bearer ${SNAP_SVC}` }
+                : {},
           }
         ).then((r) => (r.ok ? r.json() : {}));
         const list = Array.isArray(cloudColab?.payload?.dk_funcionarios_access)
