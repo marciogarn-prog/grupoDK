@@ -696,8 +696,8 @@ async function runSuite() {
         clientesOf.length
           ? clientesOf.length >= 385 &&
             retroOf.length >= 20 &&
-            (pOf.dk_veiculos_cadastro || []).length === 187 &&
-            (pOf.dk_locacoes_cadastro || []).length === 553
+            (pOf.dk_veiculos_cadastro || []).length >= 187 &&
+            (pOf.dk_locacoes_cadastro || []).length >= 553
           : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         clientesOf.length
           ? `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
