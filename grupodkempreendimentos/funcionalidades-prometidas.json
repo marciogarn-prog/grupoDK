@@ -2330,7 +2330,10 @@
           "finCeoDespesasMostrarMais",
           "montarPayloadBlocoCeo",
           "aplicarBlocoNaTela",
-          "patch: true"
+          "patch: true",
+          "concluirResultadoCeo",
+          "novoOperationIdCeo",
+          "enviarFinanceiroCeoNuvemIdempotente"
         ],
         "index.html": [
           "finCeoDespNuvemResultModal",

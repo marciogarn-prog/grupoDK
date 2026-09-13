@@ -31,6 +31,26 @@ rec("gravação sem snapshot gordo", ceoJs.includes("pushFinanceiroCeoParaNuvem"
 rec("mutação sem hook de nuvem", ceoJs.includes("__DK_runWithoutCloudPush") && syncJs.includes("function runWithoutCloudPush"), "");
 rec("botão mostrar mais", html.includes("finCeoDespesasMostrarMais"), "");
 rec("timeout da gravação", ceoJs.includes('reason: "timeout"') && ceoJs.includes("11000"), "");
+rec(
+  "confirmação única por operationId",
+  ceoJs.includes("novoOperationIdCeo") &&
+    ceoJs.includes("concluirResultadoCeo") &&
+    ceoJs.includes("enviarFinanceiroCeoNuvemIdempotente") &&
+    ceoJs.includes("financeiro-ceo-pagamento") &&
+    /finCeoOpAtual.status === "ok"[\s\S]{0,80}return false/.test(ceoJs),
+  ""
+);
+rec(
+  "429 não abre erro imediato",
+  ceoJs.includes('reason: "rate_limited"') &&
+    ceoJs.includes("retryAfter") &&
+    /rate_limited[\s\S]{0,220}continue/.test(ceoJs) &&
+    ceoJs.includes("if (finCeoGravacaoEmCurso) return"),
+  ""
+);
+rec("botão de pagamento trava no clique", ceoJs.includes("setBotoesGravacaoCeoDisabled") && ceoJs.includes("finCeoDespPagoSimBtn"), "");
+rec("API replay do mesmo operationId", apiJs.includes("dk:portal:fin_ceo_op:") && apiJs.includes("replay: true"), "");
+rec("sucesso financeiro não usa snapshot", ceoJs.includes("Snapshot não confirma") && ceoJs.includes("return push.ok === true"), "");
 
 const despesas = [
   { id: "ceo-teste-lancar", valor: 10, periodic: true, repeticoes: 12, dataEvento: "11/09/2026", categoria: "PARTICULARES" },

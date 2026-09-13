@@ -17,6 +17,14 @@ const HASH_SIT = "dk:portal:financeiro_ceo:situacao:h";
 const HASH_FONT = "dk:portal:financeiro_ceo:fontes:h";
 const HASH_CART = "dk:portal:financeiro_ceo:cartoes:h";
 const HASH_DESP_UNI = "dk:portal:financeiro_despesas:h";
+const OP_KEY_PREFIX = "dk:portal:fin_ceo_op:";
+
+function operationRedisKey(id) {
+  const s = String(id || "")
+    .replace(/[^a-zA-Z0-9:_-]/g, "")
+    .slice(0, 180);
+  return s ? OP_KEY_PREFIX + s : "";
+}
 
 const BUNDLE_KEYS = [
   "dk_financeiro_ceo_despesas_v1",
@@ -183,11 +191,37 @@ module.exports = async function handler(req, res) {
       }
       const incoming = pickBundle(body?.data && typeof body.data === "object" ? body.data : body);
       const isPatch = body?.patch === true || body?.bloco === true;
+      const opKey = operationRedisKey(body?.operationId);
+      if (opKey) {
+        const seen = await redis.get(opKey);
+        if (seen) {
+          return res.status(200).json({
+            ok: true,
+            patch: isPatch,
+            replay: true,
+            operationId: String(body.operationId || ""),
+          });
+        }
+      }
       if (isPatch) {
         const gravados = await aplicarBlocoHash(redis, incoming);
+        if (opKey) {
+          try {
+            await redis.set(opKey, "1", { ex: 86400 });
+          } catch {
+            /* merge do bloco já é idempotente */
+          }
+        }
         return res.status(200).json({ ok: true, patch: true, gravados });
       }
       const gravados = await aplicarBlocoHash(redis, incoming);
+      if (opKey) {
+        try {
+          await redis.set(opKey, "1", { ex: 86400 });
+        } catch {
+          /* merge do bloco já é idempotente */
+        }
+      }
       return res.status(200).json({ ok: true, patch: false, gravados });
     }
   } catch (e) {

@@ -10,6 +10,8 @@
   const TITULAR_CEO_CPF = "03037897430";
   let finCeoGravacaoEmCurso = false;
   let finCeoNuvemWaitWatchdog = 0;
+  /** Uma operação financeira explícita = um id + um resultado terminal. */
+  let finCeoOpAtual = null;
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
@@ -148,7 +150,37 @@
     if (push.skipped && (push.reason === "android_somente_leitura" || push.reason === "offline_mode")) {
       return true;
     }
-    return Boolean(push.ok === true || push.redisOk || push.source === "redis" || push.source === "both");
+    /* Sucesso financeiro = API própria /api/cadastro-financeiro-ceo. Snapshot não confirma. */
+    return push.ok === true;
+  }
+
+  function novoOperationIdCeo(tipo, chave) {
+    return `financeiro-ceo-${String(tipo || "op")}:${String(chave || "x").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80)}:${Date.now()}`;
+  }
+
+  function setBotoesGravacaoCeoDisabled(disabled) {
+    const pago = document.getElementById("finCeoDespPagoSimBtn");
+    const cad = document.getElementById("finCeoDespConfirmSimBtn");
+    if (pago) pago.disabled = Boolean(disabled);
+    if (cad) cad.disabled = Boolean(disabled);
+  }
+
+  function concluirResultadoCeo(opId, kind, texto) {
+    if (!finCeoOpAtual || finCeoOpAtual.id !== opId) return false;
+    if (kind === "ok") {
+      if (finCeoOpAtual.status === "ok") return false;
+      finCeoOpAtual.status = "ok";
+      abrirModalResultadoNuvem("ok", texto);
+      return true;
+    }
+    if (kind === "erro") {
+      if (finCeoOpAtual.status === "ok") return false;
+      if (finCeoOpAtual.status === "erro") return false;
+      finCeoOpAtual.status = "erro";
+      abrirModalResultadoNuvem("erro", texto);
+      return true;
+    }
+    return false;
   }
 
   function lerCadastroArrayCru(key) {
@@ -231,11 +263,15 @@
       finCeoNuvemWaitWatchdog = 0;
     }
     if (kind === "wait") {
+      const opIdWatch = finCeoOpAtual && finCeoOpAtual.id;
       finCeoNuvemWaitWatchdog = window.setTimeout(() => {
         finCeoNuvemWaitWatchdog = 0;
         if (modal.dataset.finCeoNuvemKind !== "wait") return;
-        finCeoGravacaoEmCurso = false;
-        abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
+        if (finCeoGravacaoEmCurso) return;
+        if (finCeoOpAtual && finCeoOpAtual.id === opIdWatch && finCeoOpAtual.status === "pending") {
+          return;
+        }
+        concluirResultadoCeo(opIdWatch, "erro", MSG_NUVEM_ERRO);
       }, 11000);
     }
     if (kind !== "wait") btn?.focus();
@@ -360,22 +396,32 @@
     return Object.keys(data).length ? data : null;
   }
 
-  async function pushFinanceiroCeoParaNuvem(bloco) {
+  async function pushFinanceiroCeoParaNuvem(bloco, operationId) {
     const patch = montarPayloadBlocoCeo(bloco);
     if (!patch) return { ok: false, reason: "bloco_vazio" };
     const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
       method: "POST",
       headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
-      body: JSON.stringify({ patch: true, bloco: true, data: patch }),
+      body: JSON.stringify({
+        patch: true,
+        bloco: true,
+        data: patch,
+        operationId: operationId || "",
+      }),
       cache: "no-store",
     }, 8000);
     const j = await r.json().catch(() => ({}));
+    if (r.status === 429) {
+      const ra = Number(r.headers.get("Retry-After") || j.retryAfter) || 8;
+      return { ok: false, reason: "rate_limited", status: 429, retryAfter: ra, r: j };
+    }
     if (!r.ok || !j.ok) return { ok: false, r: j, status: r.status };
     return { ok: true, r: j };
   }
 
   async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk, opts) {
     const exigirNuvem = Boolean(opts && opts.exigirNuvem);
+    const operationId = opts && opts.operationId;
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
         window.__DK_markLocalDataAuthority();
@@ -385,8 +431,8 @@
     }
     if (feedbackEl) feedbackEl.textContent = "A enviar para a nuvem…";
     try {
-      const r = await pushFinanceiroCeoParaNuvem(opts && opts.bloco);
-      if (r && r.ok === true) {
+      const r = await enviarFinanceiroCeoNuvemIdempotente(opts && opts.bloco, operationId);
+      if (nuvemPushResultOk(r)) {
         if (feedbackEl) feedbackEl.textContent = mensagemOk || MSG_NUVEM_OK;
         return { ok: true, r: r.r };
       }
@@ -402,6 +448,32 @@
       }
       return { ok: false, error: err };
     }
+  }
+
+  async function enviarFinanceiroCeoNuvemIdempotente(bloco, operationId) {
+    const maxAttempts = 3;
+    let last = { ok: false, reason: "timeout" };
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (finCeoOpAtual && finCeoOpAtual.id === operationId && finCeoOpAtual.status === "ok") {
+        return { ok: true, replay: true };
+      }
+      const raced = await Promise.race([
+        pushFinanceiroCeoParaNuvem(bloco, operationId),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 10000)),
+      ]);
+      last = raced || last;
+      if (nuvemPushResultOk(raced)) return raced;
+      if (raced && (raced.status === 429 || raced.reason === "rate_limited")) {
+        const ra = Number(raced.retryAfter) || 8;
+        await new Promise((res) => setTimeout(res, Math.min(20000, Math.max(2000, ra * 1000))));
+        continue;
+      }
+      if (raced && raced.reason === "timeout") {
+        continue;
+      }
+      if (attempt === maxAttempts - 1) return raced || last;
+    }
+    return last;
   }
 
   function atualizarTelasAposDespesaGravada() {
@@ -496,9 +568,12 @@
     atualizarTelasAposDespesaGravada();
   }
 
-  async function gravarFinanceiroCeoComSeguranca(aplicarMutacao, aposSucesso, bloco) {
+  async function gravarFinanceiroCeoComSeguranca(aplicarMutacao, aposSucesso, bloco, operationId) {
     if (finCeoGravacaoEmCurso) return { ok: false, reason: "em_curso" };
+    const opId = operationId || novoOperationIdCeo("gravacao", Date.now());
+    finCeoOpAtual = { id: opId, status: "pending" };
     finCeoGravacaoEmCurso = true;
+    setBotoesGravacaoCeoDisabled(true);
     const snap = snapshotFinanceiroCeoLocal();
     const fb = document.getElementById("finCeoDespFeedback");
     try {
@@ -509,21 +584,25 @@
       }
       abrirModalResultadoNuvem("wait", "A gravar os dados com segurança…");
       if (fb) fb.textContent = "A gravar os dados com segurança…";
-      const r = await Promise.race([
-        enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, { exigirNuvem: true, bloco }),
-        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 10000)),
-      ]);
-      if (!r || r.ok !== true) {
-        if (typeof window.__DK_runWithoutCloudPush === "function") {
-          window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
-        } else {
-          restaurarFinanceiroCeoLocal(snap);
+      const r = await enviarFinanceiroCeoNuvem(null, MSG_NUVEM_OK, {
+        exigirNuvem: true,
+        bloco,
+        operationId: opId,
+      });
+      if (!nuvemPushResultOk(r)) {
+        if (finCeoOpAtual && finCeoOpAtual.id === opId && finCeoOpAtual.status !== "ok") {
+          if (typeof window.__DK_runWithoutCloudPush === "function") {
+            window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
+          } else {
+            restaurarFinanceiroCeoLocal(snap);
+          }
         }
-        abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
-        if (fb) fb.textContent = MSG_NUVEM_ERRO;
-        return { ok: false, r };
+        concluirResultadoCeo(opId, "erro", MSG_NUVEM_ERRO);
+        if (fb && finCeoOpAtual && finCeoOpAtual.status === "erro") fb.textContent = MSG_NUVEM_ERRO;
+        setBotoesGravacaoCeoDisabled(false);
+        return { ok: false, r, operationId: opId };
       }
-      abrirModalResultadoNuvem("ok", MSG_NUVEM_OK);
+      concluirResultadoCeo(opId, "ok", MSG_NUVEM_OK);
       if (fb) fb.textContent = MSG_NUVEM_OK;
       if (typeof aposSucesso === "function") {
         window.setTimeout(() => {
@@ -534,16 +613,19 @@
           }
         }, 0);
       }
-      return { ok: true, r };
+      return { ok: true, r, operationId: opId };
     } catch (err) {
-      if (typeof window.__DK_runWithoutCloudPush === "function") {
-        window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
-      } else {
-        restaurarFinanceiroCeoLocal(snap);
+      if (finCeoOpAtual && finCeoOpAtual.id === opId && finCeoOpAtual.status !== "ok") {
+        if (typeof window.__DK_runWithoutCloudPush === "function") {
+          window.__DK_runWithoutCloudPush(() => restaurarFinanceiroCeoLocal(snap));
+        } else {
+          restaurarFinanceiroCeoLocal(snap);
+        }
       }
-      abrirModalResultadoNuvem("erro", MSG_NUVEM_ERRO);
-      if (fb) fb.textContent = MSG_NUVEM_ERRO;
-      return { ok: false, error: err };
+      concluirResultadoCeo(opId, "erro", MSG_NUVEM_ERRO);
+      if (fb && finCeoOpAtual && finCeoOpAtual.status === "erro") fb.textContent = MSG_NUVEM_ERRO;
+      setBotoesGravacaoCeoDisabled(false);
+      return { ok: false, error: err, operationId: opId };
     } finally {
       finCeoGravacaoEmCurso = false;
     }
@@ -1496,6 +1578,7 @@
 
   function abrirModalConfirmPagoDespesa(row) {
     if (finCeoGravacaoEmCurso) return;
+    setBotoesGravacaoCeoDisabled(false);
     const modal = document.getElementById("finCeoDespPagoModal");
     if (!modal || !row?._d || !row?._p) return;
     finCeoDespPagoPending = {
@@ -1534,12 +1617,14 @@
     if (finCeoGravacaoEmCurso) return;
     const pending = finCeoDespPagoPending;
     if (!pending) return;
+    setBotoesGravacaoCeoDisabled(true);
     fecharModalConfirmPagoDespesa();
     const sit = carimboCeoEscrita({
       chave: chaveSituacaoPagamento(pending.despesaId, pending.pagNum, pending.data),
       situacao: "PAGO",
       pagoEm: new Date().toISOString(),
     });
+    const operationId = `financeiro-ceo-pagamento:${pending.despesaId}:${pending.pagNum}:${Date.now()}`;
     await gravarFinanceiroCeoComSeguranca(
       () => marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data),
       () =>
@@ -1549,7 +1634,8 @@
           pagNum: pending.pagNum,
           valor: Number(pending.row?.valor) || 0,
         }),
-      { situacao: [sit] }
+      { situacao: [sit] },
+      operationId
     );
   }
 
