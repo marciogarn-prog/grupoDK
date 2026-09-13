@@ -4464,6 +4464,39 @@
     return CEO_GRAF_COLS.some((c) => ceoGrafColFilterActive(c.key));
   }
 
+  function somarSubtotaisGraficoFiltrado(rows) {
+    let mensal = 0;
+    let serie = 0;
+    (rows || []).forEach((r) => {
+      mensal += Number(r.valor) || 0;
+      serie += Number(r.totalSerie) || 0;
+    });
+    return { mensal, serie, qtd: (rows || []).length };
+  }
+
+  function htmlSubtotaisGraficoDespesas(rows, rowsBase) {
+    const tot = somarSubtotaisGraficoFiltrado(rows);
+    const baseN = (rowsBase || []).length;
+    const hint =
+      tot.qtd === baseN
+        ? `${tot.qtd} despesa(s)`
+        : `${tot.qtd} de ${baseN} despesa(s) no filtro`;
+    return `<div class="fin-ceo-graf-subtotais" id="finCeoGrafSubtotais" aria-live="polite">
+      <div class="fin-ceo-graf-subtotal fin-ceo-graf-subtotal--mensal">
+        <span class="fin-ceo-graf-subtotal__lab">SUBTOTAL</span>
+        <span class="fin-ceo-graf-subtotal__sub">Valor mensal (filtrado)</span>
+        <strong id="finCeoGrafSubtotalMensal">${esc(brl(tot.mensal))}</strong>
+        <span class="fin-ceo-graf-subtotal__hint">${esc(hint)}</span>
+      </div>
+      <div class="fin-ceo-graf-subtotal fin-ceo-graf-subtotal--serie">
+        <span class="fin-ceo-graf-subtotal__lab">SUBTOTAL</span>
+        <span class="fin-ceo-graf-subtotal__sub">Total da série (filtrado)</span>
+        <strong id="finCeoGrafSubtotalSerie">${esc(brl(tot.serie))}</strong>
+        <span class="fin-ceo-graf-subtotal__hint">${esc(hint)}</span>
+      </div>
+    </div>`;
+  }
+
   function somarTotaisMesLinhasGrafico(rows) {
     const totaisPorMes = new Map();
     (rows || []).forEach((r) => {
@@ -5592,13 +5625,14 @@
         <thead><tr>${buildCeoGrafHeadHtml()}</tr></thead>
         <tbody>${corpoTabela}</tbody>
       </table>`;
+    const subtotaisHtml = htmlSubtotaisGraficoDespesas(rows, rowsBase);
     chart.innerHTML = `<div class="fin-ceo-desp-graf">
       <div class="fin-ceo-desp-graf__head">
         <span class="fin-ceo-desp-graf__lab-spacer"></span>
         <div class="fin-ceo-desp-graf__axis">${ticks.join("")}</div>
         <span class="fin-ceo-desp-graf__val-spacer"></span>
       </div>
-      <div class="fin-ceo-desp-graf__body" id="finCeoGraficoDespesasBody">${blocks.join("")}${hintFiltro}${tableHtml}</div>
+      <div class="fin-ceo-desp-graf__body" id="finCeoGraficoDespesasBody">${blocks.join("")}${hintFiltro}${subtotaisHtml}${tableHtml}</div>
     </div>`;
     if (tabela) tabela.innerHTML = "";
     bindGraficoDespesasScroll();

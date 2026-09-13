@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913mesum`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913subtot`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -173,6 +173,14 @@ async function runSuite() {
         html.includes("Compromissos do mês</strong> é a mesma soma") &&
         html.includes("total do mês atual é o mesmo de <strong>Compromissos do mês</strong>"),
       "painel e gráfico usam a mesma base visível"
+    );
+    record(
+      "gráfico tem SUBTOTAL do filtro Excel",
+      finCeoPagJs.includes("somarSubtotaisGraficoFiltrado") &&
+        finCeoPagJs.includes("finCeoGrafSubtotalMensal") &&
+        finCeoPagJs.includes("finCeoGrafSubtotalSerie") &&
+        html.includes("função SUBTOTAL do Excel"),
+      "soma só as linhas que restam após o filtro"
     );
     record(
       "gráfico de despesas pinta PAGO de verde",

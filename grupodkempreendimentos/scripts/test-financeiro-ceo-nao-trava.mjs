@@ -86,6 +86,14 @@ rec(
   ""
 );
 rec(
+  "gráfico SUBTOTAL soma só o filtro",
+  ceoJs.includes("somarSubtotaisGraficoFiltrado") &&
+    ceoJs.includes("htmlSubtotaisGraficoDespesas") &&
+    ceoJs.includes("finCeoGrafSubtotalMensal") &&
+    html.includes("função SUBTOTAL do Excel"),
+  ""
+);
+rec(
   "gráfico pinta parcela PAGO de verde",
   ceoJs.includes("htmlFaixasGraficoDespesa") &&
     ceoJs.includes("fin-ceo-desp-graf__fill--pago") &&

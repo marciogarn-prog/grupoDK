@@ -1911,6 +1911,28 @@
       }
     },
     {
+      "id": "fin-ceo-grafico-subtotal-filtro-excel",
+      "descricao": "No FINANCEIRO CEO → Gráfico de despesas: duas caixas SUBTOTAL somam só as linhas que permanecem após o filtro ▾ (Valor mensal e Total da série), como a função SUBTOTAL do Excel.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "somarSubtotaisGraficoFiltrado",
+          "htmlSubtotaisGraficoDespesas",
+          "finCeoGrafSubtotalMensal",
+          "finCeoGrafSubtotalSerie",
+          "SUBTOTAL"
+        ],
+        "styles.css": [
+          "fin-ceo-graf-subtotais",
+          "fin-ceo-graf-subtotal--mensal",
+          "fin-ceo-graf-subtotal--serie"
+        ],
+        "index.html": [
+          "SUBTOTAL</strong> somam só o que permanece após o filtro",
+          "função SUBTOTAL do Excel"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-recibo-apos-confirmar",
       "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK + nome e 3 primeiros dígitos do CPF do funcionário que lançou), Cliente e Valor total já pago até aquela data. O texto do recibo não informa a forma de pagamento. No recibo há Imprimir e Compartilhar (WhatsApp).",
       "ficheiros": {
