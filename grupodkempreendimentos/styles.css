@@ -13266,6 +13266,10 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   background: #ef4444;
 }
 
+.fin-ceo-desp-graf__fill--pago {
+  background: #22c55e;
+}
+
 .fin-ceo-desp-graf__val {
   text-align: right;
   font-size: 0.75rem;

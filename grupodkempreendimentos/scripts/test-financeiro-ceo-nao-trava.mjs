@@ -60,6 +60,13 @@ rec(
 );
 rec("API replay do mesmo operationId", apiJs.includes("dk:portal:fin_ceo_op:") && apiJs.includes("replay: true"), "");
 rec("sucesso financeiro não usa snapshot", ceoJs.includes("Snapshot não confirma") && ceoJs.includes("return push.ok === true"), "");
+rec(
+  "gráfico pinta parcela PAGO de verde",
+  ceoJs.includes("htmlFaixasGraficoDespesa") &&
+    ceoJs.includes("fin-ceo-desp-graf__fill--pago") &&
+    html.includes("o trecho da barrinha daquele mês fica verde"),
+  ""
+);
 
 const despesas = [
   { id: "ceo-teste-lancar", valor: 10, periodic: true, repeticoes: 12, dataEvento: "11/09/2026", categoria: "PARTICULARES" },

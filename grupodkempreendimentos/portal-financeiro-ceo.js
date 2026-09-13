@@ -5288,6 +5288,35 @@
     return "fin-ceo-desp-graf__fill--locadora";
   }
 
+  /** Trechos PAGO ficam verdes; o restante mantém a cor da categoria. */
+  function htmlFaixasGraficoDespesa(r, horizonte, base) {
+    const cells = [];
+    (r.pagos || []).forEach((p) => {
+      const idx = monthIndexFromBaseCeo(base, p.data);
+      if (idx < 0 || idx >= horizonte) return;
+      cells.push({ idx, pago: p.situacao === "PAGO" });
+    });
+    cells.sort((a, b) => a.idx - b.idx);
+    const runs = [];
+    cells.forEach((c) => {
+      const last = runs[runs.length - 1];
+      if (last && last.pago === c.pago && last.endIdx + 1 === c.idx) {
+        last.endIdx = c.idx;
+        return;
+      }
+      runs.push({ startIdx: c.idx, endIdx: c.idx, pago: c.pago });
+    });
+    if (!runs.length) return "";
+    return runs
+      .map((run) => {
+        const left = (run.startIdx / horizonte) * 100;
+        const width = ((run.endIdx - run.startIdx + 1) / horizonte) * 100;
+        const cls = run.pago ? "fin-ceo-desp-graf__fill--pago" : fillClassGraficoDespesa(r.categoria);
+        return `<span class="fin-ceo-desp-graf__fill ${cls}" style="left:${left.toFixed(3)}%;width:${Math.max(width, 0.8).toFixed(3)}%"></span>`;
+      })
+      .join("");
+  }
+
   function labelLinhaGraficoDespesa(d) {
     const detalhe = String(d.descricao || "").trim();
     const base = isParticulares(d.categoria)
@@ -5305,8 +5334,16 @@
     const rows = [];
     let maxIdx = 11;
 
+    const sitMap = loadSituacaoPagamentosMap();
     list.forEach((d) => {
-      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      if (d.deleted) return;
+      const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes)
+        .filter((p) => !excluidos.has(Number(p.numero)))
+        .map((p) => {
+          const item = sitMap.get(chaveSituacaoPagamento(d.id, p.numero, p.data));
+          return { ...p, situacao: item?.situacao === "PAGO" ? "PAGO" : "A_PAGAR" };
+        });
       if (!pagos.length) return;
       let startIdx = Infinity;
       let endIdx = -Infinity;
@@ -5387,16 +5424,11 @@
           lastCat = r.categoria;
           blocks.push(`<div class="fin-ceo-desp-graf__group">${esc(r.categoriaLabel)}</div>`);
         }
-        const clipStart = Math.max(0, r.startIdx);
-        const clipEnd = Math.min(horizonte - 1, r.endIdx);
-        const span = Math.max(0, clipEnd - clipStart + 1);
-        const left = (clipStart / horizonte) * 100;
-        const width = span > 0 ? (span / horizonte) * 100 : 0;
         const mesesTxt = r.repeticoes === 1 ? "1 mês" : `${r.repeticoes} meses`;
         blocks.push(`<div class="fin-ceo-desp-graf__row">
         <span class="fin-ceo-desp-graf__lab" title="${esc(r.label)}">${esc(r.label)}</span>
         <span class="fin-ceo-desp-graf__track">
-          <span class="fin-ceo-desp-graf__fill ${fillClassGraficoDespesa(r.categoria)}" style="left:${left.toFixed(3)}%;width:${Math.max(width, 1.2).toFixed(3)}%"></span>
+          ${htmlFaixasGraficoDespesa(r, horizonte, base)}
         </span>
         <span class="fin-ceo-desp-graf__val">${esc(mesesTxt)}</span>
       </div>`);

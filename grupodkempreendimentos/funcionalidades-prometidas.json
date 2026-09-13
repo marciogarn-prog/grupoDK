@@ -1858,6 +1858,24 @@
       }
     },
     {
+      "id": "fin-ceo-grafico-despesas-pago-verde",
+      "descricao": "No FINANCEIRO CEO → Gráfico de despesas: ao confirmar A PAGAR → PAGO no Cadastro de despesas, o trecho da barrinha daquele mês fica verde; o restante da série mantém a cor da categoria.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "htmlFaixasGraficoDespesa",
+          "fin-ceo-desp-graf__fill--pago",
+          "Trechos PAGO ficam verdes"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-graf__fill--pago",
+          "#22c55e"
+        ],
+        "index.html": [
+          "o trecho da barrinha daquele mês fica verde"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-recibo-apos-confirmar",
       "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK + nome e 3 primeiros dígitos do CPF do funcionário que lançou), Cliente e Valor total já pago até aquela data. O texto do recibo não informa a forma de pagamento. No recibo há Imprimir e Compartilhar (WhatsApp).",
       "ficheiros": {
