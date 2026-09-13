@@ -23,6 +23,101 @@
   let cloudSyncHalted = false;
   let cloudHaltKind = "";
 
+  function dkLoopShortStack() {
+    try {
+      return String(new Error().stack || "")
+        .split("\n")
+        .map((l) => String(l).trim())
+        .filter(Boolean)
+        .slice(2, 8)
+        .join(" | ");
+    } catch {
+      return "";
+    }
+  }
+
+  function dkLoopTrace(event, detail) {
+    try {
+      const safe = detail && typeof detail === "object" ? { ...detail } : {};
+      delete safe.token;
+      delete safe.senha;
+      delete safe.password;
+      delete safe.authorization;
+      console.info("[DK LOOP TRACE] " + event, {
+        timestamp: new Date().toISOString(),
+        ...safe,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function hasUsableCloudToken() {
+    let token = "";
+    try {
+      if (typeof window.__DK_portalApiTokenGet === "function") {
+        token = String(window.__DK_portalApiTokenGet() || "").trim();
+      }
+    } catch {
+      token = "";
+    }
+    const usable =
+      Boolean(token) &&
+      cloudHaltKind !== "unauthorized" &&
+      cloudHaltKind !== "local_only";
+    try {
+      window.DK_CLOUD_AUTHENTICATED = usable;
+    } catch {
+      /* ignore */
+    }
+    return usable;
+  }
+
+  function markCloudLocalOnly() {
+    cloudHaltKind = "local_only";
+    cloudSyncHalted = true;
+    stopCloudTimers();
+    try {
+      window.DK_CLOUD_AUTHENTICATED = false;
+    } catch {
+      /* ignore */
+    }
+    setMsg("Portal local activo. Nuvem desligada até um login remoto com token.", "muted");
+    dkLoopTrace("cloud local-only", { cloudSyncHalted: true, cloudHaltKind });
+  }
+
+  function resumeCloudSyncAfterRemoteLogin() {
+    if (cloudHaltKind === "unauthorized" || cloudHaltKind === "local_only" || cloudHaltKind === "revoked") {
+      cloudHaltKind = "";
+      cloudSyncHalted = false;
+    }
+    try {
+      window.DK_CLOUD_AUTHENTICATED = true;
+    } catch {
+      /* ignore */
+    }
+    dkLoopTrace("cloud resume after remote login", { cloudSyncHalted, cloudHaltKind });
+  }
+
+  function haltCloudSyncUnauthorized() {
+    cloudHaltKind = "unauthorized";
+    cloudSyncHalted = true;
+    stopCloudTimers();
+    if (typeof window.__DK_portalApiTokenClear === "function") {
+      window.__DK_portalApiTokenClear();
+    }
+    try {
+      window.DK_CLOUD_AUTHENTICATED = false;
+    } catch {
+      /* ignore */
+    }
+    setMsg(
+      "Nuvem interrompida: token inválido ou ausente. O portal local continua. Faça login remoto para voltar a sincronizar.",
+      "muted"
+    );
+    dkLoopTrace("cloud halt unauthorized", { cloudSyncHalted: true, cloudHaltKind });
+  }
+
   function showSessionRevokedBanner(kind) {
     const el = document.getElementById("portalSessionRevokedBanner");
     if (!el) return;
@@ -115,6 +210,10 @@
       haltCloudSyncIdleOrStale("idle");
       return true;
     }
+    if (res.status === 401 && (reason === "unauthorized" || reason === "invalid_token" || reason === "")) {
+      haltCloudSyncUnauthorized();
+      return true;
+    }
     if ((res.status === 401 || res.status === 403) && reason === "session_revoked") {
       if (portalSessaoEhCeoTitular()) {
         if (cloudHaltKind === "revoked") {
@@ -134,7 +233,15 @@
   }
 
   function cloudSyncIsHalted() {
-    if (cloudHaltKind === "idle" || cloudHaltKind === "stale" || cloudHaltKind === "budget") return true;
+    if (
+      cloudHaltKind === "idle" ||
+      cloudHaltKind === "stale" ||
+      cloudHaltKind === "budget" ||
+      cloudHaltKind === "unauthorized" ||
+      cloudHaltKind === "local_only"
+    ) {
+      return true;
+    }
     if (portalSessaoEhCeoTitular()) {
       if (cloudHaltKind === "revoked") {
         cloudHaltKind = "";
@@ -1752,6 +1859,13 @@
   window.__DK_haltCloudSyncIdle = () => haltCloudSyncIdleOrStale("idle");
   window.__DK_haltCloudSyncStale = () => haltCloudSyncIdleOrStale("stale");
   window.__DK_haltCloudBudget = haltCloudBudget;
+  window.__DK_markCloudLocalOnly = markCloudLocalOnly;
+  window.__DK_resumeCloudSyncAfterRemoteLogin = resumeCloudSyncAfterRemoteLogin;
+  try {
+    window.DK_CLOUD_AUTHENTICATED = hasUsableCloudToken();
+  } catch {
+    window.DK_CLOUD_AUTHENTICATED = false;
+  }
 
   async function probeSupabaseCloudHealth() {
     /* Porteiro: o browser não fala com o Supabase. A faixa 42501 some. */
@@ -1793,6 +1907,10 @@
 
   async function fetchRedundantSnapshotPayloadUncached() {
     if (cloudSyncIsHalted()) return null;
+    if (!hasUsableCloudToken()) {
+      markCloudLocalOnly();
+      return null;
+    }
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       try {
@@ -1842,6 +1960,10 @@
 
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
     if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
+    if (!hasUsableCloudToken()) {
+      markCloudLocalOnly();
+      return { ok: false, error: "unauthorized", skipped: true };
+    }
     const replace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     const urls = resolveRedundantSnapshotApiUrls();
@@ -1866,6 +1988,11 @@
     let lastSupabase = { ok: false, reason: "" };
     for (let i = 0; i < urls.length; i += 1) {
       try {
+        const started = Date.now();
+        dkLoopTrace("snapshot POST start", {
+          origem: (opts && opts.origin) || "pushRedundantSnapshotPayload",
+          temToken: hasUsableCloudToken(),
+        });
         const res = await fetchWithCloudTimeout(
           urls[i],
           {
@@ -1880,8 +2007,13 @@
           postTimeoutMs
         );
         const data = await res.json().catch(() => ({}));
+        dkLoopTrace("snapshot POST result", {
+          status: res.status,
+          reason: String((data && data.reason) || ""),
+          duracaoMs: Date.now() - started,
+        });
         if (noteCloudAuthFailure(res, data)) {
-          lastErr = "session_revoked";
+          lastErr = String((data && data.reason) || "unauthorized");
           break;
         }
         if (res.status === 429) {
@@ -1927,7 +2059,7 @@
       const red = await pushRedundantSnapshotPayload(patch, updatedAt, { skipShrink: true });
       redisOk = red.ok;
       lastErr = red.error || null;
-      if (!redisOk && String(lastErr) === "rate_limited") break;
+      if (!redisOk && (String(lastErr) === "rate_limited" || String(lastErr) === "unauthorized")) break;
       if (!redisOk && attempt < 2) {
         await new Promise((r) => window.setTimeout(r, 450 * (attempt + 1)));
       }
@@ -2116,8 +2248,23 @@
     }
   }
 
-  function scheduleCloudPushDebounced() {
+  function scheduleCloudPushDebounced(meta) {
+    const motivo = meta && meta.motivo ? String(meta.motivo) : "unspecified";
+    const chave = meta && meta.key ? String(meta.key) : "";
+    dkLoopTrace("scheduleCloudPushDebounced", {
+      motivo,
+      chave,
+      cloudPushInFlight: Boolean(cloudPushInFlight),
+      cloudPushDirty,
+      cloudSyncHalted,
+      cloudHaltKind,
+      cloudAuthenticated: Boolean(window.DK_CLOUD_AUTHENTICATED),
+    });
     if (cloudSyncIsHalted()) return;
+    if (!hasUsableCloudToken()) {
+      markCloudLocalOnly();
+      return;
+    }
     if (suppressCloudHook || window.__DK_suppressPortalCadastroPush === true) return;
     if (window.__DK_IS_OFFLINE_MODE__ === true) {
       if (typeof window.__DK_offlineOnLocalChange === "function") {
@@ -2133,7 +2280,7 @@
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
-      runTrackedCloudPush(() => pushSnapshotQuiet()).catch((e) => {
+      runTrackedCloudPush(() => pushSnapshotQuiet(), "debounce").catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e), null);
       });
@@ -2144,7 +2291,7 @@
    * Encadeia uploads para o pull ao trocar de tela poder esperar a confirmação.
    * Vários saves seguidos partilham a mesma cadeia (o último estado local é enviado).
    */
-  function runTrackedCloudPush(runFn) {
+  function runTrackedCloudPush(runFn, origem) {
     const prev = cloudPushInFlight;
     const p = Promise.resolve(prev)
       .catch(() => null)
@@ -2162,9 +2309,18 @@
       });
     cloudPushInFlight = p.finally(() => {
       if (cloudPushInFlight === p) cloudPushInFlight = null;
+      if (cloudSyncHalted || cloudSyncIsHalted()) {
+        cloudPushDirty = false;
+        dkLoopTrace("tracked push finally halted", {
+          origem: origem || "unspecified",
+          cloudSyncHalted,
+          cloudHaltKind,
+        });
+        return;
+      }
       if (cloudPushDirty) {
         cloudPushDirty = false;
-        scheduleCloudPushDebounced();
+        scheduleCloudPushDebounced({ motivo: "dirty_after_push", key: origem || "" });
       }
     });
     return cloudPushInFlight;
@@ -2205,20 +2361,59 @@
     proto.__dkCloudHookInstalled = true;
 
     const origSet = proto.setItem;
+    const origGet = proto.getItem;
     const origRemove = proto.removeItem;
 
     proto.setItem = function dkCloudHookSetItem(key, value) {
+      const k = String(key);
+      let prev = null;
+      if (this === localStorage) {
+        try {
+          prev = origGet.call(this, k);
+        } catch {
+          prev = null;
+        }
+      }
       origSet.apply(this, arguments);
       if (this !== localStorage) return;
-      if (!DK_CLOUD_KEYS.has(String(key))) return;
-      scheduleCloudPushDebounced();
+      if (!DK_CLOUD_KEYS.has(k)) return;
+      const next = value == null ? "" : String(value);
+      const prevStr = prev == null ? "" : String(prev);
+      const changed = prevStr !== next;
+      dkLoopTrace("localStorage mutation", {
+        key: k,
+        changed,
+        tamanhoAnterior: prevStr.length,
+        tamanhoNovo: next.length,
+        stack: dkLoopShortStack(),
+      });
+      if (!changed) return;
+      scheduleCloudPushDebounced({ motivo: "localStorage.setItem", key: k });
     };
 
     proto.removeItem = function dkCloudHookRemoveItem(key) {
+      const k = String(key);
+      let prev = null;
+      if (this === localStorage) {
+        try {
+          prev = origGet.call(this, k);
+        } catch {
+          prev = null;
+        }
+      }
       origRemove.apply(this, arguments);
       if (this !== localStorage) return;
-      if (!DK_CLOUD_KEYS.has(String(key))) return;
-      scheduleCloudPushDebounced();
+      if (!DK_CLOUD_KEYS.has(k)) return;
+      const prevStr = prev == null ? "" : String(prev);
+      dkLoopTrace("localStorage mutation", {
+        key: k,
+        changed: prev != null,
+        tamanhoAnterior: prevStr.length,
+        tamanhoNovo: 0,
+        stack: dkLoopShortStack(),
+      });
+      if (prev == null) return;
+      scheduleCloudPushDebounced({ motivo: "localStorage.removeItem", key: k });
     };
   }
 
@@ -4033,6 +4228,10 @@
 
   async function upsertSnapshotRow(showUserMessages, opts) {
     if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
+    if (!hasUsableCloudToken()) {
+      markCloudLocalOnly();
+      return { ok: false, error: "unauthorized", skipped: true };
+    }
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     let payload = collectPayloadFromLocalStorage();
@@ -4143,6 +4342,11 @@
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
   async function pushCloudSnapshotNow(opts) {
+    if (cloudSyncIsHalted()) return { ok: false, skipped: true, reason: "cloud_halted" };
+    if (!hasUsableCloudToken()) {
+      markCloudLocalOnly();
+      return { ok: false, skipped: true, reason: "unauthorized" };
+    }
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return { ok: true, skipped: true, reason: "android_somente_leitura" };
     }
@@ -4163,7 +4367,7 @@
     }
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    return runTrackedCloudPush(() => pushSnapshotQuiet(opts));
+    return runTrackedCloudPush(() => pushSnapshotQuiet(opts), "pushCloudSnapshotNow");
   }
 
   try {

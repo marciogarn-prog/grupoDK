@@ -57,9 +57,22 @@
         localStorage.setItem(KEY, t);
         sessionStorage.setItem(KEY, t);
         clearSessionRevoked();
+        try {
+          window.DK_CLOUD_AUTHENTICATED = true;
+        } catch {
+          /* ignore */
+        }
+        if (typeof window.__DK_resumeCloudSyncAfterRemoteLogin === "function") {
+          window.__DK_resumeCloudSyncAfterRemoteLogin();
+        }
       } else {
         localStorage.removeItem(KEY);
         sessionStorage.removeItem(KEY);
+        try {
+          window.DK_CLOUD_AUTHENTICATED = false;
+        } catch {
+          /* ignore */
+        }
       }
     } catch {
       /* ignore */
@@ -147,6 +160,7 @@
   }
 
   try {
+    window.DK_CLOUD_AUTHENTICATED = Boolean(getToken());
     window.__DK_portalApiTokenGet = getToken;
     window.__DK_portalApiTokenSet = setToken;
     window.__DK_portalApiTokenClear = clearToken;

@@ -223,7 +223,7 @@ async function runSuite() {
         html.includes('name="dk-client-protocol"'),
       "versões antigas param; operador idle faz login de novo"
     );
-    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913budget`, {
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913-loopfix2`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -237,7 +237,7 @@ async function runSuite() {
       "nuvem corta loop para não gerar cobrança",
       syncSupaPtJs.includes("haltCloudBudget") &&
         finCeoPagJs.includes("cloud_budget") &&
-        html.includes("portal-supabase-sync.js?v=20260913budget"),
+        html.includes("portal-supabase-sync.js?v=20260913-loopfix2"),
       "proteção financeira Redis/Supabase/Vercel"
     );
     const tagSeq = await page.evaluate(() => {

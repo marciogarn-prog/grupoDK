@@ -3597,6 +3597,9 @@
         return;
       }
       const funcionario = auth.funcionario;
+      if (typeof window.__DK_markCloudLocalOnly === "function") {
+        window.__DK_markCloudLocalOnly();
+      }
       if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
         portalColaboradorSenhaPendente = funcionario;
         hideAllPanels();

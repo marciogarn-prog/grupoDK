@@ -35,6 +35,11 @@ rec("consulta sync não dispara POST", syncJs.includes("syncConsultaKeysFromClou
 rec("troca de tela com intervalo", syncJs.includes("Sem intervalo mínimo") && syncJs.includes("SNAPSHOT_GET_CACHE_MS"), "");
 rec("POST igual é ignorado", syncJs.includes("unchanged") && syncJs.includes("lastPushedFingerprint"), "");
 rec("dirty após POST em curso", syncJs.includes("cloudPushDirty") && syncJs.includes("scheduleCloudPushDebounced"), "");
+rec("401 unauthorized interrompe sync", syncJs.includes("haltCloudSyncUnauthorized") && /unauthorized[\s\S]{0,80}haltCloudSyncUnauthorized/.test(syncJs), "");
+rec("push exige token", syncJs.includes("hasUsableCloudToken") && syncJs.includes("DK_CLOUD_AUTHENTICATED"), "");
+rec("setItem idêntico não agenda push", syncJs.includes("tamanhoAnterior") && syncJs.includes("if (!changed) return"), "");
+rec("finally não reagenda se halted", /cloudSyncHalted \|\| cloudSyncIsHalted\(\)[\s\S]{0,80}cloudPushDirty = false/.test(syncJs), "");
+rec("login local marca nuvem local-only", fs.readFileSync(path.join(ROOT, "portal-locadora-ui.js"), "utf8").includes("__DK_markCloudLocalOnly"), "");
 rec("429 faz backoff sem loop", syncJs.includes("rate_limited") && syncJs.includes("cloudBackoffUntil") && /rate_limited[\s\S]{0,80}break/.test(syncJs), "");
 rec("faixa prometida mantida", syncJs.includes("Cópia Supabase não confirmou") && syncJs.includes("Os dados estão no Redis (nuvem principal)."), "");
 rec("timeout/429 não pintam a faixa", syncJs.includes('info.code === "timeout" || info.code === "rate_limited"'), "");
