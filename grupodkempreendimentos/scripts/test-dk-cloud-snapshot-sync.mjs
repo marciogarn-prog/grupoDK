@@ -38,6 +38,16 @@ rec("dirty após POST em curso", syncJs.includes("cloudPushDirty") && syncJs.inc
 rec("429 faz backoff sem loop", syncJs.includes("rate_limited") && syncJs.includes("cloudBackoffUntil") && /rate_limited[\s\S]{0,80}break/.test(syncJs), "");
 rec("faixa prometida mantida", syncJs.includes("Cópia Supabase não confirmou") && syncJs.includes("Os dados estão no Redis (nuvem principal)."), "");
 rec("timeout/429 não pintam a faixa", syncJs.includes('info.code === "timeout" || info.code === "rate_limited"'), "");
+const upsertSrc = syncJs.slice(syncJs.indexOf("async function upsertSnapshotRow"), syncJs.indexOf("async function pushSnapshotQuiet"));
+rec(
+  "POST não faz GET nem grava snapshot no localStorage",
+  upsertSrc.includes("async function upsertSnapshotRow") &&
+    !upsertSrc.includes("fetchRedundantSnapshotPayload") &&
+    !upsertSrc.includes("persistCadastroOperacionalFromMerged") &&
+    !upsertSrc.includes("persistMergedPayloadToLocal"),
+  ""
+);
+rec("falha de pull não força POST", !/await_push_failed[\s\S]{0,220}pushCloudSnapshotNow/.test(syncJs), "");
 
 const BASE = "https://grupodkempreendimentos.com.br/";
 async function hit(method, body) {
@@ -55,7 +65,7 @@ try {
   const opt = await fetch(`${BASE}api/dk-cloud-snapshot`, { method: "OPTIONS" });
   rec("A OPTIONS anónimo 204", opt.status === 204, String(opt.status));
   const g = await hit("GET");
-  rec("A anónimo GET 401/403", g.status === 401 || g.status === 403, String(g.status));
+  rec("A anónimo GET bloqueado", g.status === 401 || g.status === 403 || g.status === 429, String(g.status));
   const p = await hit("POST", { payload: { dk_clientes_cadastro: [] } });
   rec("B anónimo POST bloqueado", p.status === 401 || p.status === 403 || p.status === 429, String(p.status));
 

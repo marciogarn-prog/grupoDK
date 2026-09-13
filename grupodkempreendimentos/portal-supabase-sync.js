@@ -3212,6 +3212,7 @@
       "dk_locacoes_cadastro",
       "dk_manutencoes_rapidas_v1",
     ];
+    const prevHook = suppressCloudHook;
     suppressCloudHook = true;
     try {
       for (const k of keys) {
@@ -3235,7 +3236,7 @@
       }
       unifyLocalClientesCadastroKeys();
     } finally {
-      suppressCloudHook = false;
+      suppressCloudHook = prevHook;
     }
     if (typeof window.__DK_refreshOperacaoClienteCodigoEditavel === "function") {
       try {
@@ -3247,6 +3248,7 @@
   }
 
   function persistMergedPayloadToLocal(mergedPayload) {
+    const prevHook = suppressCloudHook;
     suppressCloudHook = true;
     try {
       if (mergedPayload.dk_comprovantes_cliente_pendentes) {
@@ -3354,7 +3356,7 @@
       localStorage.removeItem("dk_patrimonio_crlv_v1");
       localStorage.removeItem("dk_patrimonio_fotos_excluidas_v1");
     } finally {
-      suppressCloudHook = false;
+      suppressCloudHook = prevHook;
     }
     if (typeof window.__DK_financeiroRefreshFromStorage === "function") {
       try {
@@ -3816,38 +3818,11 @@
         console.warn("[DK cloud] hydrate comprovantes para nuvem", e);
       }
     }
-    const [supaRow, redisRow] = await Promise.all([
-      fetchSupabaseSnapshotPayload(),
-      fetchRedundantSnapshotPayload(),
-    ]);
-    const cloudPayloadMerged = mergeRemoteSnapshotsBeforePush(supaRow, redisRow);
-    const cloudMeta = cloudPayloadMerged
-      ? {
-          payload: cloudPayloadMerged,
-          updated_at: pickNewestCloudRow([supaRow, redisRow])?.updated_at || null,
-        }
-      : pickNewestCloudPayloadWithMeta(supaRow, redisRow);
-    const localComprovantesBeforeMerge = Array.isArray(payload.dk_comprovantes_cliente_pendentes)
-      ? payload.dk_comprovantes_cliente_pendentes
-      : readLocalJsonArray("dk_comprovantes_cliente_pendentes");
-    if (cloudMeta?.payload && !forceReplace) {
-      const localComprovantes = localComprovantesBeforeMerge;
-      if (fullReplaceComprovantes || isLocalDataAuthorityActive()) {
-        payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
-        payload.dk_comprovantes_cliente_pendentes = localComprovantes;
-      } else if (cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
-        payload = applyCloudComprovantesIfNewer(payload, cloudMeta);
-      } else {
-        payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
-      }
-      persistCadastroOperacionalFromMerged(payload);
-      if (!isLocalDataAuthorityActive() && !fullReplaceComprovantes) {
-        persistMergedPayloadToLocal(payload);
-      }
-    }
-    payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
-    payload = applyDepositPushGuard(payload, cloudMeta?.payload || cloudPayloadMerged);
-    payload = omitEmptyDepositForPush(payload, cloudMeta?.payload || cloudPayloadMerged);
+    /* POST envia só o estado local. GET+persist aqui criava o ciclo
+       GET → grava localStorage → hook → POST → GET. O servidor já une (neverLose). */
+    payload = preserveCloudCadastrosWhenLocalEmpty(payload, null);
+    payload = applyDepositPushGuard(payload, null);
+    payload = omitEmptyDepositForPush(payload, null);
     payload =
       window.__DK_IS_DEMO_DEPLOY__ === true
         ? hydrateLocacoesCadastroPagamentosParaNuvem(payload)
@@ -4146,9 +4121,6 @@
     const gate = await awaitAutoCloudPushConfirmed();
     if (!gate.ok) {
       console.warn("[DK cloud] pull ao mudar ecrã adiado: upload não confirmado", gate.reason);
-      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        void window.__DK_pushCloudSnapshotNow({ force: true });
-      }
       return { ok: true, skipped: true, reason: "await_push_failed", gate };
     }
     if (typeof window.__DK_portalPullCadastroFromCloud === "function") {

@@ -17198,9 +17198,6 @@
         if (gen !== portalScreenPullGen) return;
         if (r && r.reason === "await_push_failed") {
           console.warn("[DK portal]", textoEnvioPendente);
-          if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-            void window.__DK_pushCloudSnapshotNow({ force: true });
-          }
           return;
         }
         if (r && r.ok === false) {
