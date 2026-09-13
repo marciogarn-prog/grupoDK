@@ -38,8 +38,7 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "GET") {
     const epoch = await readSessionEpoch();
-    const origins = await countRecentSnapshotOrigins();
-    return res.status(200).json(publicStatus(epoch, origins));
+    return res.status(200).json(publicStatus(epoch, null));
   }
 
   if (req.method !== "POST") {

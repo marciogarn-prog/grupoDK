@@ -197,7 +197,17 @@ async function runSuite() {
         html.includes("o trecho da barrinha daquele mês fica verde"),
       "A PAGAR → PAGO deixa o trecho do mês verde"
     );
-    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913sess`, {
+    const apiAuthJs = await fetch(`${BASE_URL}dk-portal-api-auth.js?v=20260913ceo1`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "CEO não perde a sessão e login cai para cópia local",
+      apiAuthJs.includes("allowLocalFallback") &&
+        apiAuthJs.includes("snapshot_unavailable") &&
+        html.includes("A sessão do Administrador CEO neste computador não é encerrada"),
+      "owner isento + fallback se a nuvem cair"
+    );
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913ceo1`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(

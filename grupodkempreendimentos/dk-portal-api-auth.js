@@ -81,12 +81,27 @@
         setToken(data.token);
         return { ok: true, funcionario: data.funcionario };
       }
+      const reason = String(data.reason || "");
+      const allowLocalFallback =
+        reason === "snapshot_unavailable" ||
+        reason === "rate_limited" ||
+        reason === "auth_not_configured" ||
+        res.status === 429 ||
+        res.status >= 500;
+      let msg = "Não foi possível autenticar no servidor.";
+      if (reason === "invalid_credentials") msg = "CPF ou senha inválidos.";
+      else if (reason === "rate_limited" || res.status === 429) {
+        msg = "Muitas tentativas no servidor. Entrando com a cópia deste PC, se a senha estiver certa.";
+      } else if (reason === "snapshot_unavailable") {
+        msg = "Cadastro na nuvem indisponível. Entrando com a cópia deste PC, se a senha estiver certa.";
+      }
       return {
         ok: false,
         status: res.status,
         networkError: false,
-        msg: data.reason === "invalid_credentials" ? "CPF ou senha inválidos." : "Não foi possível autenticar no servidor.",
-        reason: data.reason,
+        allowLocalFallback,
+        msg,
+        reason,
       };
     } catch {
       return { ok: false, networkError: true, msg: "Servidor de autenticação indisponível." };

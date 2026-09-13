@@ -3504,7 +3504,7 @@
       portalHydrateFuncionariosForLogin();
       if (typeof window.__DK_portalApiLoginEquipa === "function") {
         const remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
-        if (!remote.ok && !remote.networkError) {
+        if (!remote.ok && !remote.networkError && !remote.allowLocalFallback) {
           loginFeedback.textContent = remote.msg || "CPF ou senha inválidos.";
           return;
         }

@@ -59,7 +59,7 @@ rec(
   "frontend para o sync em session_revoked",
   syncJs.includes("haltCloudSyncRevoked") &&
     syncJs.includes("SESSÃO ENCERRADA PELO ADMINISTRADOR CEO") &&
-    /session_revoked[\s\S]{0,80}return/.test(syncJs),
+    /session_revoked[\s\S]{0,400}return/.test(syncJs),
   ""
 );
 

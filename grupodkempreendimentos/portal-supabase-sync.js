@@ -29,6 +29,13 @@
     el.removeAttribute("hidden");
   }
 
+  function hideSessionRevokedBanner() {
+    const el = document.getElementById("portalSessionRevokedBanner");
+    if (!el) return;
+    el.classList.add("hidden");
+    el.setAttribute("hidden", "");
+  }
+
   function haltCloudSyncRevoked() {
     cloudSyncHalted = true;
     if (typeof window.__DK_portalSessionMarkRevoked === "function") {
@@ -53,6 +60,14 @@
   function noteCloudAuthFailure(res, data) {
     const reason = String((data && data.reason) || "");
     if ((res.status === 401 || res.status === 403) && reason === "session_revoked") {
+      if (portalSessaoEhCeoTitular()) {
+        cloudSyncHalted = false;
+        if (typeof window.__DK_portalSessionClearRevoked === "function") {
+          window.__DK_portalSessionClearRevoked();
+        }
+        hideSessionRevokedBanner();
+        return false;
+      }
       haltCloudSyncRevoked();
       return true;
     }
@@ -60,6 +75,14 @@
   }
 
   function cloudSyncIsHalted() {
+    if (portalSessaoEhCeoTitular()) {
+      cloudSyncHalted = false;
+      if (typeof window.__DK_portalSessionClearRevoked === "function") {
+        window.__DK_portalSessionClearRevoked();
+      }
+      hideSessionRevokedBanner();
+      return false;
+    }
     if (cloudSyncHalted) return true;
     if (typeof window.__DK_portalSessionIsRevoked === "function" && window.__DK_portalSessionIsRevoked()) {
       haltCloudSyncRevoked();

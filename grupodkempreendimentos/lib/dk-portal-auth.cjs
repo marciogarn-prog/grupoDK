@@ -163,6 +163,7 @@ async function bumpSessionEpoch() {
 async function attachLiveSession(gate) {
   if (!gate || !gate.ok) return gate;
   if (gate.service) return gate;
+  if (String(gate.role || "").trim() === "owner") return gate;
   try {
     const epoch = await readSessionEpoch();
     if (tokenSessionGen(gate) < epoch.n) {
@@ -270,10 +271,29 @@ function parseSnapshotRow(raw) {
 
 async function loadOfficialSnapshotPayload() {
   if (!isRedisKvConfigured()) return null;
-  const redis = createRedisClient();
-  const raw = await redis.get("dk:portal:cloud_snapshot:v1");
-  const row = parseSnapshotRow(raw);
-  return row?.payload && typeof row.payload === "object" ? row.payload : null;
+  try {
+    const redis = createRedisClient();
+    const raw = await redis.get("dk:portal:cloud_snapshot:v1");
+    const row = parseSnapshotRow(raw);
+    return row?.payload && typeof row.payload === "object" ? row.payload : null;
+  } catch {
+    return null;
+  }
+}
+
+const TITULAR_CEO_CPF = "03037897430";
+
+function senhaEmergenciaCeo() {
+  return String(process.env.DK_OWNER_SENHA || "").trim();
+}
+
+function podeLoginCeoEmergencia(cpf, senha) {
+  const expected = senhaEmergenciaCeo();
+  return Boolean(
+    expected &&
+      onlyDigits(cpf).slice(0, 11) === TITULAR_CEO_CPF &&
+      String(senha || "") === expected
+  );
 }
 
 function findFuncionario(payload, cpf) {
@@ -427,6 +447,8 @@ module.exports = {
   requireModuleAccess,
   enforceRateLimit,
   loadOfficialSnapshotPayload,
+  podeLoginCeoEmergencia,
+  TITULAR_CEO_CPF,
   findFuncionario,
   findCliente,
   clienteTemProtocolo,

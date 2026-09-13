@@ -24,6 +24,8 @@ rec("epoch no Redis separado do snapshot", auth.includes("dk:portal:session_epoc
 rec("API exige CEO owner no servidor", kill.includes("requireCeoEmergencyLock") && auth.includes('role || "") !== "owner"'), "");
 rec("serviço não pode matar sessões", kill.includes("requireCeoEmergencyLock") && auth.includes("allowService: false"), "");
 rec("login carimba geração no token", login.includes("mintTokenWithSession") && auth.includes("sg: epoch.n"), "");
+rec("CEO owner não é revogado pelo epoch", auth.includes('role || "").trim() === "owner") return gate'), "");
+rec("login CEO de emergência se snapshot cair", login.includes("podeLoginCeoEmergencia") && auth.includes("podeLoginCeoEmergencia"), "");
 rec("snapshot devolve session_revoked", snap.includes("session_revoked") && snap.includes("attachLiveSession"), "");
 rec("snapshot valida sessão antes do GET Redis", snap.indexOf("attachLiveSession") < snap.indexOf("await redis.get(REDIS_KEY)"), "");
 rec("UI CEO na área da equipa", html.includes("CONTROLE DE SESSÕES") && html.includes("BLOQUEAR OUTRAS SESSÕES") && html.includes("CONFIRMAR BLOQUEIO"), "");

@@ -7,6 +7,8 @@ const {
   enforceRateLimit,
   mintTokenWithSession,
   loadOfficialSnapshotPayload,
+  podeLoginCeoEmergencia,
+  TITULAR_CEO_CPF,
   findFuncionario,
   findCliente,
   clienteTemProtocolo,
@@ -56,10 +58,24 @@ module.exports = async function handler(req, res) {
   let payload;
   try {
     payload = await loadOfficialSnapshotPayload();
-  } catch (e) {
-    return res.status(503).json({ ok: false, reason: "snapshot_unavailable", error: String(e.message || e) });
+  } catch {
+    payload = null;
   }
   if (!payload) {
+    if (tipo === "equipa" && podeLoginCeoEmergencia(cpf, senha)) {
+      const token = await mintTokenWithSession({
+        typ: "equipa",
+        cpf: TITULAR_CEO_CPF,
+        role: "owner",
+        nome: "Administrador CEO",
+      });
+      return res.status(200).json({
+        ok: true,
+        token,
+        funcionario: { cpf: TITULAR_CEO_CPF, nome: "Administrador CEO", role: "owner" },
+        emergencia: true,
+      });
+    }
     return res.status(503).json({ ok: false, reason: "snapshot_unavailable" });
   }
 

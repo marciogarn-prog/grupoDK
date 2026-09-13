@@ -2746,6 +2746,34 @@
           "session_revoked"
         ]
       }
+    },
+    {
+      "id": "ceo-sessao-nao-encerrada-login-local",
+      "descricao": "A sessão do Administrador CEO não é encerrada pelo bloqueio de outras sessões. Se a nuvem estiver indisponível no login, o CEO entra com a cópia deste PC (allowLocalFallback) e o servidor aceita emergência do titular.",
+      "ficheiros": {
+        "lib/dk-portal-auth.cjs": [
+          "role || \"\").trim() === \"owner\") return gate",
+          "podeLoginCeoEmergencia"
+        ],
+        "api/dk-portal-auth.js": [
+          "podeLoginCeoEmergencia",
+          "snapshot_unavailable"
+        ],
+        "dk-portal-api-auth.js": [
+          "allowLocalFallback",
+          "snapshot_unavailable"
+        ],
+        "portal-locadora-ui.js": [
+          "allowLocalFallback"
+        ],
+        "portal-supabase-sync.js": [
+          "hideSessionRevokedBanner",
+          "portalSessaoEhCeoTitular"
+        ],
+        "index.html": [
+          "A sessão do Administrador CEO neste computador não é encerrada"
+        ]
+      }
     }
   ]
 }
