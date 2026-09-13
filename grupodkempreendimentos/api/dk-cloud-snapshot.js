@@ -15,6 +15,7 @@ const {
   tripCloudBudget,
   budgetReject,
   isCloudBudgetTripped,
+  rejectIfRedisBurst,
 } = require("../lib/dk-cloud-budget.cjs");
 const {
   isSupabaseDoormanConfigured,
@@ -893,7 +894,16 @@ async function handler(req, res) {
     return res.status(503).json({ ok: false, reason: "cloud_budget" });
   }
 
-  const redis = createRedisClient();
+  let redis;
+  try {
+    redis = createRedisClient();
+    if (await rejectIfRedisBurst(redis)) return budgetReject(res);
+  } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget") || isCloudBudgetTripped()) {
+      return budgetReject(res);
+    }
+    return res.status(503).json({ ok: false, reason: "cloud_budget" });
+  }
   const channel = resolveDeployChannel(req);
   const REDIS_KEY = redisKeyForChannel(channel);
   const LABEL = labelForChannel(channel);

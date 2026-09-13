@@ -1,0 +1,14 @@
+# GitHub Actions nao corre em push/PR — evita gastar minutos se um workflow falhar em loop.
+# So corre se o titular disparar a mao.
+name: sem-loop
+on:
+  workflow_dispatch:
+concurrency:
+  group: dk-sem-loop
+  cancel-in-progress: true
+jobs:
+  ok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "sem execucao automatica"

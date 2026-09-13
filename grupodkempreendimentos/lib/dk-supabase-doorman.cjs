@@ -95,9 +95,10 @@ async function upsertSnapshotByLabel(label, payload, updatedAt) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    const loop = /cloud_budget_loop/i.test(text);
     return {
       ok: false,
-      reason: `supabase_http_${res.status}`,
+      reason: loop ? "cloud_budget" : `supabase_http_${res.status}`,
       detail: String(text || "").slice(0, 180),
     };
   }

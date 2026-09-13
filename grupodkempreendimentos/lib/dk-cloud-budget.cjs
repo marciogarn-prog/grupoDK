@@ -67,6 +67,18 @@ async function assertHourlyBudget(kind) {
   return true;
 }
 
+async function rejectIfRedisBurst(redis) {
+  if (isCloudBudgetTripped()) return true;
+  const key = "dk:portal:burst:v1";
+  const n = Number(await redis.incr(key));
+  if (n === 1) await redis.expire(key, 3);
+  if (n > 15) {
+    tripCloudBudget(3 * 60 * 1000);
+    return true;
+  }
+  return false;
+}
+
 function allowSupabaseDoorman() {
   if (isCloudBudgetTripped()) return false;
   const now = Date.now();
@@ -82,6 +94,7 @@ module.exports = {
   cloudBudgetError,
   budgetReject,
   assertHourlyBudget,
+  rejectIfRedisBurst,
   allowSupabaseDoorman,
   SNAP_GET_HOUR_MAX,
   SNAP_POST_HOUR_MAX,

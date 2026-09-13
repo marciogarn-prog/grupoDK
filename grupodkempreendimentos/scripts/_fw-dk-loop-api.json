@@ -1,0 +1,24 @@
+{
+  "name": "DK corte loop API 10s",
+  "description": "Corta loop em segundos: mais de 20 pedidos /api no mesmo IP em 10s. A funcao nao chega a correr nem gasta Redis/Supabase.",
+  "active": true,
+  "conditionGroup": [
+    {
+      "conditions": [
+        { "type": "path", "op": "pre", "value": "/api" }
+      ]
+    }
+  ],
+  "action": {
+    "mitigate": {
+      "action": "rate_limit",
+      "rateLimit": {
+        "algo": "fixed_window",
+        "window": 10,
+        "limit": 20,
+        "keys": ["ip"],
+        "action": "deny"
+      }
+    }
+  }
+}

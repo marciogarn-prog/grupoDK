@@ -2818,12 +2818,13 @@
     },
     {
       "id": "protecao-financeira-nuvem-loop",
-      "descricao": "Se o sistema falhar e entrar em loop, a nuvem corta Redis, Supabase e Vercel (cloud_budget) para não gerar cobrança. O financeiro CEO não insiste no envio. O PC continua a trabalhar na cópia local.",
+      "descricao": "Se o sistema falhar e entrar em loop, os 4 suportes cortam em segundos: Vercel WAF (20 pedidos /api / 10s por IP), GitHub Actions desligado, Supabase recusa mais de 4 escritas/10s (cloud_budget_loop) e Redis recusa rajada (15 comandos / 3s + cloud_budget). O financeiro CEO não insiste no envio. O PC continua a trabalhar na cópia local.",
       "ficheiros": {
         "lib/dk-cloud-budget.cjs": [
           "cloud_budget",
           "SNAP_GET_HOUR_MAX",
-          "allowSupabaseDoorman"
+          "allowSupabaseDoorman",
+          "rejectIfRedisBurst"
         ],
         "lib/dk-redis-env.cjs": [
           "tripCloudBudget",
@@ -2835,7 +2836,16 @@
         ],
         "api/dk-cloud-snapshot.js": [
           "assertHourlyBudget",
-          "cloud_budget"
+          "cloud_budget",
+          "rejectIfRedisBurst"
+        ],
+        "supabase/corte-loop-10s.sql": [
+          "cloud_budget_loop",
+          "dk_rejeitar_loop_snapshot"
+        ],
+        "scripts/_fw-dk-loop-api.json": [
+          "DK corte loop API 10s",
+          "\"limit\": 20"
         ],
         "api/cadastro-financeiro-ceo.js": [
           "isCloudBudgetTripped",

@@ -25,6 +25,11 @@ rec("orçamento horário existe", budget.includes("SNAP_GET_HOUR_MAX = 600") && 
 rec("cota estourada corta Redis", redis.includes("tripCloudBudget") && redis.includes("isQuotaError"), "");
 rec("rate limit não fail-open em cota", auth.includes("budgetReject") && auth.includes("isQuotaError(e)"), "");
 rec("snapshot respeita orçamento", snap.includes("assertHourlyBudget") && snap.includes("cloud_budget"), "");
+rec("Redis recusa rajada em 3s", budget.includes("rejectIfRedisBurst") && snap.includes("rejectIfRedisBurst"), "");
+const fw = fs.readFileSync(path.join(ROOT, "scripts/_fw-dk-loop-api.json"), "utf8");
+const sqlLoop = fs.readFileSync(path.join(ROOT, "supabase/corte-loop-10s.sql"), "utf8");
+rec("Vercel WAF 20 pedidos / 10s", fw.includes("DK corte loop API 10s") && fw.includes("\"limit\": 20"), "");
+rec("Supabase recusa loop em 10s", sqlLoop.includes("cloud_budget_loop") && sqlLoop.includes("dk_rejeitar_loop_snapshot"), "");
 rec("financeiro CEO corta na cota", fin.includes("isCloudBudgetTripped") && ceo.includes("cloud_budget"), "");
 rec("frontend para de gastar nuvem", sync.includes("haltCloudBudget") && sync.includes("proteção financeira"), "");
 rec("Supabase não é chamado no corte", door.includes('reason: "cloud_budget"'), "");
