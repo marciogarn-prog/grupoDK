@@ -1004,7 +1004,9 @@
           "data-pag=",
           "abrirModalExcluirDespesa",
           "excluirDespesaSerie",
-          "que compõem a série"
+          "que compõem a série",
+          "closest(\"#finCeoDespExcluirSoEsteBtn\")",
+          "confirmarExcluirDespesaModal(\"este\")"
         ],
         "index.html": [
           "finCeoDespExcluirModal",

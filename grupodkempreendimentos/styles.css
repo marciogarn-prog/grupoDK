@@ -12514,6 +12514,13 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font-size: 0.92rem;
 }
 
+#finCeoDespExcluirModal.portal-modal,
+#finCeoDespPagoModal.portal-modal,
+#finCeoDespConfirmModal.portal-modal,
+#finCeoDespNuvemResultModal.portal-modal {
+  z-index: 13050;
+}
+
 .portal-modal__card--fin-ceo-desp {
   max-width: min(36rem, 96vw);
   max-height: min(88vh, 640px);

@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913grafpago`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913excfix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -151,6 +151,12 @@ async function runSuite() {
         html.includes("finCeoDespExcluirModal") &&
         html.includes("Excluir só este lançamento"),
       "modal pergunta se apaga um ou toda a série"
+    );
+    record(
+      "excluir só este lançamento continua clicável",
+      finCeoPagJs.includes('closest("#finCeoDespExcluirSoEsteBtn")') &&
+        /finally \{[\s\S]{0,80}setBotoesGravacaoCeoDisabled\(false\)/.test(finCeoPagJs),
+      "botão reativa depois de gravar"
     );
     record(
       "gráfico de despesas pinta PAGO de verde",

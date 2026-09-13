@@ -639,10 +639,10 @@
       }
       concluirResultadoCeo(opId, "erro", MSG_NUVEM_ERRO);
       if (fb && finCeoOpAtual && finCeoOpAtual.status === "erro") fb.textContent = MSG_NUVEM_ERRO;
-      setBotoesGravacaoCeoDisabled(false);
       return { ok: false, error: err, operationId: opId };
     } finally {
       finCeoGravacaoEmCurso = false;
+      setBotoesGravacaoCeoDisabled(false);
     }
   }
 
@@ -5126,6 +5126,7 @@
       return;
     }
     if (finCeoGravacaoEmCurso) return;
+    setBotoesGravacaoCeoDisabled(false);
     if (!isSessaoTitularCeoCpf()) {
       const fb = document.getElementById("finCeoDespFeedback");
       if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
@@ -5203,7 +5204,10 @@
     const parcela = pagos.find((p) => Number(p.numero) === pag);
     void gravarFinanceiroCeoComSeguranca(
       () => saveDespesasCeo(next),
-      () => aplicarBlocoNaTela({ tipo: "apagar", despesaId: id, pagNum: pag, valor: Number(parcela?.valor) || 0 }),
+      () => {
+        aplicarBlocoNaTela({ tipo: "apagar", despesaId: id, pagNum: pag, valor: Number(parcela?.valor) || 0 });
+        atualizarTelasAposDespesaGravada();
+      },
       { despesas: [nextRec] },
       `financeiro-ceo-exclusao:${id}:${pag}:${Date.now()}`
     );
@@ -5265,11 +5269,15 @@
   }
 
   function confirmarExcluirDespesaModal(escopo) {
+    if (bloquearEscritaFinanceiroCeo()) return;
+    if (finCeoGravacaoEmCurso) return;
     const pending = finCeoDespExcluirPending;
     if (!pending) return;
+    const id = pending.id;
+    const pag = pending.pag;
     fecharModalExcluirDespesa();
-    if (escopo === "serie") excluirDespesaSerie(pending.id);
-    else excluirDespesa(pending.id, pending.pag);
+    if (escopo === "serie") excluirDespesaSerie(id);
+    else excluirDespesa(id, pag);
   }
 
   function mesLabelCurtoCeo(d) {
@@ -5641,8 +5649,17 @@
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
-    document.getElementById("finCeoDespExcluirSoEsteBtn")?.addEventListener("click", () => confirmarExcluirDespesaModal("este"));
-    document.getElementById("finCeoDespExcluirSerieBtn")?.addEventListener("click", () => confirmarExcluirDespesaModal("serie"));
+    document.getElementById("finCeoDespExcluirModal")?.addEventListener("click", (ev) => {
+      if (ev.target.closest("#finCeoDespExcluirSoEsteBtn")) {
+        ev.preventDefault();
+        confirmarExcluirDespesaModal("este");
+        return;
+      }
+      if (ev.target.closest("#finCeoDespExcluirSerieBtn")) {
+        ev.preventDefault();
+        confirmarExcluirDespesaModal("serie");
+      }
+    });
     document.getElementById("finCeoDespExcluirNaoBtn")?.addEventListener("click", fecharModalExcluirDespesa);
     document
       .querySelectorAll("[data-fin-ceo-desp-excluir-cancel]")

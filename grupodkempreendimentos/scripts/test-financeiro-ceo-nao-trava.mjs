@@ -50,6 +50,14 @@ rec(
 );
 rec("botão de pagamento trava no clique", ceoJs.includes("setBotoesGravacaoCeoDisabled") && ceoJs.includes("finCeoDespPagoSimBtn"), "");
 rec(
+  "excluir só este volta a clicar depois de gravar",
+  /finally \{[\s\S]{0,80}setBotoesGravacaoCeoDisabled\(false\)/.test(ceoJs) &&
+    ceoJs.includes('closest("#finCeoDespExcluirSoEsteBtn")') &&
+    ceoJs.includes("abrirModalExcluirDespesa") &&
+    /abrirModalExcluirDespesa[\s\S]{0,220}setBotoesGravacaoCeoDisabled\(false\)/.test(ceoJs),
+  ""
+);
+rec(
   "excluir pergunta evento ou série",
   ceoJs.includes("abrirModalExcluirDespesa") &&
     ceoJs.includes("excluirDespesaSerie") &&
