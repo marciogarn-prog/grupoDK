@@ -10,7 +10,7 @@ const {
   mergeFinanceiroDespesas,
 } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
-const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget } = require("../lib/dk-cloud-budget.cjs");
+const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget, allowRedisAttempt } = require("../lib/dk-cloud-budget.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
@@ -158,6 +158,7 @@ module.exports = async function handler(req, res) {
   applyApiCors(res);
 
   if (req.method === "OPTIONS") return res.status(204).end();
+  allowRedisAttempt();
   if (isCloudBudgetTripped()) return budgetReject(res);
   if (await enforceRateLimit(req, res, "cadastro-financeiro-ceo", 40)) return;
 

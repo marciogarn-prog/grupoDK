@@ -97,6 +97,7 @@
       const reason = String(data.reason || "");
       const allowLocalFallback =
         reason === "snapshot_unavailable" ||
+        reason === "cloud_budget" ||
         reason === "rate_limited" ||
         reason === "auth_not_configured" ||
         res.status === 429 ||
@@ -105,7 +106,7 @@
       if (reason === "invalid_credentials") msg = "CPF ou senha inválidos.";
       else if (reason === "rate_limited" || res.status === 429) {
         msg = "Muitas tentativas no servidor. Entrando com a cópia deste PC, se a senha estiver certa.";
-      } else if (reason === "snapshot_unavailable") {
+      } else if (reason === "snapshot_unavailable" || reason === "cloud_budget" || res.status >= 500) {
         msg = "Cadastro na nuvem indisponível. Entrando com a cópia deste PC, se a senha estiver certa.";
       }
       return {

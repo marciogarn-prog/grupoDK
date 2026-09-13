@@ -22,6 +22,7 @@ const ceo = fs.readFileSync(path.join(ROOT, "portal-financeiro-ceo.js"), "utf8")
 const door = fs.readFileSync(path.join(ROOT, "lib/dk-supabase-doorman.cjs"), "utf8");
 
 rec("orçamento horário existe", budget.includes("SNAP_GET_HOUR_MAX = 600") && budget.includes("SNAP_POST_HOUR_MAX = 240"), "");
+rec("Redis tenta de novo após upgrade da cota", budget.includes("allowRedisAttempt") && budget.includes("clearCloudBudget"), "");
 rec("cota estourada corta Redis", redis.includes("tripCloudBudget") && redis.includes("isQuotaError"), "");
 rec("rate limit não fail-open em cota", auth.includes("budgetReject") && auth.includes("isQuotaError(e)"), "");
 rec("snapshot respeita orçamento", snap.includes("assertHourlyBudget") && snap.includes("cloud_budget"), "");

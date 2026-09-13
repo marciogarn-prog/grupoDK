@@ -2,7 +2,7 @@
  * Proteção financeira: se a nuvem falhar ou entrar em loop,
  * para Redis / Supabase / Vercel para não gerar cobrança.
  */
-const TRIP_MS = 6 * 60 * 60 * 1000;
+const TRIP_MS = 3 * 60 * 1000;
 const SNAP_GET_HOUR_MAX = 600;
 const SNAP_POST_HOUR_MAX = 240;
 const DOORMAN_MIN_GAP_MS = 45000;
@@ -23,6 +23,16 @@ function isCloudBudgetTripped() {
 function tripCloudBudget(ms) {
   const until = Date.now() + (Number(ms) > 0 ? Number(ms) : TRIP_MS);
   if (until > trippedUntil) trippedUntil = until;
+}
+
+function clearCloudBudget() {
+  trippedUntil = 0;
+}
+
+/** Depois de um upgrade da cota, tenta Redis outra vez em vez de ficar 6 h travado. */
+function allowRedisAttempt() {
+  if (isCloudBudgetTripped()) clearCloudBudget();
+  return true;
 }
 
 function cloudBudgetError() {
@@ -91,6 +101,8 @@ module.exports = {
   isQuotaError,
   isCloudBudgetTripped,
   tripCloudBudget,
+  clearCloudBudget,
+  allowRedisAttempt,
   cloudBudgetError,
   budgetReject,
   assertHourlyBudget,

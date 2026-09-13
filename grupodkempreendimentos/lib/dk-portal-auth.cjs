@@ -292,7 +292,8 @@ function requirePortalAuth(req, opts = {}) {
 }
 
 async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
-  const { isQuotaError, isCloudBudgetTripped, tripCloudBudget, budgetReject } = require("./dk-cloud-budget.cjs");
+  const { isQuotaError, isCloudBudgetTripped, tripCloudBudget, budgetReject, allowRedisAttempt } = require("./dk-cloud-budget.cjs");
+  allowRedisAttempt();
   if (isCloudBudgetTripped()) return budgetReject(res);
   const identRaw = opts && opts.identity != null && String(opts.identity).trim()
     ? String(opts.identity)

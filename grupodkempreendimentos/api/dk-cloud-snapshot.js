@@ -16,6 +16,7 @@ const {
   budgetReject,
   isCloudBudgetTripped,
   rejectIfRedisBurst,
+  allowRedisAttempt,
 } = require("../lib/dk-cloud-budget.cjs");
 const {
   isSupabaseDoormanConfigured,
@@ -852,6 +853,7 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
+  allowRedisAttempt();
   if (isCloudBudgetTripped()) return budgetReject(res);
 
   const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });

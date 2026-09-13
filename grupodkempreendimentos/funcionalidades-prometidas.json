@@ -2824,7 +2824,12 @@
           "cloud_budget",
           "SNAP_GET_HOUR_MAX",
           "allowSupabaseDoorman",
-          "rejectIfRedisBurst"
+          "rejectIfRedisBurst",
+          "allowRedisAttempt"
+        ],
+        "dk-portal-api-auth.js": [
+          "cloud_budget",
+          "allowLocalFallback"
         ],
         "lib/dk-redis-env.cjs": [
           "tripCloudBudget",

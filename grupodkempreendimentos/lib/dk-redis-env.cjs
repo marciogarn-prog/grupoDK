@@ -4,6 +4,7 @@ const {
   isCloudBudgetTripped,
   tripCloudBudget,
   cloudBudgetError,
+  allowRedisAttempt,
 } = require("./dk-cloud-budget.cjs");
 
 function isRedisKvConfigured() {
@@ -26,6 +27,7 @@ function wrapRedisFn(fn, target) {
 }
 
 function createRedisClient() {
+  allowRedisAttempt();
   if (isCloudBudgetTripped()) throw cloudBudgetError();
   const { Redis } = require("@upstash/redis");
   const raw = Redis.fromEnv();
