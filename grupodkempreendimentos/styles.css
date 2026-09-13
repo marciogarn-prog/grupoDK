@@ -4452,6 +4452,74 @@ body.portal-body--admin-ceo {
   flex: 1 1 16rem;
 }
 
+.portal-session-kill {
+  margin-top: 1.1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 0.5rem;
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.portal-session-kill__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+}
+
+.portal-session-kill__lead {
+  margin: 0 0 0.7rem;
+}
+
+.portal-session-kill__btn {
+  background: #b91c1c;
+  border-color: #fecaca;
+  color: #fff;
+}
+
+.portal-session-kill__btn:hover,
+.portal-session-kill__btn:focus-visible {
+  background: #991b1b;
+}
+
+.portal-session-kill__status {
+  margin: 0.65rem 0 0;
+}
+
+.portal-session-revoked {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.portal-session-revoked.hidden {
+  display: none;
+}
+
+.portal-session-revoked__card {
+  max-width: 28rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  background: #7f1d1d;
+  color: #fee2e2;
+  text-align: center;
+}
+
+.portal-session-revoked__title {
+  margin: 0 0 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.portal-session-revoked__text {
+  margin: 0;
+}
+
 .dk-backup-last-info {
   flex: 1 1 14rem;
   max-width: 22rem;

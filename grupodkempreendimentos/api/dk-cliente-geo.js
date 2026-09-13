@@ -7,7 +7,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { handleClientePush } = require("../lib/dk-cliente-push-handler.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -83,12 +83,12 @@ module.exports = async function handler(req, res) {
 
   if (await enforceRateLimit(req, res, "cliente-geo", req.method === "GET" ? 20 : 40)) return;
   if (req.method === "GET") {
-    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
     if (!gate.ok) {
       return res.status(gate.status).json({ ok: false, reason: gate.reason });
     }
   } else if (req.method === "POST") {
-    const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+    const gate = await requireLiveSession(req, { allowCliente: true, allowEquipa: true });
     if (!gate.ok) {
       return res.status(gate.status).json({ ok: false, reason: gate.reason });
     }

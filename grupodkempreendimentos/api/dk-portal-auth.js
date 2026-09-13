@@ -5,7 +5,7 @@
 const {
   applyApiCors,
   enforceRateLimit,
-  mintToken,
+  mintTokenWithSession,
   loadOfficialSnapshotPayload,
   findFuncionario,
   findCliente,
@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, reason: "use_admin" });
     }
     const pub = publicFuncionario(f);
-    const token = mintToken({ typ: "equipa", cpf, role, nome: pub.nome });
+    const token = await mintTokenWithSession({ typ: "equipa", cpf, role, nome: pub.nome });
     return res.status(200).json({ ok: true, token, funcionario: pub });
   }
 
@@ -107,7 +107,7 @@ module.exports = async function handler(req, res) {
     if (!clienteTemProtocolo(payload, cpf, proto)) {
       return res.status(403).json({ ok: false, reason: "protocolo" });
     }
-    const token = mintToken({
+    const token = await mintTokenWithSession({
       typ: "cliente",
       cpf,
       proto,

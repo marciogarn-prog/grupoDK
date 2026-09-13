@@ -19,6 +19,7 @@ const {
   applyApiCors,
   enforceRateLimit,
   requirePortalAuth,
+  attachLiveSession,
   findFuncionario,
   onlyDigits,
   clientIp,
@@ -848,6 +849,7 @@ async function handler(req, res) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
+  const live = await attachLiveSession(gate);
   const ident = gate.service
     ? "svc"
     : onlyDigits(gate.cpf).slice(0, 11) || `ip:${clientIp(req)}`;
@@ -858,6 +860,12 @@ async function handler(req, res) {
     })
   ) {
     return;
+  }
+  if (!live.ok) {
+    return res.status(live.status || 401).json({
+      ok: false,
+      reason: live.reason || "session_revoked",
+    });
   }
 
   if (!isRedisKvConfigured()) {

@@ -48,6 +48,20 @@ rec(
   ""
 );
 rec("falha de pull não força POST", !/await_push_failed[\s\S]{0,220}pushCloudSnapshotNow/.test(syncJs), "");
+rec(
+  "snapshot rejeita sessão revogada antes do Redis",
+  apiJs.includes("attachLiveSession") &&
+    apiJs.includes("session_revoked") &&
+    apiJs.indexOf("attachLiveSession") < apiJs.indexOf("await redis.get(REDIS_KEY)"),
+  ""
+);
+rec(
+  "frontend para o sync em session_revoked",
+  syncJs.includes("haltCloudSyncRevoked") &&
+    syncJs.includes("SESSÃO ENCERRADA PELO ADMINISTRADOR CEO") &&
+    /session_revoked[\s\S]{0,80}return/.test(syncJs),
+  ""
+);
 
 const BASE = "https://grupodkempreendimentos.com.br/";
 async function hit(method, body) {

@@ -4,7 +4,7 @@
  * GET — lista CPF com pulso recente.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requireLiveSession, onlyDigits } = require("../lib/dk-portal-auth.cjs");
 
 const REDIS_KEY = "dk:portal:equipa_presenca:v1";
 const MAX_AGE_MS = 8 * 60 * 1000;
@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (await enforceRateLimit(req, res, "equipa-presenca", 40)) return;
 
-  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true, allowService: false });
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true, allowService: false });
   if (!gate.ok) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }

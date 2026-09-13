@@ -70,8 +70,8 @@ module.exports = async function handler(req, res) {
     process.env.DK_WHATSAPP_SEND_SECRET && secret === process.env.DK_WHATSAPP_SEND_SECRET
   );
   if (!secretOk) {
-    const { requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
-    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    const { requireLiveSession } = require("../lib/dk-portal-auth.cjs");
+    const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
     if (!gate.ok) {
       return res.status(gate.status).json({ ok: false, reason: gate.reason || "unauthorized" });
     }

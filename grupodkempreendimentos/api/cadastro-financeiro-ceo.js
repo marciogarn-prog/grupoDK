@@ -9,7 +9,7 @@ const {
   mergeFinanceiroById,
   mergeFinanceiroDespesas,
 } = require("../lib/dk-append-only-merge.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
@@ -151,7 +151,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (await enforceRateLimit(req, res, "cadastro-financeiro-ceo", 40)) return;
 
-  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }

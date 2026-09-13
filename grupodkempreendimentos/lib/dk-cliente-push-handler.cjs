@@ -10,7 +10,7 @@ const {
   sendPushToCpf,
   resolveChannel,
 } = require("./dk-web-push.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, onlyDigits } = require("./dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requireLiveSession, onlyDigits } = require("./dk-portal-auth.cjs");
 
 function applyCors(res) {
   applyApiCors(res);
@@ -72,7 +72,7 @@ async function handleClientePush(req, res) {
   const channel = resolveChannelFromReq(req, body);
 
   if (action === "notify") {
-    const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+    const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
     if (!gate.ok) {
       return res.status(gate.status).json({ ok: false, reason: gate.reason });
     }
@@ -88,7 +88,7 @@ async function handleClientePush(req, res) {
   }
 
   if (action === "subscribe" || action === "unsubscribe") {
-    const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
+    const gate = await requireLiveSession(req, { allowCliente: true, allowEquipa: true });
     if (!gate.ok) {
       return res.status(gate.status).json({ ok: false, reason: gate.reason });
     }

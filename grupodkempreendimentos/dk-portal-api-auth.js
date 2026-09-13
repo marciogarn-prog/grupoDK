@@ -13,12 +13,39 @@
     }
   }
 
+  const REVOKED_KEY = "dk_session_revoked_v1";
+
+  function isSessionRevoked() {
+    try {
+      return sessionStorage.getItem(REVOKED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function markSessionRevoked() {
+    try {
+      sessionStorage.setItem(REVOKED_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearSessionRevoked() {
+    try {
+      sessionStorage.removeItem(REVOKED_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function setToken(token) {
     const t = String(token || "").trim();
     try {
       if (t) {
         localStorage.setItem(KEY, t);
         sessionStorage.setItem(KEY, t);
+        clearSessionRevoked();
       } else {
         localStorage.removeItem(KEY);
         sessionStorage.removeItem(KEY);
@@ -97,6 +124,9 @@
     window.__DK_portalApiHeaders = apiHeaders;
     window.__DK_portalApiLoginEquipa = loginEquipa;
     window.__DK_portalApiLoginCliente = loginCliente;
+    window.__DK_portalSessionIsRevoked = isSessionRevoked;
+    window.__DK_portalSessionMarkRevoked = markSessionRevoked;
+    window.__DK_portalSessionClearRevoked = clearSessionRevoked;
   } catch {
     /* ignore */
   }

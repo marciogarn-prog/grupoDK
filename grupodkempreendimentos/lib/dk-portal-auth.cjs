@@ -95,6 +95,109 @@ function mintToken(claims) {
   });
 }
 
+const SESSION_EPOCH_KEY = "dk:portal:session_epoch:v1";
+const SESSION_EPOCH_META_KEY = "dk:portal:session_epoch_meta:v1";
+
+function parseEpochN(raw) {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+function tokenSessionGen(gate) {
+  const n = Number(gate && gate.sg);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+async function readSessionEpoch() {
+  const empty = { n: 0, at: null };
+  if (!isRedisKvConfigured()) return empty;
+  try {
+    const redis = createRedisClient();
+    const n = parseEpochN(await redis.get(SESSION_EPOCH_KEY));
+    let at = null;
+    const metaRaw = await redis.get(SESSION_EPOCH_META_KEY);
+    if (metaRaw) {
+      const meta = typeof metaRaw === "string" ? JSON.parse(metaRaw) : metaRaw;
+      if (meta && meta.at) at = String(meta.at);
+    }
+    return { n, at };
+  } catch {
+    return empty;
+  }
+}
+
+async function countRecentSnapshotOrigins() {
+  if (!isRedisKvConfigured()) return null;
+  try {
+    const redis = createRedisClient();
+    const idents = new Set();
+    let cursor = 0;
+    for (let i = 0; i < 20; i += 1) {
+      const res = await redis.scan(cursor, { match: "dk:rl:cloud-snapshot*", count: 200 });
+      const next = Array.isArray(res) ? res[0] : res && res.cursor;
+      const keys = Array.isArray(res) ? res[1] : (res && res.keys) || [];
+      cursor = Number(next || 0);
+      for (const key of keys) {
+        const parts = String(key).split(":");
+        if (parts.length >= 5) idents.add(parts.slice(3, -1).join(":"));
+      }
+      if (cursor === 0) break;
+    }
+    return idents.size;
+  } catch {
+    return null;
+  }
+}
+
+async function bumpSessionEpoch() {
+  if (!isRedisKvConfigured()) {
+    return { ok: false, status: 503, reason: "kv_not_configured" };
+  }
+  const redis = createRedisClient();
+  const n = parseEpochN(await redis.incr(SESSION_EPOCH_KEY));
+  const at = new Date().toISOString();
+  await redis.set(SESSION_EPOCH_META_KEY, JSON.stringify({ n, at }));
+  return { ok: true, n, at };
+}
+
+async function attachLiveSession(gate) {
+  if (!gate || !gate.ok) return gate;
+  if (gate.service) return gate;
+  try {
+    const epoch = await readSessionEpoch();
+    if (tokenSessionGen(gate) < epoch.n) {
+      return { ok: false, status: 401, reason: "session_revoked" };
+    }
+  } catch {
+    /* fail-open: Redis indisponível não trava o portal */
+  }
+  return gate;
+}
+
+async function requireLiveSession(req, opts) {
+  return attachLiveSession(requirePortalAuth(req, opts));
+}
+
+async function mintTokenWithSession(claims) {
+  const epoch = await readSessionEpoch();
+  return mintToken({ ...claims, sg: epoch.n });
+}
+
+async function requireCeoEmergencyLock(req) {
+  const gate = requirePortalAuth(req, {
+    allowCliente: false,
+    allowEquipa: true,
+    allowService: false,
+  });
+  if (!gate.ok) return gate;
+  const live = await attachLiveSession(gate);
+  if (!live.ok) return live;
+  if (String(live.typ || "") !== "equipa" || String(live.role || "") !== "owner") {
+    return { ok: false, status: 403, reason: "forbidden" };
+  }
+  return live;
+}
+
 /**
  * @param {{ allowCliente?: boolean, allowEquipa?: boolean, allowService?: boolean }} opts
  */
@@ -280,7 +383,7 @@ async function persistPasswordUpgrade(kind, cpf, plain) {
  * Owner e service (escopo explícito) passam. Operação só com acessos[modulo].
  */
 async function requireModuleAccess(req, modulo) {
-  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true, allowService: true });
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true, allowService: true });
   if (!gate.ok) return gate;
   if (gate.service) {
     return { ok: true, ...gate, acessos: ownerWriteAccess(), scopes: ["snapshot", "backup", "cadastro", "whatsapp", "cron", "geo"] };
@@ -314,6 +417,13 @@ module.exports = {
   mintToken,
   verifySignedToken,
   requirePortalAuth,
+  requireLiveSession,
+  attachLiveSession,
+  requireCeoEmergencyLock,
+  readSessionEpoch,
+  bumpSessionEpoch,
+  countRecentSnapshotOrigins,
+  mintTokenWithSession,
   requireModuleAccess,
   enforceRateLimit,
   loadOfficialSnapshotPayload,

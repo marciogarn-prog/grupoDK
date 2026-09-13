@@ -2609,6 +2609,38 @@
           "o protocolo <strong>não é criado</strong>"
         ]
       }
+    },
+    {
+      "id": "ceo-bloquear-outras-sessoes",
+      "descricao": "Na Área da equipa do Administrador CEO existe CONTROLE DE SESSÕES com o botão BLOQUEAR OUTRAS SESSÕES. A API valida owner no servidor, incrementa a geração de sessão e devolve token novo ao CEO. Sessões antigas recebem session_revoked e o frontend novo para o sync.",
+      "ficheiros": {
+        "index.html": [
+          "CONTROLE DE SESSÕES",
+          "BLOQUEAR OUTRAS SESSÕES",
+          "CONFIRMAR BLOQUEIO",
+          "SESSÃO ENCERRADA PELO ADMINISTRADOR CEO",
+          "Atualize o sistema e faça login novamente."
+        ],
+        "portal-supabase-sync.js": [
+          "haltCloudSyncRevoked",
+          "confirmarBloqueioOutrasSessoes",
+          "session_revoked"
+        ],
+        "api/dk-session-kill.js": [
+          "requireCeoEmergencyLock",
+          "bumpSessionEpoch",
+          "OUTRAS SESSÕES BLOQUEADAS COM SUCESSO"
+        ],
+        "lib/dk-portal-auth.cjs": [
+          "session_revoked",
+          "dk:portal:session_epoch:v1",
+          "requireLiveSession"
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "attachLiveSession",
+          "session_revoked"
+        ]
+      }
     }
   ]
 }

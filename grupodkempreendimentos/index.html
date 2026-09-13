@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260911manut-vis">
+  <link rel="stylesheet" href="styles.css?v=20260913sess">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -581,6 +581,12 @@
           </div>
           <input type="file" id="dk-backup-import-input" class="hidden" accept=".json,.gz,application/json,application/gzip" tabindex="-1" aria-hidden="true">
           <p id="portal-cloud-sync-msg" class="portal-feedback" role="status"></p>
+          <div id="portal-session-kill-box" class="portal-session-kill hidden" hidden data-apenas-ceo="1">
+            <h3 class="portal-session-kill__title">CONTROLE DE SESSÕES</h3>
+            <p class="subtext portal-session-kill__lead">Bloqueia no servidor a autorização das outras sessões. Não apaga cadastros nem a nuvem.</p>
+            <button type="button" id="btn-dk-session-kill" class="btn-primary portal-session-kill__btn">BLOQUEAR OUTRAS SESSÕES</button>
+            <p id="portal-session-kill-status" class="subtext portal-session-kill__status" role="status"></p>
+          </div>
         </div>
       </section>
 
@@ -4793,6 +4799,23 @@
     </div>
   </div>
 
+  <div id="portalSessionRevokedBanner" class="portal-session-revoked hidden" hidden role="alertdialog" aria-labelledby="portalSessionRevokedTitulo">
+    <div class="portal-session-revoked__card">
+      <p id="portalSessionRevokedTitulo" class="portal-session-revoked__title">SESSÃO ENCERRADA PELO ADMINISTRADOR CEO</p>
+      <p class="portal-session-revoked__text">Atualize o sistema e faça login novamente.</p>
+    </div>
+  </div>
+  <div id="portalSessionKillModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalSessionKillTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-close-session-kill></div>
+    <div class="portal-modal__card">
+      <h3 id="portalSessionKillTitulo" class="portal-modal__title">BLOQUEAR OUTRAS SESSÕES</h3>
+      <p class="portal-modal__text">Esta operação bloqueará todas as outras sessões do sistema DK. Os computadores precisarão atualizar o sistema e entrar novamente. Sua sessão CEO permanecerá ativa.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalSessionKillCancelarBtn" data-close-session-kill>CANCELAR</button>
+        <button type="button" class="btn-primary portal-session-kill__btn" id="portalSessionKillConfirmarBtn">CONFIRMAR BLOQUEIO</button>
+      </div>
+    </div>
+  </div>
   <div id="documentosViewerModal" class="portal-modal documentos-viewer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="documentosViewerTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-documentos-viewer></div>
     <div class="portal-modal__card portal-modal__card--wide documentos-viewer-card">
@@ -5430,8 +5453,8 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260909apagar-gemeo" defer></script>
-  <script src="dk-portal-api-auth.js?v=20260910porteiro"></script>
-  <script src="app.js?v=20260912noloop" defer></script>
+  <script src="dk-portal-api-auth.js?v=20260913sess"></script>
+  <script src="app.js?v=20260913sess" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5441,11 +5464,11 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260912noloop" defer></script>
+  <script src="portal-locadora-ui.js?v=20260913sess" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20260912noloop" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260913sess" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -5491,7 +5514,7 @@
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260912noloop" defer></script>
+  <script src="portal-supabase-sync.js?v=20260913sess" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

@@ -20,6 +20,54 @@
     return ch === "demo" ? "?channel=demo" : "";
   }
 
+  let cloudSyncHalted = false;
+
+  function showSessionRevokedBanner() {
+    const el = document.getElementById("portalSessionRevokedBanner");
+    if (!el) return;
+    el.classList.remove("hidden");
+    el.removeAttribute("hidden");
+  }
+
+  function haltCloudSyncRevoked() {
+    cloudSyncHalted = true;
+    if (typeof window.__DK_portalSessionMarkRevoked === "function") {
+      window.__DK_portalSessionMarkRevoked();
+    }
+    try {
+      if (typeof cloudPushTimer !== "undefined" && cloudPushTimer) {
+        clearTimeout(cloudPushTimer);
+        cloudPushTimer = null;
+      }
+    } catch {
+      /* ignore */
+    }
+    cloudPushDirty = false;
+    snapshotGetInFlight = null;
+    screenPullInFlight = null;
+    backgroundPullInFlight = null;
+    showSessionRevokedBanner();
+    setMsg("SESSÃO ENCERRADA PELO ADMINISTRADOR CEO. Atualize o sistema e faça login novamente.", null);
+  }
+
+  function noteCloudAuthFailure(res, data) {
+    const reason = String((data && data.reason) || "");
+    if ((res.status === 401 || res.status === 403) && reason === "session_revoked") {
+      haltCloudSyncRevoked();
+      return true;
+    }
+    return false;
+  }
+
+  function cloudSyncIsHalted() {
+    if (cloudSyncHalted) return true;
+    if (typeof window.__DK_portalSessionIsRevoked === "function" && window.__DK_portalSessionIsRevoked()) {
+      haltCloudSyncRevoked();
+      return true;
+    }
+    return false;
+  }
+
   function dkCloudFetchHeaders() {
     const ch = dkSnapshotLabel();
     const extra = ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
@@ -1512,6 +1560,96 @@
     return true;
   }
 
+  function portalSessaoEhCeoTitular() {
+    return typeof window.__DK_isPortalAdministradorTitularCeo === "function"
+      ? Boolean(window.__DK_isPortalAdministradorTitularCeo())
+      : false;
+  }
+
+  function refreshSessionKillBox() {
+    const box = document.getElementById("portal-session-kill-box");
+    if (!box) return;
+    const ceo = portalSessaoEhCeoTitular();
+    box.classList.toggle("hidden", !ceo);
+    if (ceo) box.removeAttribute("hidden");
+    else box.setAttribute("hidden", "");
+    if (ceo) loadSessionKillStatus().catch((e) => console.warn("[DK sessão] status", e));
+  }
+
+  async function loadSessionKillStatus() {
+    if (!portalSessaoEhCeoTitular()) return;
+    const res = await fetch("/api/dk-session-kill", {
+      method: "GET",
+      headers: { Accept: "application/json", ...dkCloudFetchHeaders() },
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (noteCloudAuthFailure(res, data)) return;
+    if (!res.ok || !data.ok) return;
+    const status = document.getElementById("portal-session-kill-status");
+    if (!status) return;
+    const when = data.blockedAt
+      ? new Date(data.blockedAt).toLocaleString("pt-BR")
+      : "nenhum bloqueio ainda";
+    const origins =
+      data.recentOrigins == null
+        ? ""
+        : ` Origens recentes na API: ${data.recentOrigins}.`;
+    status.textContent = `Geração de sessão: ${data.generation}. Último bloqueio: ${when}.${origins}`;
+  }
+
+  function setSessionKillModalOpen(open) {
+    const modal = document.getElementById("portalSessionKillModal");
+    if (!modal) return;
+    modal.classList.toggle("hidden", !open);
+    if (open) {
+      modal.removeAttribute("hidden");
+      modal.setAttribute("aria-hidden", "false");
+    } else {
+      modal.setAttribute("hidden", "");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  async function confirmarBloqueioOutrasSessoes() {
+    if (!portalSessaoEhCeoTitular()) {
+      setMsg("Só o Administrador CEO pode bloquear sessões.", null);
+      return;
+    }
+    const btn = document.getElementById("portalSessionKillConfirmarBtn");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch("/api/dk-session-kill", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json", ...dkCloudFetchHeaders() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (noteCloudAuthFailure(res, data)) return;
+      if (!res.ok || !data.ok) {
+        setMsg("Não foi possível bloquear as outras sessões.", null);
+        return;
+      }
+      if (data.token && typeof window.__DK_portalApiTokenSet === "function") {
+        window.__DK_portalApiTokenSet(data.token);
+      }
+      const status = document.getElementById("portal-session-kill-status");
+      const when = data.blockedAt
+        ? new Date(data.blockedAt).toLocaleString("pt-BR")
+        : new Date().toLocaleString("pt-BR");
+      const origins =
+        data.recentOrigins == null ? "" : ` Origens recentes na API: ${data.recentOrigins}.`;
+      const text = `OUTRAS SESSÕES BLOQUEADAS COM SUCESSO. Horário: ${when}. Geração: ${data.generation}.${origins}`;
+      if (status) status.textContent = text;
+      setMsg(text, "ok");
+      setSessionKillModalOpen(false);
+    } catch (e) {
+      console.warn("[DK sessão] bloqueio", e);
+      setMsg("Não foi possível bloquear as outras sessões.", null);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function refreshCloudBarVisibility() {
     const bar = document.getElementById("portal-cloud-sync-bar");
     if (!bar) return;
@@ -1519,6 +1657,7 @@
     bar.classList.toggle("hidden", !admin);
     if (admin) bar.removeAttribute("hidden");
     else bar.setAttribute("hidden", "");
+    refreshSessionKillBox();
     if (!admin) return;
     refreshLastBackupPanel().catch((e) => console.warn("[DK backup] panel", e));
     probeSupabaseCloudHealth().catch((e) => console.warn("[DK cloud] health", e));
@@ -1565,6 +1704,7 @@
   }
 
   async function fetchRedundantSnapshotPayloadUncached() {
+    if (cloudSyncIsHalted()) return null;
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       try {
@@ -1577,6 +1717,7 @@
           15000
         );
         const data = await res.json().catch(() => ({}));
+        if (noteCloudAuthFailure(res, data)) return null;
         if (res.status === 429) {
           noteCloudRateLimit(res, data);
           return null;
@@ -1612,6 +1753,7 @@
   }
 
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
+    if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
     const replace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     const urls = resolveRedundantSnapshotApiUrls();
@@ -1650,6 +1792,10 @@
           postTimeoutMs
         );
         const data = await res.json().catch(() => ({}));
+        if (noteCloudAuthFailure(res, data)) {
+          lastErr = "session_revoked";
+          break;
+        }
         if (res.status === 429) {
           noteCloudRateLimit(res, data);
           lastErr = "rate_limited";
@@ -1883,6 +2029,7 @@
   }
 
   function scheduleCloudPushDebounced() {
+    if (cloudSyncIsHalted()) return;
     if (suppressCloudHook || window.__DK_suppressPortalCadastroPush === true) return;
     if (window.__DK_IS_OFFLINE_MODE__ === true) {
       if (typeof window.__DK_offlineOnLocalChange === "function") {
@@ -3797,6 +3944,7 @@
   }
 
   async function upsertSnapshotRow(showUserMessages, opts) {
+    if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     let payload = collectPayloadFromLocalStorage();
@@ -4135,6 +4283,7 @@
   }
 
   function pullFromCloudOnScreenChange() {
+    if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
     const now = Date.now();
     if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
       return screenPullInFlight || Promise.resolve({ ok: true, skipped: true, reason: "throttled" });
@@ -4154,6 +4303,7 @@
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
   async function scheduleBackgroundCloudPullIfStale() {
+    if (cloudSyncIsHalted()) return { ok: false, reason: "session_revoked" };
     if (isLocalDataAuthorityActive() && !isClienteAppPage()) {
       return pullAppendOnlyKeysFromCloud();
     }
@@ -4697,6 +4847,7 @@
   }
 
   function autoPullFromCloudOnStartup() {
+    if (cloudSyncIsHalted()) return;
     if (isClienteAppPage() && clienteAppSessaoCpf()) {
       return pullClienteCloudSnapshotLight().catch((e) => {
         console.warn("[DK cloud] cliente pull leve", e);
@@ -4744,6 +4895,23 @@
 
   function bind() {
     installLocalStorageCloudHook();
+
+    document.getElementById("btn-dk-session-kill")?.addEventListener("click", () => {
+      if (!portalSessaoEhCeoTitular()) {
+        setMsg("Só o Administrador CEO pode bloquear sessões.", null);
+        return;
+      }
+      setSessionKillModalOpen(true);
+    });
+    document.getElementById("portalSessionKillConfirmarBtn")?.addEventListener("click", () => {
+      confirmarBloqueioOutrasSessoes().catch((e) => console.warn("[DK sessão] confirmar", e));
+    });
+    document.querySelectorAll("[data-close-session-kill]").forEach((el) => {
+      el.addEventListener("click", () => setSessionKillModalOpen(false));
+    });
+    if (typeof window.__DK_portalSessionIsRevoked === "function" && window.__DK_portalSessionIsRevoked()) {
+      haltCloudSyncRevoked();
+    }
 
     document.getElementById("btn-dk-cloud-push")?.addEventListener("click", () => {
       if (recusarOpcaoNuvemSeNaoAdmin()) return;

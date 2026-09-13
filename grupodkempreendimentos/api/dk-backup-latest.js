@@ -44,12 +44,12 @@ function resolveChannel() {
   return "default";
 }
 
-function authorizeFull(req) {
+async function authorizeFull(req) {
   const expected = process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || "";
   const secret = String(req.headers["x-dk-backup-secret"] || "");
   if (expected && secret === expected) return { ok: true };
-  const { requirePortalAuth } = require("../lib/dk-portal-auth.cjs");
-  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+  const { requireLiveSession } = require("../lib/dk-portal-auth.cjs");
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (gate.ok) return { ok: true };
   return { ok: false, reason: gate.reason || "unauthorized" };
 }
@@ -74,7 +74,7 @@ module.exports = async function handler(req, res) {
     String(req.query?.full || "").trim().toLowerCase() === "true";
 
   if (wantFull) {
-    const auth = authorizeFull(req);
+    const auth = await authorizeFull(req);
     if (!auth.ok) {
       return res.status(401).json({ ok: false, reason: auth.reason });
     }
