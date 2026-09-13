@@ -2815,6 +2815,40 @@
           "client_stale na API antes do porteiro"
         ]
       }
+    },
+    {
+      "id": "protecao-financeira-nuvem-loop",
+      "descricao": "Se o sistema falhar e entrar em loop, a nuvem corta Redis, Supabase e Vercel (cloud_budget) para não gerar cobrança. O financeiro CEO não insiste no envio. O PC continua a trabalhar na cópia local.",
+      "ficheiros": {
+        "lib/dk-cloud-budget.cjs": [
+          "cloud_budget",
+          "SNAP_GET_HOUR_MAX",
+          "allowSupabaseDoorman"
+        ],
+        "lib/dk-redis-env.cjs": [
+          "tripCloudBudget",
+          "isQuotaError"
+        ],
+        "lib/dk-portal-auth.cjs": [
+          "isCloudBudgetTripped",
+          "budgetReject"
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "assertHourlyBudget",
+          "cloud_budget"
+        ],
+        "api/cadastro-financeiro-ceo.js": [
+          "isCloudBudgetTripped",
+          "budgetReject"
+        ],
+        "portal-supabase-sync.js": [
+          "haltCloudBudget",
+          "proteção financeira"
+        ],
+        "portal-financeiro-ceo.js": [
+          "cloud_budget"
+        ]
+      }
     }
   ]
 }

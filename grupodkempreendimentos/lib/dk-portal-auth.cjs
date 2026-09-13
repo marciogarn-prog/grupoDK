@@ -292,6 +292,8 @@ function requirePortalAuth(req, opts = {}) {
 }
 
 async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
+  const { isQuotaError, isCloudBudgetTripped, tripCloudBudget, budgetReject } = require("./dk-cloud-budget.cjs");
+  if (isCloudBudgetTripped()) return budgetReject(res);
   const identRaw = opts && opts.identity != null && String(opts.identity).trim()
     ? String(opts.identity)
     : clientIp(req);
@@ -309,8 +311,12 @@ async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
       res.status(429).json({ ok: false, reason: "rate_limited", retryAfter, bucket });
       return true;
     }
-  } catch {
-    /* fail-open: não bloquear o portal se o contador falhar */
+  } catch (e) {
+    if (isQuotaError(e)) {
+      tripCloudBudget();
+      return budgetReject(res);
+    }
+    /* fail-open só se não for cota: não bloquear o portal se o contador falhar */
   }
   return false;
 }

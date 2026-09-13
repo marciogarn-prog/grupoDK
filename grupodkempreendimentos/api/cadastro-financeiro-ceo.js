@@ -10,6 +10,7 @@ const {
   mergeFinanceiroDespesas,
 } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget } = require("../lib/dk-cloud-budget.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
@@ -157,6 +158,7 @@ module.exports = async function handler(req, res) {
   applyApiCors(res);
 
   if (req.method === "OPTIONS") return res.status(204).end();
+  if (isCloudBudgetTripped()) return budgetReject(res);
   if (await enforceRateLimit(req, res, "cadastro-financeiro-ceo", 40)) return;
 
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
@@ -225,6 +227,10 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, patch: false, gravados });
     }
   } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {
+      tripCloudBudget();
+      return budgetReject(res);
+    }
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
   }
 

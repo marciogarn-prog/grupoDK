@@ -75,6 +75,13 @@
     setMsg("SESSÃO ENCERRADA PELO ADMINISTRADOR CEO. Atualize o sistema e faça login novamente.", null);
   }
 
+  function haltCloudBudget() {
+    cloudHaltKind = "budget";
+    cloudSyncHalted = true;
+    stopCloudTimers();
+    setMsg("Nuvem em proteção financeira. Este PC continua a trabalhar sem gastar Redis, Supabase ou Vercel.", "muted");
+  }
+
   function haltCloudSyncIdleOrStale(kind) {
     cloudHaltKind = kind === "stale" ? "stale" : "idle";
     cloudSyncHalted = true;
@@ -96,6 +103,10 @@
 
   function noteCloudAuthFailure(res, data) {
     const reason = String((data && data.reason) || "");
+    if (reason === "cloud_budget" || /max requests|quota|limit exceeded/i.test(reason + String((data && data.error) || ""))) {
+      haltCloudBudget();
+      return true;
+    }
     if (reason === "client_stale") {
       haltCloudSyncIdleOrStale("stale");
       return true;
@@ -123,7 +134,7 @@
   }
 
   function cloudSyncIsHalted() {
-    if (cloudHaltKind === "idle" || cloudHaltKind === "stale") return true;
+    if (cloudHaltKind === "idle" || cloudHaltKind === "stale" || cloudHaltKind === "budget") return true;
     if (portalSessaoEhCeoTitular()) {
       if (cloudHaltKind === "revoked") {
         cloudHaltKind = "";
@@ -1740,6 +1751,7 @@
   window.__DK_refreshCloudBarVisibility = refreshCloudBarVisibility;
   window.__DK_haltCloudSyncIdle = () => haltCloudSyncIdleOrStale("idle");
   window.__DK_haltCloudSyncStale = () => haltCloudSyncIdleOrStale("stale");
+  window.__DK_haltCloudBudget = haltCloudBudget;
 
   async function probeSupabaseCloudHealth() {
     /* Porteiro: o browser não fala com o Supabase. A faixa 42501 some. */

@@ -129,7 +129,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913rest`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913budget`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -223,7 +223,7 @@ async function runSuite() {
         html.includes('name="dk-client-protocol"'),
       "versões antigas param; operador idle faz login de novo"
     );
-    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913idle`, {
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913budget`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -232,6 +232,13 @@ async function runSuite() {
         syncSupaPtJs.includes("Os dados estão no Redis (nuvem principal).") &&
         !/userMessage: `Supabase: \$\{text/.test(syncSupaPtJs),
       "Área da equipa sem a palavra técnica doorman"
+    );
+    record(
+      "nuvem corta loop para não gerar cobrança",
+      syncSupaPtJs.includes("haltCloudBudget") &&
+        finCeoPagJs.includes("cloud_budget") &&
+        html.includes("portal-supabase-sync.js?v=20260913budget"),
+      "proteção financeira Redis/Supabase/Vercel"
     );
     const tagSeq = await page.evaluate(() => {
       if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };

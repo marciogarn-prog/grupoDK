@@ -10,6 +10,13 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
+  assertHourlyBudget,
+  isQuotaError,
+  tripCloudBudget,
+  budgetReject,
+  isCloudBudgetTripped,
+} = require("../lib/dk-cloud-budget.cjs");
+const {
   isSupabaseDoormanConfigured,
   fetchSnapshotByLabel,
   upsertSnapshotByLabel,
@@ -844,6 +851,8 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
+  if (isCloudBudgetTripped()) return budgetReject(res);
+
   const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
   if (!gate.ok) {
     if (await enforceRateLimit(req, res, "cloud-snapshot-anon", 20)) return;
@@ -875,6 +884,13 @@ async function handler(req, res) {
 
   if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
+  }
+
+  try {
+    await assertHourlyBudget(isPost ? "post" : "get");
+  } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget")) return budgetReject(res);
+    return res.status(503).json({ ok: false, reason: "cloud_budget" });
   }
 
   const redis = createRedisClient();
@@ -1053,6 +1069,10 @@ async function handler(req, res) {
       });
     }
   } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {
+      tripCloudBudget();
+      return budgetReject(res);
+    }
     return res.status(500).json({
       ok: false,
       error: String(e && e.message ? e.message : e),

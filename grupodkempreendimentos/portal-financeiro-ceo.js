@@ -469,6 +469,9 @@
       ]);
       last = raced || last;
       if (nuvemPushResultOk(raced)) return raced;
+      if (raced && (raced.reason === "cloud_budget" || raced.status === 503)) {
+        return raced;
+      }
       if (raced && (raced.status === 429 || raced.reason === "rate_limited")) {
         const ra = Number(raced.retryAfter) || 8;
         await new Promise((res) => setTimeout(res, Math.min(20000, Math.max(2000, ra * 1000))));

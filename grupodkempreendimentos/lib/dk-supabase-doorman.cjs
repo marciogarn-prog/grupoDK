@@ -36,6 +36,10 @@ function doormanHeaders() {
 }
 
 async function fetchSnapshotByLabel(label) {
+  const { allowSupabaseDoorman } = require("./dk-cloud-budget.cjs");
+  if (!allowSupabaseDoorman()) {
+    return { ok: false, reason: "cloud_budget", payload: null, updatedAt: null };
+  }
   if (!isSupabaseDoormanConfigured()) {
     return { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
   }
@@ -64,6 +68,10 @@ async function fetchSnapshotByLabel(label) {
 }
 
 async function upsertSnapshotByLabel(label, payload, updatedAt) {
+  const { allowSupabaseDoorman } = require("./dk-cloud-budget.cjs");
+  if (!allowSupabaseDoorman()) {
+    return { ok: false, reason: "cloud_budget" };
+  }
   if (!isSupabaseDoormanConfigured()) {
     return { ok: false, reason: "doorman_key_missing" };
   }

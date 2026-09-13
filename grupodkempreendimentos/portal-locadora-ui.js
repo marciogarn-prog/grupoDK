@@ -150,6 +150,11 @@
         window.__DK_haltCloudSyncIdle();
         return;
       }
+      if (j.reason === "cloud_budget") {
+        if (typeof window.__DK_haltCloudBudget === "function") window.__DK_haltCloudBudget();
+        portalPresencaEquipaStop();
+        return;
+      }
       if (!r.ok || !j.ok || !Array.isArray(j.cpfs)) return;
       if (!isPortalAdministradorLogado()) return;
       portalPresencaOutrosCpfs = j.cpfs
