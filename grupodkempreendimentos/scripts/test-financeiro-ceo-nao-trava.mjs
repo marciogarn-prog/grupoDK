@@ -94,6 +94,14 @@ rec(
   ""
 );
 rec(
+  "gráfico coluna Restante = original − pagas",
+  ceoJs.includes("contarRestanteGraficoDespesa") &&
+    ceoJs.includes('label: "Restante"') &&
+    ceoJs.includes("fin-ceo-graf-restante__box") &&
+    html.includes("99 parcelas, 2 pagas → 97"),
+  ""
+);
+rec(
   "gráfico pinta parcela PAGO de verde",
   ceoJs.includes("htmlFaixasGraficoDespesa") &&
     ceoJs.includes("fin-ceo-desp-graf__fill--pago") &&

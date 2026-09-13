@@ -1933,6 +1933,26 @@
       }
     },
     {
+      "id": "fin-ceo-grafico-coluna-restante",
+      "descricao": "No FINANCEIRO CEO → Gráfico de despesas: a coluna Repetições mantém o número original do lançamento; ao lado, a coluna Restante mostra quantas parcelas faltam (ex.: 99 parcelas, 2 pagas → 97).",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "contarRestanteGraficoDespesa",
+          "label: \"Restante\"",
+          "fin-ceo-graf-restante",
+          "fin-ceo-graf-restante__box"
+        ],
+        "styles.css": [
+          "fin-ceo-graf-restante",
+          "fin-ceo-graf-restante__box"
+        ],
+        "index.html": [
+          "coluna <strong>Restante</strong> ao lado",
+          "99 parcelas, 2 pagas → 97"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-recibo-apos-confirmar",
       "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK + nome e 3 primeiros dígitos do CPF do funcionário que lançou), Cliente e Valor total já pago até aquela data. O texto do recibo não informa a forma de pagamento. No recibo há Imprimir e Compartilhar (WhatsApp).",
       "ficheiros": {

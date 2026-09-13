@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913subtot`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913rest`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -181,6 +181,14 @@ async function runSuite() {
         finCeoPagJs.includes("finCeoGrafSubtotalSerie") &&
         html.includes("função SUBTOTAL do Excel"),
       "soma só as linhas que restam após o filtro"
+    );
+    record(
+      "gráfico tem coluna Restante (original − pagas)",
+      finCeoPagJs.includes("contarRestanteGraficoDespesa") &&
+        finCeoPagJs.includes('label: "Restante"') &&
+        finCeoPagJs.includes("fin-ceo-graf-restante__box") &&
+        html.includes("99 parcelas, 2 pagas → 97"),
+      "99 parcelas, 2 pagas → Restante 97"
     );
     record(
       "gráfico de despesas pinta PAGO de verde",

@@ -4277,6 +4277,7 @@
     { key: "despesa", label: "Despesa", type: "text" },
     { key: "categoria", label: "Categoria", type: "text" },
     { key: "repeticoes", label: "Repetições", type: "num" },
+    { key: "restante", label: "Restante", type: "num" },
     { key: "inicio", label: "Início", type: "date" },
     { key: "fim", label: "Fim", type: "date" },
     { key: "valorMensal", label: "Valor mensal", type: "num" },
@@ -4324,6 +4325,7 @@
     if (key === "valorMensal") return row.valorMensalLabel || brl(row.valorMensal);
     if (key === "totalSerie") return row.totalSerieLabel || brl(row.totalSerie);
     if (key === "repeticoes") return String(row.repeticoes ?? "—");
+    if (key === "restante") return String(row.restante ?? "—");
     return String(row[key] ?? "—");
   }
 
@@ -4412,6 +4414,7 @@
       despesa: r.label,
       categoria: r.categoriaLabel,
       repeticoes: r.repeticoes,
+      restante: r.restante,
       inicio: r.inicio,
       inicioLabel: fmtBrDate(r.inicio),
       fim: r.fim,
@@ -5494,6 +5497,12 @@
     return `${brl(d.valor)} ${nome}`;
   }
 
+  function contarRestanteGraficoDespesa(repeticoes, pagos) {
+    const orig = Math.max(0, Number(repeticoes) || 0);
+    const pagas = (pagos || []).filter((p) => p.situacao === "PAGO").length;
+    return Math.max(0, orig - pagas);
+  }
+
   function coletarLinhasGraficoDespesas() {
     const agora = new Date();
     const base = new Date(agora.getFullYear(), agora.getMonth(), 1);
@@ -5530,6 +5539,7 @@
         categoria: d.categoria,
         categoriaLabel: labelCategoria(d.categoria),
         repeticoes: d.repeticoes,
+        restante: contarRestanteGraficoDespesa(d.repeticoes, pagos),
         valor: d.valor,
         startIdx,
         endIdx,
@@ -5613,6 +5623,7 @@
             <td>${esc(r.label)}</td>
             <td>${esc(r.categoriaLabel)}</td>
             <td>${esc(String(r.repeticoes))}</td>
+            <td class="fin-ceo-graf-restante"><span class="fin-ceo-graf-restante__box">${esc(String(r.restante))}</span></td>
             <td>${esc(fmtBrDate(r.inicio))}</td>
             <td>${esc(fmtBrDate(r.fim))}</td>
             <td>${esc(brl(r.valor))}</td>
@@ -5620,7 +5631,7 @@
           </tr>`
           )
           .join("")
-      : `<tr><td colspan="7" class="subtext">Nenhuma despesa corresponde ao filtro ▾ — ajuste as colunas.</td></tr>`;
+      : `<tr><td colspan="8" class="subtext">Nenhuma despesa corresponde ao filtro ▾ — ajuste as colunas.</td></tr>`;
     const tableHtml = `<table class="fin-table fin-table--excel-cols fin-ceo-desp-graf__table" id="finCeoGraficoDespesasTable">
         <thead><tr>${buildCeoGrafHeadHtml()}</tr></thead>
         <tbody>${corpoTabela}</tbody>

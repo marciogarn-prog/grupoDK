@@ -13346,6 +13346,22 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   margin-top: 0.85rem;
 }
 
+#finCeoGraficoDespesasTable .fin-ceo-graf-restante {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+#finCeoGraficoDespesasTable .fin-ceo-graf-restante__box {
+  display: inline-block;
+  min-width: 2.4rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #eab308;
+  border-radius: 4px;
+  background: rgba(113, 63, 18, 0.38);
+  color: #fde68a;
+  font-weight: 700;
+}
+
 .fin-ceo-desp-graf__filtro-hint,
 .fin-ceo-desp-graf__filtro-vazio {
   margin: 0.55rem 0 0.15rem;
