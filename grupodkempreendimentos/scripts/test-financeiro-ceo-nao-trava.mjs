@@ -86,6 +86,14 @@ rec(
   ""
 );
 rec(
+  "régua do gráfico marca até abril de 2035",
+  ceoJs.includes("GRAFICO_DESPESAS_FIM") &&
+    ceoJs.includes("horizonteGraficoDespesasAteAbril2035") &&
+    ceoJs.includes("new Date(2035, 3, 1)") &&
+    html.includes("abril de 2035"),
+  ""
+);
+rec(
   "gráfico SUBTOTAL soma só o filtro",
   ceoJs.includes("somarSubtotaisGraficoFiltrado") &&
     ceoJs.includes("htmlSubtotaisGraficoDespesas") &&

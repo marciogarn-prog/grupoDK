@@ -23,6 +23,8 @@
   let ceoTotaisBloco = null;
   const CEO_GRAF_SORT_NATURAL = "__natural_graf";
   const HORIZONTE_MESES = 24;
+  /** Régua do Gráfico de despesas: último mês marcado (abril/2035). */
+  const GRAFICO_DESPESAS_FIM = new Date(2035, 3, 1);
   const CEO_ANO_FIM_PAINEL = 2030;
   const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
   /** Tom de verde/vermelho das barras de saldo — um par por ano para ver onde começa e termina. */
@@ -5455,6 +5457,10 @@
     return (d.getFullYear() - base.getFullYear()) * 12 + (d.getMonth() - base.getMonth());
   }
 
+  function horizonteGraficoDespesasAteAbril2035(base) {
+    return Math.max(12, monthIndexFromBaseCeo(base, GRAFICO_DESPESAS_FIM) + 1);
+  }
+
   function fillClassGraficoDespesa(catId) {
     if (catId === "DK_CONSTRUTORA") return "fin-ceo-desp-graf__fill--construtora";
     if (catId === "DK_CENTRO_AUTOMOTIVO") return "fin-ceo-desp-graf__fill--centro";
@@ -5512,7 +5518,6 @@
     const list = loadDespesasCeo().map(normalizeDespesa);
     const totaisPorMes = new Map();
     const rows = [];
-    let maxIdx = 11;
 
     const sitMap = loadSituacaoPagamentosMap();
     list.forEach((d) => {
@@ -5533,7 +5538,6 @@
         endIdx = Math.max(endIdx, idx);
         const key = monthKey(p.data);
         totaisPorMes.set(key, (totaisPorMes.get(key) || 0) + (Number(p.valor) || 0));
-        if (idx > maxIdx) maxIdx = idx;
       });
       if (!Number.isFinite(startIdx)) return;
       rows.push({
@@ -5553,7 +5557,7 @@
       });
     });
 
-    const horizonte = Math.max(12, maxIdx + 1);
+    const horizonte = horizonteGraficoDespesasAteAbril2035(base);
     return { base, horizonte, rows: ordenarGraficoBlocosValorDesc(rows), totaisPorMes };
   }
 
@@ -5574,11 +5578,19 @@
     const excelFiltradas = aplicarCeoGrafExcelFiltroSort(excelBase);
     const rows = excelFiltradas.map((r) => r._row);
     const filtroAtivo = ceoGrafTemFiltroColunaAtivo() || rows.length !== rowsBase.length;
+    const totaisSerie = somarTotaisMesLinhasGrafico(rows);
     const totaisPorMes = filtroAtivo ? somarTotaisMesLinhasGrafico(rows) : montarDebitosPorMesCeo().debPorMes;
+    if (!filtroAtivo) {
+      const kAtual = monthKey(base);
+      totaisSerie.forEach((v, k) => {
+        if (k !== kAtual) totaisPorMes.set(k, v);
+      });
+    }
 
     const ticks = [];
     for (let i = 0; i < horizonte; i += 1) {
-      if (i % 3 !== 0) continue;
+      const ultimoMes = i === horizonte - 1;
+      if (i % 3 !== 0 && !ultimoMes) continue;
       const mes = new Date(base.getFullYear(), base.getMonth() + i, 1);
       const tot = totaisPorMes.get(monthKey(mes)) || 0;
       const left = ((i + 0.5) / horizonte) * 100;

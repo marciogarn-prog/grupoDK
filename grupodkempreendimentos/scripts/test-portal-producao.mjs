@@ -129,7 +129,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913budget`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913graf2035`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -205,6 +205,14 @@ async function runSuite() {
         finCeoPagJs.includes("fin-ceo-desp-graf__fill--pago") &&
         html.includes("o trecho da barrinha daquele mês fica verde"),
       "A PAGAR → PAGO deixa o trecho do mês verde"
+    );
+    record(
+      "régua do gráfico marca até abril de 2035",
+      finCeoPagJs.includes("GRAFICO_DESPESAS_FIM") &&
+        finCeoPagJs.includes("horizonteGraficoDespesasAteAbril2035") &&
+        finCeoPagJs.includes("new Date(2035, 3, 1)") &&
+        html.includes("abril de 2035"),
+      "último mês da régua é abril/2035"
     );
     const apiAuthJs = await fetch(`${BASE_URL}dk-portal-api-auth.js?v=20260913idle`, {
       cache: "no-store",

@@ -1844,14 +1844,15 @@
     },
     {
       "id": "fin-ceo-grafico-despesas",
-      "descricao": "No FINANCEIRO CEO, abaixo de Cadastro de despesas existe o botão GRÁFICO DE DESPESAS. O gráfico é de barras horizontais: o tamanho da linha é o tempo que a despesa se repete. Os blocos ficam juntos (DK Locadora, DK Construtora, etc.) e, dentro do bloco, o maior valor em cima. No topo, totais de 3 em 3 meses escritos na vertical — cada soma é só daquele mês (ex.: 09/2026, 12/2026, 03/2027), não do trimestre. A parte superior (números) congela na linha amarela; a bola do mouse move só as barras. O filtro ▾ no cabeçalho da tabela (estilo Excel) esconde linhas e reflete na hora no gráfico e nos totais do mês.",
+      "descricao": "No FINANCEIRO CEO, abaixo de Cadastro de despesas existe o botão GRÁFICO DE DESPESAS. O gráfico é de barras horizontais: o tamanho da linha é o tempo que a despesa se repete. Os blocos ficam juntos (DK Locadora, DK Construtora, etc.) e, dentro do bloco, o maior valor em cima. No topo, totais de 3 em 3 meses escritos na vertical — cada soma é só daquele mês (ex.: 09/2026, 12/2026, 03/2027), não do trimestre. A régua marca até abril de 2035. A parte superior (números) congela na linha amarela; a bola do mouse move só as barras. O filtro ▾ no cabeçalho da tabela (estilo Excel) esconde linhas e reflete na hora no gráfico e nos totais do mês.",
       "ficheiros": {
         "index.html": [
           "GRÁFICO DE DESPESAS",
           "finCeoPaneGraficoDespesas",
           "btn-fin-ceo-grafico-despesas",
           "reflete na hora no gráfico",
-          "maior valor em cima"
+          "maior valor em cima",
+          "abril de 2035"
         ],
         "portal-financeiro-ceo.js": [
           "renderGraficoDespesas",
@@ -1866,7 +1867,9 @@
           "ceoGrafExcelState",
           "aplicarCeoGrafExcelFiltroSort",
           "ordenarGraficoBlocosValorDesc",
-          "montarDebitosPorMesCeo"
+          "montarDebitosPorMesCeo",
+          "horizonteGraficoDespesasAteAbril2035",
+          "GRAFICO_DESPESAS_FIM"
         ],
         "styles.css": [
           "fin-ceo-desp-graf",
