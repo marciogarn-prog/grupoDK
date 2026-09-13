@@ -12616,6 +12616,12 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   white-space: nowrap;
 }
 
+.fin-ceo-desp-excluir-acoes {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
 .fin-ceo-desp-confirm-escopo {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.65rem;
@@ -13652,6 +13658,7 @@ body.portal-plataforma-android #portalLancAluguelEditSalvarBtn,
 body.portal-plataforma-android #finCeoDespForm,
 body.portal-plataforma-android #finCeoDespConfirmModal,
 body.portal-plataforma-android #finCeoDespPagoModal,
+body.portal-plataforma-android #finCeoDespExcluirModal,
 body.portal-plataforma-android .fin-ceo-desp-editar-evento,
 body.portal-plataforma-android button[type="submit"],
 body.portal-plataforma-android input[type="file"],

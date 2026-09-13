@@ -161,8 +161,12 @@
   function setBotoesGravacaoCeoDisabled(disabled) {
     const pago = document.getElementById("finCeoDespPagoSimBtn");
     const cad = document.getElementById("finCeoDespConfirmSimBtn");
+    const excluirEste = document.getElementById("finCeoDespExcluirSoEsteBtn");
+    const excluirSerie = document.getElementById("finCeoDespExcluirSerieBtn");
     if (pago) pago.disabled = Boolean(disabled);
     if (cad) cad.disabled = Boolean(disabled);
+    if (excluirEste) excluirEste.disabled = Boolean(disabled);
+    if (excluirSerie) excluirSerie.disabled = Boolean(disabled);
   }
 
   function concluirResultadoCeo(opId, kind, texto) {
@@ -546,6 +550,17 @@
         aberto: eraAberto ? -valor : 0,
         qtd: -1,
         qtdAberto: eraAberto ? -1 : 0,
+      });
+      return;
+    }
+    if (blocoUi.tipo === "apagar-serie") {
+      const id = String(blocoUi.despesaId || "").replace(/"/g, "");
+      body?.querySelectorAll(`tr[data-ceo-desp-id="${id}"]`).forEach((tr) => tr.remove());
+      ajustarTotaisBlocoCeo({
+        total: -(Number(blocoUi.total) || 0),
+        aberto: -(Number(blocoUi.aberto) || 0),
+        qtd: -(Number(blocoUi.qtd) || 0),
+        qtdAberto: -(Number(blocoUi.qtdAberto) || 0),
       });
       return;
     }
@@ -5091,6 +5106,73 @@
     return { list: next, ok: true };
   }
 
+  function parcelasVisiveisDaSerie(despesa) {
+    const d = normalizeDespesa(despesa);
+    const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
+    return expandirPagamentosDespesa(d, d.repeticoes).filter((p) => !excluidos.has(Number(p.numero)));
+  }
+
+  let finCeoDespExcluirPending = null;
+
+  function fecharModalExcluirDespesa() {
+    finCeoDespExcluirPending = null;
+    const modal = document.getElementById("finCeoDespExcluirModal");
+    modal?.classList.add("hidden");
+    modal?.setAttribute("aria-hidden", "true");
+  }
+
+  function abrirModalExcluirDespesa(id, pagNum) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return;
+    }
+    if (finCeoGravacaoEmCurso) return;
+    if (!isSessaoTitularCeoCpf()) {
+      const fb = document.getElementById("finCeoDespFeedback");
+      if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
+      return;
+    }
+    const list = loadDespesasCeo();
+    const atual = list.find((d) => String(d.id) === String(id));
+    if (!atual) return;
+    const pag = Math.max(1, Number(pagNum) || 1);
+    const visiveis = parcelasVisiveisDaSerie(atual);
+    const parcela = visiveis.find((p) => Number(p.numero) === pag) || visiveis[0];
+    const qtdSerie = visiveis.length;
+    finCeoDespExcluirPending = { id, pag, qtdSerie, despesa: atual };
+    const lead = document.getElementById("finCeoDespExcluirLead");
+    const resumo = document.getElementById("finCeoDespExcluirResumo");
+    const btnSerie = document.getElementById("finCeoDespExcluirSerieBtn");
+    if (lead) {
+      lead.textContent =
+        qtdSerie > 1
+          ? `Esta despesa tem ${qtdSerie} lançamentos na série. Excluir apenas este lançamento ou todos os ${qtdSerie} que compõem a série?`
+          : "Excluir este pagamento? A linha some da lista.";
+    }
+    if (resumo) {
+      const det = detalheDespesaLista(normalizeDespesa(atual));
+      const venc = parcela?.data instanceof Date ? fmtBrDate(parcela.data) : "—";
+      resumo.innerHTML = `<dl class="fin-ceo-desp-confirm-dl">
+        <div><dt>Este lançamento</dt><dd>PAGAMENTO ${String(pag).padStart(2, "0")} · ${esc(venc)} · ${esc(brl(parcela?.valor))}</dd></div>
+        <div><dt>Categoria</dt><dd>${esc(labelCategoria(atual.categoria))}</dd></div>
+        <div><dt>Detalhe</dt><dd>${esc(det.desc || det.tipo)}</dd></div>
+        <div><dt>Série</dt><dd>${qtdSerie > 1 ? `${qtdSerie} lançamentos com datas de pagamento` : "Lançamento único"}</dd></div>
+      </dl>`;
+    }
+    if (btnSerie) {
+      btnSerie.hidden = qtdSerie <= 1;
+      btnSerie.textContent =
+        qtdSerie > 1 ? `Excluir todos os ${qtdSerie} que compõem a série` : "Excluir toda a série";
+    }
+    const modal = document.getElementById("finCeoDespExcluirModal");
+    if (!modal) {
+      if (window.confirm("Excluir este pagamento? A linha some da lista.")) excluirDespesa(id, pag);
+      return;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.getElementById("finCeoDespExcluirSoEsteBtn")?.focus();
+  }
+
   /** Excluir some da lista: cada linha (PAGAMENTO 01, 02…) tem o próprio Excluir. Só o CEO. */
   function excluirDespesa(id, pagNum) {
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
@@ -5110,15 +5192,84 @@
     const excluidos = new Set(Array.isArray(atual.pagamentosExcluidos) ? atual.pagamentosExcluidos.map(Number) : []);
     excluidos.add(pag);
     const next = [...list];
-    const nextRec = { ...atual, pagamentosExcluidos: [...excluidos], updatedAt: Date.now() };
+    const restam = parcelasVisiveisDaSerie(atual).filter((p) => Number(p.numero) !== pag);
+    const nextRec = carimboCeoEscrita({
+      ...atual,
+      pagamentosExcluidos: [...excluidos],
+      deleted: restam.length === 0 ? true : atual.deleted,
+    });
     next[idx] = nextRec;
     const pagos = expandirPagamentosDespesa(normalizeDespesa(atual), normalizeDespesa(atual).repeticoes);
     const parcela = pagos.find((p) => Number(p.numero) === pag);
     void gravarFinanceiroCeoComSeguranca(
       () => saveDespesasCeo(next),
       () => aplicarBlocoNaTela({ tipo: "apagar", despesaId: id, pagNum: pag, valor: Number(parcela?.valor) || 0 }),
-      { despesas: [nextRec] }
+      { despesas: [nextRec] },
+      `financeiro-ceo-exclusao:${id}:${pag}:${Date.now()}`
     );
+  }
+
+  function excluirDespesaSerie(id) {
+    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
+      return;
+    }
+    if (finCeoGravacaoEmCurso) return;
+    if (!isSessaoTitularCeoCpf()) {
+      const fb = document.getElementById("finCeoDespFeedback");
+      if (fb) fb.textContent = "Só o administrador CEO pode excluir um lançamento já gravado.";
+      return;
+    }
+    const list = loadDespesasCeo();
+    const idx = list.findIndex((d) => String(d.id) === String(id));
+    if (idx < 0) return;
+    const atual = list[idx];
+    const visiveis = parcelasVisiveisDaSerie(atual);
+    if (!visiveis.length) return;
+    const excluidos = new Set(Array.isArray(atual.pagamentosExcluidos) ? atual.pagamentosExcluidos.map(Number) : []);
+    visiveis.forEach((p) => excluidos.add(Number(p.numero)));
+    const nextRec = carimboCeoEscrita({
+      ...atual,
+      pagamentosExcluidos: [...excluidos],
+      deleted: true,
+    });
+    const next = [...list];
+    next[idx] = nextRec;
+    const totais = visiveis.reduce(
+      (acc, p) => {
+        const v = Number(p.valor) || 0;
+        acc.total += v;
+        acc.qtd += 1;
+        const sit = getSituacaoPagamentoLinha(id, p.numero, p.data);
+        if (sit !== "PAGO") {
+          acc.aberto += v;
+          acc.qtdAberto += 1;
+        }
+        return acc;
+      },
+      { total: 0, aberto: 0, qtd: 0, qtdAberto: 0 }
+    );
+    void gravarFinanceiroCeoComSeguranca(
+      () => saveDespesasCeo(next),
+      () =>
+        aplicarBlocoNaTela({
+          tipo: "apagar-serie",
+          despesaId: id,
+          total: totais.total,
+          aberto: totais.aberto,
+          qtd: totais.qtd,
+          qtdAberto: totais.qtdAberto,
+        }),
+      { despesas: [nextRec] },
+      `financeiro-ceo-exclusao-serie:${id}:${Date.now()}`
+    );
+  }
+
+  function confirmarExcluirDespesaModal(escopo) {
+    const pending = finCeoDespExcluirPending;
+    if (!pending) return;
+    fecharModalExcluirDespesa();
+    if (escopo === "serie") excluirDespesaSerie(pending.id);
+    else excluirDespesa(pending.id, pending.pag);
   }
 
   function mesLabelCurtoCeo(d) {
@@ -5458,6 +5609,15 @@
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
+    document.getElementById("finCeoDespExcluirSoEsteBtn")?.addEventListener("click", () => confirmarExcluirDespesaModal("este"));
+    document.getElementById("finCeoDespExcluirSerieBtn")?.addEventListener("click", () => confirmarExcluirDespesaModal("serie"));
+    document.getElementById("finCeoDespExcluirNaoBtn")?.addEventListener("click", fecharModalExcluirDespesa);
+    document
+      .querySelectorAll("[data-fin-ceo-desp-excluir-cancel]")
+      .forEach((el) => el.addEventListener("click", fecharModalExcluirDespesa));
+    document.getElementById("finCeoDespExcluirModal")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") fecharModalExcluirDespesa();
+    });
     document.getElementById("finCeoDespPagoSimBtn")?.addEventListener("click", confirmarPagoDespesaModal);
     document.getElementById("finCeoDespPagoNaoBtn")?.addEventListener("click", fecharModalConfirmPagoDespesa);
     document.getElementById("finCeoDespNuvemResultOkBtn")?.addEventListener("click", fecharModalResultadoNuvem);
@@ -5521,9 +5681,7 @@
         }
         const id = btnExcluir.getAttribute("data-id");
         const pag = Number(btnExcluir.getAttribute("data-pag")) || 1;
-        if (id && window.confirm("Excluir este pagamento? A linha some da lista.")) {
-          excluirDespesa(id, pag);
-        }
+        if (id) abrirModalExcluirDespesa(id, pag);
         return;
       }
       const btnEvento = ev.target.closest(".fin-ceo-desp-editar-evento");

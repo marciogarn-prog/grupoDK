@@ -996,12 +996,19 @@
     },
     {
       "id": "fin-ceo-despesa-excluir-pagamento-some",
-      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha (PAGAMENTO 01, 02…) tem Excluir. Ao excluir, aquele pagamento some da lista (não some só o botão).",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha (PAGAMENTO 01, 02…) tem Excluir. O sistema pergunta se é só aquele lançamento ou toda a série (ex.: todos os 8). A linha some da lista.",
       "ficheiros": {
         "portal-financeiro-ceo.js": [
           "aplicarExcluirPagamentoDespesa",
           "Excluir este pagamento? A linha some da lista.",
-          "data-pag="
+          "data-pag=",
+          "abrirModalExcluirDespesa",
+          "excluirDespesaSerie",
+          "que compõem a série"
+        ],
+        "index.html": [
+          "finCeoDespExcluirModal",
+          "Excluir só este lançamento"
         ]
       }
     },

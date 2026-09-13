@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260913sess">
+  <link rel="stylesheet" href="styles.css?v=20260913excluirserie">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -5161,6 +5161,19 @@
     </div>
   </div>
 
+  <div id="finCeoDespExcluirModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="finCeoDespExcluirTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-fin-ceo-desp-excluir-cancel></div>
+    <div class="portal-modal__card portal-modal__card--fin-ceo-desp">
+      <h3 id="finCeoDespExcluirTitulo" class="portal-modal__title">Excluir lançamento</h3>
+      <p id="finCeoDespExcluirLead" class="subtext fin-ceo-desp-confirm-lead">Excluir este pagamento? A linha some da lista.</p>
+      <div id="finCeoDespExcluirResumo" class="fin-ceo-desp-confirm-resumo" role="region" aria-live="polite"></div>
+      <div class="portal-modal__actions fin-ceo-desp-excluir-acoes">
+        <button type="button" class="btn-primary" id="finCeoDespExcluirSoEsteBtn">Excluir só este lançamento</button>
+        <button type="button" class="btn-primary" id="finCeoDespExcluirSerieBtn">Excluir toda a série</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespExcluirNaoBtn" data-fin-ceo-desp-excluir-cancel>Cancelar</button>
+      </div>
+    </div>
+  </div>
   <div id="finCeoDespNuvemResultModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="finCeoDespNuvemResultTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-fin-ceo-desp-nuvem-result-ok></div>
     <div class="portal-modal__card portal-modal__card--fin-ceo-desp" id="finCeoDespNuvemResultCard">
@@ -5468,7 +5481,7 @@
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20260913finatom" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260913excluirserie" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

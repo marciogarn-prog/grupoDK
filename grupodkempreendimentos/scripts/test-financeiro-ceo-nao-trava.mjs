@@ -49,6 +49,15 @@ rec(
   ""
 );
 rec("botão de pagamento trava no clique", ceoJs.includes("setBotoesGravacaoCeoDisabled") && ceoJs.includes("finCeoDespPagoSimBtn"), "");
+rec(
+  "excluir pergunta evento ou série",
+  ceoJs.includes("abrirModalExcluirDespesa") &&
+    ceoJs.includes("excluirDespesaSerie") &&
+    ceoJs.includes("que compõem a série") &&
+    html.includes("finCeoDespExcluirModal") &&
+    html.includes("Excluir só este lançamento"),
+  ""
+);
 rec("API replay do mesmo operationId", apiJs.includes("dk:portal:fin_ceo_op:") && apiJs.includes("replay: true"), "");
 rec("sucesso financeiro não usa snapshot", ceoJs.includes("Snapshot não confirma") && ceoJs.includes("return push.ok === true"), "");
 

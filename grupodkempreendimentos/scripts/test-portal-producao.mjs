@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913finatom`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913excluirserie`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -143,6 +143,14 @@ async function runSuite() {
         finCeoPagJs.includes("aplicarBlocoNaTela") &&
         finCeoPagJs.includes("patch: true"),
       "lançar/apagar/pagar só enviam o bloco"
+    );
+    record(
+      "excluir despesa pergunta evento ou série",
+      finCeoPagJs.includes("abrirModalExcluirDespesa") &&
+        finCeoPagJs.includes("excluirDespesaSerie") &&
+        html.includes("finCeoDespExcluirModal") &&
+        html.includes("Excluir só este lançamento"),
+      "modal pergunta se apaga um ou toda a série"
     );
     const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913sess`, {
       cache: "no-store",
