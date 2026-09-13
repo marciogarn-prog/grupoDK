@@ -79,6 +79,13 @@ rec(
   ""
 );
 rec(
+  "compromissos do mês iguais no gráfico",
+  ceoJs.includes("montarDebitosPorMesCeo") &&
+    ceoJs.includes("filtroAtivo ? somarTotaisMesLinhasGrafico(rows) : montarDebitosPorMesCeo().debPorMes") &&
+    html.includes("Compromissos do mês</strong> é a mesma soma"),
+  ""
+);
+rec(
   "gráfico pinta parcela PAGO de verde",
   ceoJs.includes("htmlFaixasGraficoDespesa") &&
     ceoJs.includes("fin-ceo-desp-graf__fill--pago") &&

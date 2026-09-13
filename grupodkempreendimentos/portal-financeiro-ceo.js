@@ -1677,30 +1677,39 @@
   }
 
   function gerarDebitosDespesa(desp, inicioHorizonte, fimHorizonte) {
+    const d = normalizeDespesa(desp);
+    if (d.deleted) return [];
+    const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
     const out = [];
-    if (desp.periodic) {
-      if (desp.valor <= 0) return out;
-      // Âncora: dia do 1º evento. Meses curtos: 31→30; fev 29/30/31→último dia.
-      const inicio = startOfDay(desp.dataEvento);
-      for (let i = 0; i < desp.repeticoes; i += 1) {
-        const dt = addMonths(inicio, i);
-        if (dt >= inicioHorizonte && dt <= fimHorizonte) {
-          out.push({ data: new Date(dt), valor: desp.valor, categoria: desp.categoria, subcategoria: desp.subcategoria });
-        }
-        if (dt > fimHorizonte) break;
+    expandirPagamentosDespesa(d, d.repeticoes).forEach((p) => {
+      if (excluidos.has(Number(p.numero))) return;
+      const bruto = p.data instanceof Date ? p.data : parseBrDate(p.data);
+      if (!bruto || Number.isNaN(bruto.getTime())) return;
+      const dt = startOfDay(bruto);
+      if (dt >= inicioHorizonte && dt <= fimHorizonte) {
+        out.push({
+          data: new Date(dt),
+          valor: Number(p.valor) || 0,
+          categoria: d.categoria,
+          subcategoria: d.subcategoria,
+        });
       }
-    } else {
-      (desp.parcelas || []).forEach((p) => {
-        if (p.valor <= 0) return;
-        for (let y = inicioHorizonte.getFullYear(); y <= fimHorizonte.getFullYear(); y += 1) {
-          const dt = dataVencimentoDespesaNoMesCeo(y, p.mes - 1, p.dia);
-          if (dt >= inicioHorizonte && dt <= fimHorizonte) {
-            out.push({ data: dt, valor: p.valor, categoria: desp.categoria, subcategoria: desp.subcategoria });
-          }
-        }
-      });
-    }
+    });
     return out;
+  }
+
+  /** Mesma soma do KPI «Compromissos do mês» e do total do mês no gráfico (despesas visíveis). */
+  function montarDebitosPorMesCeo() {
+    const hoje = startOfDay(new Date());
+    const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fim = calcFimProjecaoPainel(inicio);
+    const debitos = gerarTodosDebitos(loadDespesasCeo().map(normalizeDespesa), inicio, addMonths(fim, 1));
+    const debPorMes = new Map();
+    debitos.forEach((db) => {
+      const k = monthKey(db.data);
+      debPorMes.set(k, (debPorMes.get(k) || 0) + (Number(db.valor) || 0));
+    });
+    return { inicio, debPorMes, debitos };
   }
 
   function gerarTodosDebitos(despesas, inicioHorizonte, fimHorizonte) {
@@ -2824,7 +2833,7 @@
     const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const fim = calcFimProjecaoPainel(inicio);
     const despesas = loadDespesasCeo().map(normalizeDespesa);
-    const debitos = gerarTodosDebitos(despesas, inicio, addMonths(fim, 1));
+    const { debitos, debPorMes } = montarDebitosPorMesCeo();
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
 
@@ -2836,12 +2845,6 @@
         label: `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`,
       });
     }
-
-    const debPorMes = new Map();
-    debitos.forEach((db) => {
-      const k = monthKey(db.data);
-      debPorMes.set(k, (debPorMes.get(k) || 0) + db.valor);
-    });
 
     const recPorMes = new Map();
     meses.forEach((m) => {
@@ -2873,7 +2876,7 @@
       taxaMesAtual,
       capacidadeLivre,
       debitos,
-      totalDespesasCadastradas: despesas.length,
+      totalDespesasCadastradas: despesas.filter((d) => !d.deleted).length,
     };
   }
 
@@ -5524,8 +5527,8 @@
     const excelBase = rowsBase.map(ceoGrafLinhaFromRow);
     const excelFiltradas = aplicarCeoGrafExcelFiltroSort(excelBase);
     const rows = excelFiltradas.map((r) => r._row);
-    const totaisPorMes = somarTotaisMesLinhasGrafico(rows);
     const filtroAtivo = ceoGrafTemFiltroColunaAtivo() || rows.length !== rowsBase.length;
+    const totaisPorMes = filtroAtivo ? somarTotaisMesLinhasGrafico(rows) : montarDebitosPorMesCeo().debPorMes;
 
     const ticks = [];
     for (let i = 0; i < horizonte; i += 1) {

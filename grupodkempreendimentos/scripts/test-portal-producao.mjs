@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913duplanc`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913mesum`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -166,6 +166,13 @@ async function runSuite() {
         html.includes("finCeoDespDupSimBtn") &&
         html.includes(">CANCELAR</button>"),
       "mesma data, instituição e valor pedem SIM ou CANCELAR"
+    );
+    record(
+      "compromissos do mês iguais no gráfico",
+      finCeoPagJs.includes("montarDebitosPorMesCeo") &&
+        html.includes("Compromissos do mês</strong> é a mesma soma") &&
+        html.includes("total do mês atual é o mesmo de <strong>Compromissos do mês</strong>"),
+      "painel e gráfico usam a mesma base visível"
     );
     record(
       "gráfico de despesas pinta PAGO de verde",

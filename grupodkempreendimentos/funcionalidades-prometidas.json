@@ -1865,7 +1865,8 @@
           "data-ceo-graf-excel-col",
           "ceoGrafExcelState",
           "aplicarCeoGrafExcelFiltroSort",
-          "ordenarGraficoBlocosValorDesc"
+          "ordenarGraficoBlocosValorDesc",
+          "montarDebitosPorMesCeo"
         ],
         "styles.css": [
           "fin-ceo-desp-graf",
@@ -1891,6 +1892,21 @@
         ],
         "index.html": [
           "o trecho da barrinha daquele mês fica verde"
+        ]
+      }
+    },
+    {
+      "id": "fin-ceo-compromissos-mes-igual-grafico",
+      "descricao": "No FINANCEIRO CEO, o KPI Compromissos do mês (Painel executivo) e o total do mês atual no Gráfico de despesas usam a mesma soma da base visível (sem lançamentos excluídos).",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "montarDebitosPorMesCeo",
+          "Mesma soma do KPI",
+          "filtroAtivo ? somarTotaisMesLinhasGrafico(rows) : montarDebitosPorMesCeo().debPorMes"
+        ],
+        "index.html": [
+          "Compromissos do mês</strong> é a mesma soma",
+          "total do mês atual é o mesmo de <strong>Compromissos do mês</strong>"
         ]
       }
     },
