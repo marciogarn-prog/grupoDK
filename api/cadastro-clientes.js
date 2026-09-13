@@ -10,7 +10,7 @@ const {
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
 } = require("../lib/dk-deploy-channel-api.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:clientes_cadastro:v1";
 
@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (await enforceRateLimit(req, res, "cadastro-clientes", 30)) return;
-  const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }

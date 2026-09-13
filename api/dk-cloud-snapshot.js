@@ -15,7 +15,15 @@ const {
   upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("../lib/dk-supabase-doorman.cjs");
-const { applyApiCors, enforceRateLimit, requirePortalAuth, findFuncionario, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const {
+  applyApiCors,
+  enforceRateLimit,
+  requirePortalAuth,
+  attachLiveSession,
+  findFuncionario,
+  onlyDigits,
+  clientIp,
+} = require("../lib/dk-portal-auth.cjs");
 const {
   filterIncomingByModules,
   restoreCredentialFields,
@@ -24,6 +32,7 @@ const {
   ownerWriteAccess,
 } = require("../lib/dk-portal-module-access.cjs");
 const {
+  mergeClientesCadastro,
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
@@ -235,6 +244,17 @@ function normalizeKeepSets(keepLocacaoNc) {
   return { nc: new Set(), cpf: new Set(), placa: new Set() };
 }
 
+/** União das chaves já na nuvem com as que este PC está a enviar — não apaga cliente extra. */
+function mergeCadastroKeepSets(a, b) {
+  const A = normalizeKeepSets(a);
+  const B = normalizeKeepSets(b);
+  return {
+    nc: new Set([...A.nc, ...B.nc]),
+    cpf: new Set([...A.cpf, ...B.cpf]),
+    placa: new Set([...A.placa, ...B.placa]),
+  };
+}
+
 function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepLocacaoNc) {
   if (!payload || typeof payload !== "object") return payload;
   const { nc: keepNc, cpf: keepCpf, placa: keepPlaca } = normalizeKeepSets(keepLocacaoNc);
@@ -262,9 +282,9 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       /* Seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx / 202601010x). */
       if (isLoc && isLocacaoSeedDemoOficialProibida(r)) return false;
       if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
-      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         isLoc &&
         ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
@@ -500,6 +520,10 @@ function applyCadastroLock(existing, incoming) {
     const inc = incoming[k];
     const ex = existing[k];
     if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
+    if (k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro") {
+      out[k] = mergeClientesCadastro(ex, inc);
+      continue;
+    }
     if (inc.length > ex.length) out[k] = ex;
   }
   return out;
@@ -540,9 +564,9 @@ function capOficialVirginProtocolos(existing, merged) {
   for (const k of keys) {
     if (!Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
-      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         String(k).includes("locac") &&
         ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
@@ -819,12 +843,29 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (await enforceRateLimit(req, res, "cloud-snapshot", req.method === "POST" ? 30 : 60)) {
-    return;
-  }
   const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
   if (!gate.ok) {
+    if (await enforceRateLimit(req, res, "cloud-snapshot-anon", 20)) return;
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  }
+
+  const live = await attachLiveSession(gate);
+  const ident = gate.service
+    ? "svc"
+    : onlyDigits(gate.cpf).slice(0, 11) || `ip:${clientIp(req)}`;
+  const isPost = req.method === "POST";
+  if (
+    await enforceRateLimit(req, res, isPost ? "cloud-snapshot-post" : "cloud-snapshot-get", isPost ? 24 : 40, {
+      identity: ident,
+    })
+  ) {
+    return;
+  }
+  if (!live.ok) {
+    return res.status(live.status || 401).json({
+      ok: false,
+      reason: live.reason || "session_revoked",
+    });
   }
 
   if (!isRedisKvConfigured()) {
@@ -899,6 +940,7 @@ async function handler(req, res) {
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
       let existingPayload = null;
+      let existingUpdatedAt = null;
       if (existingRaw) {
         let row = existingRaw;
         if (typeof existingRaw === "string") {
@@ -909,12 +951,16 @@ async function handler(req, res) {
           }
         }
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
+        if (row?.updated_at) existingUpdatedAt = String(row.updated_at);
       }
       if (channel === "default") {
         incoming = sanitizePayloadForOficial(
           incoming,
           oficialTodayYmd(),
-          cadastroKeepSetsFromPayload(existingPayload)
+          mergeCadastroKeepSets(
+            cadastroKeepSetsFromPayload(existingPayload),
+            cadastroKeepSetsFromPayload(incoming)
+          )
         );
       }
       const replace = body.replace === true || body.mode === "replace";
@@ -969,26 +1015,33 @@ async function handler(req, res) {
       payload = sanitizePayloadForOficial(
         payload,
         oficialTodayYmd(),
-        cadastroKeepSetsFromPayload(existingPayload || payload)
+        mergeCadastroKeepSets(
+          cadastroKeepSetsFromPayload(existingPayload || payload),
+          cadastroKeepSetsFromPayload(incoming)
+        )
       );
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
       payload.dk_dados_seguros_v1 = true;
-      const stored = { label: LABEL, payload, updated_at: updatedAt };
+      const incomingTs = Date.parse(updatedAt) || 0;
+      const existingTs = Date.parse(existingUpdatedAt || "") || 0;
+      const storedAt = existingTs > incomingTs ? existingUpdatedAt : updatedAt;
+      const stored = { label: LABEL, payload, updated_at: storedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       const supabase = isSupabaseDoormanConfigured()
         ? await withDoormanTimeout(
-            upsertSnapshotByLabel(LABEL, payload, updatedAt),
-            8000,
+            upsertSnapshotByLabel(LABEL, payload, storedAt),
+            20000,
             "supabase_timeout"
           )
         : { ok: false, reason: "doorman_key_missing" };
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        updated_at: updatedAt,
+        updated_at: storedAt,
         source: "redis",
+        persistencia: supabase && supabase.ok ? "supabase+redis" : "redis",
         supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
         replace,
         keys: Object.keys(payload).length,

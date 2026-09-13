@@ -32,7 +32,10 @@ function isOriginAllowed(origin) {
 function applyCors(res, origin) {
   if (isOriginAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dk-backup-secret, X-DK-Deploy-Channel");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-DK-Portal-Token, x-dk-backup-secret, X-DK-Deploy-Channel"
+    );
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   }
 }
@@ -41,12 +44,14 @@ function resolveChannel() {
   return "default";
 }
 
-function authorizeFull(req) {
+async function authorizeFull(req) {
   const expected = process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || "";
-  if (!expected) return { ok: false, reason: "backup_secret_missing" };
   const secret = String(req.headers["x-dk-backup-secret"] || "");
-  if (secret === expected) return { ok: true };
-  return { ok: false, reason: "unauthorized" };
+  if (expected && secret === expected) return { ok: true };
+  const { requireLiveSession } = require("../lib/dk-portal-auth.cjs");
+  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
+  if (gate.ok) return { ok: true };
+  return { ok: false, reason: gate.reason || "unauthorized" };
 }
 
 module.exports = async function handler(req, res) {
@@ -69,7 +74,7 @@ module.exports = async function handler(req, res) {
     String(req.query?.full || "").trim().toLowerCase() === "true";
 
   if (wantFull) {
-    const auth = authorizeFull(req);
+    const auth = await authorizeFull(req);
     if (!auth.ok) {
       return res.status(401).json({ ok: false, reason: auth.reason });
     }

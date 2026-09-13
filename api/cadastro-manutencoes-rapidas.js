@@ -1,12 +1,13 @@
 /**
- * Sincronização do cadastro de veículos do portal (API no root do projeto para Vercel).
- * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
+ * OS da manutenção rápida — canal próprio (não depende do snapshot gordo).
+ * GET une Redis dedicado + array do snapshot. POST faz união append-only.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeVeiculosCadastro } = require("../lib/dk-append-only-merge.cjs");
+const { mergeManutencoesRapidas } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
-const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
+const STORAGE_KEY = "dk:portal:manutencoes_rapidas:v1";
+const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
 
 function parseRedisArray(raw) {
   if (raw == null) return [];
@@ -18,18 +19,34 @@ function parseRedisArray(raw) {
       return [];
     }
   }
-  if (Array.isArray(raw)) return raw;
-  return [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function parseSnapshotManutencoes(raw) {
+  if (raw == null) return [];
+  let row = raw;
+  if (typeof raw === "string") {
+    try {
+      row = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  const payload = row?.payload && typeof row.payload === "object" ? row.payload : row;
+  return Array.isArray(payload?.dk_manutencoes_rapidas_v1) ? payload.dk_manutencoes_rapidas_v1 : [];
+}
+
+async function loadUniao(redis) {
+  const [rawSnap, rawDed] = await Promise.all([redis.get(REDIS_SNAPSHOT_KEY), redis.get(STORAGE_KEY)]);
+  return mergeManutencoesRapidas(parseSnapshotManutencoes(rawSnap), parseRedisArray(rawDed));
 }
 
 module.exports = async function handler(req, res) {
   applyApiCors(res);
 
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (await enforceRateLimit(req, res, "cadastro-manutencoes-rapidas", 40)) return;
 
-  if (await enforceRateLimit(req, res, "cadastro-veiculos", 30)) return;
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
@@ -43,13 +60,13 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const raw = await redis.get(STORAGE_KEY);
-      const data = parseRedisArray(raw);
+      const data = await loadUniao(redis);
       return res.status(200).json({ ok: true, data });
     }
 
     if (req.method === "POST") {
-      const writeGate = await requireModuleAccess(req, "veiculo");
+      let writeGate = await requireModuleAccess(req, "manutencao");
+      if (!writeGate.ok) writeGate = await requireModuleAccess(req, "lancamentoManutencao");
       if (!writeGate.ok) {
         return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
       }
@@ -62,11 +79,10 @@ module.exports = async function handler(req, res) {
         }
       }
       const incoming = Array.isArray(body?.data) ? body.data : [];
-      const existingRaw = await redis.get(STORAGE_KEY);
-      const existing = parseRedisArray(existingRaw);
-      const merged = mergeVeiculosCadastro(existing, incoming);
+      const existing = await loadUniao(redis);
+      const merged = mergeManutencoesRapidas(existing, incoming);
       await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, count: merged.length });
+      return res.status(200).json({ ok: true, count: merged.length, data: merged });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
