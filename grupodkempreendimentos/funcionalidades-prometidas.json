@@ -1015,6 +1015,23 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-critica-lancamento-igual",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas: se já existir um lançamento com a mesma data de vencimento, mesma instituição e mesmo valor, o sistema pergunta «JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?» com botões SIM e CANCELAR.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "encontrarLancamentoIgualDespesa",
+          "abrirModalDupDespesa",
+          "JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?"
+        ],
+        "index.html": [
+          "finCeoDespDupModal",
+          "JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?",
+          "finCeoDespDupSimBtn",
+          ">CANCELAR</button>"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesa-editar-evento-futuro",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha tem botões cinza EDITAR EVENTO (só aquela parcela) e EDITAR FUTURO (desta parcela em diante na mesma série); carrega o formulário, confirma no modal e grava.",
       "ficheiros": {

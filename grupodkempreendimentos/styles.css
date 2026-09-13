@@ -12517,6 +12517,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 #finCeoDespExcluirModal.portal-modal,
 #finCeoDespPagoModal.portal-modal,
 #finCeoDespConfirmModal.portal-modal,
+#finCeoDespDupModal.portal-modal,
 #finCeoDespNuvemResultModal.portal-modal {
   z-index: 13050;
 }

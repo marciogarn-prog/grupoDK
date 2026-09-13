@@ -69,6 +69,16 @@ rec(
 rec("API replay do mesmo operationId", apiJs.includes("dk:portal:fin_ceo_op:") && apiJs.includes("replay: true"), "");
 rec("sucesso financeiro não usa snapshot", ceoJs.includes("Snapshot não confirma") && ceoJs.includes("return push.ok === true"), "");
 rec(
+  "cadastro critica lançamento igual",
+  ceoJs.includes("encontrarLancamentoIgualDespesa") &&
+    ceoJs.includes("abrirModalDupDespesa") &&
+    html.includes("finCeoDespDupModal") &&
+    html.includes("JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?") &&
+    html.includes("finCeoDespDupSimBtn") &&
+    html.includes(">CANCELAR</button>"),
+  ""
+);
+rec(
   "gráfico pinta parcela PAGO de verde",
   ceoJs.includes("htmlFaixasGraficoDespesa") &&
     ceoJs.includes("fin-ceo-desp-graf__fill--pago") &&

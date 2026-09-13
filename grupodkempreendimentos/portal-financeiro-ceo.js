@@ -163,10 +163,12 @@
     const cad = document.getElementById("finCeoDespConfirmSimBtn");
     const excluirEste = document.getElementById("finCeoDespExcluirSoEsteBtn");
     const excluirSerie = document.getElementById("finCeoDespExcluirSerieBtn");
+    const dupSim = document.getElementById("finCeoDespDupSimBtn");
     if (pago) pago.disabled = Boolean(disabled);
     if (cad) cad.disabled = Boolean(disabled);
     if (excluirEste) excluirEste.disabled = Boolean(disabled);
     if (excluirSerie) excluirSerie.disabled = Boolean(disabled);
+    if (dupSim) dupSim.disabled = Boolean(disabled);
   }
 
   function concluirResultadoCeo(opId, kind, texto) {
@@ -667,6 +669,8 @@
   let paneAberto = "";
   let ultimaDespesaSalvaId = "";
   let finCeoDespConfirmPending = null;
+  /** @type {{ entry: object, edit: object|null } | null} */
+  let finCeoDespDupPending = null;
   /** @type {{ despesaId: string, pagNum: number, data: Date, row: object } | null} */
   let finCeoDespPagoPending = null;
   /** @type {{ mode: 'single'|'future', despesaId: string, pagamentoNumero: number } | null} */
@@ -4017,6 +4021,120 @@
     else await persistirDespesaEntry(entry);
   }
 
+  function nkInstituicaoDespesaCeo(s) {
+    return String(s || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function chaveInstituicaoDespesaCeo(d) {
+    const n = normalizeDespesa(d);
+    const tipo = isParticulares(n.categoria)
+      ? n.tipoParticular || inferirTipoParticularLegado(n)
+      : n.rubrica;
+    return [String(n.categoria || ""), String(tipo || ""), nkInstituicaoDespesaCeo(n.descricao)].join("|");
+  }
+
+  function chaveVencimentoValorCeo(data, valor) {
+    const dt = data instanceof Date ? data : parseBrDate(data);
+    return `${fmtBrDate(dt)}|${Math.round((Number(valor) || 0) * 100)}`;
+  }
+
+  function listarPagamentosVisiveisDuplicataCeo(ignorar) {
+    const out = [];
+    loadDespesasCeo()
+      .map(normalizeDespesa)
+      .forEach((d) => {
+        if (d.deleted) return;
+        const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
+        const inst = chaveInstituicaoDespesaCeo(d);
+        expandirPagamentosDespesa(d, d.repeticoes).forEach((p) => {
+          if (excluidos.has(Number(p.numero))) return;
+          if (ignorar && String(d.id) === String(ignorar.despesaId)) {
+            if (ignorar.todaSerie) return;
+            if (ignorar.pagNum && Number(p.numero) === Number(ignorar.pagNum)) return;
+            if (ignorar.fromPag && Number(p.numero) >= Number(ignorar.fromPag)) return;
+          }
+          out.push({
+            chave: `${chaveVencimentoValorCeo(p.data, p.valor)}|${inst}`,
+            dataLabel: fmtBrDate(p.data),
+            valor: Number(p.valor) || 0,
+            inst,
+            categoria: labelCategoria(d.categoria),
+            detalhe: String(d.descricao || "").trim(),
+          });
+        });
+      });
+    return out;
+  }
+
+  function encontrarLancamentoIgualDespesa(entry, editMeta) {
+    const n = normalizeDespesa(entry);
+    const inst = chaveInstituicaoDespesaCeo(n);
+    const novos = expandirPagamentosDespesa(n, n.repeticoes);
+    const ignorar = editMeta
+      ? editMeta.mode === "future"
+        ? { despesaId: editMeta.despesaId, fromPag: editMeta.pagamentoNumero }
+        : { despesaId: editMeta.despesaId, pagNum: editMeta.pagamentoNumero }
+      : null;
+    const existentes = listarPagamentosVisiveisDuplicataCeo(ignorar);
+    const vistos = new Set();
+    for (const p of novos) {
+      const chave = `${chaveVencimentoValorCeo(p.data, p.valor)}|${inst}`;
+      if (vistos.has(chave)) {
+        return { dataLabel: fmtBrDate(p.data), valor: Number(p.valor) || 0, categoria: labelCategoria(n.categoria) };
+      }
+      vistos.add(chave);
+      const hit = existentes.find((e) => e.chave === chave);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function fecharModalDupDespesa() {
+    finCeoDespDupPending = null;
+    const modal = document.getElementById("finCeoDespDupModal");
+    modal?.classList.add("hidden");
+    modal?.setAttribute("aria-hidden", "true");
+  }
+
+  function abrirModalDupDespesa(entry, editMeta, hit) {
+    if (finCeoGravacaoEmCurso) return;
+    setBotoesGravacaoCeoDisabled(false);
+    finCeoDespDupPending = { entry, edit: editMeta || null };
+    const resumo = document.getElementById("finCeoDespDupResumo");
+    if (resumo) {
+      resumo.innerHTML = `<dl class="fin-ceo-desp-confirm-dl">
+        <div><dt>Vencimento</dt><dd>${esc(hit?.dataLabel || fmtBrDate(entry.dataEvento))}</dd></div>
+        <div><dt>Instituição</dt><dd>${esc(hit?.categoria || labelCategoria(entry.categoria))}</dd></div>
+        <div><dt>Valor</dt><dd>${esc(brl(hit?.valor != null ? hit.valor : entry.valor))}</dd></div>
+      </dl>`;
+    }
+    const modal = document.getElementById("finCeoDespDupModal");
+    if (!modal) {
+      if (window.confirm("JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?")) {
+        abrirModalConfirmDespesa(entry, editMeta);
+      }
+      return;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.getElementById("finCeoDespDupSimBtn")?.focus();
+  }
+
+  function confirmarDupDespesaModal() {
+    if (finCeoGravacaoEmCurso) return;
+    const pending = finCeoDespDupPending;
+    if (!pending) return;
+    const entry = pending.entry;
+    const editMeta = pending.edit || null;
+    fecharModalDupDespesa();
+    abrirModalConfirmDespesa(entry, editMeta);
+  }
+
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
@@ -4028,7 +4146,13 @@
     if (fb && !finCeoDespEditState) fb.textContent = "";
     const entry = coletarEntryDespesaForm(fb);
     if (!entry) return;
-    abrirModalConfirmDespesa(entry, finCeoDespEditState ? { ...finCeoDespEditState } : null);
+    const editMeta = finCeoDespEditState ? { ...finCeoDespEditState } : null;
+    const dup = encontrarLancamentoIgualDespesa(entry, editMeta);
+    if (dup) {
+      abrirModalDupDespesa(entry, editMeta, dup);
+      return;
+    }
+    abrirModalConfirmDespesa(entry, editMeta);
   }
 
   function filtroValorMonetarioAtivo(str) {
@@ -5649,6 +5773,14 @@
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
+    document.getElementById("finCeoDespDupSimBtn")?.addEventListener("click", confirmarDupDespesaModal);
+    document.getElementById("finCeoDespDupNaoBtn")?.addEventListener("click", fecharModalDupDespesa);
+    document
+      .querySelectorAll("[data-fin-ceo-desp-dup-cancel]")
+      .forEach((el) => el.addEventListener("click", fecharModalDupDespesa));
+    document.getElementById("finCeoDespDupModal")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") fecharModalDupDespesa();
+    });
     document.getElementById("finCeoDespExcluirModal")?.addEventListener("click", (ev) => {
       if (ev.target.closest("#finCeoDespExcluirSoEsteBtn")) {
         ev.preventDefault();

@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260913excfix">
+  <link rel="stylesheet" href="styles.css?v=20260913duplanc">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -5135,6 +5135,19 @@
     </div>
   </div>
 
+  <div id="finCeoDespDupModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="finCeoDespDupTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-fin-ceo-desp-dup-cancel></div>
+    <div class="portal-modal__card portal-modal__card--fin-ceo-desp">
+      <h3 id="finCeoDespDupTitulo" class="portal-modal__title">Lançamento igual</h3>
+      <p id="finCeoDespDupLead" class="subtext fin-ceo-desp-confirm-lead">JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?</p>
+      <div id="finCeoDespDupResumo" class="fin-ceo-desp-confirm-resumo" role="region" aria-live="polite"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="finCeoDespDupSimBtn">SIM</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespDupNaoBtn" data-fin-ceo-desp-dup-cancel>CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <div id="finCeoDespConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="finCeoDespConfirmTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-fin-ceo-desp-confirm-cancel></div>
     <div class="portal-modal__card portal-modal__card--fin-ceo-desp">
@@ -5481,7 +5494,7 @@
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20260913excfix" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260913duplanc" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

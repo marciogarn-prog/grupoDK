@@ -120,7 +120,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913excfix`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260913duplanc`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -157,6 +157,15 @@ async function runSuite() {
       finCeoPagJs.includes('closest("#finCeoDespExcluirSoEsteBtn")') &&
         /finally \{[\s\S]{0,80}setBotoesGravacaoCeoDisabled\(false\)/.test(finCeoPagJs),
       "botão reativa depois de gravar"
+    );
+    record(
+      "cadastro critica lançamento igual",
+      finCeoPagJs.includes("encontrarLancamentoIgualDespesa") &&
+        html.includes("finCeoDespDupModal") &&
+        html.includes("JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?") &&
+        html.includes("finCeoDespDupSimBtn") &&
+        html.includes(">CANCELAR</button>"),
+      "mesma data, instituição e valor pedem SIM ou CANCELAR"
     );
     record(
       "gráfico de despesas pinta PAGO de verde",
