@@ -21,10 +21,23 @@
   }
 
   let cloudSyncHalted = false;
+  let cloudHaltKind = "";
 
-  function showSessionRevokedBanner() {
+  function showSessionRevokedBanner(kind) {
     const el = document.getElementById("portalSessionRevokedBanner");
     if (!el) return;
+    const titulo = document.getElementById("portalSessionRevokedTitulo");
+    const texto = el.querySelector(".portal-session-revoked__text");
+    if (kind === "idle") {
+      if (titulo) titulo.textContent = "SESSÃO ENCERRADA POR INATIVIDADE";
+      if (texto) texto.textContent = "Passaram 30 minutos sem uso. Faça login novamente.";
+    } else if (kind === "stale") {
+      if (titulo) titulo.textContent = "VERSÃO ANTIGA DO SISTEMA";
+      if (texto) texto.textContent = "Atualize a página (Ctrl+F5) e faça login novamente.";
+    } else {
+      if (titulo) titulo.textContent = "SESSÃO ENCERRADA PELO ADMINISTRADOR CEO";
+      if (texto) texto.textContent = "Atualize o sistema e faça login novamente.";
+    }
     el.classList.remove("hidden");
     el.removeAttribute("hidden");
   }
@@ -36,11 +49,7 @@
     el.setAttribute("hidden", "");
   }
 
-  function haltCloudSyncRevoked() {
-    cloudSyncHalted = true;
-    if (typeof window.__DK_portalSessionMarkRevoked === "function") {
-      window.__DK_portalSessionMarkRevoked();
-    }
+  function stopCloudTimers() {
     try {
       if (typeof cloudPushTimer !== "undefined" && cloudPushTimer) {
         clearTimeout(cloudPushTimer);
@@ -53,15 +62,54 @@
     snapshotGetInFlight = null;
     screenPullInFlight = null;
     backgroundPullInFlight = null;
-    showSessionRevokedBanner();
+  }
+
+  function haltCloudSyncRevoked() {
+    cloudHaltKind = "revoked";
+    cloudSyncHalted = true;
+    if (typeof window.__DK_portalSessionMarkRevoked === "function") {
+      window.__DK_portalSessionMarkRevoked();
+    }
+    stopCloudTimers();
+    showSessionRevokedBanner("revoked");
     setMsg("SESSÃO ENCERRADA PELO ADMINISTRADOR CEO. Atualize o sistema e faça login novamente.", null);
+  }
+
+  function haltCloudSyncIdleOrStale(kind) {
+    cloudHaltKind = kind === "stale" ? "stale" : "idle";
+    cloudSyncHalted = true;
+    stopCloudTimers();
+    showSessionRevokedBanner(cloudHaltKind);
+    if (typeof window.__DK_portalApiTokenClear === "function") {
+      window.__DK_portalApiTokenClear();
+    }
+    if (typeof window.__DK_portalForcarLogoutOperador === "function") {
+      window.__DK_portalForcarLogoutOperador(cloudHaltKind);
+    }
+    setMsg(
+      cloudHaltKind === "stale"
+        ? "Versão antiga do sistema. Atualize (Ctrl+F5) e faça login novamente."
+        : "Sessão encerrada por inatividade (30 minutos). Faça login novamente.",
+      null
+    );
   }
 
   function noteCloudAuthFailure(res, data) {
     const reason = String((data && data.reason) || "");
+    if (reason === "client_stale") {
+      haltCloudSyncIdleOrStale("stale");
+      return true;
+    }
+    if (reason === "session_idle") {
+      haltCloudSyncIdleOrStale("idle");
+      return true;
+    }
     if ((res.status === 401 || res.status === 403) && reason === "session_revoked") {
       if (portalSessaoEhCeoTitular()) {
-        cloudSyncHalted = false;
+        if (cloudHaltKind === "revoked") {
+          cloudHaltKind = "";
+          cloudSyncHalted = false;
+        }
         if (typeof window.__DK_portalSessionClearRevoked === "function") {
           window.__DK_portalSessionClearRevoked();
         }
@@ -75,12 +123,15 @@
   }
 
   function cloudSyncIsHalted() {
+    if (cloudHaltKind === "idle" || cloudHaltKind === "stale") return true;
     if (portalSessaoEhCeoTitular()) {
-      cloudSyncHalted = false;
+      if (cloudHaltKind === "revoked") {
+        cloudHaltKind = "";
+        cloudSyncHalted = false;
+      }
       if (typeof window.__DK_portalSessionClearRevoked === "function") {
         window.__DK_portalSessionClearRevoked();
       }
-      hideSessionRevokedBanner();
       return false;
     }
     if (cloudSyncHalted) return true;
@@ -295,9 +346,9 @@
 
   const CLOUD_PUSH_DEBOUNCE_MS = 2500;
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
-  /** Sem intervalo mínimo: cada troca de tela baixa a última atualização. */
-  const SCREEN_PULL_MIN_INTERVAL_MS = 0;
-  const SNAPSHOT_GET_CACHE_MS = 8000;
+  /** Sem intervalo mínimo gerava loop na nuvem; 20s corta o loop e mantém o pull ao trocar de tela. */
+  const SCREEN_PULL_MIN_INTERVAL_MS = 20000;
+  const SNAPSHOT_GET_CACHE_MS = 30000;
 
   let backgroundPullLastAt = 0;
   let backgroundPullInFlight = null;
@@ -1687,6 +1738,8 @@
   }
 
   window.__DK_refreshCloudBarVisibility = refreshCloudBarVisibility;
+  window.__DK_haltCloudSyncIdle = () => haltCloudSyncIdleOrStale("idle");
+  window.__DK_haltCloudSyncStale = () => haltCloudSyncIdleOrStale("stale");
 
   async function probeSupabaseCloudHealth() {
     /* Porteiro: o browser não fala com o Supabase. A faixa 42501 some. */

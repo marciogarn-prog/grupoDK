@@ -1,6 +1,7 @@
 /**
  * Porteiro Supabase — só o servidor fala com public.dk_cloud_snapshots.
  * Chave: SUPABASE_SERVICE_ROLE_KEY (nunca no browser, nunca chave anon).
+ * Protocolo de cliente 20260913: versões antigas recebem client_stale na API antes do porteiro.
  */
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 

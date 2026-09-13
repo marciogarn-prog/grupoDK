@@ -7,7 +7,7 @@ const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs")
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 const AUTH_HEADERS =
-  "Content-Type, Authorization, X-DK-Portal-Token, X-DK-Deploy-Channel, x-dk-backup-secret, x-dk-whatsapp-secret";
+  "Content-Type, Authorization, X-DK-Portal-Token, X-DK-Deploy-Channel, X-DK-Client-Protocol, X-DK-User-Active, x-dk-backup-secret, x-dk-whatsapp-secret";
 
 function signingSecret() {
   return String(
@@ -160,9 +160,79 @@ async function bumpSessionEpoch() {
   return { ok: true, n, at };
 }
 
-async function attachLiveSession(gate) {
+const DK_CLIENT_PROTOCOL_MIN = 20260913;
+const SESSAO_ATIVA_TTL_SEC = 30 * 60;
+const SESSAO_ATIVA_KEY_PREFIX = "dk:portal:sessao_ativa:v1:";
+
+function readClientProtocol(req) {
+  const raw =
+    (req && req.headers && (req.headers["x-dk-client-protocol"] || req.headers["X-DK-Client-Protocol"])) ||
+    "";
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
+}
+
+function requestMarksUserActive(req) {
+  const raw =
+    (req && req.headers && (req.headers["x-dk-user-active"] || req.headers["X-DK-User-Active"])) ||
+    "";
+  return String(raw).trim() === "1";
+}
+
+function assertEquipaClientProtocol(gate, req) {
+  if (!gate || !gate.ok || gate.service) return gate;
+  if (String(gate.typ || "") !== "equipa") return gate;
+  if (readClientProtocol(req) < DK_CLIENT_PROTOCOL_MIN) {
+    return { ok: false, status: 403, reason: "client_stale" };
+  }
+  return gate;
+}
+
+function chaveSessaoAtiva(cpf) {
+  return SESSAO_ATIVA_KEY_PREFIX + onlyDigits(cpf).slice(0, 11);
+}
+
+async function touchSessaoAtiva(cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return false;
+  try {
+    const redis = createRedisClient();
+    await redis.set(chaveSessaoAtiva(dig), String(Date.now()), { ex: SESSAO_ATIVA_TTL_SEC });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function sessaoAtivaExiste(cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return true;
+  try {
+    const redis = createRedisClient();
+    const v = await redis.get(chaveSessaoAtiva(dig));
+    return v != null && String(v).trim() !== "";
+  } catch {
+    return true;
+  }
+}
+
+async function attachLiveSession(gate, req) {
   if (!gate || !gate.ok) return gate;
   if (gate.service) return gate;
+  const proto = assertEquipaClientProtocol(gate, req);
+  if (!proto.ok) return proto;
+  if (String(gate.typ || "") === "equipa") {
+    const cpf = onlyDigits(gate.cpf).slice(0, 11);
+    if (cpf.length === 11) {
+      const viva = await sessaoAtivaExiste(cpf);
+      if (!viva) {
+        return { ok: false, status: 401, reason: "session_idle" };
+      }
+      if (requestMarksUserActive(req)) {
+        await touchSessaoAtiva(cpf);
+      }
+    }
+  }
   if (String(gate.role || "").trim() === "owner") return gate;
   try {
     const epoch = await readSessionEpoch();
@@ -176,7 +246,7 @@ async function attachLiveSession(gate) {
 }
 
 async function requireLiveSession(req, opts) {
-  return attachLiveSession(requirePortalAuth(req, opts));
+  return attachLiveSession(requirePortalAuth(req, opts), req);
 }
 
 async function mintTokenWithSession(claims) {
@@ -191,7 +261,7 @@ async function requireCeoEmergencyLock(req) {
     allowService: false,
   });
   if (!gate.ok) return gate;
-  const live = await attachLiveSession(gate);
+  const live = await attachLiveSession(gate, req);
   if (!live.ok) return live;
   if (String(live.typ || "") !== "equipa" || String(live.role || "") !== "owner") {
     return { ok: false, status: 403, reason: "forbidden" };
@@ -439,6 +509,10 @@ module.exports = {
   requirePortalAuth,
   requireLiveSession,
   attachLiveSession,
+  assertEquipaClientProtocol,
+  touchSessaoAtiva,
+  DK_CLIENT_PROTOCOL_MIN,
+  SESSAO_ATIVA_TTL_SEC,
   requireCeoEmergencyLock,
   readSessionEpoch,
   bumpSessionEpoch,

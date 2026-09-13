@@ -131,6 +131,7 @@
 
   async function portalPresencaEquipaTick() {
     if (!portalTemSessaoEquipaAtiva()) return;
+    if (typeof document !== "undefined" && document.hidden) return;
     const headers =
       typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
     try {
@@ -141,6 +142,14 @@
         cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
+      if (j.reason === "client_stale" && typeof window.__DK_haltCloudSyncStale === "function") {
+        window.__DK_haltCloudSyncStale();
+        return;
+      }
+      if (j.reason === "session_idle" && typeof window.__DK_haltCloudSyncIdle === "function") {
+        window.__DK_haltCloudSyncIdle();
+        return;
+      }
       if (!r.ok || !j.ok || !Array.isArray(j.cpfs)) return;
       if (!isPortalAdministradorLogado()) return;
       portalPresencaOutrosCpfs = j.cpfs
@@ -153,8 +162,46 @@
     }
   }
 
+  const PORTAL_IDLE_LIMIT_MS = 30 * 60 * 1000;
+  let portalIdleWatchTimer = 0;
+  let portalIdleLogoutOnce = false;
+
+  function portalForcarLogoutOperador(kind) {
+    if (portalIdleLogoutOnce) return;
+    portalIdleLogoutOnce = true;
+    try {
+      if (typeof window.__DK_portalApiTokenClear === "function") window.__DK_portalApiTokenClear();
+    } catch {
+      /* ignore */
+    }
+    const btn = document.getElementById("btn-sair");
+    if (btn) btn.click();
+    void kind;
+  }
+
+  function portalIdleWatchTick() {
+    if (!portalTemSessaoEquipaAtiva()) {
+      portalIdleLogoutOnce = false;
+      return;
+    }
+    const last =
+      typeof window.__DK_portalLastUserActivityAt === "function"
+        ? Number(window.__DK_portalLastUserActivityAt()) || 0
+        : 0;
+    if (!last || Date.now() - last < PORTAL_IDLE_LIMIT_MS) return;
+    if (typeof window.__DK_haltCloudSyncIdle === "function") window.__DK_haltCloudSyncIdle();
+    else portalForcarLogoutOperador("idle");
+  }
+
+  function portalIdleWatchStart() {
+    if (portalIdleWatchTimer) return;
+    portalIdleWatchTimer = window.setInterval(portalIdleWatchTick, 15000);
+  }
+
   function portalPresencaEquipaStart() {
     if (!portalTemSessaoEquipaAtiva()) return;
+    portalIdleLogoutOnce = false;
+    portalIdleWatchStart();
     if (!portalPresencaEquipaTimer) {
       portalPresencaEquipaTimer = setInterval(() => {
         void portalPresencaEquipaTick();
@@ -27221,6 +27268,7 @@
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_isPortalAdministradorTitularCeo = isPortalAdministradorTitularCeo;
+  window.__DK_portalForcarLogoutOperador = portalForcarLogoutOperador;
   window.__DK_portalAndroidSomenteLeitura = portalAndroidSomenteLeitura;
   window.__DK_portalAndroidBloquearEscrita = portalAndroidBloquearEscrita;
   window.__DK_portalLerPlataformaSessao = portalLerPlataformaSessao;

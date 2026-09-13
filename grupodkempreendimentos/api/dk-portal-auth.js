@@ -6,6 +6,7 @@ const {
   applyApiCors,
   enforceRateLimit,
   mintTokenWithSession,
+  touchSessaoAtiva,
   loadOfficialSnapshotPayload,
   podeLoginCeoEmergencia,
   TITULAR_CEO_CPF,
@@ -69,6 +70,7 @@ module.exports = async function handler(req, res) {
         role: "owner",
         nome: "Administrador CEO",
       });
+      await touchSessaoAtiva(TITULAR_CEO_CPF);
       return res.status(200).json({
         ok: true,
         token,
@@ -102,6 +104,7 @@ module.exports = async function handler(req, res) {
     }
     const pub = publicFuncionario(f);
     const token = await mintTokenWithSession({ typ: "equipa", cpf, role, nome: pub.nome });
+    await touchSessaoAtiva(cpf);
     return res.status(200).json({ ok: true, token, funcionario: pub });
   }
 

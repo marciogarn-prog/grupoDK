@@ -13,6 +13,15 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimento
   /\/?$/,
   "/"
 );
+const DK_CLIENT_PROTOCOL = "20260913";
+function dkCeoApiHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    "X-DK-Portal-Token": token,
+    "X-DK-Client-Protocol": DK_CLIENT_PROTOCOL,
+    "X-DK-User-Active": "1",
+  };
+}
 const SNAP_SVC = String(
   process.env.DK_PORTAL_API_SECRET || process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || ""
 ).trim();
@@ -197,7 +206,7 @@ async function runSuite() {
         html.includes("o trecho da barrinha daquele mês fica verde"),
       "A PAGAR → PAGO deixa o trecho do mês verde"
     );
-    const apiAuthJs = await fetch(`${BASE_URL}dk-portal-api-auth.js?v=20260913ceo1`, {
+    const apiAuthJs = await fetch(`${BASE_URL}dk-portal-api-auth.js?v=20260913idle`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -207,7 +216,14 @@ async function runSuite() {
         html.includes("A sessão do Administrador CEO neste computador não é encerrada"),
       "owner isento + fallback se a nuvem cair"
     );
-    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913ceo1`, {
+    record(
+      "protocolo 20260913 e logout aos 30 min de inatividade",
+      apiAuthJs.includes("CLIENT_PROTOCOL = 20260913") &&
+        apiAuthJs.includes("X-DK-Client-Protocol") &&
+        html.includes('name="dk-client-protocol"'),
+      "versões antigas param; operador idle faz login de novo"
+    );
+    const syncSupaPtJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260913idle`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -724,7 +740,7 @@ async function runSuite() {
       if (tokCeo) {
         const cliApi = await fetch(`${BASE_URL}api/cadastro-clientes?nocache=${Date.now()}`, {
           cache: "no-store",
-          headers: { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo },
+          headers: dkCeoApiHeaders(tokCeo),
         }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
         const seenCli = new Set();
         for (const c of Array.isArray(cliApi.j?.data) ? cliApi.j.data : []) {
@@ -743,7 +759,7 @@ async function runSuite() {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
       }
       const snapAuthH = tokCeo
-        ? { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo }
+        ? dkCeoApiHeaders(tokCeo)
         : SNAP_SVC
           ? { Authorization: `Bearer ${SNAP_SVC}` }
           : {};
@@ -1874,7 +1890,7 @@ async function runSuite() {
           {
             cache: "no-store",
             headers: tokCeo
-              ? { Authorization: `Bearer ${tokCeo}`, "X-DK-Portal-Token": tokCeo }
+              ? dkCeoApiHeaders(tokCeo)
               : SNAP_SVC
                 ? { Authorization: `Bearer ${SNAP_SVC}` }
                 : {},

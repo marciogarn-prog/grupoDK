@@ -4,6 +4,17 @@
  */
 (function dkPortalApiAuth() {
   const KEY = "dk_portal_api_token_v1";
+  const CLIENT_PROTOCOL = 20260913;
+  const USER_ACTIVE_RECENT_MS = 90 * 1000;
+  let lastUserActivityAt = Date.now();
+
+  function markUserActivity() {
+    lastUserActivityAt = Date.now();
+  }
+
+  function userActiveRecently() {
+    return Date.now() - lastUserActivityAt < USER_ACTIVE_RECENT_MS;
+  }
 
   function getToken() {
     try {
@@ -66,6 +77,8 @@
       h.Authorization = `Bearer ${t}`;
       h["X-DK-Portal-Token"] = t;
     }
+    h["X-DK-Client-Protocol"] = String(CLIENT_PROTOCOL);
+    if (userActiveRecently()) h["X-DK-User-Active"] = "1";
     return h;
   }
 
@@ -142,6 +155,18 @@
     window.__DK_portalSessionIsRevoked = isSessionRevoked;
     window.__DK_portalSessionMarkRevoked = markSessionRevoked;
     window.__DK_portalSessionClearRevoked = clearSessionRevoked;
+    window.__DK_CLIENT_PROTOCOL = CLIENT_PROTOCOL;
+    window.__DK_portalMarkUserActivity = markUserActivity;
+    window.__DK_portalUserActiveRecently = userActiveRecently;
+    window.__DK_portalLastUserActivityAt = () => lastUserActivityAt;
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    ["pointerdown", "keydown", "click", "touchstart"].forEach((ev) => {
+      document.addEventListener(ev, markUserActivity, { passive: true, capture: true });
+    });
   } catch {
     /* ignore */
   }

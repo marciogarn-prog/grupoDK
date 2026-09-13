@@ -2774,6 +2774,47 @@
           "A sessão do Administrador CEO neste computador não é encerrada"
         ]
       }
+    },
+    {
+      "id": "operador-idle-30min-protocolo-cliente",
+      "descricao": "Protocolo de cliente 20260913 na nuvem: versões antigas são recusadas (client_stale) e param o loop. Qualquer operador logado, após 30 minutos sem uso, tem a sessão encerrada e precisa fazer login de novo.",
+      "ficheiros": {
+        "lib/dk-portal-auth.cjs": [
+          "DK_CLIENT_PROTOCOL_MIN",
+          "client_stale",
+          "session_idle",
+          "dk:portal:sessao_ativa:v1:",
+          "SESSAO_ATIVA_TTL_SEC"
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "assertEquipaClientProtocol",
+          "client_stale"
+        ],
+        "dk-portal-api-auth.js": [
+          "X-DK-Client-Protocol",
+          "X-DK-User-Active",
+          "CLIENT_PROTOCOL = 20260913"
+        ],
+        "portal-supabase-sync.js": [
+          "haltCloudSyncIdleOrStale",
+          "SCREEN_PULL_MIN_INTERVAL_MS = 20000"
+        ],
+        "portal-locadora-ui.js": [
+          "PORTAL_IDLE_LIMIT_MS",
+          "portalForcarLogoutOperador"
+        ],
+        "index.html": [
+          "dk-client-protocol",
+          "20260913"
+        ],
+        "vercel.json": [
+          "X-DK-Client-Protocol",
+          "must-revalidate"
+        ],
+        "lib/dk-supabase-doorman.cjs": [
+          "client_stale na API antes do porteiro"
+        ]
+      }
     }
   ]
 }

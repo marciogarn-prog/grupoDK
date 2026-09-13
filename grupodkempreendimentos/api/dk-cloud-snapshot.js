@@ -20,6 +20,7 @@ const {
   enforceRateLimit,
   requirePortalAuth,
   attachLiveSession,
+  assertEquipaClientProtocol,
   findFuncionario,
   onlyDigits,
   clientIp,
@@ -849,7 +850,11 @@ async function handler(req, res) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
-  const live = await attachLiveSession(gate);
+  const protoGate = assertEquipaClientProtocol(gate, req);
+  if (!protoGate.ok) {
+    return res.status(protoGate.status || 403).json({ ok: false, reason: protoGate.reason || "client_stale" });
+  }
+  const live = await attachLiveSession(gate, req);
   const ident = gate.service
     ? "svc"
     : onlyDigits(gate.cpf).slice(0, 11) || `ip:${clientIp(req)}`;
