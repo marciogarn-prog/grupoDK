@@ -1633,6 +1633,7 @@ async function runSuite() {
       html.includes("dk-lancamento-protocolo.js") &&
         html.includes("operacaoLocacaoLancamentosHistorico") &&
         lancProtoJs.includes("__DK_gerarProtocoloLancamento") &&
+        lancProtoJs.includes("__DK_nextUniqueProtocoloLancamento") &&
         lancProtoJs.includes("PROTO_RE") &&
         /\\d\{14\}-\\d\{3\}/.test(lancProtoJs),
       "AAAAMMDDHHMMSS-NNN"

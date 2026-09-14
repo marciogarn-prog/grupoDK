@@ -2670,6 +2670,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const seenFp = new Set();
   const seenIdTx = new Set();
   const seenProto = new Set();
+  const seenProtoRow = new Map();
   const seenDataValor = new Set();
   const deduped = [];
   const normIdTxMerge = (raw) => {
@@ -2684,24 +2685,47 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     const n = Number(v);
     return Number.isFinite(n) ? Math.round(n * 100 + Number.EPSILON) / 100 : NaN;
   };
+  const protoLancOk = (p) =>
+    typeof window.__DK_isProtocoloLancamentoValid === "function" && window.__DK_isProtocoloLancamentoValid(p);
   for (const row of out) {
     const oid = String(row.origemComprovanteClienteId || "").trim();
     const fp = String(row.comprovanteFp || "").trim();
     const idTx = normIdTxMerge(row.idTransacaoComprovante || row.idTransacao || "");
-    const proto = String(row.protocoloLancamento || "").trim();
+    let proto = String(row.protocoloLancamento || "").trim();
     const data = String(row.data || "").trim();
     const valor = roundCentMerge(row.valor);
     const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
     if (oid && seenOid.has(oid)) continue;
     if (fp && seenFp.has(fp)) continue;
     if (idTx && seenIdTx.has(idTx)) continue;
-    if (proto && typeof window.__DK_isProtocoloLancamentoValid === "function" && window.__DK_isProtocoloLancamentoValid(proto) && seenProto.has(proto)) continue;
-    if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
+    if (proto && protoLancOk(proto) && seenProto.has(proto)) {
+      const prev = seenProtoRow.get(proto);
+      const samePay =
+        prev &&
+        String(prev.data || "").trim() === data &&
+        roundCentMerge(prev.valor) === valor;
+      if (samePay) continue;
+      const nextFn = window.__DK_nextUniqueProtocoloLancamento;
+      if (typeof nextFn === "function") {
+        const uniq = nextFn(row.registradoPorCpf, row.createdAt || Date.now(), seenProto);
+        if (uniq && uniq.proto) {
+          row.protocoloLancamento = uniq.proto;
+          if (Number(uniq.createdAt) > 0) row.createdAt = uniq.createdAt;
+          proto = uniq.proto;
+        }
+      }
+    }
+    if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey) && !(proto && protoLancOk(proto))) {
+      continue;
+    }
     if (oid) seenOid.add(oid);
     if (fp) seenFp.add(fp);
     if (idTx) seenIdTx.add(idTx);
-    if (proto && typeof window.__DK_isProtocoloLancamentoValid === "function" && window.__DK_isProtocoloLancamentoValid(proto)) seenProto.add(proto);
-    if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
+    if (proto && protoLancOk(proto)) {
+      seenProto.add(proto);
+      seenProtoRow.set(proto, row);
+    }
+    if (data && Number.isFinite(valor) && valor > 0 && !(proto && protoLancOk(proto))) seenDataValor.add(dvKey);
     deduped.push(row);
   }
   deduped.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));

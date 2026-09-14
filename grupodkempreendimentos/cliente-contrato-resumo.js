@@ -303,6 +303,7 @@
     const seenOid = new Set();
     const seenFp = new Set();
     const seenProto = new Set();
+    const seenProtoRow = new Map();
     const seenDataValor = new Set();
     const out = [];
     for (const row of sorted) {
@@ -317,7 +318,19 @@
       const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
       if (oid && seenOid.has(oid)) continue;
       if (fp && seenFp.has(fp)) continue;
-      if (protoOk && seenProto.has(proto)) continue;
+      if (protoOk && seenProto.has(proto)) {
+        const prev = seenProtoRow.get(proto);
+        const samePay =
+          prev &&
+          String(prev.data || "").trim() === data &&
+          Number.isFinite(Number(prev.valor)) &&
+          Number.isFinite(valor) &&
+          Math.round(Number(prev.valor) * 100) === Math.round(valor * 100);
+        if (samePay) continue;
+      } else if (protoOk) {
+        seenProto.add(proto);
+        seenProtoRow.set(proto, row);
+      }
       if (!protoOk && data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
       if (oid) seenOid.add(oid);
       if (fp) seenFp.add(fp);

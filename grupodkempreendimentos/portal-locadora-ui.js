@@ -22909,7 +22909,7 @@
         if (calendarioDelta <= 0.009) return;
         const dataStr = portalIsoParaDataBr(iso);
         if (!dataStr) return;
-        const createdAt = now0 + tick;
+        const createdAt = now0 + tick * 1000;
         tick += 1;
         const entry = {
           data: dataStr,

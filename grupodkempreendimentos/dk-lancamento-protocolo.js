@@ -90,6 +90,35 @@
     );
   }
 
+  /**
+   * AAAAMMDDHHMMSS-NNN usa segundos. Dois lançamentos no mesmo segundo
+   * (lote do calendário) geravam o mesmo protocolo e o merge apagava os extras.
+   * Avança 1 segundo até o protocolo ficar único.
+   */
+  function nextUniqueProtocoloLancamento(cpfOperador, when, seen) {
+    let t = when instanceof Date ? when.getTime() : Number(when);
+    if (!Number.isFinite(t) || t <= 0) t = Date.now();
+    let proto = gerarProtocoloLancamento(cpfOperador, new Date(t));
+    let attempt = 0;
+    while (proto && seen && typeof seen.has === "function" && seen.has(proto) && attempt < 999) {
+      attempt += 1;
+      t += 1000;
+      proto = gerarProtocoloLancamento(cpfOperador, new Date(t));
+    }
+    return { proto, createdAt: t };
+  }
+
+  function mesmoPagamentoProtocolo(a, b) {
+    if (!a || !b) return false;
+    const dataA = portalLancamentoDataChave(a.data || a.dataPagamento);
+    const dataB = portalLancamentoDataChave(b.data || b.dataPagamento);
+    const va = Number(a.valor);
+    const vb = Number(b.valor);
+    const sameValor =
+      Number.isFinite(va) && Number.isFinite(vb) && Math.round(va * 100) === Math.round(vb * 100);
+    return Boolean(dataA) && dataA === dataB && sameValor;
+  }
+
   function isProtocoloLancamentoValid(s) {
     return PROTO_RE.test(String(s || "").trim());
   }
@@ -454,7 +483,20 @@
         if (!row) continue;
         const proto = String(row.protocoloLancamento || "").trim();
         if (isProtocoloLancamentoValid(proto)) {
-          if (!byProto.has(proto)) byProto.set(proto, row);
+          if (!byProto.has(proto)) {
+            byProto.set(proto, row);
+          } else if (!mesmoPagamentoProtocolo(byProto.get(proto), row)) {
+            const uniq = nextUniqueProtocoloLancamento(
+              row.registradoPorCpf || row.comprovanteValidadoPorCpf,
+              row.createdAt || Date.now(),
+              byProto
+            );
+            if (uniq.proto) {
+              row.protocoloLancamento = uniq.proto;
+              row.createdAt = uniq.createdAt;
+              byProto.set(uniq.proto, row);
+            }
+          }
           continue;
         }
         const generated = gerarProtocoloLancamento(
@@ -463,7 +505,20 @@
         );
         if (generated && isProtocoloLancamentoValid(generated)) {
           row.protocoloLancamento = generated;
-          if (!byProto.has(generated)) byProto.set(generated, row);
+          if (!byProto.has(generated)) {
+            byProto.set(generated, row);
+          } else if (!mesmoPagamentoProtocolo(byProto.get(generated), row)) {
+            const uniq = nextUniqueProtocoloLancamento(
+              row.registradoPorCpf || row.comprovanteValidadoPorCpf,
+              row.createdAt || Date.now(),
+              byProto
+            );
+            if (uniq.proto) {
+              row.protocoloLancamento = uniq.proto;
+              row.createdAt = uniq.createdAt;
+              byProto.set(uniq.proto, row);
+            }
+          }
           continue;
         }
         if (isOficialDeploy() && !isClienteAppContext()) continue;
@@ -489,13 +544,14 @@
             new Date(row.createdAt || Date.now())
           );
         }
-        let attempt = 0;
-        while (proto && seen.has(proto) && attempt < 5) {
-          attempt += 1;
-          proto = gerarProtocoloLancamento(
+        if (proto && seen.has(proto)) {
+          const uniq = nextUniqueProtocoloLancamento(
             row.registradoPorCpf || row.comprovanteValidadoPorCpf,
-            new Date((row.createdAt || Date.now()) + attempt)
+            row.createdAt || Date.now(),
+            seen
           );
+          proto = uniq.proto;
+          if (Number(uniq.createdAt) > 0) row.createdAt = uniq.createdAt;
         }
         if (proto) {
           row.protocoloLancamento = proto;
@@ -681,6 +737,7 @@
 
   window.__DK_clearGlobalLancamentosStorageCache = clearGlobalLancamentosStorageCache;
   window.__DK_gerarProtocoloLancamento = gerarProtocoloLancamento;
+  window.__DK_nextUniqueProtocoloLancamento = nextUniqueProtocoloLancamento;
   window.__DK_isProtocoloLancamentoValid = isProtocoloLancamentoValid;
   window.__DK_isOficialLancamentosStrict = isOficialDeploy;
   window.__DK_isLancamentoOficialAceite = isLancamentoOficialAceite;
