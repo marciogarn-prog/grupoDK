@@ -45,10 +45,11 @@ const lixo = filter("dk_clientes_cadastro", [
   { cpf: "04292253420", nome: "ANA PAULA", codigo: "0629" },
   { cpf: "07534147409", nome: "Cliente demo", codigo: "7409" },
   { cpf: "00445040556", nome: "NILZA", codigo: "7411" },
-  { cpf: "01503608514", nome: "OTAVIO REAL", codigo: "0315" },
+  { cpf: "01503608514", nome: "OTAVIO", codigo: "7410" },
+  { cpf: "06242649551", nome: "FELIPE", codigo: "0001" },
 ]);
-if (lixo.length !== 1 || lixo[0].codigo !== "0315") {
-  console.error("FALHOU: lixo fora de ordem deveria sair; Otávio 0315 permanece", lixo);
+if (lixo.length !== 1 || lixo[0].codigo !== "0001") {
+  console.error("FALHOU: lixo fora de ordem (incl. Otávio 7410) deveria sair", lixo);
   process.exit(1);
 }
 

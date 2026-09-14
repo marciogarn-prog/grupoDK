@@ -62,7 +62,10 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "07534147409",
   "00445040556",
   "01303628514",
+  "01503608514",
+  "01503628514",
 ]);
+const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026052002"]);
 
 function dropClientesCpfExcluidos(list) {
   return (Array.isArray(list) ? list : []).filter((c) => {
@@ -74,7 +77,10 @@ function dropClientesCpfExcluidos(list) {
 function dropLocacoesCpfExcluidos(list) {
   return (Array.isArray(list) ? list : []).filter((l) => {
     const d = onlyDigits(l?.cpf).slice(0, 11);
-    return !d || !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
+    if (d && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) return false;
+    const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
+    if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
+    return true;
   });
 }
 

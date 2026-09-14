@@ -130,6 +130,8 @@
     "07534147409",
     "00445040556",
     "01303628514",
+    "01503608514",
+    "01503628514",
   ]);
   /**
    * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
@@ -146,6 +148,7 @@
     "2026010102",
     "2026010103",
     "2026010104",
+    "2026052002",
   ]);
   const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
     "AAA0A00",
@@ -166,6 +169,7 @@
     "2026010102",
     "2026010103",
     "2026010104",
+    "2026052002",
   ]);
 
   function locacaoNcDigits(record) {
@@ -240,6 +244,11 @@
 
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
+    const family = cadastroKeyFamily(key);
+    const cpfN0 = cpfDigits(record);
+    if (cpfN0.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfN0) && family !== "veiculo") {
+      return false;
+    }
     if (cadastroKeyFamily(key) === "notificacao") {
       const cpfN = cpfDigits(record);
       if (cpfN.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfN)) return false;

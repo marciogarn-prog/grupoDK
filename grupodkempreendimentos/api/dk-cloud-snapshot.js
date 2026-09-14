@@ -166,6 +166,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "07534147409",
   "00445040556",
   "01303628514",
+  "01503608514",
+  "01503628514",
 ]);
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
 const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
@@ -179,6 +181,7 @@ const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026010102",
   "2026010103",
   "2026010104",
+  "2026052002",
 ]);
 const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2025010101",
@@ -188,6 +191,7 @@ const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2026010102",
   "2026010103",
   "2026010104",
+  "2026052002",
 ]);
 /** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
 const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
@@ -290,6 +294,7 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
     const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
       const cpfEarly = cpfDigitsKey(r);
+      if (cpfEarly.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly) && !isVei) return false;
       if (isNotif) {
         if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
         if (!String(r?.mensagem || "").trim()) return false;
