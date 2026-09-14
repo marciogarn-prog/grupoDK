@@ -7512,7 +7512,6 @@ function isLocacaoSeedDemoOficialProibida(loc) {
     "2026010102",
     "2026010103",
     "2026010104",
-    "2026052002",
   ]);
   const demoPlacas = new Set(["AAA0A00", "AAA0A01", "AAA0A02", "BBB0B00", "CCC0C00", "DDD0D000"]);
   if (demoNc.has(nc)) return true;
@@ -7526,7 +7525,6 @@ function isLocacaoSeedDemoOficialProibida(loc) {
     cpf === "07534147409" ||
     cpf === "00445040556" ||
     cpf === "01303628514" ||
-    cpf === "01503608514" ||
     cpf === "01503628514"
   ) {
     return true;

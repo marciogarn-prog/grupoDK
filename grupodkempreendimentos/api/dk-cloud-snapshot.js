@@ -166,9 +166,12 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "07534147409",
   "00445040556",
   "01303628514",
-  "01503608514",
   "01503628514",
 ]);
+/** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
+const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
+  "01503608514": "0315",
+});
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
 const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026122501",
@@ -181,7 +184,6 @@ const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026010102",
   "2026010103",
   "2026010104",
-  "2026052002",
 ]);
 const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2025010101",
@@ -191,7 +193,6 @@ const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2026010102",
   "2026010103",
   "2026010104",
-  "2026052002",
 ]);
 /** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
 const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
@@ -234,6 +235,30 @@ function placaNormKey(record) {
   return String(record?.placa || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+}
+
+function canonClienteCodigoOficial(list) {
+  const seen = new Set();
+  const out = [];
+  for (const r of Array.isArray(list) ? list : []) {
+    const d = cpfDigitsKey(r);
+    const canon = OFICIAL_CLIENTES_CODIGO_CANON[d];
+    const rec = canon ? { ...r, codigo: canon } : r;
+    if (canon) {
+      if (seen.has(d)) continue;
+      seen.add(d);
+    }
+    out.push(rec);
+  }
+  return out;
+}
+
+function canonLocacaoClienteCodigoOficial(list) {
+  return (Array.isArray(list) ? list : []).map((r) => {
+    const canon = OFICIAL_CLIENTES_CODIGO_CANON[cpfDigitsKey(r)];
+    if (!canon) return r;
+    return { ...r, clienteCodigo: canon };
+  });
 }
 
 function cadastroKeepSetsFromPayload(payload) {
@@ -330,6 +355,8 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= keyCutoff;
     });
+    if (isCli) out[k] = canonClienteCodigoOficial(out[k]);
+    if (isLoc) out[k] = canonLocacaoClienteCodigoOficial(out[k]);
   }
   out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
   return out;

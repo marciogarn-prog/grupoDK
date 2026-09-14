@@ -130,9 +130,12 @@
     "07534147409",
     "00445040556",
     "01303628514",
-    "01503608514",
     "01503628514",
   ]);
+  /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
+  const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
+    "01503608514": "0315",
+  });
   /**
    * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
    * e não voltam pelo merge. Remap aponta para o protocolo canónico da mesma locação.
@@ -148,7 +151,6 @@
     "2026010102",
     "2026010103",
     "2026010104",
-    "2026052002",
   ]);
   const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
     "AAA0A00",
@@ -169,7 +171,6 @@
     "2026010102",
     "2026010103",
     "2026010104",
-    "2026052002",
   ]);
 
   function locacaoNcDigits(record) {
@@ -314,11 +315,47 @@
     return ymd >= cutoff;
   }
 
+  function applyClienteCodigoCanon(record, key) {
+    if (!record || typeof record !== "object") return record;
+    const canon = OFICIAL_CLIENTES_CODIGO_CANON[cpfDigits(record)];
+    if (!canon) return record;
+    const family = cadastroKeyFamily(key);
+    if (family === "cliente") {
+      if (String(record.codigo || "").trim() === canon) return record;
+      return { ...record, codigo: canon };
+    }
+    if (family === "locacao") {
+      if (String(record.clienteCodigo || "").trim() === canon) return record;
+      return { ...record, clienteCodigo: canon };
+    }
+    return record;
+  }
+
+  function collapseCanonClientes(key, list) {
+    if (cadastroKeyFamily(key) !== "cliente") return list;
+    const seen = new Set();
+    const out = [];
+    for (const r of list) {
+      const d = cpfDigits(r);
+      if (OFICIAL_CLIENTES_CODIGO_CANON[d]) {
+        if (seen.has(d)) continue;
+        seen.add(d);
+      }
+      out.push(r);
+    }
+    return out;
+  }
+
   function filterCadastroArray(key, arr, cutoffYmd) {
     if (!isOficialOnly()) return Array.isArray(arr) ? arr : [];
     /* Só cadastros operacionais (clientes, frota, locações…) — não FINANCEIRO CEO nem outros módulos. */
     if (!CADASTRO_GUARD_KEYS.includes(String(key || ""))) return Array.isArray(arr) ? arr : [];
-    return (Array.isArray(arr) ? arr : []).filter((r) => isRecordAllowed(r, key, cutoffYmd));
+    return collapseCanonClientes(
+      key,
+      (Array.isArray(arr) ? arr : [])
+        .filter((r) => isRecordAllowed(r, key, cutoffYmd))
+        .map((r) => applyClienteCodigoCanon(r, key))
+    );
   }
 
   function sanitizeCloudPayload(payload, cutoffYmd) {
@@ -355,7 +392,7 @@
         const prev = readRawCadastroArray(k);
         if (!prev.length) return;
         const next = filterCadastroArray(k, prev);
-        if (next.length === prev.length) return;
+        if (next.length === prev.length && next.every((r, i) => r === prev[i])) return;
         removed += prev.length - next.length;
         if (canCadastroApi) {
           saveCadastro(k, next, bypass);

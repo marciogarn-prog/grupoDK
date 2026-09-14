@@ -57,7 +57,7 @@ rec(
   indexHtml.includes("portal-supabase-sync.js?v=20260913-loopfix2") &&
     indexHtml.includes("dk-portal-api-auth.js?v=20260913-loopfix2") &&
     indexHtml.includes("portal-locadora-ui.js?v=20260913-loopfix2") &&
-    indexHtml.includes("app.js?v=20260914excl-otavio"),
+    indexHtml.includes("app.js?v=20260914otavio-0315"),
   ""
 );
 rec("trace sem imprimir token", syncJs.includes("[DK LOOP TRACE]") && syncJs.includes("delete safe.token"), "");

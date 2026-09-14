@@ -48,8 +48,24 @@ const lixo = filter("dk_clientes_cadastro", [
   { cpf: "01503608514", nome: "OTAVIO", codigo: "7410" },
   { cpf: "06242649551", nome: "FELIPE", codigo: "0001" },
 ]);
-if (lixo.length !== 1 || lixo[0].codigo !== "0001") {
-  console.error("FALHOU: lixo fora de ordem (incl. Otávio 7410) deveria sair", lixo);
+const otavioCanon = lixo.find((c) => String(c.cpf || "").replace(/\D/g, "") === "01503608514");
+const felipe = lixo.find((c) => String(c.codigo || "").trim() === "0001");
+if (lixo.length !== 2 || !felipe || !otavioCanon || String(otavioCanon.codigo) !== "0315") {
+  console.error("FALHOU: lixo 0628/0629/7409/7411 sai; Otávio fica como 0315", lixo);
+  process.exit(1);
+}
+const locOtavio = filter("dk_locacoes_cadastro", [
+  {
+    cpf: "01503608514",
+    nome: "OTAVIO",
+    numeroContrato: "2026052002",
+    placa: "UHK3J59",
+    inicio: "20/05/2026",
+    origemPortal: true,
+  },
+]);
+if (locOtavio.length !== 1 || String(locOtavio[0].numeroContrato) !== "2026052002") {
+  console.error("FALHOU: locação real 2026052002 deveria passar", locOtavio);
   process.exit(1);
 }
 

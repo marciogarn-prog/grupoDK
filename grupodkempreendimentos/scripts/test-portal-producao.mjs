@@ -767,8 +767,8 @@ async function runSuite() {
         }
         record(
           "oficial: total de clientes na nuvem (CPF único, todos os PCs)",
-          cliApi.status === 200 && seenCli.size >= 397,
-          `api=${cliApi.status} unicos=${seenCli.size}`
+          cliApi.status === 200 && seenCli.size >= 400 && seenCli.has("01503608514"),
+          `api=${cliApi.status} unicos=${seenCli.size} otavio=${seenCli.has("01503608514")}`
         );
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
@@ -797,6 +797,22 @@ async function runSuite() {
           ? `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
           : `anónimo bloqueado status=${snapAnon.status}`
       );
+      const otavioOf = clientesOf.filter((c) => String(c?.cpf || "").replace(/\D/g, "") === "01503608514");
+      const locOtavioOf = (pOf.dk_locacoes_cadastro || []).filter(
+        (l) => String(l?.numeroContrato || "").replace(/\D/g, "") === "2026052002"
+      );
+      record(
+        "oficial: Otávio 0315 e protocolo 2026052002",
+        clientesOf.length
+          ? otavioOf.length === 1 &&
+            String(otavioOf[0]?.codigo || "").trim() === "0315" &&
+            locOtavioOf.length === 1 &&
+            String(locOtavioOf[0]?.placa || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "") === "UHK3J59"
+          : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
+        `cli=${otavioOf.length}:${otavioOf[0]?.codigo || "-"} loc=${locOtavioOf.length}`
+      );
       const veiculosOf = pOf.dk_veiculos_cadastro || [];
       const carrosOf = veiculosOf.filter((v) => String(v?.tipo || "").toUpperCase() === "CARRO");
       const z1Of = veiculosOf.filter((v) => {
@@ -824,7 +840,7 @@ async function runSuite() {
         const nc = String(l?.numeroContrato || "").replace(/\D/g, "");
         if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
         if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
-        if (["2025010101", "2025010102", "2025010103", "2026010101", "2026010102", "2026010103", "2026010104", "2026052002"].includes(nc)) {
+        if (["2025010101", "2025010102", "2025010103", "2026010101", "2026010102", "2026010103", "2026010104"].includes(nc)) {
           return true;
         }
         if (l?.__dkSeedTesteReserva) return true;

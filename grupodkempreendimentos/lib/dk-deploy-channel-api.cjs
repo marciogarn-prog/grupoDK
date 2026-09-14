@@ -62,26 +62,40 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "07534147409",
   "00445040556",
   "01303628514",
-  "01503608514",
   "01503628514",
 ]);
-const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026052002"]);
+const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
+  "01503608514": "0315",
+});
+const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set();
 
 function dropClientesCpfExcluidos(list) {
-  return (Array.isArray(list) ? list : []).filter((c) => {
-    const d = onlyDigits(c?.cpf).slice(0, 11);
-    return d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
-  });
+  return (Array.isArray(list) ? list : [])
+    .filter((c) => {
+      const d = onlyDigits(c?.cpf).slice(0, 11);
+      return d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
+    })
+    .map((c) => {
+      const d = onlyDigits(c?.cpf).slice(0, 11);
+      const canon = OFICIAL_CLIENTES_CODIGO_CANON[d];
+      return canon ? { ...c, codigo: canon } : c;
+    });
 }
 
 function dropLocacoesCpfExcluidos(list) {
-  return (Array.isArray(list) ? list : []).filter((l) => {
-    const d = onlyDigits(l?.cpf).slice(0, 11);
-    if (d && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) return false;
-    const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
-    if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
-    return true;
-  });
+  return (Array.isArray(list) ? list : [])
+    .filter((l) => {
+      const d = onlyDigits(l?.cpf).slice(0, 11);
+      if (d && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) return false;
+      const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
+      if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
+      return true;
+    })
+    .map((l) => {
+      const d = onlyDigits(l?.cpf).slice(0, 11);
+      const canon = OFICIAL_CLIENTES_CODIGO_CANON[d];
+      return canon ? { ...l, clienteCodigo: canon } : l;
+    });
 }
 
 async function fetchPortalCadastrosFromRedis(redis) {
