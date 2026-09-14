@@ -26,6 +26,8 @@ record(
 );
 record("grava dataPagamento no confirmar", ui.includes("dataPagamento: dataStr"));
 record("render mostra dataPagamento", ui.includes("row.dataPagamento"));
+record("calendario grava o mesmo pagamento", ui.includes("calendarioDelta") && ui.includes("somaPagamentosCalendarioPorIso"));
+record("calendario alimenta pagamentos do dia", /calendarioDelta[\s\S]{0,5000}registrarPortalLancPagamentoDoDia/.test(ui));
 record("colspan 6 no vazio", ui.includes('colspan="6"') && html.includes('colspan="6"'));
 
 const pass = results.filter((r) => r.ok).length;

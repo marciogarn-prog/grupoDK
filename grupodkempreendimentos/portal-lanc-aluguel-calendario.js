@@ -48,10 +48,13 @@
   function agruparPagamentosPorDataIso(arr, ano) {
     const map = new Map();
     for (const x of arr || []) {
+      if (String(x?.tipoMovimento || "").toUpperCase() === "DEVOLUCAO_INVESTIMENTO") continue;
+      const valor = Number(x.valor || 0);
+      if (!(valor > 0)) continue;
       const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
       if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) continue;
       const iso = isoFromParts(dt.getFullYear(), dt.getMonth(), dt.getDate());
-      map.set(iso, (map.get(iso) || 0) + Number(x.valor || 0));
+      map.set(iso, (map.get(iso) || 0) + valor);
     }
     return map;
   }
@@ -300,9 +303,13 @@
     if (typeof window.__DK_refreshOperacaoLancAluguelAposPagamento === "function") {
       window.__DK_refreshOperacaoLancAluguelAposPagamento();
     }
+    mostrarCalendarioAno(ano, ctx);
     const notify = res.notify;
+    const added = Number(res.added) || 0;
     if (msg) {
-      if (notify?.ok && notify.count > 0) {
+      if (!added) {
+        msg.textContent = `Nenhum valor novo em ${ano}: o calendário já estava igual aos lançamentos.`;
+      } else if (notify?.ok && notify.count > 0) {
         msg.textContent =
           notify.msg || `Pagamentos de ${ano} guardados. Informação já enviada para o cliente.`;
       } else if (notify?.ok === false) {

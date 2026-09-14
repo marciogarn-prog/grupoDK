@@ -22859,6 +22859,21 @@
     };
   }
 
+  function somaPagamentosCalendarioPorIso(loc, ano) {
+    const map = new Map();
+    const pad = (n) => String(n).padStart(2, "0");
+    const arr = getPortalLancamentosAluguelDoContrato(loc);
+    for (const x of arr || []) {
+      if (!isLancamentoAluguelContabilizavel(x)) continue;
+      if (portalLancamentoEhDevolucaoInvestimento(x)) continue;
+      const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
+      if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) continue;
+      const iso = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+      map.set(iso, (map.get(iso) || 0) + Number(x.valor || 0));
+    }
+    return map;
+  }
+
   async function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
     if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
@@ -22876,58 +22891,77 @@
     const loc = locs[idx];
     materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     const reg = getPortalSessaoParaRegistroLancamentoAluguel();
-    const arr = loc.portalLancamentosAluguel || [];
-    const keysBefore = new Set(
-      arr
-        .filter((x) => {
-          const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
-          if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) return false;
-          if (x.origemComprovanteClienteId || x.confirmadoViaAppCliente) return false;
-          return true;
-        })
-        .map(portalLancAluguelEntryNotifyKey)
-    );
-    const manter = arr.filter((x) => {
-      const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
-      if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) return true;
-      if (x.origemComprovanteClienteId || x.confirmadoViaAppCliente) return true;
-      return false;
-    });
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) {
+      const cpfOp = String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      if (cpfOp.length !== 11) return false;
+    }
+    if (!Array.isArray(loc.portalLancamentosAluguel)) loc.portalLancamentosAluguel = [];
+    const somaPorIso = somaPagamentosCalendarioPorIso(loc, ano);
+    const novos = [];
+    const now0 = Date.now();
+    let tick = 0;
     if (celulasMap && typeof celulasMap.forEach === "function") {
       celulasMap.forEach((val, iso) => {
-        const v = Number(val) || 0;
-        if (v <= 0) return;
         if (!String(iso).startsWith(String(ano))) return;
+        const desired = Number(val) || 0;
+        const current = Number(somaPorIso.get(iso)) || 0;
+        const calendarioDelta = Math.round((desired - current) * 100) / 100;
+        if (calendarioDelta <= 0.009) return;
         const dataStr = portalIsoParaDataBr(iso);
         if (!dataStr) return;
-        manter.push({
+        const createdAt = now0 + tick;
+        tick += 1;
+        const entry = {
           data: dataStr,
-          valor: v,
-          valorEspecie: v,
+          valor: calendarioDelta,
+          valorEspecie: calendarioDelta,
           valorPix: 0,
           valorCartao: 0,
-          createdAt: Date.now(),
+          createdAt,
           ...portalStampRegistradoPor(reg),
           protocoloLancamento:
             typeof window.__DK_gerarProtocoloLancamento === "function"
-              ? window.__DK_gerarProtocoloLancamento(reg?.cpf || "", Date.now())
+              ? window.__DK_gerarProtocoloLancamento(reg?.cpf || "", createdAt)
               : "",
           ficticio: portalRegistroEhTeste(loc),
+        };
+        loc.portalLancamentosAluguel.push(entry);
+        anexarPortalPagamentoAuditoria(loc, {
+          at: createdAt,
+          acao: "lancado",
+          numeroContrato: nc,
+          cpfCliente: cpfDigits,
+          protocoloLancamento: entry.protocoloLancamento || "",
+          dataPagamento: dataStr,
+          valor: calendarioDelta,
+          operadorCpf: String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11),
+          operadorNome: String(reg?.nome || "").trim(),
+          detalhe: "Lançamento no calendário",
         });
+        novos.push(entry);
       });
     }
-    loc.portalLancamentosAluguel = manter;
+    if (!novos.length) {
+      return { ok: true, notify: { ok: true, skipped: true, count: 0 }, added: 0 };
+    }
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
-    if (!ok) return { ok: false };
-    const notify = await portalNotificarClientePagamentosLancados(
-      cpfDigits,
-      nc,
-      loc,
-      loc.portalLancamentosAluguel,
-      keysBefore,
-      { ano }
-    );
-    return { ok: true, notify };
+    if (!ok) return { ok: false, added: 0 };
+    const { nome, placa } = portalNomePlacaParaPagamentoDoDia(loc, cpfDigits);
+    for (const entry of novos) {
+      registrarPortalLancPagamentoDoDia({
+        protocolo: nc,
+        nome,
+        placa,
+        valor: entry.valor,
+        dataPagamento: entry.data,
+        comentario: "",
+        silencioso: true,
+      });
+    }
+    renderPortalLancPagamentosDoDia();
+    renderOperacaoLancAluguelHistorico();
+    const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, novos, new Set(), { ano });
+    return { ok: true, notify, added: novos.length };
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -27400,6 +27434,8 @@
     );
     if (loc) applyOperacaoLancamentoAluguelFromLoc(loc);
     refreshOperacaoLancAluguelResumoCompacto();
+    renderOperacaoLancAluguelHistorico();
+    renderPortalLancPagamentosDoDia();
   };
 
   const PORTAL_ANDROID_ESCRITA_IDS = new Set([

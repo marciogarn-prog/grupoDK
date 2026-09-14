@@ -2102,6 +2102,26 @@
       }
     },
     {
+      "id": "lanc-aluguel-calendario-mesmo-pagamento",
+      "descricao": "O valor digitado no calendário anual (lançamento em bloco) é o mesmo pagamento do formulário Confirmar pagamento (data + valor; comentário só se o operador usar o formulário). Grava em Lançamentos registados e em PAGAMENTOS DO DIA.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "calendarioDelta",
+          "somaPagamentosCalendarioPorIso",
+          "registrarPortalLancPagamentoDoDia",
+          "renderOperacaoLancAluguelHistorico"
+        ],
+        "portal-lanc-aluguel-calendario.js": [
+          "coletarCelulasAno",
+          "mostrarCalendarioAno(ano, ctx)"
+        ],
+        "index.html": [
+          "portalLancAluguelCalSalvarBtn",
+          "Salvar lançamentos do ano"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {
