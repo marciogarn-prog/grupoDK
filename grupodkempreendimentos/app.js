@@ -7510,12 +7510,24 @@ function isLocacaoSeedDemoOficialProibida(loc) {
     "2025010103",
     "2026010101",
     "2026010102",
+    "2026010103",
     "2026010104",
   ]);
-  const demoPlacas = new Set(["AAA0A00", "AAA0A01", "AAA0A02", "BBB0B00", "CCC0C00"]);
+  const demoPlacas = new Set(["AAA0A00", "AAA0A01", "AAA0A02", "BBB0B00", "CCC0C00", "DDD0D000"]);
   if (demoNc.has(nc)) return true;
   if (demoPlacas.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
-  if (cpf === "00000000001" || cpf === "00000000003" || cpf === "00000000004") return true;
+  if (
+    cpf === "00000000001" ||
+    cpf === "00000000003" ||
+    cpf === "00000000004" ||
+    cpf === "06523244440" ||
+    cpf === "04292253420" ||
+    cpf === "07534147409" ||
+    cpf === "00445040556" ||
+    cpf === "01303628514"
+  ) {
+    return true;
+  }
   if (/^TESTE[- ]?\d/i.test(String(loc.nome || "").trim())) return true;
   return false;
 }

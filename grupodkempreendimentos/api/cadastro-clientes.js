@@ -9,6 +9,7 @@ const {
   resolveDeployChannel,
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
+  dropClientesCpfExcluidos,
 } = require("../lib/dk-deploy-channel-api.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
@@ -102,7 +103,7 @@ module.exports = async function handler(req, res) {
       const incoming = Array.isArray(body?.data) ? body.data : [];
       const existingRaw = await redis.get(STORAGE_KEY);
       const existing = parseRedisArray(existingRaw);
-      const merged = mergeClientesCadastro(existing, incoming);
+      const merged = dropClientesCpfExcluidos(mergeClientesCadastro(existing, incoming));
       await redis.set(STORAGE_KEY, JSON.stringify(merged));
       return res.status(200).json({ ok: true, count: merged.length });
     }

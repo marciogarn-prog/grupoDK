@@ -157,7 +157,16 @@ function locacaoNcSetFromPayload(payload) {
   return set;
 }
 
-const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
+  "00000000001",
+  "00000000003",
+  "00000000004",
+  "06523244440",
+  "04292253420",
+  "07534147409",
+  "00445040556",
+  "01303628514",
+]);
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
 const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026122501",
@@ -168,6 +177,7 @@ const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2025010103",
   "2026010101",
   "2026010102",
+  "2026010103",
   "2026010104",
 ]);
 const OFICIAL_LOCACOES_NC_SEEDS = new Set([
@@ -176,6 +186,7 @@ const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2025010103",
   "2026010101",
   "2026010102",
+  "2026010103",
   "2026010104",
 ]);
 /** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
@@ -185,6 +196,7 @@ const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
   "AAA0A02",
   "BBB0B00",
   "CCC0C00",
+  "DDD0D000",
 ]);
 
 function isLocacaoNcOficialmenteBloqueado(r) {

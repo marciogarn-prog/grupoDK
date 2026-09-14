@@ -53,6 +53,31 @@ function resolveDeployChannel() {
   return "default";
 }
 
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
+  "00000000001",
+  "00000000003",
+  "00000000004",
+  "06523244440",
+  "04292253420",
+  "07534147409",
+  "00445040556",
+  "01303628514",
+]);
+
+function dropClientesCpfExcluidos(list) {
+  return (Array.isArray(list) ? list : []).filter((c) => {
+    const d = onlyDigits(c?.cpf).slice(0, 11);
+    return d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
+  });
+}
+
+function dropLocacoesCpfExcluidos(list) {
+  return (Array.isArray(list) ? list : []).filter((l) => {
+    const d = onlyDigits(l?.cpf).slice(0, 11);
+    return !d || !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
+  });
+}
+
 async function fetchPortalCadastrosFromRedis(redis) {
   const [rawSnap, rawClientes, rawLocs] = await Promise.all([
     redis.get(REDIS_SNAPSHOT_KEY),
@@ -65,9 +90,13 @@ async function fetchPortalCadastrosFromRedis(redis) {
     ? payload.dk_portal_clientes_cadastro
     : [];
   const legacyCli = parseRedisArray(rawClientes);
-  const clientes = mergeClientesCadastro(mergeClientesCadastro(snapCli, snapPortal), legacyCli);
+  const clientes = dropClientesCpfExcluidos(
+    mergeClientesCadastro(mergeClientesCadastro(snapCli, snapPortal), legacyCli)
+  );
   const snapLocs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
-  const locs = snapLocs.length ? mergeLocacoesCadastro(snapLocs, parseRedisArray(rawLocs)) : parseRedisArray(rawLocs);
+  const locs = dropLocacoesCpfExcluidos(
+    snapLocs.length ? mergeLocacoesCadastro(snapLocs, parseRedisArray(rawLocs)) : parseRedisArray(rawLocs)
+  );
   return {
     clientes,
     locs,
@@ -101,4 +130,7 @@ module.exports = {
   resolveDeployChannel,
   fetchPortalCadastrosFromRedis,
   matchClienteProtocoloGate,
+  dropClientesCpfExcluidos,
+  dropLocacoesCpfExcluidos,
+  OFICIAL_CLIENTES_CPF_EXCLUIDOS,
 };

@@ -824,7 +824,7 @@ async function runSuite() {
         const nc = String(l?.numeroContrato || "").replace(/\D/g, "");
         if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
         if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
-        if (["2025010101", "2025010102", "2025010103", "2026010101", "2026010102", "2026010104"].includes(nc)) {
+        if (["2025010101", "2025010102", "2025010103", "2026010101", "2026010102", "2026010103", "2026010104"].includes(nc)) {
           return true;
         }
         if (l?.__dkSeedTesteReserva) return true;

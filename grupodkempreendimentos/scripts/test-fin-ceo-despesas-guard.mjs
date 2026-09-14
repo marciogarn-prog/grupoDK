@@ -40,5 +40,16 @@ if (clientes.length !== 0) {
   console.error("FALHOU: filtro de clientes demo deveria bloquear CPF 00000000001");
   process.exit(1);
 }
+const lixo = filter("dk_clientes_cadastro", [
+  { cpf: "06523244440", nome: "MARCUS", codigo: "0628" },
+  { cpf: "04292253420", nome: "ANA PAULA", codigo: "0629" },
+  { cpf: "07534147409", nome: "Cliente demo", codigo: "7409" },
+  { cpf: "00445040556", nome: "NILZA", codigo: "7411" },
+  { cpf: "01503608514", nome: "OTAVIO REAL", codigo: "0315" },
+]);
+if (lixo.length !== 1 || lixo[0].codigo !== "0315") {
+  console.error("FALHOU: lixo fora de ordem deveria sair; Otávio 0315 permanece", lixo);
+  process.exit(1);
+}
 
 console.log("OK: FINANCEIRO CEO despesas passam pelo guard; cadastros operacionais continuam filtrados.");

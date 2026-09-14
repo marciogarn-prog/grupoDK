@@ -120,8 +120,17 @@
     return String(record?.cpf || "").replace(/\D/g, "");
   }
 
-  /** Placeholders 000.000.000-01 / -03 / -04 (TESTE demo) — não entram no oficial. */
-  const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
+  /** Placeholders 000.000.000-01 / -03 / -04 (TESTE demo) e cadastros lixo fora de ordem. */
+  const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
+    "00000000001",
+    "00000000003",
+    "00000000004",
+    "06523244440",
+    "04292253420",
+    "07534147409",
+    "00445040556",
+    "01303628514",
+  ]);
   /**
    * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
    * e não voltam pelo merge. Remap aponta para o protocolo canónico da mesma locação.
@@ -135,6 +144,7 @@
     "2025010103",
     "2026010101",
     "2026010102",
+    "2026010103",
     "2026010104",
   ]);
   const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
@@ -143,6 +153,7 @@
     "AAA0A02",
     "BBB0B00",
     "CCC0C00",
+    "DDD0D000",
   ]);
   const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({
     "2026122501": "2025122201",
@@ -153,6 +164,7 @@
     "2025010103",
     "2026010101",
     "2026010102",
+    "2026010103",
     "2026010104",
   ]);
 

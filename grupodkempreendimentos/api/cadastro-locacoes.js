@@ -5,6 +5,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
+const { dropLocacoesCpfExcluidos } = require("../lib/dk-deploy-channel-api.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 
 const STORAGE_KEY = "dk:portal:locacoes_cadastro:v1";
@@ -45,7 +46,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const raw = await redis.get(STORAGE_KEY);
-      const data = parseRedisArray(raw);
+      const data = dropLocacoesCpfExcluidos(parseRedisArray(raw));
       return res.status(200).json({ ok: true, data });
     }
 
@@ -65,7 +66,7 @@ module.exports = async function handler(req, res) {
       const incoming = Array.isArray(body?.data) ? body.data : [];
       const existingRaw = await redis.get(STORAGE_KEY);
       const existing = parseRedisArray(existingRaw);
-      const merged = mergeLocacoesCadastro(existing, incoming);
+      const merged = dropLocacoesCpfExcluidos(mergeLocacoesCadastro(existing, incoming));
       await redis.set(STORAGE_KEY, JSON.stringify(merged));
       return res.status(200).json({ ok: true, count: merged.length });
     }
