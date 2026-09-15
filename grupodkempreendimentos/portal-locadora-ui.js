@@ -11954,16 +11954,156 @@
   }
 
   const PORTAL_REL_LOCACAO_BLOCOS = [
-    { id: "DK MINHA MOTO", label: "DK MINHA MOTO" },
-    { id: "DK MEU TRANSPORTE-CARRO", label: "DK MEU TRANSPORTE (CARRO)" },
-    { id: "DK MEU TRANSPORTE-MOTO", label: "DK MEU TRANSPORTE (MOTO)" },
+    {
+      id: "ativo-mt-carro",
+      plano: "DK MEU TRANSPORTE-CARRO",
+      ativo: true,
+      grupo: "ATIVOS",
+      label: "1 — DK MEU TRANSPORTE (CARRO)",
+    },
+    {
+      id: "ativo-mt-moto",
+      plano: "DK MEU TRANSPORTE-MOTO",
+      ativo: true,
+      grupo: "ATIVOS",
+      label: "2 — DK MEU TRANSPORTE (MOTO)",
+    },
+    {
+      id: "ativo-minha-moto",
+      plano: "DK MINHA MOTO",
+      ativo: true,
+      grupo: "ATIVOS",
+      label: "3 — DK MINHA MOTO",
+    },
+    {
+      id: "fim-mt-carro",
+      plano: "DK MEU TRANSPORTE-CARRO",
+      ativo: false,
+      grupo: "FINALIZADOS",
+      label: "4 — DK MEU TRANSPORTE (CARRO)",
+    },
+    {
+      id: "fim-mt-moto",
+      plano: "DK MEU TRANSPORTE-MOTO",
+      ativo: false,
+      grupo: "FINALIZADOS",
+      label: "5 — DK MEU TRANSPORTE (MOTO)",
+    },
+    {
+      id: "fim-minha-moto",
+      plano: "DK MINHA MOTO",
+      ativo: false,
+      grupo: "FINALIZADOS",
+      label: "6 — DK MINHA MOTO",
+    },
   ];
 
   function portalRelatorioLocacaoClassificarBloco(loc) {
+    const calc = window.__DK_finCeoReceitaCalc;
+    if (calc && typeof calc.classificarPlanoAtivoCeo === "function") {
+      return calc.classificarPlanoAtivoCeo(loc);
+    }
     if (typeof portalRelPagAggClassificarPlano === "function") {
       return portalRelPagAggClassificarPlano(loc);
     }
     return "DK MEU TRANSPORTE-MOTO";
+  }
+
+  function portalRelatorioLocacaoSplitValores(loc) {
+    const calc = window.__DK_finCeoReceitaCalc;
+    if (calc && typeof calc.valoresContratoSplitCeo === "function") {
+      return calc.valoresContratoSplitCeo(loc);
+    }
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const n = Number(
+              String(v ?? "")
+                .replace(/[R$\s]/g, "")
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+            return Number.isFinite(n) ? n : 0;
+          };
+    const inv = Math.max(0, Number(parseCur(loc?.valorInvestimento)) || 0);
+    let locacao = Math.max(0, Number(parseCur(loc?.valorLocacao)) || 0);
+    const sem = Math.max(0, Number(parseCur(loc?.valorSemanal || loc?.valorParcela)) || 0);
+    if (locacao <= 0 && sem > 0) locacao = Math.max(0, sem - inv);
+    const total = locacao + inv > 0 ? locacao + inv : sem;
+    return { locacao, investimento: inv, total };
+  }
+
+  function portalRelatorioResumoPlanosAtivos(locs) {
+    const calc = window.__DK_finCeoReceitaCalc;
+    if (calc && typeof calc.resumoPlanosAtivosCeo === "function") {
+      return calc.resumoPlanosAtivosCeo(locs);
+    }
+    const vazio = () => ({ qtd: 0, semanal: 0 });
+    const out = {
+      qtd: 0,
+      locacao: 0,
+      investimento: 0,
+      total: 0,
+      "DK MEU TRANSPORTE-MOTO": vazio(),
+      "DK MEU TRANSPORTE-CARRO": vazio(),
+      "DK MINHA MOTO": vazio(),
+    };
+    (locs || []).forEach((loc) => {
+      if (!loc || typeof loc !== "object") return;
+      if (typeof isLocacaoFantasmaCadastro === "function" && isLocacaoFantasmaCadastro(loc)) return;
+      if (String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "") === "2099010199") return;
+      if (!isPortalLocacaoAtiva(loc)) return;
+      const split = portalRelatorioLocacaoSplitValores(loc);
+      const plano = portalRelatorioLocacaoClassificarBloco(loc);
+      out.qtd += 1;
+      out.locacao += split.locacao;
+      out.investimento += split.investimento;
+      out.total += split.total;
+      if (out[plano]) {
+        out[plano].qtd += 1;
+        out[plano].semanal += split.total;
+      }
+    });
+    return out;
+  }
+
+  function portalRelatorioPlanosCeoAsideHtml(resumo) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const fmt = portalRelatorioLocacaoFmtBrl;
+    const linha = (bloco) => `${(bloco && bloco.qtd) || 0} · ${fmt((bloco && bloco.semanal) || 0)}`;
+    return `<aside class="portal-rel-planos-ceo">
+      <h2>PLANOS SEMANAIS ATIVOS</h2>
+      <div class="portal-rel-planos-ceo__totais">
+        <div><span class="portal-rel-planos-ceo__lab">LOCAÇÃO</span><strong>${eh(fmt(resumo.locacao))}</strong></div>
+        <div><span class="portal-rel-planos-ceo__lab">INVESTIMENTO</span><strong class="portal-rel-planos-ceo__inv">${eh(
+          fmt(resumo.investimento)
+        )}</strong></div>
+        <div><span class="portal-rel-planos-ceo__lab">TOTAL SEMANAL</span><strong class="portal-rel-planos-ceo__tot">${eh(
+          fmt(resumo.total)
+        )}</strong></div>
+      </div>
+      <ul>
+        <li><span>DK Meu Transporte moto</span><strong>${eh(linha(resumo["DK MEU TRANSPORTE-MOTO"]))}</strong></li>
+        <li><span>DK Meu Transporte carro</span><strong>${eh(linha(resumo["DK MEU TRANSPORTE-CARRO"]))}</strong></li>
+        <li><span>DK Minha Moto</span><strong>${eh(linha(resumo["DK MINHA MOTO"]))}</strong></li>
+      </ul>
+      <span class="portal-rel-planos-ceo__hint">contratos ativos · valor semanal contratado</span>
+    </aside>`;
+  }
+
+  /** Dentro de cada bloco: data de início do contrato; mais recentes no topo (↑). Empate: protocolo. */
+  function sortPortalLocacoesPorInicioContrato(records, ordem) {
+    const dir = ordem === "asc" ? 1 : -1;
+    return (records || []).slice().sort((a, b) => {
+      const da = parsePortalLocacaoDataMs(a?.inicio);
+      const db = parsePortalLocacaoDataMs(b?.inicio);
+      if (!da && !db) return dir * comparePortalProtocoloAsc(a, b);
+      if (!da) return 1;
+      if (!db) return -1;
+      if (da !== db) return dir * (da - db);
+      return dir * comparePortalProtocoloAsc(a, b);
+    });
   }
 
   /**
@@ -12102,9 +12242,9 @@
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
     } else if (context.fileSlug === "locacoes" && context.stats) {
       const fmt = portalRelatorioLocacaoFmtBrl;
-      resumo.textContent = `${context.stats.total} locação(ões) · ${context.stats.ativos} ativa(s) · Valor semanal (ativos) ${fmt(
-        context.stats.valorAtivos
-      )}. Exportar em PDF ou Excel.`;
+      resumo.textContent = `${context.stats.total} locação(ões) em 6 agrupamentos · ${
+        context.stats.ativos
+      } ativa(s) · Valor semanal (ativos) ${fmt(context.stats.valorAtivos)}. Exportar em PDF ou Excel.`;
     } else if (context.fileSlug === "veiculos" && context.stats) {
       const tot = (context.stats.inativos || 0) + (context.stats.ativos || 0);
       resumo.textContent = tot
@@ -12210,6 +12350,7 @@
     let tablesHtml;
     if (blocks && blocks.length) {
       let saldoOff = 0;
+      let lastGrupo = "";
       tablesHtml = blocks
         .map((block) => {
           const blockRows = Array.isArray(block.rows) ? block.rows : [];
@@ -12219,7 +12360,15 @@
             blockRows.length > 0
               ? `<table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${body}</tbody></table>`
               : "";
-          return `<section class="portal-rel-bloco">
+          const grupo = String(block.grupo || "").trim();
+          let grupoHtml = "";
+          if (grupo && grupo !== lastGrupo) {
+            lastGrupo = grupo;
+            const grupoCls = block.ativo ? "portal-rel-grupo--ativos" : "portal-rel-grupo--finalizados";
+            grupoHtml = `<h2 class="portal-rel-grupo ${grupoCls}">${eh(grupo)}</h2>`;
+          }
+          const blocoCls = block.ativo === false ? "portal-rel-bloco--finalizados" : block.ativo ? "portal-rel-bloco--ativos" : "";
+          return `${grupoHtml}<section class="portal-rel-bloco${blocoCls ? ` ${blocoCls}` : ""}">
         <h2>${eh(String(block.title || ""))}</h2>
         ${table}
         <p class="portal-rel-bloco-total">${eh(String(block.footer || ""))}</p>
@@ -12245,9 +12394,31 @@
       .portal-rel-saldo-pos{color:#1565c0;font-weight:700}
       .portal-rel-saldo-neg{color:#c62828;font-weight:700}
       .portal-rel-valor{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+      .portal-rel-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem}
+      .portal-rel-topo__esq{flex:1 1 auto;min-width:0}
+      .portal-rel-planos-ceo{flex:0 0 22rem;max-width:24rem;border:1px solid #38bdf8;background:linear-gradient(145deg,#0c4a6e,#0f172a);color:#e0f2fe;padding:0.55rem 0.7rem;border-radius:8px;font-size:11px}
+      .portal-rel-planos-ceo h2{margin:0 0 0.4rem;font-size:11px;letter-spacing:0.04em;text-transform:uppercase;color:#7dd3fc;background:none;padding:0}
+      .portal-rel-planos-ceo__totais{display:grid;grid-template-columns:repeat(3,minmax(4rem,1fr));gap:0.35rem 0.5rem;margin:0 0 0.4rem}
+      .portal-rel-planos-ceo__lab{display:block;font-size:8px;letter-spacing:0.04em;opacity:0.85}
+      .portal-rel-planos-ceo strong{display:block;font-size:12px;line-height:1.2;color:#fff;font-variant-numeric:tabular-nums}
+      .portal-rel-planos-ceo__inv{color:#93c5fd!important}
+      .portal-rel-planos-ceo__tot{color:#fde68a!important}
+      .portal-rel-planos-ceo ul{list-style:none;margin:0;padding:0}
+      .portal-rel-planos-ceo li{display:flex;justify-content:space-between;gap:0.5rem;margin:0.18rem 0;align-items:baseline}
+      .portal-rel-planos-ceo li span{color:#cbd5e1}
+      .portal-rel-planos-ceo li strong{font-size:11px;color:#86efac;white-space:nowrap}
+      .portal-rel-planos-ceo li:nth-child(2) strong{color:#93c5fd}
+      .portal-rel-planos-ceo li:nth-child(3) strong{color:#7dd3fc}
+      .portal-rel-planos-ceo__hint{display:block;margin-top:0.35rem;opacity:0.7;font-size:9px}
+      .portal-rel-grupo{font-size:1rem;margin:1rem 0 0.35rem;padding:0.4rem 0.55rem;letter-spacing:0.06em}
+      .portal-rel-grupo--ativos{background:#166534;color:#fff}
+      .portal-rel-grupo--finalizados{background:#a16207;color:#fff}
       .portal-rel-bloco{margin:0.85rem 0 1.15rem}
       .portal-rel-bloco h2{font-size:0.95rem;margin:0 0 0.35rem;background:#1a365d;color:#fff;padding:0.35rem 0.55rem}
+      .portal-rel-bloco--ativos h2{background:#1a365d}
+      .portal-rel-bloco--finalizados h2{background:#854d0e}
       .portal-rel-bloco-total{margin:0.35rem 0 0;padding:0.4rem 0.55rem;background:#eef2f7;border:1px solid #333;font-weight:700;font-size:11px}
+      .portal-rel-planos-ceo,.portal-rel-grupo,.portal-rel-bloco h2,.portal-rel-status-ativo,.portal-rel-status-inativo{-webkit-print-color-adjust:exact;print-color-adjust:exact}
       .portal-rel-resumo{margin:0.65rem 0 0.85rem;padding:0.55rem 0.7rem;border:1px solid #bbb;background:#f7f7f7;font-size:11px;line-height:1.45}
       .portal-rel-resumo h2{font-size:12px;margin:0 0 0.35rem;text-transform:uppercase;letter-spacing:0.03em}
       .portal-rel-resumo ul{margin:0.2rem 0 0.35rem 1.1rem;padding:0}
@@ -12261,9 +12432,17 @@
       .portal-rel-resumo__dia{margin:0;white-space:nowrap}
       ${compact ? "@media print{@page{size:landscape;margin:8mm}body{margin:0.5rem}}" : ""}
     </style></head><body>
-      <h1>${eh(title)}</h1>
-      ${extraMeta}
-      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosSuffix}</p>
+      ${
+        reportOptions.headerAsideHtml
+          ? `<div class="portal-rel-topo"><div class="portal-rel-topo__esq"><h1>${eh(
+              title
+            )}</h1>${extraMeta}<p class="meta">Emitido em ${eh(quando)} · ${eh(
+              String(rows.length)
+            )} registro(s)${metaAtivosSuffix}</p></div>${reportOptions.headerAsideHtml}</div>`
+          : `<h1>${eh(title)}</h1>${extraMeta}<p class="meta">Emitido em ${eh(quando)} · ${eh(
+              String(rows.length)
+            )} registro(s)${metaAtivosSuffix}</p>`
+      }
       ${reportOptions.summaryHtml || ""}
       ${tablesHtml}
     </body></html>`;
@@ -12439,6 +12618,7 @@
       compactTable: ctxView.compactTable,
       summaryHtml: ctxView.summaryHtml,
       blocks: ctxView.blocks,
+      headerAsideHtml: ctxView.headerAsideHtml,
     };
     if (slugsTabela.has(slug) || (!context.buildPdfHtml && temTabela)) {
       html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, htmlOpts);
@@ -13462,67 +13642,61 @@
       "Status",
     ];
     const statusIdx = 11;
-    const statusFn =
-      typeof isPortalRelatorioStatusCellAtivo === "function" ? isPortalRelatorioStatusCellAtivo : null;
     const buckets = Object.fromEntries(PORTAL_REL_LOCACAO_BLOCOS.map((b) => [b.id, []]));
     rowsRaw.forEach((l) => {
-      const id = portalRelatorioLocacaoClassificarBloco(l);
-      (buckets[id] || buckets["DK MEU TRANSPORTE-MOTO"]).push(l);
+      const plano = portalRelatorioLocacaoClassificarBloco(l);
+      const ativa = isPortalLocacaoAtiva(l);
+      const meta = PORTAL_REL_LOCACAO_BLOCOS.find((b) => b.plano === plano && b.ativo === ativa);
+      const id = meta?.id || (ativa ? "ativo-mt-moto" : "fim-mt-moto");
+      (buckets[id] || buckets["ativo-mt-moto"]).push(l);
     });
     const fmt = portalRelatorioLocacaoFmtBrl;
+    const ordemInicio = portalRelatorioOrdemCadastro === "asc" ? "asc" : "desc";
     const blocks = PORTAL_REL_LOCACAO_BLOCOS.map((meta) => {
-      const locs = sortPortalLocacoesPorProtocoloAsc(buckets[meta.id] || []);
-      const mapped = locs.map((l) => {
-        const row = rowPortalRelatorioLocacao(l).slice(0, 12);
-        const v = portalRelatorioLocacaoValorSemanalNum(l);
-        const ativo = Boolean(statusFn && statusFn(String(row[statusIdx] || "")));
-        return { row, v, ativo };
-      });
+      const locs = sortPortalLocacoesPorInicioContrato(buckets[meta.id] || [], ordemInicio);
       let valor = 0;
-      let valorAtivos = 0;
-      let qtdAtivos = 0;
-      mapped.forEach((m) => {
-        valor += m.v;
-        if (m.ativo) {
-          qtdAtivos += 1;
-          valorAtivos += m.v;
-        }
+      const dataRows = locs.map((l) => {
+        valor += portalRelatorioLocacaoValorSemanalNum(l);
+        return rowPortalRelatorioLocacao(l).slice(0, 12);
       });
-      const dataRows = sortPortalRelatorioRowsCadastro(
-        mapped.map((m) => m.row),
-        headers,
-        portalRelatorioOrdemCadastro
-      );
       const qtd = dataRows.length;
       return {
         id: meta.id,
+        grupo: meta.grupo,
+        ativo: meta.ativo,
         title: meta.label,
         rows: dataRows,
         qtd,
         valor,
-        qtdAtivos,
-        valorAtivos,
-        footer: `Quantidade: ${qtd} · Valor semanal: ${fmt(valor)}   ·   Ativos: ${qtdAtivos} · ${fmt(valorAtivos)}`,
+        footer: `Quantidade: ${qtd} · Valor semanal: ${fmt(valor)}`,
       };
     });
     const rows = blocks.flatMap((b) => b.rows);
+    const ceoResumo = portalRelatorioResumoPlanosAtivos(rowsRaw);
     const stats = {
       total: rows.length,
-      ativos: blocks.reduce((n, b) => n + b.qtdAtivos, 0),
+      ativos: ceoResumo.qtd,
       valorTodos: blocks.reduce((n, b) => n + b.valor, 0),
-      valorAtivos: blocks.reduce((n, b) => n + b.valorAtivos, 0),
+      valorAtivos: ceoResumo.total,
     };
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     const buildExcelHtml = () => {
       const head = headers.map((h) => `<th>${eh(h)}</th>`).join("");
       let inner = "";
+      let lastGrupo = "";
       blocks.forEach((block) => {
-        inner += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:#1a365d;color:#fff">${eh(
-          block.title
-        )}</td></tr>`;
+        if (block.grupo && block.grupo !== lastGrupo) {
+          lastGrupo = block.grupo;
+          inner += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:${
+            block.ativo ? "#166534" : "#a16207"
+          };color:#fff">${eh(block.grupo)}</td></tr>`;
+        }
+        inner += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:${
+          block.ativo ? "#1a365d" : "#854d0e"
+        };color:#fff">${eh(block.title)}</td></tr>`;
         inner += `<tr>${head}</tr>`;
         if (!block.rows.length) {
-          inner += `<tr><td colspan="${headers.length}">Nenhum contrato neste plano.</td></tr>`;
+          inner += `<tr><td colspan="${headers.length}">Nenhum contrato neste agrupamento.</td></tr>`;
         } else {
           block.rows.forEach((row) => {
             inner += `<tr>${row.map((c) => `<td>${eh(c)}</td>`).join("")}</tr>`;
@@ -13533,9 +13707,9 @@
         )}</td></tr>`;
         inner += `<tr><td colspan="${headers.length}"></td></tr>`;
       });
-      inner += `<tr><td colspan="${headers.length}" style="font-weight:bold">Total geral: ${stats.total} · Ativos: ${
-        stats.ativos
-      } · Valor semanal (todos) ${fmt(stats.valorTodos)} · Valor semanal (ativos) ${fmt(stats.valorAtivos)}</td></tr>`;
+      inner += `<tr><td colspan="${headers.length}" style="font-weight:bold">PLANOS SEMANAIS ATIVOS · Locação ${fmt(
+        ceoResumo.locacao
+      )} · Investimento ${fmt(ceoResumo.investimento)} · Total semanal ${fmt(ceoResumo.total)}</td></tr>`;
       return `<table border="1">${inner}</table>`;
     };
     return {
@@ -13548,9 +13722,7 @@
       statusColumnIndex: statusIdx,
       preserveRowOrder: true,
       stats,
-      headerSubtitleLines: [
-        `Valor semanal (todos) ${fmt(stats.valorTodos)} · Valor semanal (ativos) ${fmt(stats.valorAtivos)}`,
-      ],
+      headerAsideHtml: portalRelatorioPlanosCeoAsideHtml(ceoResumo),
       buildExcelHtml,
     };
   }
@@ -14919,6 +15091,8 @@
 
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    portalRelatorioOrdemCadastro = "desc";
+    syncPortalRelatorioOrdemBotoes();
     openPortalRelatorioModal(getPortalRelatorioLocacaoContext());
   });
 
