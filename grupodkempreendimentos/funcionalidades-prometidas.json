@@ -2800,7 +2800,7 @@
     },
     {
       "id": "cpf-acesso-unico-maquina",
-      "descricao": "Cada CPF da equipa tem um único acesso: se o operador entra na máquina 02 estando logado na 01, a 01 é desconectada. No login da 02 aparece confirmação: o usuário CPF xxx.xxx.xxx-xx será desconectado no IP yyyyy caso o login seja confirmado.",
+      "descricao": "Cada CPF de operador tem um único acesso: se entra na máquina 02 estando logado na 01, a 01 é desconectada. No login da 02 aparece confirmação: o usuário CPF xxx.xxx.xxx-xx será desconectado no IP yyyyy caso o login seja confirmado. O Administrador CEO (03037897430) pode permanecer em mais de um computador.",
       "ficheiros": {
         "lib/dk-portal-auth.cjs": [
           "session_replaced",

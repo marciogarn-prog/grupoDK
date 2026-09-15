@@ -321,10 +321,11 @@ async function attachLiveSession(gate, req) {
       }
       const rec = await readSessaoAtiva(cpf);
       const tokenSid = String(gate.sid || "").trim();
-      if (rec.sid && tokenSid && rec.sid !== tokenSid) {
+      const isCeoTitular = cpf === TITULAR_CEO_CPF || String(gate.role || "").trim() === "owner";
+      if (!isCeoTitular && rec.sid && tokenSid && rec.sid !== tokenSid) {
         return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
       }
-      if (rec.sid && !tokenSid) {
+      if (!isCeoTitular && rec.sid && !tokenSid) {
         return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
       }
       if (requestMarksUserActive(req)) {

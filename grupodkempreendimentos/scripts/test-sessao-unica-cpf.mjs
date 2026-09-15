@@ -53,6 +53,11 @@ const sync = fs.readFileSync(path.join(ROOT, "portal-supabase-sync.js"), "utf8")
 const loginApi = fs.readFileSync(path.join(ROOT, "api/dk-portal-auth.js"), "utf8");
 
 record("API recusa segundo login sem confirmar", loginApi.includes("session_em_uso") && loginApi.includes("confirmarUnico"), "");
+record(
+  "CEO titular não é desconectado pelo acesso único",
+  loginApi.includes("TITULAR_CEO_CPF") && loginApi.includes("isCeoTitular"),
+  ""
+);
 record("login mostra confirmação antes de desconectar", ui.includes("askConfirmLoginUnico") && html.includes("portalLoginUnicoModal"), "");
 record("máquina antiga encerra sessão substituída", sync.includes("session_replaced") && sync.includes("Este CPF entrou noutro computador"), "");
 record("device id local para o mesmo PC", apiJs.includes("dk_portal_device_id_v1"), "");

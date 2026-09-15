@@ -46,7 +46,8 @@ async function emitirSessaoEquipa(req, res, cpf, role, pub, extra) {
   const confirmarUnico =
     body.confirmarUnico === true || body.confirmarUnico === 1 || String(body.confirmarUnico || "") === "true";
   const existing = await readSessaoAtiva(cpf);
-  if (sessaoEstaOcupada(existing, deviceId) && !confirmarUnico) {
+  const isCeoTitular = cpf === TITULAR_CEO_CPF;
+  if (!isCeoTitular && sessaoEstaOcupada(existing, deviceId) && !confirmarUnico) {
     const ip = existing.ip || "desconhecido";
     return res.status(409).json({
       ok: false,

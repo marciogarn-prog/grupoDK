@@ -756,7 +756,13 @@ async function runSuite() {
       const loginCeo = await fetch(`${BASE_URL}api/dk-portal-auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipo: "equipa", cpf: "03037897430", senha: ownerSenha }),
+        body: JSON.stringify({
+          tipo: "equipa",
+          cpf: "03037897430",
+          senha: ownerSenha,
+          confirmarUnico: true,
+          deviceId: "dk-test-portal-producao",
+        }),
       }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
       const tokCeo = String(loginCeo.j?.token || "").trim();
       record("oficial: login CEO para contar clientes na nuvem", Boolean(tokCeo), `status=${loginCeo.status}`);
