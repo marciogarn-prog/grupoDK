@@ -3748,7 +3748,7 @@
     },
     "reserva-patio": {
       title: "Disponíveis — 5.2 Reserva no pátio",
-      lead: "Veículos reserva no pátio. Use «ENVIAR PARA MANUTENÇÃO» na caixinha para ir à Triagem. Também entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
+      lead: "Veículos reserva no pátio. Na caixinha, escolha o destino (Triagem, 5.3, 5.4…). Também entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
     },
     "veiculos-operacionais": {
       title: "Disponíveis — 5.3 Veículos operacionais",
@@ -7661,7 +7661,7 @@
     grid.hidden = false;
     const emptyHints = {
       triagem:
-        "Nenhuma placa em triagem. Envie de «Locados» ou de «Disponíveis → 5.2 — Reserva no pátio» com «ENVIAR PARA MANUTENÇÃO».",
+        "Nenhuma placa em triagem. Envie de «Locados» com «ENVIAR PARA MANUTENÇÃO» ou de «5.2 — Reserva no pátio» pela lista «Escolha o destino» (6 — Triagem).",
       "oficina-propria":
         "Nenhuma placa em oficina própria. Envie da Triagem com «ENVIAR PARA MANUTENÇÃO OFICINA PRÓPRIA».",
       "oficina-terceiros": "Nenhuma placa em oficina de terceiro.",
@@ -7938,7 +7938,7 @@
         "reserva-patio":
           "Nenhuma placa em reserva no pátio. Em «4 — Pronto para alugar», use «ENVIAR PARA 5.2».",
         "veiculos-operacionais":
-          "Nenhum veículo operacional. Em «4 — Pronto para alugar» ou «5.2 — Reserva no pátio», use «ENVIAR PARA 5.3».",
+          "Nenhum veículo operacional. Em «4 — Pronto para alugar» ou «5.2 — Reserva no pátio», envie para 5.3 (lista «Escolha o destino» ou «ENVIAR PARA 5.3»).",
         "veiculos-vendidos":
           "Nenhum veículo vendido. Use «ENVIAR PARA VENDAS» na manutenção ou «ENVIAR PARA 5.4» em 4, 5.2 ou 5.3.",
       };
@@ -7946,7 +7946,7 @@
       if (msg) msg.textContent = "";
       return;
     }
-    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: ENVIAR PARA MANUTENÇÃO (Triagem). */
+    /* 5.1: só informativo. Admin: só a lista «Escolha o destino». Operador: botões de envio. */
     if (sub === "reserva-operacao") {
       grid.innerHTML = rows
         .map((r) => {
@@ -8009,20 +8009,21 @@
       .map((r) => {
         const planoPosManut = sub === "prontos" ? portalPlanoProntosPosManutencao(r.placa, r.record) : "";
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
+        const adminMover = portalHtmlDispAdminMover(r.placa, sub);
         let extraHtml = "";
         if (planoPosManut) {
           extraHtml = `<button type="button" class="btn-primary portal-disp-devolver-btn" data-disp-devolver="${portalEscapeHtml(r.placa)}">DEVOLVER AO CLIENTE</button>`;
-        } else if (moveTargets.length) {
+        } else if (moveTargets.length && !adminMover) {
           extraHtml = moveTargets
             .map((t) => {
               return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
             })
             .join("");
         }
-        if (sub === "reserva-patio") {
+        if (sub === "reserva-patio" && !adminMover) {
           extraHtml += `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-enviar-manut-btn" data-disp-enviar-manut="${portalEscapeHtml(r.placa)}">ENVIAR PARA MANUTENÇÃO</button>`;
         }
-        extraHtml += portalHtmlDispAdminMover(r.placa, sub);
+        extraHtml += adminMover;
         const plateBtnExtraAttrs = planoPosManut
           ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
           : "";
