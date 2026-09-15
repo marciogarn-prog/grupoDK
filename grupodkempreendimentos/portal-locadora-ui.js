@@ -12407,7 +12407,7 @@
       .portal-rel-planos-ceo li{display:flex;justify-content:space-between;gap:0.5rem;margin:0.18rem 0;align-items:baseline}
       .portal-rel-planos-ceo li span{color:#cbd5e1}
       .portal-rel-planos-ceo li strong{font-size:11px;color:#86efac;white-space:nowrap}
-      .portal-rel-planos-ceo li:nth-child(2) strong{color:#93c5fd}
+      .portal-rel-planos-ceo li:nth-child(2) strong{color:#c4a484}
       .portal-rel-planos-ceo li:nth-child(3) strong{color:#7dd3fc}
       .portal-rel-planos-ceo__hint{display:block;margin-top:0.35rem;opacity:0.7;font-size:9px}
       .portal-rel-grupo{font-size:1rem;margin:1rem 0 0.35rem;padding:0.4rem 0.55rem;letter-spacing:0.06em}
