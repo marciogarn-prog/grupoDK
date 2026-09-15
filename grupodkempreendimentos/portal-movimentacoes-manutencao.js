@@ -3,7 +3,7 @@
  */
 (function portalMovimentacoesManutencao() {
   const STORAGE_KEY = "dk_portal_checklist_movimentacoes_v1";
-  const CHECKLIST_ITENS_COUNT = 29;
+  const CHECKLIST_ITENS_COUNT = 30;
 
   const CATEGORIAS = [
     { id: "triagem", label: "6 — Triagem" },
@@ -88,7 +88,10 @@
     const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
     if (estado !== "R") return "";
     const sel = document.getElementById(`portalChecklistObsSelect${n}`);
-    const v = String(sel?.value || "").trim();
+    if (!sel) {
+      return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
+    }
+    const v = String(sel.value || "").trim();
     if (!v) return "";
     if (v === "OUTRO") {
       return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
@@ -578,7 +581,7 @@
       const it = byN.get(n);
       itens.push({
         n,
-        label: labels[n - 1] || `Item ${n}`,
+        label: labels[n - 1] || (n === 30 ? "Item extra (problema livre)" : `Item ${n}`),
         estado: it?.estado === "R" ? "R" : "A",
         obs: String(it?.obs || "").trim(),
       });

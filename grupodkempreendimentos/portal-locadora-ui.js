@@ -4852,6 +4852,28 @@
     "Junta do motor",
   ];
 
+  /** Item extra (espaço ao lado de Pagou): A/R iguais aos 1–29; se R, o operador escreve o problema (sem lista suspensa). */
+  const PORTAL_CHECKLIST_ITEM_LIVRE_N = 30;
+  const PORTAL_CHECKLIST_ITEM_LIVRE_LABEL = "Item extra (problema livre)";
+
+  function portalChecklistItensTotal() {
+    return PORTAL_CHECKLIST_ITENS.length + 1;
+  }
+
+  function portalChecklistItemEhLivre(n) {
+    return Number(n) === PORTAL_CHECKLIST_ITEM_LIVRE_N;
+  }
+
+  function portalChecklistTemItemReprovado() {
+    const total = portalChecklistItensTotal();
+    for (let n = 1; n <= total; n++) {
+      if (document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value === "R") {
+        return true;
+      }
+    }
+    return false;
+  }
+
   let portalChecklistUiBuilt = false;
 
   /** «operacao» = Locados · «manutencao» = Em manutenção (mesma UI). */
@@ -6309,15 +6331,17 @@
         if (r) r.checked = true;
         if (a) a.checked = false;
         const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+        const inp = document.getElementById(`portalChecklistObs${n}`);
         const obs = String(it.obs || "").trim();
         if (sel && obs) {
           const opt = [...sel.options].find((o) => o.value === obs);
           if (opt) sel.value = obs;
           else if (obs) {
             sel.value = "OUTRO";
-            const inp = document.getElementById(`portalChecklistObs${n}`);
             if (inp) inp.value = obs;
           }
+        } else if (inp && obs) {
+          inp.value = obs;
         }
       } else {
         if (a) a.checked = true;
@@ -6325,6 +6349,7 @@
       }
       portalSyncChecklistObsUi(n);
     });
+    portalSyncChecklistObsUi(PORTAL_CHECKLIST_ITEM_LIVRE_N);
     portalSetChecklistEntradaTriagemCongelada(true);
     portalUpdateProximaTrocaKm();
     return true;
@@ -6333,7 +6358,7 @@
   function portalClearChecklistInspection() {
     portalStopChecklistRelogio();
     portalSetChecklistEntradaTriagemCongelada(false);
-    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
+    for (let n = 1; n <= portalChecklistItensTotal(); n++) {
       const a = document.querySelector(`input[name="portalChecklistItem${n}"][value="A"]`);
       const r = document.querySelector(`input[name="portalChecklistItem${n}"][value="R"]`);
       if (a) a.checked = true;
@@ -6370,13 +6395,24 @@
     portalRefreshChecklistOdometroUltimo(portalGetPlacaChecklistAtual());
   }
 
-  /** Obs. do item: só com R; lista SUBSTITUIR/REGULAR/OUTRO; OUTRO libera digitação. */
+  /** Obs. do item: só com R; lista SUBSTITUIR/REGULAR/OUTRO; OUTRO libera digitação. Item extra: caixa amarela livre. */
   function portalSyncChecklistObsUi(n) {
     const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
+    const isR = estado === "R";
+    if (portalChecklistItemEhLivre(n)) {
+      const inp = document.getElementById(`portalChecklistObs${n}`);
+      const wrap = document.getElementById("portalChecklistItemLivreObsWrap");
+      wrap?.classList.toggle("portal-checklist-item-livre-obs--aberto", isR);
+      if (inp) {
+        inp.readOnly = !isR;
+        inp.placeholder = isR ? "Escreva o problema…" : "";
+        if (!isR) inp.value = "";
+      }
+      return;
+    }
     const sel = document.getElementById(`portalChecklistObsSelect${n}`);
     const inp = document.getElementById(`portalChecklistObs${n}`);
     if (!sel || !inp) return;
-    const isR = estado === "R";
     sel.classList.toggle("hidden", !isR);
     sel.hidden = !isR;
     if (!isR) {
@@ -6406,6 +6442,9 @@
   function portalGetChecklistObsValor(n) {
     const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
     if (estado !== "R") return "";
+    if (portalChecklistItemEhLivre(n)) {
+      return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
+    }
     const sel = document.getElementById(`portalChecklistObsSelect${n}`);
     const v = String(sel?.value || "").trim();
     if (!v) return "";
@@ -7559,6 +7598,13 @@
   function portalLiberarManutencaoParaDisponivel(categoriaDispRaw) {
     const placaRaw = portalGetPlacaChecklistAtual();
     if (!placaRaw) return { ok: false, message: "Placa em falta." };
+    if (portalChecklistTemItemReprovado()) {
+      return {
+        ok: false,
+        message:
+          "A placa só fica disponível para locação se nenhum item estiver em R. Corrija os itens reprovados (incluindo o item extra) antes de enviar para 4 / 5.2.",
+      };
+    }
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro indisponível neste ambiente." };
     }
@@ -8273,21 +8319,32 @@
       }
     }
 
-    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
+    for (let n = 1; n <= portalChecklistItensTotal(); n++) {
       if (!document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)) {
-        req.push(`itens 1–29 (falta item ${n}: A ou R)`);
+        req.push(
+          portalChecklistItemEhLivre(n)
+            ? "item extra (A ou R)"
+            : `itens 1–29 (falta item ${n}: A ou R)`
+        );
         break;
       }
       const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value;
       if (estado === "R") {
-        const sel = String(document.getElementById(`portalChecklistObsSelect${n}`)?.value || "").trim();
-        if (!sel) {
-          req.push(`obs. do item ${n} (SUBSTITUIR / REGULAR / OUTRO)`);
-          break;
-        }
-        if (sel === "OUTRO" && !String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim()) {
-          req.push(`obs. do item ${n} (digite o detalhe de OUTRO)`);
-          break;
+        if (portalChecklistItemEhLivre(n)) {
+          if (!String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim()) {
+            req.push("item extra: descreva o problema na caixa amarela");
+            break;
+          }
+        } else {
+          const sel = String(document.getElementById(`portalChecklistObsSelect${n}`)?.value || "").trim();
+          if (!sel) {
+            req.push(`obs. do item ${n} (SUBSTITUIR / REGULAR / OUTRO)`);
+            break;
+          }
+          if (sel === "OUTRO" && !String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim()) {
+            req.push(`obs. do item ${n} (digite o detalhe de OUTRO)`);
+            break;
+          }
         }
       }
     }
@@ -8297,13 +8354,7 @@
 
     const formOk = req.length === 0;
     const printOk = formOk;
-    let temItemR = false;
-    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
-      if (document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value === "R") {
-        temItemR = true;
-        break;
-      }
-    }
+    const temItemR = portalChecklistTemItemReprovado();
     const precisaManutencao = portalChecklistOleoSim() || temItemR;
     /* Triagem: só envia à oficina se houver troca de óleo ou algum item em R. */
     const enviarOficinaOk = isTriagem ? formOk && precisaManutencao : formOk;
@@ -8318,8 +8369,9 @@
         hint.textContent =
           "Há serviço necessário (troca de óleo e/ou item em R). Pode imprimir, guardar PDF ou enviar para 7 — Oficina própria.";
       } else if (portalChecklistIsOficinaPropriaMode()) {
-        hint.textContent =
-          "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
+        hint.textContent = temItemR
+          ? "Ainda há item em R. Corrija (tudo em A) antes de enviar para 4 — Pronto para alugar. Pode encaminhar para 8, 9 ou 10 se precisar."
+          : "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
       } else if (portalChecklistIsEtapaExternaOficina()) {
         hint.textContent =
           "Formulário completo. Pode imprimir, guardar PDF ou voltar para 7 — Oficina própria.";
@@ -8348,7 +8400,8 @@
         ? btn.getAttribute("data-manut-move-dest")
         : btn.getAttribute("data-manut-move-cat");
       const val = portalValidarTransicaoManutencao(portalManutEmManutSubAtivo, alvo || "");
-      btn.disabled = !(val.ok && formOk);
+      const destDisp = alvo === "prontos" || alvo === "reserva-patio";
+      btn.disabled = !(val.ok && formOk && (!destDisp || !temItemR));
     });
     return formOk;
   }
@@ -8480,6 +8533,14 @@
         document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
       const obs = portalGetChecklistObsValor(n);
       return { n, label, estado, obs };
+    });
+    itens.push({
+      n: PORTAL_CHECKLIST_ITEM_LIVRE_N,
+      label: PORTAL_CHECKLIST_ITEM_LIVRE_LABEL,
+      estado:
+        document.querySelector(`input[name="portalChecklistItem${PORTAL_CHECKLIST_ITEM_LIVRE_N}"]:checked`)
+          ?.value || "",
+      obs: portalGetChecklistObsValor(PORTAL_CHECKLIST_ITEM_LIVRE_N),
     });
 
     const oleo = document.querySelector('input[name="portalChecklistOleo"]:checked')?.value || "";
@@ -9014,6 +9075,17 @@
               <label><input type="radio" name="portalChecklistPagou" value="NA"> N/A</label>
             </div>
           </div>
+          <div class="portal-checklist-toggle-field portal-checklist-item-livre" id="portalChecklistItemLivreWrap">
+            <span>Item extra</span>
+            <div class="portal-checklist-item-livre__ar" role="group" aria-label="Item extra: A aprovado ou R reprovado">
+              <label class="portal-checklist-item-livre__opt"><input type="radio" name="portalChecklistItem30" value="A" autocomplete="off" checked> A</label>
+              <label class="portal-checklist-item-livre__opt"><input type="radio" name="portalChecklistItem30" value="R" autocomplete="off"> R</label>
+            </div>
+          </div>
+          <label class="portal-checklist-item-livre-obs" id="portalChecklistItemLivreObsWrap" for="portalChecklistObs30">
+            <span>Problema (se R)</span>
+            <input type="text" id="portalChecklistObs30" class="portal-checklist-obs-input portal-checklist-obs-input--livre" maxlength="160" autocomplete="off" placeholder="" readonly>
+          </label>
         </div>
         <div class="portal-checklist-inspection-wrap">
         <table class="portal-checklist-inspection" aria-label="Itens de inspeção">
@@ -9059,6 +9131,7 @@
 
     portalPopulateColaboradoresChecklistSelects();
     portalBindInnerChecklistEvents();
+    portalSyncChecklistObsUi(PORTAL_CHECKLIST_ITEM_LIVRE_N);
     portalBindChecklistClipboardToggle();
     portalApplyChecklistModeUi();
     portalChecklistUiBuilt = true;

@@ -2950,6 +2950,30 @@
           "cloud_budget"
         ]
       }
+    },
+    {
+      "id": "checklist-item-extra-livre",
+      "descricao": "No check-list da triagem, ao lado de Pagou existe o item extra (A/R) com caixa amarela: se R, o operador escreve o problema (sem lista SUBSTITUIR/REGULAR/OUTRO). Entra em manutenção com qualquer R (itens 1–29 ou extra) e só vai para disponível se nenhum R estiver marcado.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "PORTAL_CHECKLIST_ITEM_LIVRE_N",
+          "portalChecklistItem30",
+          "portalChecklistObs30",
+          "Escreva o problema",
+          "portalChecklistTemItemReprovado",
+          "caixa amarela",
+          "SUBSTITUIR",
+          "REGULAR",
+          "OUTRO"
+        ],
+        "styles.css": [
+          "portal-checklist-item-livre",
+          "portal-checklist-item-livre-obs--aberto"
+        ],
+        "portal-movimentacoes-manutencao.js": [
+          "CHECKLIST_ITENS_COUNT = 30"
+        ]
+      }
     }
   ]
 }

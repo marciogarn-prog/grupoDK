@@ -148,6 +148,15 @@ async function runSuite() {
       "locação, investimento e totais por plano"
     );
     record(
+      "check-list item extra livre (A/R + caixa do problema)",
+      portalUiOpsJs.includes("PORTAL_CHECKLIST_ITEM_LIVRE_N") &&
+        portalUiOpsJs.includes("portalChecklistItem30") &&
+        portalUiOpsJs.includes("portalChecklistTemItemReprovado") &&
+        portalUiOpsJs.includes("Escreva o problema") &&
+        html.includes("styles.css?v=20260915itemlivre"),
+      "triagem: R abre caixa amarela; sem R não vai a disponível"
+    );
+    record(
       "cadastro de despesas não trava a lista",
       finCeoPagJs.includes("CEO_LISTA_PAGINA = 80") &&
         finCeoPagJs.includes("__DK_runWithoutCloudPush") &&

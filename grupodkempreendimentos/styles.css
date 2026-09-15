@@ -5082,6 +5082,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-dates {
 body.portal-checklist-clipboard-mode .portal-checklist-meta-grid label,
 body.portal-checklist-clipboard-mode .portal-checklist-ops-grid label,
 body.portal-checklist-clipboard-mode .portal-checklist-ops-grid .portal-checklist-toggle-field,
+body.portal-checklist-clipboard-mode .portal-checklist-item-livre,
 body.portal-checklist-clipboard-mode .portal-checklist-dates label,
 body.portal-checklist-clipboard-mode .portal-checklist-inline-field label {
   font-size: calc(0.72rem * var(--cl-compact));
@@ -5095,6 +5096,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-ops-grid .portal-checklis
 body.portal-checklist-clipboard-mode .portal-checklist-dates input,
 body.portal-checklist-clipboard-mode .portal-checklist-inline-field input,
 body.portal-checklist-clipboard-mode .portal-checklist-obs-input,
+body.portal-checklist-clipboard-mode .portal-checklist-obs-input--livre,
 body.portal-checklist-clipboard-mode .portal-checklist-staff-row select {
   height: calc(2.15rem * var(--cl-compact));
   min-height: calc(2.15rem * var(--cl-compact));
@@ -5193,6 +5195,13 @@ body.portal-checklist-clipboard-mode .portal-checklist-ar label {
 body.portal-checklist-clipboard-mode .portal-checklist-ar input {
   width: calc(1.15rem * var(--cl-compact));
   height: calc(1.15rem * var(--cl-compact));
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-item-livre__opt input[type="radio"] {
+  width: calc(1.15rem * var(--cl-compact)) !important;
+  height: calc(1.15rem * var(--cl-compact)) !important;
+  min-height: calc(1.15rem * var(--cl-compact)) !important;
+  max-height: calc(1.15rem * var(--cl-compact)) !important;
 }
 
 body.portal-checklist-clipboard-mode .portal-checklist-staff-row {
@@ -5370,6 +5379,49 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   margin: 0;
   font-size: 0.92rem;
   white-space: nowrap;
+}
+
+.portal-checklist-item-livre__ar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.12rem;
+  min-height: 2.5rem;
+}
+
+.portal-checklist-item-livre__opt {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-checklist-item-livre__opt input[type="radio"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  min-height: 1.25rem !important;
+  max-height: 1.25rem !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.portal-checklist-item-livre-obs .portal-checklist-obs-input--livre[readonly] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.portal-checklist-item-livre-obs--aberto .portal-checklist-obs-input--livre {
+  border-color: #e8c547;
+  box-shadow: 0 0 0 1px #e8c547;
+  background: rgba(232, 197, 71, 0.14);
 }
 
 .portal-checklist-obs-wrap {

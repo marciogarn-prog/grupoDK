@@ -40,7 +40,7 @@ record(
 record("CSS da caixa de planos", css.includes("fin-kpi--planos-ativos") && css.includes("fin-kpi-planos__lista"), "");
 record(
   "cache-bust CEO planos",
-  html.includes("portal-financeiro-ceo.js?v=20260915planos") && html.includes("styles.css?v=20260915planos"),
+  html.includes("portal-financeiro-ceo.js?v=20260915planos") && html.includes("styles.css?v=20260915itemlivre"),
   ""
 );
 
