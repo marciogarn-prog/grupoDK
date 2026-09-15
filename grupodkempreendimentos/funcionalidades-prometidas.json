@@ -1406,6 +1406,32 @@
       }
     },
     {
+      "id": "fin-ceo-planos-semanais-ativos",
+      "descricao": "No FINANCEIRO CEO → Painel executivo, o espaço ao lado da Receita prevista da Construtora mostra o resumo dos planos semanais ativos: soma de locação e de investimento, quantidade e valor semanal de DK Meu Transporte moto, DK Meu Transporte carro e DK Minha Moto.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoKpiBoxPlanosAtivos",
+          "Planos semanais ativos",
+          "finCeoKpiPlanosLocacao",
+          "finCeoKpiPlanosInvestimento",
+          "DK Meu Transporte moto",
+          "DK Meu Transporte carro",
+          "DK Minha Moto"
+        ],
+        "portal-financeiro-ceo.js": [
+          "resumoPlanosAtivosCeo",
+          "classificarPlanoAtivoCeo",
+          "valoresContratoSplitCeo",
+          "DK MEU TRANSPORTE-MOTO",
+          "finCeoKpiPlanosMtMoto"
+        ],
+        "styles.css": [
+          "fin-kpi--planos-ativos",
+          "fin-kpi-planos__lista"
+        ]
+      }
+    },
+    {
       "id": "lista-suspensa-cadastros",
       "descricao": "Em todas as telas de operação, ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado aparece a lista suspensa para confirmar o registo (igual ao Lançamento de aluguel).",
       "ficheiros": {

@@ -1736,6 +1736,83 @@
     return sem > 0 ? sem : locacao;
   }
 
+  function valoresContratoSplitCeo(loc) {
+    const inv = Math.max(0, parseValor(loc?.valorInvestimento));
+    let locacao = Math.max(0, parseValor(loc?.valorLocacao));
+    const sem = Math.max(0, parseValor(loc?.valorSemanal || loc?.valorParcela));
+    if (locacao <= 0 && sem > 0) locacao = Math.max(0, sem - inv);
+    const total = locacao + inv > 0 ? locacao + inv : sem;
+    return { locacao, investimento: inv, total };
+  }
+
+  function classificarPlanoAtivoCeo(loc) {
+    const nk = (v) =>
+      String(v || "")
+        .trim()
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
+    const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    const mod = nk(String(loc?.modalidade || ""));
+    let tipo = "";
+    if (typeof window.portalInferTipoVeiculoLocacao === "function") {
+      tipo = String(window.portalInferTipoVeiculoLocacao(loc) || "");
+    } else if (mod.includes("CARRO")) tipo = "CARRO";
+    else if (mod.includes("MOTO")) tipo = "MOTO";
+    else if (typeof window.getVehicleMapByPlate === "function") {
+      const plate =
+        typeof window.normalizePlate === "function"
+          ? window.normalizePlate(String(loc?.placa || ""))
+          : nk(String(loc?.placa || "")).replace(/[^A-Z0-9]/g, "");
+      const v = plate ? window.getVehicleMapByPlate().get(plate) : null;
+      if (v) {
+        const t = nk(String(v.tipo || ""));
+        const tag = nk(String(v.tag || v.codigo || ""));
+        if (t.includes("CARRO") || tag.includes("DKCR")) tipo = "CARRO";
+        else if (t.includes("MOTO") || tag.includes("DKMT")) tipo = "MOTO";
+      }
+    }
+    const isCarro = tipo === "CARRO" || mod.includes("CARRO");
+    if (isCarro) return "DK MEU TRANSPORTE-CARRO";
+    const inv = parseValor(loc?.valorInvestimento);
+    if (
+      (planoKey.includes("MINHA") && planoKey.includes("MOTO")) ||
+      planoKey.includes("DK MINHA") ||
+      inv > 0
+    ) {
+      return "DK MINHA MOTO";
+    }
+    return "DK MEU TRANSPORTE-MOTO";
+  }
+
+  function resumoPlanosAtivosCeo(locs) {
+    const vazio = () => ({ qtd: 0, semanal: 0 });
+    const out = {
+      qtd: 0,
+      locacao: 0,
+      investimento: 0,
+      total: 0,
+      "DK MEU TRANSPORTE-MOTO": vazio(),
+      "DK MEU TRANSPORTE-CARRO": vazio(),
+      "DK MINHA MOTO": vazio(),
+    };
+    (locs || []).forEach((loc) => {
+      if (locacaoExcluidaReceitaCeo(loc)) return;
+      if (!locacaoEstaAtiva(loc)) return;
+      const split = valoresContratoSplitCeo(loc);
+      const plano = classificarPlanoAtivoCeo(loc);
+      out.qtd += 1;
+      out.locacao += split.locacao;
+      out.investimento += split.investimento;
+      out.total += split.total;
+      if (out[plano]) {
+        out[plano].qtd += 1;
+        out[plano].semanal += split.total;
+      }
+    });
+    return out;
+  }
+
   const LOCACOES_CEO_KEY = "dk_locacoes_cadastro";
   const PROTOCOLO_TESTE_CEO = "2099010199";
 
@@ -3241,6 +3318,18 @@
     if (kpiRecLocTot) kpiRecLocTot.textContent = brl((recUn.locadora || 0) + (recUn.manutencao || 0));
     if (kpiRecCentro) kpiRecCentro.textContent = brl(recUn.centro);
     if (kpiRecConstr) kpiRecConstr.textContent = brl(recUn.construtora);
+    const planosAtivos = resumoPlanosAtivosCeo(carregarLocacoes());
+    const setTxt = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+    const linhaPlano = (bloco) => `${bloco.qtd} · ${brl(bloco.semanal)}`;
+    setTxt("finCeoKpiPlanosLocacao", brl(planosAtivos.locacao));
+    setTxt("finCeoKpiPlanosInvestimento", brl(planosAtivos.investimento));
+    setTxt("finCeoKpiPlanosTotal", brl(planosAtivos.total));
+    setTxt("finCeoKpiPlanosMtMoto", linhaPlano(planosAtivos["DK MEU TRANSPORTE-MOTO"]));
+    setTxt("finCeoKpiPlanosMtCarro", linhaPlano(planosAtivos["DK MEU TRANSPORTE-CARRO"]));
+    setTxt("finCeoKpiPlanosMinhaMoto", linhaPlano(planosAtivos["DK MINHA MOTO"]));
     if (kpiMargem) kpiMargem.textContent = brl(proj.capacidadeLivre);
 
     if (kpiEndiv) {
@@ -6115,6 +6204,9 @@
     receitaPrevistaCentroAutomotivo,
     receitaPrevistaConstrutora,
     calcReceitasPorUnidade,
+    classificarPlanoAtivoCeo,
+    resumoPlanosAtivosCeo,
+    valoresContratoSplitCeo,
   };
 
   /** Recarga F5: portal-locadora-ui pode abrir a view antes deste script — ligar botões e painel. */

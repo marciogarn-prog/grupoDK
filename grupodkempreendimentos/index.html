@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260915readd">
+  <link rel="stylesheet" href="styles.css?v=20260915planos">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -4109,6 +4109,38 @@
                   <strong id="finCeoKpiReceitaConstrutora">—</strong>
                   <span class="fin-kpi__hint">receitas cadastradas no mês</span>
                 </div>
+                <div class="fin-kpi fin-kpi--unidade fin-kpi--planos-ativos" id="finCeoKpiBoxPlanosAtivos">
+                  <span class="fin-kpi__lab">Planos semanais ativos</span>
+                  <div class="fin-kpi-planos__totais" role="group" aria-label="Soma semanal de locação e investimento">
+                    <div class="fin-kpi-planos__par">
+                      <span class="fin-kpi__trio-lab">Locação</span>
+                      <strong id="finCeoKpiPlanosLocacao">—</strong>
+                    </div>
+                    <div class="fin-kpi-planos__par">
+                      <span class="fin-kpi__trio-lab">Investimento</span>
+                      <strong id="finCeoKpiPlanosInvestimento">—</strong>
+                    </div>
+                    <div class="fin-kpi-planos__par">
+                      <span class="fin-kpi__trio-lab">Total semanal</span>
+                      <strong id="finCeoKpiPlanosTotal">—</strong>
+                    </div>
+                  </div>
+                  <ul class="fin-kpi-planos__lista">
+                    <li class="fin-kpi-planos__item fin-kpi-planos__item--mt-moto">
+                      <span>DK Meu Transporte moto</span>
+                      <strong id="finCeoKpiPlanosMtMoto">—</strong>
+                    </li>
+                    <li class="fin-kpi-planos__item fin-kpi-planos__item--mt-carro">
+                      <span>DK Meu Transporte carro</span>
+                      <strong id="finCeoKpiPlanosMtCarro">—</strong>
+                    </li>
+                    <li class="fin-kpi-planos__item fin-kpi-planos__item--minha-moto">
+                      <span>DK Minha Moto</span>
+                      <strong id="finCeoKpiPlanosMinhaMoto">—</strong>
+                    </li>
+                  </ul>
+                  <span class="fin-kpi__hint">contratos ativos · valor semanal contratado</span>
+                </div>
               </div>
 
               <div class="fin-ceo-anos-filtro-wrap">
@@ -5506,7 +5538,7 @@
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20260913graf2035" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260915planos" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

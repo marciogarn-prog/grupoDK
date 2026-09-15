@@ -11819,6 +11819,74 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #e4e4e7;
 }
 
+.view--fin-ceo .fin-kpi--planos-ativos {
+  flex: 1 1 22rem;
+  min-width: 18rem;
+  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(145deg, rgba(12, 74, 110, 0.28), var(--bg-elevated));
+}
+
+.view--fin-ceo .fin-kpi--planos-ativos .fin-kpi-planos__totais {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4.2rem, 1fr));
+  gap: 0.35rem 0.55rem;
+  margin: 0.35rem 0 0.45rem;
+}
+
+.view--fin-ceo .fin-kpi--planos-ativos .fin-kpi-planos__par strong {
+  display: block;
+  font-size: 1.02rem;
+  line-height: 1.15;
+  color: #e0f2fe;
+}
+
+.view--fin-ceo .fin-kpi--planos-ativos #finCeoKpiPlanosInvestimento {
+  color: #93c5fd;
+}
+
+.view--fin-ceo .fin-kpi--planos-ativos #finCeoKpiPlanosTotal {
+  color: #fde68a;
+}
+
+.fin-kpi-planos__lista {
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.fin-kpi-planos__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.fin-kpi-planos__item span {
+  color: #cbd5e1;
+}
+
+.fin-kpi-planos__item strong {
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.fin-kpi-planos__item--mt-moto strong {
+  color: #86efac;
+}
+
+.fin-kpi-planos__item--mt-carro strong {
+  color: #d6b48a;
+}
+
+.fin-kpi-planos__item--minha-moto strong {
+  color: #7dd3fc;
+}
+}
+
 .fin-ceo-periodo {
   margin: 0.25rem 0 1.35rem;
   padding: 0.85rem 0.95rem 1rem;
