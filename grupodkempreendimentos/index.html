@@ -4817,6 +4817,17 @@
       </div>
     </div>
   </div>
+  <div id="portalLoginUnicoModal" class="portal-modal hidden" hidden role="dialog" aria-modal="true" aria-labelledby="portalLoginUnicoTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalLoginUnicoBackdrop"></div>
+    <div class="portal-modal__card">
+      <h3 id="portalLoginUnicoTitulo" class="portal-modal__title">CPF já está em uso</h3>
+      <p id="portalLoginUnicoTexto" class="portal-modal__text">O usuário CPF xxx.xxx.xxx-xx será desconectado no IP yyyyy caso o login seja confirmado.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalLoginUnicoCancelarBtn">Cancelar</button>
+        <button type="button" class="btn-primary" id="portalLoginUnicoConfirmarBtn">Confirmar login</button>
+      </div>
+    </div>
+  </div>
   <div id="documentosViewerModal" class="portal-modal documentos-viewer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="documentosViewerTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-documentos-viewer></div>
     <div class="portal-modal__card portal-modal__card--wide documentos-viewer-card">
@@ -5480,7 +5491,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260914cal-proto" defer></script>
-  <script src="dk-portal-api-auth.js?v=20260913-loopfix2"></script>
+  <script src="dk-portal-api-auth.js?v=20260915unico"></script>
   <script src="app.js?v=20260914cal-proto" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
@@ -5491,7 +5502,7 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260915disp-lista" defer></script>
+  <script src="portal-locadora-ui.js?v=20260915unico" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
@@ -5541,7 +5552,7 @@
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260913-loopfix2" defer></script>
+  <script src="portal-supabase-sync.js?v=20260915unico" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

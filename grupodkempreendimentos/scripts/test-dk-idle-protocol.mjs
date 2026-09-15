@@ -29,6 +29,7 @@ rec("header de protocolo e atividade", apiJs.includes("X-DK-Client-Protocol") &&
 rec("loop de troca de tela limitado", sync.includes("SCREEN_PULL_MIN_INTERVAL_MS = 20000"), "");
 rec("frontend encerra idle/stale", sync.includes("haltCloudSyncIdleOrStale") && ui.includes("PORTAL_IDLE_LIMIT_MS"), "");
 rec("HTML e Vercel publicam o protocolo", html.includes('name="dk-client-protocol"') && vercel.includes("X-DK-Client-Protocol"), "");
+rec("login único por CPF", login.includes("session_em_uso") && auth.includes("session_replaced"), "");
 
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n--- ${results.length - failed}/${results.length} testes idle-protocol ---`);

@@ -150,6 +150,10 @@
         window.__DK_haltCloudSyncIdle();
         return;
       }
+      if (j.reason === "session_replaced" && typeof window.__DK_haltCloudSyncReplaced === "function") {
+        window.__DK_haltCloudSyncReplaced();
+        return;
+      }
       if (j.reason === "cloud_budget") {
         if (typeof window.__DK_haltCloudBudget === "function") window.__DK_haltCloudBudget();
         portalPresencaEquipaStop();
@@ -3489,6 +3493,33 @@
     return { ok: true, funcionario };
   }
 
+  function askConfirmLoginUnico(texto) {
+    const wrap = document.getElementById("portalLoginUnicoModal");
+    const p = document.getElementById("portalLoginUnicoTexto");
+    if (!wrap || !p) return Promise.resolve(window.confirm(texto));
+    p.textContent = texto;
+    wrap.classList.remove("hidden");
+    wrap.removeAttribute("hidden");
+    wrap.setAttribute("aria-hidden", "false");
+    document.getElementById("portalLoginUnicoConfirmarBtn")?.focus();
+    return new Promise((resolve) => {
+      const sim = document.getElementById("portalLoginUnicoConfirmarBtn");
+      const nao = document.getElementById("portalLoginUnicoCancelarBtn");
+      const close = (ok) => {
+        wrap.classList.add("hidden");
+        wrap.setAttribute("hidden", "");
+        wrap.setAttribute("aria-hidden", "true");
+        sim?.removeEventListener("click", onSim);
+        nao?.removeEventListener("click", onNao);
+        resolve(ok);
+      };
+      const onSim = () => close(true);
+      const onNao = () => close(false);
+      sim?.addEventListener("click", onSim);
+      nao?.addEventListener("click", onNao);
+    });
+  }
+
   function portalAutenticarEquipaPorCpfSenha(role, cpf, senha) {
     const funcionario = funcionariosAccess.find(
       (f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha
@@ -3555,7 +3586,15 @@
     if (role === "colaborador" || role === "administrador") {
       portalHydrateFuncionariosForLogin();
       if (typeof window.__DK_portalApiLoginEquipa === "function") {
-        const remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
+        let remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
+        if (remote.needsKickConfirm) {
+          const okKick = await askConfirmLoginUnico(remote.msg);
+          if (!okKick) {
+            loginFeedback.textContent = "Login cancelado. A outra máquina permanece conectada.";
+            return;
+          }
+          remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role, { confirmarUnico: true });
+        }
         if (!remote.ok && !remote.networkError && !remote.allowLocalFallback) {
           loginFeedback.textContent = remote.msg || "CPF ou senha inválidos.";
           return;

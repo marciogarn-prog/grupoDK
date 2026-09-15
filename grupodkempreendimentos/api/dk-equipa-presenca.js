@@ -4,7 +4,13 @@
  * GET — lista CPF com pulso recente.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { applyApiCors, enforceRateLimit, requireLiveSession, onlyDigits } = require("../lib/dk-portal-auth.cjs");
+const {
+  applyApiCors,
+  enforceRateLimit,
+  requireLiveSession,
+  onlyDigits,
+  clearSessaoAtivaSeDona,
+} = require("../lib/dk-portal-auth.cjs");
 
 const REDIS_KEY = "dk:portal:equipa_presenca:v1";
 const MAX_AGE_MS = 8 * 60 * 1000;
@@ -102,6 +108,7 @@ module.exports = async function handler(req, res) {
         };
       } else {
         delete store.byCpf[cpf];
+        await clearSessaoAtivaSeDona(cpf, gate.sid);
       }
       await redis.set(REDIS_KEY, JSON.stringify(store));
       const list = listFromStore(store);

@@ -87,7 +87,14 @@
   }
 
   function resumeCloudSyncAfterRemoteLogin() {
-    if (cloudHaltKind === "unauthorized" || cloudHaltKind === "local_only" || cloudHaltKind === "revoked") {
+    if (
+      cloudHaltKind === "unauthorized" ||
+      cloudHaltKind === "local_only" ||
+      cloudHaltKind === "revoked" ||
+      cloudHaltKind === "idle" ||
+      cloudHaltKind === "replaced" ||
+      cloudHaltKind === "stale"
+    ) {
       cloudHaltKind = "";
       cloudSyncHalted = false;
     }
@@ -96,6 +103,7 @@
     } catch {
       /* ignore */
     }
+    hideSessionRevokedBanner();
     dkLoopTrace("cloud resume after remote login", { cloudSyncHalted, cloudHaltKind });
   }
 
@@ -129,6 +137,9 @@
     } else if (kind === "stale") {
       if (titulo) titulo.textContent = "VERSÃO ANTIGA DO SISTEMA";
       if (texto) texto.textContent = "Atualize a página (Ctrl+F5) e faça login novamente.";
+    } else if (kind === "replaced") {
+      if (titulo) titulo.textContent = "SESSÃO ENCERRADA NESTE COMPUTADOR";
+      if (texto) texto.textContent = "Este CPF entrou noutro computador. Esta máquina foi desconectada.";
     } else {
       if (titulo) titulo.textContent = "SESSÃO ENCERRADA PELO ADMINISTRADOR CEO";
       if (texto) texto.textContent = "Atualize o sistema e faça login novamente.";
@@ -178,7 +189,7 @@
   }
 
   function haltCloudSyncIdleOrStale(kind) {
-    cloudHaltKind = kind === "stale" ? "stale" : "idle";
+    cloudHaltKind = kind === "stale" ? "stale" : kind === "replaced" ? "replaced" : "idle";
     cloudSyncHalted = true;
     stopCloudTimers();
     showSessionRevokedBanner(cloudHaltKind);
@@ -191,7 +202,9 @@
     setMsg(
       cloudHaltKind === "stale"
         ? "Versão antiga do sistema. Atualize (Ctrl+F5) e faça login novamente."
-        : "Sessão encerrada por inatividade (30 minutos). Faça login novamente.",
+        : cloudHaltKind === "replaced"
+          ? "Este CPF entrou noutro computador. Esta máquina foi desconectada."
+          : "Sessão encerrada por inatividade (30 minutos). Faça login novamente.",
       null
     );
   }
@@ -208,6 +221,10 @@
     }
     if (reason === "session_idle") {
       haltCloudSyncIdleOrStale("idle");
+      return true;
+    }
+    if (reason === "session_replaced") {
+      haltCloudSyncIdleOrStale("replaced");
       return true;
     }
     if (res.status === 401 && (reason === "unauthorized" || reason === "invalid_token" || reason === "")) {
@@ -236,6 +253,7 @@
     if (
       cloudHaltKind === "idle" ||
       cloudHaltKind === "stale" ||
+      cloudHaltKind === "replaced" ||
       cloudHaltKind === "budget" ||
       cloudHaltKind === "unauthorized" ||
       cloudHaltKind === "local_only"
@@ -1858,6 +1876,7 @@
   window.__DK_refreshCloudBarVisibility = refreshCloudBarVisibility;
   window.__DK_haltCloudSyncIdle = () => haltCloudSyncIdleOrStale("idle");
   window.__DK_haltCloudSyncStale = () => haltCloudSyncIdleOrStale("stale");
+  window.__DK_haltCloudSyncReplaced = () => haltCloudSyncIdleOrStale("replaced");
   window.__DK_haltCloudBudget = haltCloudBudget;
   window.__DK_markCloudLocalOnly = markCloudLocalOnly;
   window.__DK_resumeCloudSyncAfterRemoteLogin = resumeCloudSyncAfterRemoteLogin;

@@ -7,6 +7,11 @@ const {
   enforceRateLimit,
   mintTokenWithSession,
   touchSessaoAtiva,
+  readSessaoAtiva,
+  sessaoEstaOcupada,
+  mensagemDesconectarSessao,
+  publicClientIp,
+  newSessaoSid,
   loadOfficialSnapshotPayload,
   podeLoginCeoEmergencia,
   TITULAR_CEO_CPF,
@@ -33,6 +38,34 @@ function parseBody(req) {
     }
   }
   return body && typeof body === "object" ? body : {};
+}
+
+async function emitirSessaoEquipa(req, res, cpf, role, pub, extra) {
+  const body = parseBody(req);
+  const deviceId = String(body.deviceId || "").trim().slice(0, 80);
+  const confirmarUnico =
+    body.confirmarUnico === true || body.confirmarUnico === 1 || String(body.confirmarUnico || "") === "true";
+  const existing = await readSessaoAtiva(cpf);
+  if (sessaoEstaOcupada(existing, deviceId) && !confirmarUnico) {
+    const ip = existing.ip || "desconhecido";
+    return res.status(409).json({
+      ok: false,
+      reason: "session_em_uso",
+      cpf,
+      ip,
+      message: mensagemDesconectarSessao(cpf, ip),
+    });
+  }
+  const sid = newSessaoSid();
+  const token = await mintTokenWithSession({
+    typ: "equipa",
+    cpf,
+    role,
+    nome: pub.nome,
+    sid,
+  });
+  await touchSessaoAtiva(cpf, { sid, ip: publicClientIp(req), deviceId, replace: true });
+  return res.status(200).json({ ok: true, token, funcionario: pub, ...(extra || {}) });
 }
 
 module.exports = async function handler(req, res) {
@@ -64,19 +97,8 @@ module.exports = async function handler(req, res) {
   }
   if (!payload) {
     if (tipo === "equipa" && podeLoginCeoEmergencia(cpf, senha)) {
-      const token = await mintTokenWithSession({
-        typ: "equipa",
-        cpf: TITULAR_CEO_CPF,
-        role: "owner",
-        nome: "Administrador CEO",
-      });
-      await touchSessaoAtiva(TITULAR_CEO_CPF);
-      return res.status(200).json({
-        ok: true,
-        token,
-        funcionario: { cpf: TITULAR_CEO_CPF, nome: "Administrador CEO", role: "owner" },
-        emergencia: true,
-      });
+      const pub = { cpf: TITULAR_CEO_CPF, nome: "Administrador CEO", role: "owner" };
+      return emitirSessaoEquipa(req, res, TITULAR_CEO_CPF, "owner", pub, { emergencia: true });
     }
     return res.status(503).json({ ok: false, reason: "snapshot_unavailable" });
   }
@@ -103,9 +125,7 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ ok: false, reason: "use_admin" });
     }
     const pub = publicFuncionario(f);
-    const token = await mintTokenWithSession({ typ: "equipa", cpf, role, nome: pub.nome });
-    await touchSessaoAtiva(cpf);
-    return res.status(200).json({ ok: true, token, funcionario: pub });
+    return emitirSessaoEquipa(req, res, cpf, role, pub);
   }
 
   if (tipo === "cliente") {

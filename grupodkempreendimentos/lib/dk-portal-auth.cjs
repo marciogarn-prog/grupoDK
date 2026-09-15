@@ -192,12 +192,103 @@ function chaveSessaoAtiva(cpf) {
   return SESSAO_ATIVA_KEY_PREFIX + onlyDigits(cpf).slice(0, 11);
 }
 
-async function touchSessaoAtiva(cpf) {
+function formatCpfBr(cpf) {
+  const d = onlyDigits(cpf).slice(0, 11);
+  if (d.length !== 11) return String(cpf || "").trim() || "—";
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function publicClientIp(req) {
+  let s = clientIp(req);
+  if (s.toLowerCase().startsWith("::ffff:")) s = s.slice(7);
+  s = String(s || "").trim();
+  return s || "desconhecido";
+}
+
+function newSessaoSid() {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+function parseSessaoAtivaRaw(raw) {
+  const empty = { at: 0, sid: "", ip: "", deviceId: "" };
+  if (raw == null) return empty;
+  if (typeof raw === "number") {
+    return { ...empty, at: Number.isFinite(raw) ? raw : 0 };
+  }
+  if (typeof raw === "object") {
+    return {
+      at: Number(raw.at || 0) || 0,
+      sid: String(raw.sid || "").trim(),
+      ip: String(raw.ip || "").trim(),
+      deviceId: String(raw.deviceId || "").trim(),
+    };
+  }
+  const t = String(raw).trim();
+  if (!t) return empty;
+  if (t.startsWith("{")) {
+    try {
+      return parseSessaoAtivaRaw(JSON.parse(t));
+    } catch {
+      /* legado */
+    }
+  }
+  const n = Number(t);
+  return { ...empty, at: Number.isFinite(n) ? n : 0 };
+}
+
+function sessaoEstaOcupada(rec, deviceId) {
+  if (!rec || (!rec.at && !rec.sid)) return false;
+  const dev = String(deviceId || "").trim();
+  if (dev && rec.deviceId && rec.deviceId === dev) return false;
+  return true;
+}
+
+function mensagemDesconectarSessao(cpf, ip) {
+  const ipLab = String(ip || "").trim() || "desconhecido";
+  return `O usuário CPF ${formatCpfBr(cpf)} será desconectado no IP ${ipLab} caso o login seja confirmado.`;
+}
+
+async function readSessaoAtiva(cpf) {
+  const empty = { at: 0, sid: "", ip: "", deviceId: "" };
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return empty;
+  try {
+    const redis = createRedisClient();
+    return parseSessaoAtivaRaw(await redis.get(chaveSessaoAtiva(dig)));
+  } catch {
+    return empty;
+  }
+}
+
+async function touchSessaoAtiva(cpf, patch) {
   const dig = onlyDigits(cpf).slice(0, 11);
   if (dig.length !== 11 || !isRedisKvConfigured()) return false;
   try {
+    const extra = patch && typeof patch === "object" ? patch : {};
+    const existing = extra.replace ? { at: 0, sid: "", ip: "", deviceId: "" } : await readSessaoAtiva(dig);
+    const rec = {
+      at: Date.now(),
+      sid: String(extra.sid || existing.sid || "").trim(),
+      ip: String(extra.ip || existing.ip || "").trim(),
+      deviceId: String(extra.deviceId || existing.deviceId || "").trim(),
+    };
     const redis = createRedisClient();
-    await redis.set(chaveSessaoAtiva(dig), String(Date.now()), { ex: SESSAO_ATIVA_TTL_SEC });
+    await redis.set(chaveSessaoAtiva(dig), JSON.stringify(rec), { ex: SESSAO_ATIVA_TTL_SEC });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function clearSessaoAtivaSeDona(cpf, sid) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return false;
+  try {
+    const rec = await readSessaoAtiva(dig);
+    const mine = String(sid || "").trim();
+    if (rec.sid && mine && rec.sid !== mine) return false;
+    const redis = createRedisClient();
+    await redis.del(chaveSessaoAtiva(dig));
     return true;
   } catch {
     return false;
@@ -228,8 +319,16 @@ async function attachLiveSession(gate, req) {
       if (!viva) {
         return { ok: false, status: 401, reason: "session_idle" };
       }
+      const rec = await readSessaoAtiva(cpf);
+      const tokenSid = String(gate.sid || "").trim();
+      if (rec.sid && tokenSid && rec.sid !== tokenSid) {
+        return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
+      }
+      if (rec.sid && !tokenSid) {
+        return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
+      }
       if (requestMarksUserActive(req)) {
-        await touchSessaoAtiva(cpf);
+        await touchSessaoAtiva(cpf, { ip: publicClientIp(req) });
       }
     }
   }
@@ -251,7 +350,8 @@ async function requireLiveSession(req, opts) {
 
 async function mintTokenWithSession(claims) {
   const epoch = await readSessionEpoch();
-  return mintToken({ ...claims, sg: epoch.n });
+  const sid = String(claims && claims.sid ? claims.sid : "").trim() || newSessaoSid();
+  return mintToken({ ...claims, sid, sg: epoch.n });
 }
 
 async function requireCeoEmergencyLock(req) {
@@ -518,6 +618,14 @@ module.exports = {
   attachLiveSession,
   assertEquipaClientProtocol,
   touchSessaoAtiva,
+  clearSessaoAtivaSeDona,
+  readSessaoAtiva,
+  parseSessaoAtivaRaw,
+  sessaoEstaOcupada,
+  formatCpfBr,
+  mensagemDesconectarSessao,
+  publicClientIp,
+  newSessaoSid,
   DK_CLIENT_PROTOCOL_MIN,
   SESSAO_ATIVA_TTL_SEC,
   requireCeoEmergencyLock,

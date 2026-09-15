@@ -4,9 +4,31 @@
  */
 (function dkPortalApiAuth() {
   const KEY = "dk_portal_api_token_v1";
+  const DEVICE_KEY = "dk_portal_device_id_v1";
   const CLIENT_PROTOCOL = 20260913;
   const USER_ACTIVE_RECENT_MS = 90 * 1000;
   let lastUserActivityAt = Date.now();
+
+  function getPortalDeviceId() {
+    try {
+      let id = String(localStorage.getItem(DEVICE_KEY) || "").trim();
+      if (id.length >= 16) return id.slice(0, 80);
+      const buf = new Uint8Array(16);
+      if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(buf);
+      else for (let i = 0; i < 16; i += 1) buf[i] = Math.floor(Math.random() * 256);
+      id = Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem(DEVICE_KEY, id);
+      return id;
+    } catch {
+      return "";
+    }
+  }
+
+  function formatCpfLogin(cpf) {
+    const d = String(cpf || "").replace(/\D/g, "").slice(0, 11);
+    if (d.length !== 11) return String(cpf || "").trim() || "—";
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  }
 
   function markUserActivity() {
     lastUserActivityAt = Date.now();
@@ -95,12 +117,14 @@
     return h;
   }
 
-  async function loginEquipa(cpf, senha, role) {
+  async function loginEquipa(cpf, senha, role, opts) {
     try {
+      const deviceId = getPortalDeviceId();
+      const confirmarUnico = Boolean(opts && opts.confirmarUnico);
       const res = await fetch("/api/dk-portal-auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipo: "equipa", cpf, senha, role }),
+        body: JSON.stringify({ tipo: "equipa", cpf, senha, role, deviceId, confirmarUnico }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok && data.token) {
@@ -108,6 +132,21 @@
         return { ok: true, funcionario: data.funcionario };
       }
       const reason = String(data.reason || "");
+      if (reason === "session_em_uso") {
+        return {
+          ok: false,
+          status: res.status,
+          networkError: false,
+          allowLocalFallback: false,
+          needsKickConfirm: true,
+          cpf: String(data.cpf || cpf || ""),
+          ip: String(data.ip || "desconhecido"),
+          msg:
+            String(data.message || "").trim() ||
+            `O usuário CPF ${formatCpfLogin(data.cpf || cpf)} será desconectado no IP ${data.ip || "desconhecido"} caso o login seja confirmado.`,
+          reason,
+        };
+      }
       const allowLocalFallback =
         reason === "snapshot_unavailable" ||
         reason === "cloud_budget" ||
@@ -167,6 +206,7 @@
     window.__DK_portalApiHeaders = apiHeaders;
     window.__DK_portalApiLoginEquipa = loginEquipa;
     window.__DK_portalApiLoginCliente = loginCliente;
+    window.__DK_portalDeviceId = getPortalDeviceId;
     window.__DK_portalSessionIsRevoked = isSessionRevoked;
     window.__DK_portalSessionMarkRevoked = markSessionRevoked;
     window.__DK_portalSessionClearRevoked = clearSessionRevoked;

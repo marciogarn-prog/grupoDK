@@ -2799,6 +2799,41 @@
       }
     },
     {
+      "id": "cpf-acesso-unico-maquina",
+      "descricao": "Cada CPF da equipa tem um único acesso: se o operador entra na máquina 02 estando logado na 01, a 01 é desconectada. No login da 02 aparece confirmação: o usuário CPF xxx.xxx.xxx-xx será desconectado no IP yyyyy caso o login seja confirmado.",
+      "ficheiros": {
+        "lib/dk-portal-auth.cjs": [
+          "session_replaced",
+          "sessaoEstaOcupada",
+          "mensagemDesconectarSessao",
+          "clearSessaoAtivaSeDona"
+        ],
+        "api/dk-portal-auth.js": [
+          "session_em_uso",
+          "confirmarUnico",
+          "emitirSessaoEquipa"
+        ],
+        "dk-portal-api-auth.js": [
+          "needsKickConfirm",
+          "dk_portal_device_id_v1",
+          "confirmarUnico"
+        ],
+        "portal-locadora-ui.js": [
+          "askConfirmLoginUnico",
+          "portalLoginUnicoModal"
+        ],
+        "portal-supabase-sync.js": [
+          "session_replaced",
+          "haltCloudSyncReplaced",
+          "Este CPF entrou noutro computador"
+        ],
+        "index.html": [
+          "portalLoginUnicoModal",
+          "será desconectado no IP"
+        ]
+      }
+    },
+    {
       "id": "operador-idle-30min-protocolo-cliente",
       "descricao": "Protocolo de cliente 20260913 na nuvem: versões antigas são recusadas (client_stale) e param o loop. Qualquer operador logado, após 30 minutos sem uso, tem a sessão encerrada e precisa fazer login de novo.",
       "ficheiros": {

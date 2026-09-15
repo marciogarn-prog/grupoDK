@@ -54,9 +54,9 @@ rec(
 );
 rec(
   "cache-bust loopfix2 no index",
-  indexHtml.includes("portal-supabase-sync.js?v=20260913-loopfix2") &&
-    indexHtml.includes("dk-portal-api-auth.js?v=20260913-loopfix2") &&
-    indexHtml.includes("portal-locadora-ui.js?v=20260915disp-lista") &&
+  indexHtml.includes("portal-supabase-sync.js?v=20260915unico") &&
+    indexHtml.includes("dk-portal-api-auth.js?v=20260915unico") &&
+    indexHtml.includes("portal-locadora-ui.js?v=20260915unico") &&
     indexHtml.includes("app.js?v=20260914cal-proto"),
   ""
 );
