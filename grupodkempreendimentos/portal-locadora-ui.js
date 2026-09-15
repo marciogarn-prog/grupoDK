@@ -11922,9 +11922,48 @@
       portalRelatorioLocacaoDataComKm(locacao.fim, locacao.kmFinal || locacao.odometroFim, "KM fim"),
       portalRelatorioLocacaoFinalizacaoCell(locacao),
       String(locacao.plano || "").trim() || "—",
+      portalRelatorioLocacaoFmtBrl(portalRelatorioLocacaoValorSemanalNum(locacao)),
       statusRaw || "—",
       String(locacao.modalidade || "").trim() || "—",
     ];
+  }
+
+  function portalRelatorioLocacaoValorSemanalNum(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const n = Number(
+              String(v ?? "")
+                .replace(/[R$\s]/g, "")
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+            return Number.isFinite(n) ? n : 0;
+          };
+    const locacao = Math.max(0, Number(parseCur(loc?.valorLocacao)) || 0);
+    const inv = Math.max(0, Number(parseCur(loc?.valorInvestimento)) || 0);
+    const sem = Math.max(0, Number(parseCur(loc?.valorSemanal || loc?.valorParcela)) || 0);
+    if (locacao + inv > 0) return locacao + inv;
+    return sem > 0 ? sem : locacao;
+  }
+
+  function portalRelatorioLocacaoFmtBrl(n) {
+    if (typeof currencyBRL === "function") return currencyBRL(n);
+    return Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  const PORTAL_REL_LOCACAO_BLOCOS = [
+    { id: "DK MINHA MOTO", label: "DK MINHA MOTO" },
+    { id: "DK MEU TRANSPORTE-CARRO", label: "DK MEU TRANSPORTE (CARRO)" },
+    { id: "DK MEU TRANSPORTE-MOTO", label: "DK MEU TRANSPORTE (MOTO)" },
+  ];
+
+  function portalRelatorioLocacaoClassificarBloco(loc) {
+    if (typeof portalRelPagAggClassificarPlano === "function") {
+      return portalRelPagAggClassificarPlano(loc);
+    }
+    return "DK MEU TRANSPORTE-MOTO";
   }
 
   /**
@@ -12061,6 +12100,11 @@
       context.stats
     ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
+    } else if (context.fileSlug === "locacoes" && context.stats) {
+      const fmt = portalRelatorioLocacaoFmtBrl;
+      resumo.textContent = `${context.stats.total} locação(ões) · ${context.stats.ativos} ativa(s) · Valor semanal (ativos) ${fmt(
+        context.stats.valorAtivos
+      )}. Exportar em PDF ou Excel.`;
     } else if (context.fileSlug === "veiculos" && context.stats) {
       const tot = (context.stats.inativos || 0) + (context.stats.ativos || 0);
       resumo.textContent = tot
@@ -12120,26 +12164,33 @@
         ? isPortalRelatorioStatusCellAtivo
         : null;
     const saldoIdx = reportOptions.saldoColumnIndex;
+    const valorIdx = headers.indexOf("Valor semanal");
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
-    const bodyCells = rows
-      .map((row, ri) => {
-        const tds = row
-          .map((c, ci) => {
-            let tdExtra = "";
-            if (statusFn && statusIdx === ci) {
-              tdExtra = statusFn(String(c ?? "")) ? ' class="portal-rel-status-ativo"' : ' class="portal-rel-status-inativo"';
-            }
-            if (typeof saldoIdx === "number" && saldoIdx === ci) {
-              const n = Number(reportOptions.saldoNums?.[ri] ?? 0);
-              if (n > 0) tdExtra = ' class="portal-rel-saldo-pos"';
-              else if (n < 0) tdExtra = ' class="portal-rel-saldo-neg"';
-            }
-            return `<td${tdExtra}>${eh(c)}</td>`;
-          })
-          .join("");
-        return `<tr>${tds}</tr>`;
-      })
-      .join("");
+    const trsFromRows = (rowList, saldoOffset) =>
+      (rowList || [])
+        .map((row, ri) => {
+          const tds = row
+            .map((c, ci) => {
+              let tdExtra = "";
+              if (statusFn && statusIdx === ci) {
+                tdExtra = statusFn(String(c ?? ""))
+                  ? ' class="portal-rel-status-ativo"'
+                  : ' class="portal-rel-status-inativo"';
+              }
+              if (typeof saldoIdx === "number" && saldoIdx === ci) {
+                const n = Number(reportOptions.saldoNums?.[saldoOffset + ri] ?? 0);
+                if (n > 0) tdExtra = ' class="portal-rel-saldo-pos"';
+                else if (n < 0) tdExtra = ' class="portal-rel-saldo-neg"';
+              }
+              if (valorIdx === ci) {
+                tdExtra = tdExtra ? `${tdExtra.slice(0, -1)} portal-rel-valor"` : ' class="portal-rel-valor"';
+              }
+              return `<td${tdExtra}>${eh(c)}</td>`;
+            })
+            .join("");
+          return `<tr>${tds}</tr>`;
+        })
+        .join("");
     const quando = new Date().toLocaleString("pt-BR");
     const ativosCount = statusFn ? countPortalRelatorioRowsStatusAtivos(rows, statusIdx, statusFn) : 0;
     const metaAtivosSuffix =
@@ -12155,6 +12206,32 @@
     const cellFs = compact ? "9px" : "inherit";
     const cellPad = compact ? "3px 4px" : "5px 7px";
     const tableClass = compact ? ' class="portal-rel-table-compact"' : "";
+    const blocks = Array.isArray(reportOptions.blocks) ? reportOptions.blocks : null;
+    let tablesHtml;
+    if (blocks && blocks.length) {
+      let saldoOff = 0;
+      tablesHtml = blocks
+        .map((block) => {
+          const blockRows = Array.isArray(block.rows) ? block.rows : [];
+          const body = trsFromRows(blockRows, saldoOff);
+          saldoOff += blockRows.length;
+          const table =
+            blockRows.length > 0
+              ? `<table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${body}</tbody></table>`
+              : "";
+          return `<section class="portal-rel-bloco">
+        <h2>${eh(String(block.title || ""))}</h2>
+        ${table}
+        <p class="portal-rel-bloco-total">${eh(String(block.footer || ""))}</p>
+      </section>`;
+        })
+        .join("");
+    } else {
+      const bodyCells = trsFromRows(rows, 0);
+      tablesHtml = `<table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${
+        bodyCells || `<tr><td colspan="${headers.length}">${eh("Nenhum registo.")}</td></tr>`
+      }</tbody></table>`;
+    }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
       body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:${bodyFs}}
       h1{font-size:1.05rem;margin:0 0 0.35rem}
@@ -12167,6 +12244,10 @@
       .portal-rel-status-inativo{background:#fff9c4}
       .portal-rel-saldo-pos{color:#1565c0;font-weight:700}
       .portal-rel-saldo-neg{color:#c62828;font-weight:700}
+      .portal-rel-valor{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+      .portal-rel-bloco{margin:0.85rem 0 1.15rem}
+      .portal-rel-bloco h2{font-size:0.95rem;margin:0 0 0.35rem;background:#1a365d;color:#fff;padding:0.35rem 0.55rem}
+      .portal-rel-bloco-total{margin:0.35rem 0 0;padding:0.4rem 0.55rem;background:#eef2f7;border:1px solid #333;font-weight:700;font-size:11px}
       .portal-rel-resumo{margin:0.65rem 0 0.85rem;padding:0.55rem 0.7rem;border:1px solid #bbb;background:#f7f7f7;font-size:11px;line-height:1.45}
       .portal-rel-resumo h2{font-size:12px;margin:0 0 0.35rem;text-transform:uppercase;letter-spacing:0.03em}
       .portal-rel-resumo ul{margin:0.2rem 0 0.35rem 1.1rem;padding:0}
@@ -12184,9 +12265,7 @@
       ${extraMeta}
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosSuffix}</p>
       ${reportOptions.summaryHtml || ""}
-      <table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
-        "Nenhum registo."
-      )}</td></tr>`}</tbody></table>
+      ${tablesHtml}
     </body></html>`;
   }
 
@@ -12359,6 +12438,7 @@
       headerSubtitleLines: ctxView.headerSubtitleLines,
       compactTable: ctxView.compactTable,
       summaryHtml: ctxView.summaryHtml,
+      blocks: ctxView.blocks,
     };
     if (slugsTabela.has(slug) || (!context.buildPdfHtml && temTabela)) {
       html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, htmlOpts);
@@ -13363,12 +13443,10 @@
         : typeof isLocacaoFantasmaCadastro === "function"
           ? isLocacaoFantasmaCadastro
           : () => false;
-    const rowsRaw = sortPortalLocacoesPorProtocoloAsc(
-      (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
-        ? loadCadastro(CAD_LOCACOES_KEY)
-        : []
-      ).filter((l) => !isGhost(l))
-    );
+    const rowsRaw = (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+      ? loadCadastro(CAD_LOCACOES_KEY)
+      : []
+    ).filter((l) => !isGhost(l));
     const headers = [
       "Protocolo",
       "CPF",
@@ -13380,16 +13458,100 @@
       "Fim",
       "Finalização",
       "Plano",
+      "Valor semanal",
       "Status",
     ];
-    const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 11));
+    const statusIdx = 11;
+    const statusFn =
+      typeof isPortalRelatorioStatusCellAtivo === "function" ? isPortalRelatorioStatusCellAtivo : null;
+    const buckets = Object.fromEntries(PORTAL_REL_LOCACAO_BLOCOS.map((b) => [b.id, []]));
+    rowsRaw.forEach((l) => {
+      const id = portalRelatorioLocacaoClassificarBloco(l);
+      (buckets[id] || buckets["DK MEU TRANSPORTE-MOTO"]).push(l);
+    });
+    const fmt = portalRelatorioLocacaoFmtBrl;
+    const blocks = PORTAL_REL_LOCACAO_BLOCOS.map((meta) => {
+      const locs = sortPortalLocacoesPorProtocoloAsc(buckets[meta.id] || []);
+      const mapped = locs.map((l) => {
+        const row = rowPortalRelatorioLocacao(l).slice(0, 12);
+        const v = portalRelatorioLocacaoValorSemanalNum(l);
+        const ativo = Boolean(statusFn && statusFn(String(row[statusIdx] || "")));
+        return { row, v, ativo };
+      });
+      let valor = 0;
+      let valorAtivos = 0;
+      let qtdAtivos = 0;
+      mapped.forEach((m) => {
+        valor += m.v;
+        if (m.ativo) {
+          qtdAtivos += 1;
+          valorAtivos += m.v;
+        }
+      });
+      const dataRows = sortPortalRelatorioRowsCadastro(
+        mapped.map((m) => m.row),
+        headers,
+        portalRelatorioOrdemCadastro
+      );
+      const qtd = dataRows.length;
+      return {
+        id: meta.id,
+        title: meta.label,
+        rows: dataRows,
+        qtd,
+        valor,
+        qtdAtivos,
+        valorAtivos,
+        footer: `Quantidade: ${qtd} · Valor semanal: ${fmt(valor)}   ·   Ativos: ${qtdAtivos} · ${fmt(valorAtivos)}`,
+      };
+    });
+    const rows = blocks.flatMap((b) => b.rows);
+    const stats = {
+      total: rows.length,
+      ativos: blocks.reduce((n, b) => n + b.qtdAtivos, 0),
+      valorTodos: blocks.reduce((n, b) => n + b.valor, 0),
+      valorAtivos: blocks.reduce((n, b) => n + b.valorAtivos, 0),
+    };
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const buildExcelHtml = () => {
+      const head = headers.map((h) => `<th>${eh(h)}</th>`).join("");
+      let inner = "";
+      blocks.forEach((block) => {
+        inner += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:#1a365d;color:#fff">${eh(
+          block.title
+        )}</td></tr>`;
+        inner += `<tr>${head}</tr>`;
+        if (!block.rows.length) {
+          inner += `<tr><td colspan="${headers.length}">Nenhum contrato neste plano.</td></tr>`;
+        } else {
+          block.rows.forEach((row) => {
+            inner += `<tr>${row.map((c) => `<td>${eh(c)}</td>`).join("")}</tr>`;
+          });
+        }
+        inner += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:#eef2f7">${eh(
+          block.footer
+        )}</td></tr>`;
+        inner += `<tr><td colspan="${headers.length}"></td></tr>`;
+      });
+      inner += `<tr><td colspan="${headers.length}" style="font-weight:bold">Total geral: ${stats.total} · Ativos: ${
+        stats.ativos
+      } · Valor semanal (todos) ${fmt(stats.valorTodos)} · Valor semanal (ativos) ${fmt(stats.valorAtivos)}</td></tr>`;
+      return `<table border="1">${inner}</table>`;
+    };
     return {
       title: "Relatório de locações cadastradas",
       headers,
       rows,
+      blocks,
       fileSlug: "locacoes",
       textColumns: [0, 1, 3],
-      statusColumnIndex: 10,
+      statusColumnIndex: statusIdx,
+      preserveRowOrder: true,
+      stats,
+      headerSubtitleLines: [
+        `Valor semanal (todos) ${fmt(stats.valorTodos)} · Valor semanal (ativos) ${fmt(stats.valorAtivos)}`,
+      ],
+      buildExcelHtml,
     };
   }
 
@@ -14626,6 +14788,7 @@
       "Fim",
       "Finalização",
       "Plano",
+      "Valor semanal",
       "Status",
       "Modalidade",
     ];
@@ -14636,7 +14799,7 @@
       portalRelatorioOrdemCadastro
     );
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
-    const statusIdx = 10;
+    const statusIdx = 11;
     const statusFn =
       typeof isPortalRelatorioStatusCellAtivo === "function" ? isPortalRelatorioStatusCellAtivo : null;
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
@@ -14722,6 +14885,7 @@
       "Fim",
       "Finalização",
       "Plano",
+      "Valor semanal",
       "Status",
       "Modalidade",
     ];
@@ -14737,7 +14901,7 @@
     ];
     downloadStyledExcel(fileBase, headers, rows, metaLines, {
       textColumns: [0, 1, 3],
-      statusColumnIndex: 10,
+      statusColumnIndex: 11,
     });
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (msg) msg.textContent = rows.length ? `Excel gerado (${rows.length} linha(s)).` : "Excel gerado — nenhum registo neste filtro.";

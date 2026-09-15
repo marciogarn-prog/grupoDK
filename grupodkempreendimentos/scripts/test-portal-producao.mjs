@@ -157,6 +157,15 @@ async function runSuite() {
       "triagem: R abre caixa amarela; sem R não vai a disponível"
     );
     record(
+      "relatório de locações em 3 blocos com valor semanal",
+      portalUiOpsJs.includes("PORTAL_REL_LOCACAO_BLOCOS") &&
+        portalUiOpsJs.includes("Valor semanal") &&
+        portalUiOpsJs.includes("DK MEU TRANSPORTE (CARRO)") &&
+        portalUiOpsJs.includes("DK MEU TRANSPORTE (MOTO)") &&
+        portalUiOpsJs.includes("portalRelatorioLocacaoValorSemanalNum"),
+      "DK Minha Moto / Meu Transporte carro / moto"
+    );
+    record(
       "cadastro de despesas não trava a lista",
       finCeoPagJs.includes("CEO_LISTA_PAGINA = 80") &&
         finCeoPagJs.includes("__DK_runWithoutCloudPush") &&

@@ -2974,6 +2974,21 @@
           "CHECKLIST_ITENS_COUNT = 30"
         ]
       }
+    },
+    {
+      "id": "relatorio-locacoes-blocos-valor-semanal",
+      "descricao": "No Relatório de locações cadastradas cada linha tem o valor semanal do contrato. O relatório separa em três blocos com totalizador de quantidade e valor: DK MINHA MOTO, DK MEU TRANSPORTE (CARRO) e DK MEU TRANSPORTE (MOTO). Não existe outra modalidade.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "PORTAL_REL_LOCACAO_BLOCOS",
+          "Valor semanal",
+          "DK MEU TRANSPORTE (CARRO)",
+          "DK MEU TRANSPORTE (MOTO)",
+          "portalRelatorioLocacaoValorSemanalNum",
+          "KM inicial",
+          "KM fim"
+        ]
+      }
     }
   ]
 }
