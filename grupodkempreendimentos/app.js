@@ -2087,11 +2087,10 @@ function bindDkDateCalendario(input) {
   };
 
   syncNativeFromText();
-  input.addEventListener("mousedown", openCal);
-  input.addEventListener("click", openCal);
+  /* O ícone nativo (direita) abre o calendário. O texto fica livre para digitar DD/MM/AAAA. */
   input.addEventListener("focus", () => syncNativeFromText());
   input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown" || e.key === "F4" || e.key === "Enter") openCal(e);
+    if (e.key === "ArrowDown" || e.key === "F4") openCal(e);
   });
   input.addEventListener("blur", () => {
     const v = String(input.value || "").trim();

@@ -2063,12 +2063,13 @@
     },
     {
       "id": "lanc-aluguel-apagar-gemeos-ceo",
-      "descricao": "Apagar pagamento pelo CEO remove o lançamento visível e as cópias gémeas (mesma data, mesmo valor, mesmo operador) para o merge da nuvem não devolver o valor. Tombstone usa chave de grupo g:data|valor|cpf.",
+      "descricao": "Apagar pagamento pelo CEO remove o lançamento visível e as cópias gémeas (mesma data, mesmo valor, mesmo operador) para o merge da nuvem não devolver o valor. Tombstone usa chave de grupo g:data|valor|cpf. Relançar a mesma data/valor depois do apagar (createdAt posterior a removedAt) grava de novo.",
       "ficheiros": {
         "dk-lancamento-protocolo.js": [
           "portalLancamentoRemocaoKeys",
           "g:\" + data",
-          "__DK_portalLancamentoRemocaoKeys"
+          "__DK_portalLancamentoRemocaoKeys",
+          "ca <= remAt"
         ],
         "portal-locadora-ui.js": [
           "portalLancamentoCasaComRemocao",
@@ -2076,7 +2077,8 @@
         ],
         "lib/dk-append-only-merge.cjs": [
           "portalLancamentoDataChave",
-          "g:\" + data"
+          "g:\" + data",
+          "ca <= remAt"
         ]
       }
     },

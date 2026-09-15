@@ -22986,8 +22986,12 @@
     }
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false, added: 0 };
+    const gravados = novos.filter((entry) => portalLancamentoAindaGravado(loc, entry));
+    if (!gravados.length) {
+      return { ok: false, added: 0, stripped: true };
+    }
     const { nome, placa } = portalNomePlacaParaPagamentoDoDia(loc, cpfDigits);
-    for (const entry of novos) {
+    for (const entry of gravados) {
       registrarPortalLancPagamentoDoDia({
         protocolo: nc,
         nome,
@@ -23000,8 +23004,9 @@
     }
     renderPortalLancPagamentosDoDia();
     renderOperacaoLancAluguelHistorico();
-    const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, novos, new Set(), { ano });
-    return { ok: true, notify, added: novos.length };
+    destacarLancamentoHistorico(gravados[0]?.data, gravados[0]?.protocoloLancamento);
+    const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, gravados, new Set(), { ano });
+    return { ok: true, notify, added: gravados.length };
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -23106,6 +23111,43 @@
       return base;
     });
     return loc.portalLancamentosAluguel;
+  }
+
+  function portalLancamentoAindaGravado(loc, entry) {
+    const arr = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    const proto = String(entry?.protocoloLancamento || "").trim();
+    if (proto && arr.some((x) => String(x?.protocoloLancamento || "").trim() === proto)) return true;
+    const data = String(entry?.data || "").trim();
+    const ca = Number(entry?.createdAt || 0);
+    if (!data || !ca) return false;
+    return arr.some(
+      (x) => String(x?.data || "").trim() === data && Number(x?.createdAt || 0) === ca
+    );
+  }
+
+  function destacarLancamentoHistorico(dataBr, protocoloLancamento) {
+    const wrap = document.getElementById("operacaoLancAluguelHistorico");
+    if (!wrap) return;
+    wrap.querySelectorAll("tr.portal-lanc-hist__row--novo").forEach((tr) => {
+      tr.classList.remove("portal-lanc-hist__row--novo");
+    });
+    const proto = String(protocoloLancamento || "").trim();
+    const data = String(dataBr || "").trim();
+    let row = proto
+      ? wrap.querySelector(`tr[data-lanc-proto="${proto.replace(/"/g, "")}"]`)
+      : null;
+    if (!row && data) {
+      row = Array.from(wrap.querySelectorAll("tr[data-lanc-data]")).find(
+        (tr) => String(tr.getAttribute("data-lanc-data") || "").trim() === data
+      );
+    }
+    if (!row) return;
+    row.classList.add("portal-lanc-hist__row--novo");
+    try {
+      row.scrollIntoView({ block: "nearest", inline: "nearest" });
+    } catch {
+      /* ignore */
+    }
   }
 
   function finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, ncNorm) {
@@ -23441,6 +23483,9 @@
     });
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
+    if (!portalLancamentoAindaGravado(loc, entry)) {
+      return { ok: false, stripped: true };
+    }
     if (!ehDevolucao) {
       const nome =
         (typeof findClienteByCpfCadastro === "function"
@@ -26469,7 +26514,9 @@
           if (msg) {
             msg.textContent = !getPortalSessaoAdminRole()
               ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-              : "Não foi possível guardar o pagamento.";
+              : res?.stripped
+                ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
+                : "Não foi possível guardar o pagamento.";
           }
           return;
         }
@@ -26477,6 +26524,8 @@
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
         );
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
+        renderOperacaoLancAluguelHistorico();
+        destacarLancamentoHistorico(dataStr, res.entry?.protocoloLancamento);
         refreshOperacaoLancAluguelResumoCompacto();
         refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
         if (inpComentario) inpComentario.value = "";

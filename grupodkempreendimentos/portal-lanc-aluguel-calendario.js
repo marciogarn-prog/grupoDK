@@ -296,7 +296,11 @@
     if (btn) btn.disabled = true;
     const res = await fn(ctx.cpfDigits, ctx.proto, ano, celulas);
     if (!res?.ok) {
-      if (msg) msg.textContent = "Não foi possível guardar.";
+      if (msg) {
+        msg.textContent = res?.stripped
+          ? "Essas datas não ficaram gravadas (já tinham sido apagadas neste valor). Confirme de novo após actualizar a página."
+          : "Não foi possível guardar.";
+      }
       if (btn) btn.disabled = false;
       return;
     }

@@ -4017,6 +4017,12 @@ body.portal-body--admin-ceo {
   font-weight: 600;
 }
 
+.portal-lanc-hist__row--novo {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+  background: rgba(56, 189, 248, 0.16);
+}
+
 .portal-lanc-hist__recibo {
   white-space: nowrap;
   width: 1%;
@@ -6925,14 +6931,50 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 100%;
   position: relative;
   z-index: 1;
+  padding-right: 2.45rem;
+  box-sizing: border-box;
+}
+
+.fin-date-cal::after,
+.dk-date-cal::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: -0.42rem;
+  pointer-events: none;
+  z-index: 3;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.55;
+  box-sizing: border-box;
+}
+
+.fin-date-cal::before,
+.dk-date-cal::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 0.42rem);
+  right: 0.72rem;
+  width: 0.5rem;
+  height: 0;
+  border-top: 1.5px solid currentColor;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.55;
 }
 
 .fin-date-cal__native,
 .dk-date-cal__native {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
   z-index: 2;
-  width: 100%;
+  width: 2.35rem;
   height: 100%;
   margin: 0;
   padding: 0;
@@ -9802,6 +9844,10 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   padding: 0.5rem 0.65rem;
   font-size: 1rem;
   line-height: 1.3;
+}
+
+.portal-lanc-dual-col__grid .portal-lanc-field--data input[type="text"] {
+  padding-right: 2.45rem;
 }
 
 .portal-lanc-dual-col__grid .portal-lanc-field--data .dk-date-cal,

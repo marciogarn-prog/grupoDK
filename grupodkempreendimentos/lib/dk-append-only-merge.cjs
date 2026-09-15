@@ -278,11 +278,32 @@ function filtrarPortalLancamentosPorRemovidos(payments, removidos) {
   if (!list.length) return list;
   const rem = Array.isArray(removidos) ? removidos : [];
   if (!rem.length) return list;
-  const tomb = new Set();
+  const tombExact = new Set();
+  const tombGroupUntil = new Map();
   for (const t of rem) {
-    for (const k of portalLancamentoRemocaoKeys(t)) tomb.add(k);
+    const remAt = Number(t?.removedAt || 0);
+    for (const k of portalLancamentoRemocaoKeys(t)) {
+      if (String(k).startsWith("g:")) {
+        const prev = Number(tombGroupUntil.get(k) || 0);
+        tombGroupUntil.set(k, Math.max(prev, remAt));
+      } else {
+        tombExact.add(k);
+      }
+    }
   }
-  return list.filter((row) => !portalLancamentoRemocaoKeys(row).some((k) => tomb.has(k)));
+  return list.filter((row) => {
+    const keys = portalLancamentoRemocaoKeys(row);
+    for (const k of keys) {
+      if (tombExact.has(k)) return false;
+      if (String(k).startsWith("g:") && tombGroupUntil.has(k)) {
+        const remAt = Number(tombGroupUntil.get(k) || 0);
+        const ca = Number(row.createdAt || row.id || 0);
+        /* Gémeo antigo / pull da nuvem: createdAt anterior ou igual ao apagar. */
+        if (!remAt || !ca || ca <= remAt) return false;
+      }
+    }
+    return true;
+  });
 }
 
 function pagamentoAuditoriaId(ev) {

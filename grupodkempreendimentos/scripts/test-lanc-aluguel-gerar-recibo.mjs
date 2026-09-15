@@ -33,7 +33,7 @@ record("histórico do aluguel escuta Gerar recibo", uiJs.includes('t.closest("[d
 record("modal Imprimir", html.includes('id="portalReciboPrintBtn"') && uiJs.includes("portalReciboPrintBtn"));
 record("modal WhatsApp", html.includes('id="portalReciboShareBtn"') && uiJs.includes("wa.me/"));
 record("CSS do botão Recibo", css.includes(".portal-lanc-hist__recibo-btn"));
-record("cache-bust recibo-hist", html.includes("dk-lancamento-protocolo.js?v=20260914cal-proto"));
+record("cache-bust recibo-hist", html.includes("dk-lancamento-protocolo.js?v=20260915readd"));
 
 const sandbox = {
   window: { location: { hostname: "localhost" } },
