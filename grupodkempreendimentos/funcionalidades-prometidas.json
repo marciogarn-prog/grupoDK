@@ -1759,6 +1759,9 @@
           "pacoteEhMinhaMoto",
           "__DK_contratoPacoteBuildPromessaPagina",
           "__DK_contratoPacoteBuildVersoBrancoPagina",
+          ".pagina.pagina-promessa",
+          ".kit-promessa__logo",
+          "font-size: 9.4pt",
           "5. Check list / Termo de vistoria"
         ],
         "portal-contrato-locacao.js": [

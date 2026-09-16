@@ -998,6 +998,139 @@ ${cssVistoria()}
   object-fit: fill;
   border: 0;
 }
+/* Promessa de Compra e Venda — modelo SISLOC em duas páginas A4. */
+.pagina.pagina-promessa {
+  padding: 12mm 12mm 16mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  color: #000;
+  background: #fff;
+}
+.pagina.pagina-promessa .corpo { height: 100%; }
+.kit-promessa {
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  font-size: 9.4pt;
+  line-height: 1.28;
+  color: #000;
+}
+.kit-promessa__cab {
+  position: relative;
+  text-align: center;
+  min-height: 15mm;
+  margin: 0 0 5.5mm;
+  padding: 0 0 0 29mm;
+}
+.kit-promessa__logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 25mm;
+  height: 14mm;
+  max-height: 14mm;
+  object-fit: contain;
+  object-position: left top;
+}
+.kit-promessa__cab-txt { text-align: center; padding-top: 0.5mm; }
+.kit-promessa__titulo {
+  margin: 0;
+  font-size: 10.8pt;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 1.5px;
+  letter-spacing: 0;
+  line-height: 1.22;
+}
+.kit-promessa__proto {
+  margin: 2mm 0 0;
+  font-size: 9.4pt;
+  text-align: center;
+  font-weight: 400;
+}
+.kit-promessa__p {
+  margin: 0 0 2.2mm;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+.kit-promessa__h2 {
+  margin: 3mm 0 1.3mm;
+  font-size: 9.5pt;
+  font-weight: 700;
+  text-align: left;
+}
+.kit-promessa__veiculo {
+  display: grid;
+  grid-template-columns: 1.35fr 1.1fr 0.85fr 0.95fr;
+  grid-template-areas:
+    "placa placa marca marca"
+    "chassi renavam cor ano";
+  column-gap: 5mm;
+  row-gap: 1.8mm;
+  margin: 1.8mm 0 3mm;
+}
+.kit-promessa__campo--placa { grid-area: placa; }
+.kit-promessa__campo--marca { grid-area: marca; }
+.kit-promessa__campo--chassi { grid-area: chassi; }
+.kit-promessa__campo--renavam { grid-area: renavam; }
+.kit-promessa__campo--cor { grid-area: cor; }
+.kit-promessa__campo--ano { grid-area: ano; }
+.kit-promessa__campo-lbl {
+  display: block;
+  font-size: 8.7pt;
+  font-weight: 400;
+  margin-bottom: 0.5mm;
+}
+.kit-promessa__campo-box {
+  font-size: 9.1pt;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #111;
+  padding: 0 0 1px;
+  line-height: 1.3;
+}
+.kit-promessa__campo-box strong { font-weight: 700; }
+.kit-promessa--p2 { padding-top: 1mm; }
+.kit-promessa__fecho {
+  margin: 6mm 0 0;
+  text-align: left;
+}
+.kit-promessa__data {
+  margin: 10mm 0 0;
+  text-align: center;
+  font-size: 8.8pt;
+}
+.kit-promessa__sigs {
+  display: flex;
+  justify-content: space-between;
+  gap: 16mm;
+  margin-top: 13mm;
+  width: 100%;
+}
+.kit-promessa__sig { flex: 1 1 0; min-width: 0; text-align: center; }
+.kit-promessa__sig-line {
+  width: 100%;
+  border-bottom: 1.15pt solid #111;
+  height: 9mm;
+  margin: 0 0 2mm;
+}
+.kit-promessa__sig-name { margin: 0; font-size: 8.7pt; }
+.kit-promessa__sig-id { margin: 1mm 0 0; font-size: 8.2pt; }
+.pe-pagina.pe-promessa {
+  left: 12mm;
+  right: 12mm;
+  bottom: 6mm;
+  font-size: 7.5pt;
+  color: #222;
+  border-top: 0;
+  padding-top: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
 `;
   }
 

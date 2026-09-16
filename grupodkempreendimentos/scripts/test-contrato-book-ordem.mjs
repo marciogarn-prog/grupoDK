@@ -29,6 +29,14 @@ check(
     contrato.includes("__DK_contratoPacoteBuildPromessaPagina")
 );
 check(
+  "Promessa recebe layout A4 próprio no book principal",
+  pacote.includes(".pagina.pagina-promessa") &&
+    pacote.includes(".kit-promessa__logo") &&
+    pacote.includes("width: 25mm") &&
+    pacote.includes("font-size: 9.4pt") &&
+    contrato.includes("__DK_contratoPacoteCssOpcao")
+);
+check(
   "Promessa é exclusiva de DK MINHA MOTO",
   pacote.includes("somenteMinhaMoto: true") &&
     pacote.includes("function pacoteEhMinhaMoto") &&
@@ -44,8 +52,8 @@ check(
 );
 check(
   "scripts do contrato possuem cache-bust atualizado",
-  index.includes("portal-contrato-locacao.js?v=20260916bookduplex") &&
-    index.includes("portal-contrato-pacote.js?v=20260916bookduplex")
+  index.includes("portal-contrato-locacao.js?v=20260916promessalayout") &&
+    index.includes("portal-contrato-pacote.js?v=20260916promessalayout")
 );
 
 for (const item of checks) {
