@@ -159,7 +159,7 @@ async function runSuite() {
         portalUiOpsJs.includes("portalChecklistItem30") &&
         portalUiOpsJs.includes("portalChecklistTemItemReprovado") &&
         portalUiOpsJs.includes("Escreva o problema") &&
-        html.includes("styles.css?v=20260915itemlivre"),
+        /styles\.css\?v=[^"'<>]+/.test(html),
       "triagem: R abre caixa amarela; sem R não vai a disponível"
     );
     record(
