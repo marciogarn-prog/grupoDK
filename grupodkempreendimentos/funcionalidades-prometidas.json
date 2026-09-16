@@ -1654,7 +1654,7 @@
     },
     {
       "id": "opcao-contratada-sisloc",
-      "descricao": "Gerar contrato imprime o contrato de 10 páginas e a Opção Contratada no modelo SISLOC (plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas). Na linha da CNH, cada cabeçalho fica junto do valor (Nº da CNH, Categoria, Validade, EAR?).",
+      "descricao": "Gerar contrato imprime primeiro a Opção Contratada no modelo SISLOC, seguida de uma página em branco para impressão frente e verso; depois vem o contrato de 10 páginas. A opção contém plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas. Na linha da CNH, cada cabeçalho fica junto do valor (Nº da CNH, Categoria, Validade, EAR?).",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "OPÇÃO CONTRATADA",
@@ -1666,13 +1666,16 @@
         ],
         "portal-contrato-pacote.js": [
           "pagina-opcao",
+          "pagina-verso-em-branco",
           "opcao-plano",
           "__DK_contratoPacoteBuildOpcaoPagina",
+          "__DK_contratoPacoteBuildVersoBrancoPagina",
           "opcao-grid--cnh { grid-template-columns: 1.5fr"
         ],
         "portal-contrato-locacao.js": [
           "__DK_contratoPacoteBuildOpcaoPagina",
-          "Opção contratada"
+          "__DK_contratoPacoteBuildVersoBrancoPagina",
+          "1. Opção contratada + verso em branco"
         ]
       }
     },
@@ -1733,7 +1736,7 @@
     },
     {
       "id": "requerimento-padrao-em-branco",
-      "descricao": "Gerar contrato imprime quatro documentos: contrato de locação (10 páginas), Opção Contratada (1 página), Termo de Vistoria (2 páginas) e Requerimento Padrão DETRAN (2 páginas em branco, sem dados preenchidos).",
+      "descricao": "No book de Gerar contrato, o Requerimento Padrão DETRAN mantém 2 páginas em branco, sem dados preenchidos, e vem depois da Promessa (quando houver) e antes do Check list/Termo de Vistoria.",
       "ficheiros": {
         "portal-contrato-pacote.js": [
           "__DK_contratoPacoteBuildRequerimentoPagina",
@@ -1744,6 +1747,25 @@
         "portal-contrato-locacao.js": [
           "__DK_contratoPacoteBuildRequerimentoPagina",
           "4. Requerimento padrão"
+        ]
+      }
+    },
+    {
+      "id": "contrato-book-ordem-duplex-promessa",
+      "descricao": "O book segue esta ordem duplex: 1) Opção Contratada + verso em branco (2 páginas); 2) Contrato de Locação (10 páginas); 3) Promessa de Compra e Venda (2 páginas), exclusivamente para DK MINHA MOTO; 4) Requerimento Padrão (2 páginas); 5) Check list/Termo de Vistoria (2 páginas). DK MEU TRANSPORTE, carro ou moto, nunca recebe a Promessa.",
+      "ficheiros": {
+        "portal-contrato-pacote.js": [
+          "somenteMinhaMoto: true",
+          "pacoteEhMinhaMoto",
+          "__DK_contratoPacoteBuildPromessaPagina",
+          "__DK_contratoPacoteBuildVersoBrancoPagina",
+          "5. Check list / Termo de vistoria"
+        ],
+        "portal-contrato-locacao.js": [
+          "book de 18 páginas: Opção + verso branco, Contrato, Promessa, Requerimento e Check list",
+          "book de 16 páginas: Opção + verso branco, Contrato, Requerimento e Check list (sem Promessa)",
+          "ehMinhaMoto && typeof window.__DK_contratoPacoteBuildPromessaPagina",
+          "5. Check list / Termo de vistoria"
         ]
       }
     },

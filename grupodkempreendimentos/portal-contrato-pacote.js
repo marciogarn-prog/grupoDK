@@ -1,6 +1,6 @@
 /**
- * Pacote de documentos da locação — Opção contratada, Promessa, Requerimento + Contrato.
- * «Gerar contrato» abre o pacote com os 4 documentos preenchidos.
+ * Book de documentos da locação, preparado para impressão frente e verso.
+ * A Promessa de Compra e Venda existe exclusivamente no plano DK MINHA MOTO.
  */
 (function portalContratoPacote() {
   "use strict";
@@ -15,17 +15,28 @@
     }
   })();
   const DOCS = [
-    { id: "contrato", titulo: "1. Contrato de locação (10 págs)", kitTipo: "contrato", arquivo: (p) => `${p}.pdf` },
-    { id: "opcao", titulo: "2. Opção contratada", kitTipo: "opcao", arquivo: (p) => `${p}-opcao-contratada.pdf` },
-    { id: "promessa", titulo: "3. Promessa de compra e venda", kitTipo: "promessa", arquivo: (p) => `${p}-promessa-compra.pdf` },
+    { id: "opcao", titulo: "1. Opção contratada + verso em branco (2 págs)", kitTipo: "opcao", arquivo: (p) => `${p}-opcao-contratada.pdf` },
+    { id: "contrato", titulo: "2. Contrato de locação (10 págs)", kitTipo: "contrato", arquivo: (p) => `${p}.pdf` },
+    { id: "promessa", titulo: "3. Promessa de compra e venda (2 págs)", kitTipo: "promessa", arquivo: (p) => `${p}-promessa-compra.pdf`, somenteMinhaMoto: true },
     {
       id: "requerimento",
-      titulo: "4. Requerimento padrão DETRAN (modelo oficial)",
+      titulo: "4. Requerimento padrão DETRAN (2 págs)",
       kitTipo: "requerimento",
       arquivo: (p) => `${p}-requerimento.pdf`,
       modeloPdf: true,
     },
+    { id: "checklist", titulo: "5. Check list / Termo de vistoria (2 págs)", kitTipo: "vistoria", arquivo: (p) => `${p}-check-list.pdf` },
   ];
+
+  function pacoteEhMinhaMoto(dados) {
+    const plano = String(dados?.modalidade || dados?.plano || dados?.opcaoContrato || "")
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim();
+    return /\bMINHA MOTO\b/.test(plano);
+  }
 
   function esc(s) {
     return String(s ?? "")
@@ -1228,7 +1239,7 @@ ${cssOpcao()}
     }
     if (docId === "opcao") {
       const html = substituirPacote(window.__DK_CONTRATO_PACOTE_OPCAO || "", d);
-      return [wrapPaginaOpcao(html)];
+      return [wrapPaginaOpcao(html), buildPaginaVersoEmBranco()];
     }
     if (docId === "promessa") {
       const arr = window.__DK_CONTRATO_PACOTE_PROMESSA || [];
@@ -1240,6 +1251,9 @@ ${cssOpcao()}
         `<div class="pagina kit-pdf-pagina" data-pdf-mount="requerimento"><p class="kit-pdf-loading">A carregar modelo oficial DETRAN…</p></div>`,
       ];
     }
+    if (docId === "checklist") {
+      return [buildVistoriaPaginaHtml(d)];
+    }
     return [];
   }
 
@@ -1248,6 +1262,10 @@ ${cssOpcao()}
   <div class="corpo">${corpoHtml}</div>
   <div class="pe-pagina pe-opcao"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: 1 / 1</span></div>
 </div>`;
+  }
+
+  function buildPaginaVersoEmBranco() {
+    return `<div class="pagina pagina-verso-em-branco" data-pagina="2" data-kit-label="Verso em branco" aria-label="Verso em branco"></div>`;
   }
 
   function wrapPaginaVistoria(corpoHtml, num, total, fase) {
@@ -1286,7 +1304,8 @@ ${cssOpcao()}
     const d = enriquecerDadosPacote(dados);
     const proto = normProtocolo(d.protocolo);
 
-    const sequencia = DOCS.map((doc) => {
+    const docsAtivos = DOCS.filter((doc) => !doc.somenteMinhaMoto || pacoteEhMinhaMoto(d));
+    const sequencia = docsAtivos.map((doc) => {
       let pagesHtml = "";
       try {
         pagesHtml = buildPaginasDoc(doc.id, d).join("");
@@ -1300,7 +1319,7 @@ ${cssOpcao()}
     }).join("");
 
     const metaDocs = JSON.stringify(
-      DOCS.map((doc) => ({
+      docsAtivos.map((doc) => ({
         id: doc.id,
         kitTipo: doc.kitTipo,
         nomeArquivo: doc.arquivo(proto),
@@ -1333,9 +1352,9 @@ ${cssOpcao()}
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pacote ${esc(proto)} — assinatura</title><style>${cssKit()}</style></head>
 <body class="kit-preview">
 <div class="barra-acoes">
-  <button type="button" id="btnImprimir">Imprimir os 4 documentos</button>
-  <button type="button" id="btnGerarTodos" class="sec">Gerar e guardar os 4 PDFs</button>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — contrato, opção, promessa + requerimento (modelo oficial DETRAN, sem alteração)</span>
+  <button type="button" id="btnImprimir">Imprimir o book completo</button>
+  <button type="button" id="btnGerarTodos" class="sec">Gerar e guardar os PDFs</button>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — Opção + verso branco, Contrato, ${pacoteEhMinhaMoto(d) ? "Promessa, " : ""}Requerimento e Check list</span>
 </div>
 <div class="kit-shell">${sequencia}</div>
 <script>
@@ -1390,7 +1409,7 @@ ${cssOpcao()}
         bloco.appendChild(wrap);
       }
       reqPronto = true;
-      msg.textContent = "Protocolo " + META.protocolo + " — 4 documentos em sequência (requerimento = modelo oficial DETRAN).";
+      msg.textContent = "Protocolo " + META.protocolo + " — book preparado na ordem de impressão frente e verso.";
     } catch (e) {
       msg.textContent = "Não foi possível carregar o modelo DETRAN: " + (e && e.message ? e.message : e);
       var mount = bloco.querySelector("[data-pdf-mount]");
@@ -1463,7 +1482,7 @@ ${cssOpcao()}
     var ok = 0;
     for (var i = 0; i < DOCS_META.length; i++) {
       var meta = DOCS_META[i];
-      msg.textContent = "A gerar " + (i+1) + "/4 — " + meta.nomeArquivo + "…";
+      msg.textContent = "A gerar " + (i+1) + "/" + DOCS_META.length + " — " + meta.nomeArquivo + "…";
       try {
         var blob;
         if (meta.kitTipo === "requerimento") {
@@ -1483,7 +1502,7 @@ ${cssOpcao()}
         return;
       }
     }
-    msg.textContent = "Pacote concluído: 4 PDFs descarregados; " + ok + " guardado(s). Requerimento = modelo oficial sem alteração.";
+    msg.textContent = "Book concluído: " + DOCS_META.length + " PDFs descarregados; " + ok + " guardado(s).";
     if (window.opener && window.opener.__DK_contratoLocacaoRefreshBotao) window.opener.__DK_contratoLocacaoRefreshBotao();
     btn.disabled = false;
   });
@@ -1591,6 +1610,13 @@ ${cssOpcao()}
   window.__DK_contratoPacoteAbrir = abrirPacoteContrato;
   window.__DK_contratoPacoteCssOpcao = cssOpcao;
   window.__DK_contratoPacoteBuildOpcaoPagina = buildOpcaoPaginaHtml;
+  window.__DK_contratoPacoteBuildVersoBrancoPagina = buildPaginaVersoEmBranco;
+  window.__DK_contratoPacoteBuildPromessaPagina = function (dados) {
+    const d = enriquecerDadosPacote(dados);
+    const arr = window.__DK_CONTRATO_PACOTE_PROMESSA || [];
+    return arr.map((corpo, i) => wrapPaginaPromessa(substituirPacote(corpo, d), i + 1, arr.length)).join("");
+  };
+  window.__DK_contratoPacoteEhMinhaMoto = pacoteEhMinhaMoto;
   window.__DK_contratoPacoteBuildVistoriaPagina = buildVistoriaPaginaHtml;
   window.__DK_contratoPacoteBuildRequerimentoPagina = buildRequerimentoPaginaHtml;
 })();

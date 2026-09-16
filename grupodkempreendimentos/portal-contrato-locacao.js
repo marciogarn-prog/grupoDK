@@ -1201,34 +1201,54 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
 
   function buildContratoPreviewHtml(dados) {
     const paginas = buildPaginasHtml(dados);
-    let extra = "";
+    let antesContrato = "";
+    let depoisContrato = "";
+    const ehMinhaMoto =
+      typeof window.__DK_contratoPacoteEhMinhaMoto === "function"
+        ? window.__DK_contratoPacoteEhMinhaMoto(dados)
+        : /\bMINHA\s+MOTO\b/i.test(String(dados.modalidade || ""));
     try {
       if (typeof window.__DK_contratoPacoteBuildOpcaoPagina === "function") {
-        extra =
-          `<div class="kit-secao-titulo-preview">2. Opção contratada</div>` +
+        antesContrato =
+          `<div class="kit-secao-titulo-preview">1. Opção contratada + verso em branco</div>` +
           window.__DK_contratoPacoteBuildOpcaoPagina(dados);
+        if (typeof window.__DK_contratoPacoteBuildVersoBrancoPagina === "function") {
+          antesContrato += window.__DK_contratoPacoteBuildVersoBrancoPagina();
+        }
       }
     } catch (e) {
       console.warn("[DK contrato] opção contratada", e);
     }
     try {
-      if (typeof window.__DK_contratoPacoteBuildVistoriaPagina === "function") {
-        extra +=
-          `<div class="kit-secao-titulo-preview">3. Termo de vistoria</div>` +
-          window.__DK_contratoPacoteBuildVistoriaPagina(dados);
+      if (ehMinhaMoto && typeof window.__DK_contratoPacoteBuildPromessaPagina === "function") {
+        depoisContrato +=
+          `<div class="kit-secao-titulo-preview">3. Promessa de compra e venda</div>` +
+          window.__DK_contratoPacoteBuildPromessaPagina(dados);
       }
     } catch (e) {
-      console.warn("[DK contrato] termo de vistoria", e);
+      console.warn("[DK contrato] promessa de compra e venda", e);
     }
     try {
       if (typeof window.__DK_contratoPacoteBuildRequerimentoPagina === "function") {
-        extra +=
+        depoisContrato +=
           `<div class="kit-secao-titulo-preview">4. Requerimento padrão</div>` +
           window.__DK_contratoPacoteBuildRequerimentoPagina();
       }
     } catch (e) {
       console.warn("[DK contrato] requerimento padrão", e);
     }
+    try {
+      if (typeof window.__DK_contratoPacoteBuildVistoriaPagina === "function") {
+        depoisContrato +=
+          `<div class="kit-secao-titulo-preview">5. Check list / Termo de vistoria</div>` +
+          window.__DK_contratoPacoteBuildVistoriaPagina(dados);
+      }
+    } catch (e) {
+      console.warn("[DK contrato] check list / termo de vistoria", e);
+    }
+    const resumoBook = ehMinhaMoto
+      ? "modelo 10 páginas formatado para impressão; book de 18 páginas: Opção + verso branco, Contrato, Promessa, Requerimento e Check list"
+      : "modelo 10 páginas formatado para impressão; book de 16 páginas: Opção + verso branco, Contrato, Requerimento e Check list (sem Promessa)";
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
   <button type="button" id="btnImprimir">Imprimir</button>
@@ -1236,7 +1256,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
   <span id="barraPosPdf" class="hidden">
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada + Termo de vistoria + Requerimento padrão</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — ${resumoBook}</span>
 </div>
 <div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
   <div class="contrato-salvar-dialog__box">
@@ -1249,7 +1269,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
     </div>
   </div>
 </div>
-<div class="contrato-doc">${paginas.join("")}${extra}</div>
+<div class="contrato-doc">${antesContrato}<div class="kit-secao-titulo-preview">2. Contrato de locação</div>${paginas.join("")}${depoisContrato}</div>
 ${scriptPreviewInline(dados)}
 </body></html>`;
   }
