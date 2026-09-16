@@ -1776,7 +1776,7 @@
     },
     {
       "id": "locacao-finalizar-distrato-preview-pdf",
-      "descricao": "Ao clicar em Finalizar locação, o operador informa iniciativa e motivo e abre primeiro o Distrato de Locação preenchido em pré-visualização A4. O documento mostra plano, protocolo, cliente, endereço, veículo, proprietário, período, código do cliente, odômetros, km rodados, motivo e assinaturas. A janela oferece Gerar PDF, Imprimir e Confirmar finalização; a locação só é encerrada após a confirmação no documento.",
+      "descricao": "Ao clicar em Finalizar locação, o operador informa iniciativa e motivo e abre primeiro o Distrato de Locação preenchido em pré-visualização A4. O documento mostra plano, protocolo, cliente, endereço, veículo, proprietário, período, código do cliente, odômetros, km rodados, motivo e assinaturas. A duração é sempre Data fim menos Data início (ex.: 16/09/2026 − 28/07/2026 = 50 dias). A janela oferece Gerar PDF, Imprimir e Confirmar finalização; a locação só é encerrada após a confirmação no documento.",
       "ficheiros": {
         "index.html": [
           "portalDistratoDadosModal",
@@ -1794,7 +1794,8 @@
           "__DK_distratoLocacaoAbrir",
           "__DK_distratoLocacaoConfirmar",
           "Breve Descrição do Motivo do Distrato",
-          "Km(s) Rodado(s)"
+          "Km(s) Rodado(s)",
+          "86400000"
         ],
         "portal-locadora-ui.js": [
           "abrirPortalDistratoDadosModal",

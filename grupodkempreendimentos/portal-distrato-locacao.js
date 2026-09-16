@@ -66,7 +66,19 @@
     const retirada = numeroKm(raw.odometroInicio || raw.kmInicial || enriquecido.odometroInicio || enriquecido.km);
     const devolucao = numeroKm(raw.odometroFim || raw.kmFinal || enriquecido.odometroFim);
     const rodados = Math.max(0, devolucao - retirada);
-    const diasContrato = Math.max(0, Number(raw.diasContrato) || 0);
+    const inicioDt = parseDataBr(inicio);
+    const fimDt = parseDataBr(fim);
+    const diasContrato =
+      inicioDt && fimDt
+        ? Math.max(
+            0,
+            Math.round(
+              (new Date(fimDt.getFullYear(), fimDt.getMonth(), fimDt.getDate()).getTime() -
+                new Date(inicioDt.getFullYear(), inicioDt.getMonth(), inicioDt.getDate()).getTime()) /
+                86400000
+            )
+          )
+        : Math.max(0, Number(raw.diasContrato) || 0);
     return {
       ...enriquecido,
       ...raw,
