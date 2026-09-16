@@ -993,13 +993,14 @@ async function runSuite() {
       "sem integridade o protocolo não grava"
     );
     record(
-      "cadastro locação confirmação com resumo",
+      "cadastro locação confirma cadastro e distrato na finalização",
       html.includes("portalLocacaoConfirmModal") &&
         html.includes("portalLocacaoConfirmResumo") &&
         portalUiProto.includes("openPortalLocacaoConfirmModal") &&
         portalUiProto.includes("Confirmar cadastro de locação") &&
-        portalUiProto.includes("Confirmar finalização da locação"),
-      "modal com protocolo, cliente, placa, plano e valor"
+        html.includes("portalDistratoDadosModal") &&
+        portalUiProto.includes("abrirPortalDistratoDadosModal"),
+      "cadastro com resumo; finalização com distrato"
     );
     record(
       "protocolo = data inicio AAAAMMDDXX (nunca data de hoje)",
