@@ -64,7 +64,7 @@ record(
   ui.includes("sortPortalRelatorioRowsCadastro") && ui.includes("applyPortalRelatorioOrdemCadastro"),
   ""
 );
-record("cache-bust", html.includes("portal-locadora-ui.js?v=20260915rel6ceo"), "");
+record("cache-bust", html.includes("portal-locadora-ui.js?v=20260916parcelas"), "");
 
 const failed = results.filter((r) => !r.ok);
 if (failed.length) {

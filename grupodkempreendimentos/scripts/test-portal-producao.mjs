@@ -129,7 +129,7 @@ async function runSuite() {
         manutRapidaJs.includes("ymdDoRegistro(r) === ymd"),
       "Registro do dia e receita CEO usam a união da nuvem"
     );
-    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260915planos`, {
+    const finCeoPagJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=20260916parcelas`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -146,6 +146,12 @@ async function runSuite() {
         finCeoPagJs.includes("resumoPlanosAtivosCeo") &&
         finCeoPagJs.includes("classificarPlanoAtivoCeo"),
       "locação, investimento e totais por plano"
+    );
+    record(
+      "contador da parcela mostra atual e total da série",
+      finCeoPagJs.includes("totalPagamentos") &&
+        finCeoPagJs.includes('padStart(2, "0")}/${String(totalPagamentos).padStart(2, "0")'),
+      "ex.: PAGAMENTO 01/08, 02/08 … 08/08"
     );
     record(
       "check-list item extra livre (A/R + caixa do problema)",

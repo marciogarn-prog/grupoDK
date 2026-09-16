@@ -107,8 +107,8 @@ record(
 record(
   "index cache-bust calendário protocolo",
   indexHtml.includes("dk-lancamento-protocolo.js?v=20260915readd") &&
-    indexHtml.includes("app.js?v=20260915readd") &&
-    indexHtml.includes("portal-locadora-ui.js?v=20260915rel6ceo"),
+    indexHtml.includes("app.js?v=20260916parcelas") &&
+    indexHtml.includes("portal-locadora-ui.js?v=20260916parcelas"),
   ""
 );
 

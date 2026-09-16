@@ -3681,9 +3681,10 @@
   function ceoListaLinhaFromPagamento(d, p, tipo, desc, primeiro) {
     const situacao = getSituacaoPagamentoLinha(d.id, p.numero, p.data);
     const lancamento = dataLancamentoDespesa(d);
+    const totalPagamentos = Math.max(1, Number(d.repeticoes) || 1);
     return {
       pagamento: p.numero,
-      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
+      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}/${String(totalPagamentos).padStart(2, "0")}`,
       data: p.data,
       dataLabel: fmtBrDate(p.data),
       lancamento,
@@ -4391,9 +4392,10 @@
 
   function ceoRelLinhaFromPagamento(p) {
     const { tipo, desc } = detalheDespesaLista(p.despesa);
+    const totalPagamentos = Math.max(1, Number(p.despesa?.repeticoes) || 1);
     return {
       pagamento: p.numero,
-      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
+      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}/${String(totalPagamentos).padStart(2, "0")}`,
       data: p.data,
       dataLabel: fmtBrDate(p.data),
       valor: p.valor,

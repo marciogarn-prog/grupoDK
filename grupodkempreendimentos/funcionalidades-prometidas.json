@@ -1015,6 +1015,16 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-contador-parcelas",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos), PAGAMENTO mostra a parcela atual e o total da série: 01/08, 02/08 … 08/08.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "totalPagamentos",
+          "padStart(2, \"0\")}/${String(totalPagamentos).padStart(2, \"0\")"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesa-critica-lancamento-igual",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas: se já existir um lançamento com a mesma data de vencimento, mesma instituição e mesmo valor, o sistema pergunta «JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?» com botões SIM e CANCELAR.",
       "ficheiros": {

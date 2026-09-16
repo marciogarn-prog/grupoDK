@@ -56,8 +56,8 @@ rec(
   "cache-bust loopfix2 no index",
   indexHtml.includes("portal-supabase-sync.js?v=20260915unico") &&
     indexHtml.includes("dk-portal-api-auth.js?v=20260915unico") &&
-    indexHtml.includes("portal-locadora-ui.js?v=20260915rel6ceo") &&
-    indexHtml.includes("app.js?v=20260915readd"),
+    indexHtml.includes("portal-locadora-ui.js?v=20260916parcelas") &&
+    indexHtml.includes("app.js?v=20260916parcelas"),
   ""
 );
 rec("trace sem imprimir token", syncJs.includes("[DK LOOP TRACE]") && syncJs.includes("delete safe.token"), "");
