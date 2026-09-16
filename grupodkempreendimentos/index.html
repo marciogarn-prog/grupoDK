@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260916rotfinanceira">
+  <link rel="stylesheet" href="styles.css?v=20260916distrato">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -5106,6 +5106,31 @@
     </div>
   </div>
 
+  <div id="portalDistratoDadosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalDistratoDadosTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-close-distrato-dados></div>
+    <div class="portal-modal__card portal-distrato-dados-card">
+      <h3 id="portalDistratoDadosTitulo" class="portal-modal__title">Dados do Distrato de Locação</h3>
+      <p id="portalDistratoDadosResumo" class="subtext">Informe o motivo e abra a pré-visualização para conferir antes de imprimir.</p>
+      <label class="portal-field portal-field--wide">
+        <span>Iniciativa</span>
+        <select id="portalDistratoIniciativa" aria-label="Iniciativa do distrato">
+          <option value="Cliente">Cliente</option>
+          <option value="DK Locadora">DK Locadora</option>
+          <option value="Mútuo acordo">Mútuo acordo</option>
+        </select>
+      </label>
+      <label class="portal-field portal-field--wide">
+        <span>Breve descrição do motivo do distrato</span>
+        <textarea id="portalDistratoMotivo" rows="4" maxlength="500" autocomplete="off" placeholder="Ex.: Cliente desistiu do processo."></textarea>
+      </label>
+      <p id="portalDistratoDadosMsg" class="portal-feedback" role="status"></p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalDistratoVisualizarBtn">Pré-visualizar distrato</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalDistratoCancelarBtn" data-close-distrato-dados>Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalAlterarProtocoloModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalAlterarProtocoloTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-alterar-protocolo></div>
     <div class="portal-modal__card portal-alterar-protocolo-card">
@@ -5557,7 +5582,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260915readd" defer></script>
   <script src="dk-portal-api-auth.js?v=20260915unico"></script>
-  <script src="app.js?v=20260916saldopositivo" defer></script>
+  <script src="app.js?v=20260916distrato" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5567,7 +5592,8 @@
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
-  <script src="portal-locadora-ui.js?v=20260916saldopositivo" defer></script>
+  <script src="portal-distrato-locacao.js?v=20260916distrato" defer></script>
+  <script src="portal-locadora-ui.js?v=20260916distrato" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>

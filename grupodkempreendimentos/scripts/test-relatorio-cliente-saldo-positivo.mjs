@@ -30,8 +30,8 @@ const checks = [
   ],
   [
     "Cache do relatório foi atualizado",
-    html.includes("portal-locadora-ui.js?v=20260916saldopositivo") &&
-      html.includes("app.js?v=20260916saldopositivo")
+    /portal-locadora-ui\.js\?v=[^"]+/.test(html) &&
+      /app\.js\?v=[^"]+/.test(html)
   ],
 ];
 

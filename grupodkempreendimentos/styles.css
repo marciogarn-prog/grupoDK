@@ -5944,6 +5944,17 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   max-width: min(96vw, 36rem);
 }
 
+.portal-distrato-dados-card {
+  width: min(94vw, 42.5rem);
+  max-width: 42.5rem;
+}
+
+.portal-distrato-dados-card textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  resize: vertical;
+}
+
 .portal-cliente-confirm-resumo {
   display: grid;
   grid-template-columns: 9.5rem 1fr;

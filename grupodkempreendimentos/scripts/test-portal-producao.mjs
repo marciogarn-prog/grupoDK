@@ -422,6 +422,20 @@ async function runSuite() {
           "saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano)"
         )
     );
+    const distratoVer = html.match(/portal-distrato-locacao\.js\?v=([^"]+)/)?.[1] || "";
+    const distratoJs = await fetch(`${BASE_URL}portal-distrato-locacao.js?v=${distratoVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "finalizar locação abre distrato A4 antes de encerrar",
+      html.includes("portalDistratoDadosModal") &&
+        html.includes("portalDistratoMotivo") &&
+        distratoJs.includes("DISTRATO DE LOCAÇÃO DE VEÍCULO") &&
+        distratoJs.includes("btnDistratoPdf") &&
+        distratoJs.includes("btnDistratoImprimir") &&
+        distratoJs.includes("btnDistratoConfirmar") &&
+        portalUiLancJs.includes("__DK_distratoLocacaoAbrir(dadosDistrato, pendente.onConfirm)")
+    );
     record(
       "lançamento aluguel calendário anual (bloco + modal)",
       htmlLancAluguel.includes("operacaoLancAluguelValorSimples") &&

@@ -15101,6 +15101,18 @@
     persistPortalLocacaoFinalizar();
   });
 
+  document.getElementById("portalDistratoVisualizarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    visualizarPortalDistratoPendente();
+  });
+
+  document.querySelectorAll("[data-close-distrato-dados]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      fecharPortalDistratoDadosModal();
+    });
+  });
+
   document.getElementById("operacaoLocacaoCancelarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     persistPortalLocacaoCancelar();
@@ -20332,6 +20344,86 @@
     return { ok: true, loc };
   }
 
+  let portalDistratoFinalizacaoPendente = null;
+
+  function fecharPortalDistratoDadosModal() {
+    const modal = document.getElementById("portalDistratoDadosModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+    portalDistratoFinalizacaoPendente = null;
+  }
+
+  function abrirPortalDistratoDadosModal(contexto, onConfirm) {
+    const modal = document.getElementById("portalDistratoDadosModal");
+    const resumo = document.getElementById("portalDistratoDadosResumo");
+    const iniciativa = document.getElementById("portalDistratoIniciativa");
+    const motivo = document.getElementById("portalDistratoMotivo");
+    const msg = document.getElementById("portalDistratoDadosMsg");
+    if (!modal || !motivo || !iniciativa) {
+      portalLocacaoFeedback("A janela do distrato não está disponível. Recarregue a página.");
+      return false;
+    }
+    portalDistratoFinalizacaoPendente = { contexto, onConfirm };
+    if (resumo) {
+      const saldos = contexto.saldosFinalizacao || {};
+      const pagamentoSaldo = saldos.dataPagamentoSaldo
+        ? ` · Pagamento do saldo: ${saldos.dataPagamentoSaldo}`
+        : "";
+      resumo.textContent = `Protocolo ${contexto.protocolo} · ${contexto.nome || "Cliente"} · ${contexto.placa || "sem placa"} · fim ${contexto.fim} · devido ${saldos.devidoFmt || "—"} · pago ${saldos.pagoFmt || "—"} · saldo ${saldos.saldoFmt || "—"}${pagamentoSaldo}.`;
+    }
+    iniciativa.value = String(contexto.iniciativa || "Cliente");
+    motivo.value = String(contexto.motivoDistrato || "Cliente desistiu do Processo.");
+    if (msg) msg.textContent = "Confira a iniciativa e o motivo antes de abrir o documento.";
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => motivo.focus(), 0);
+    return true;
+  }
+
+  function visualizarPortalDistratoPendente() {
+    const pendente = portalDistratoFinalizacaoPendente;
+    const motivoEl = document.getElementById("portalDistratoMotivo");
+    const iniciativaEl = document.getElementById("portalDistratoIniciativa");
+    const msg = document.getElementById("portalDistratoDadosMsg");
+    if (!pendente) {
+      if (msg) msg.textContent = "Clique novamente em Finalizar locação.";
+      return;
+    }
+    const motivoDistrato = String(motivoEl?.value || "").trim();
+    const iniciativa = String(iniciativaEl?.value || "").trim();
+    if (!motivoDistrato) {
+      if (msg) msg.textContent = "Informe uma breve descrição do motivo do distrato.";
+      motivoEl?.focus();
+      return;
+    }
+    if (typeof window.__DK_distratoLocacaoAbrir !== "function") {
+      if (msg) msg.textContent = "Gerador do distrato indisponível. Recarregue a página.";
+      return;
+    }
+    const dadosContrato =
+      typeof window.__DK_contratoLocacaoResolverFromForm === "function"
+        ? window.__DK_contratoLocacaoResolverFromForm()
+        : {};
+    const dadosDistrato = {
+      ...dadosContrato,
+      ...pendente.contexto,
+      iniciativa,
+      motivoDistrato,
+    };
+    const abriu = window.__DK_distratoLocacaoAbrir(dadosDistrato, pendente.onConfirm);
+    if (!abriu) {
+      if (msg) msg.textContent = "Permita pop-ups para abrir a pré-visualização do distrato.";
+      return;
+    }
+    const modal = document.getElementById("portalDistratoDadosModal");
+    modal?.classList.add("hidden");
+    modal?.setAttribute("aria-hidden", "true");
+    portalDistratoFinalizacaoPendente = null;
+    portalLocacaoFeedback("Distrato aberto para conferência. Imprima e confirme a finalização na janela do documento.");
+  }
+
   function persistPortalLocacaoFinalizar() {
     if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
@@ -20401,13 +20493,25 @@
     };
     const saldos = portalLocacaoFinalizacaoSaldos(locParaSaldo, fimBr);
 
-    const finalizarLocacao = () => {
+    const finalizarLocacao = (dadosDistrato = {}) => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const finNow = Date.now();
+      const kmFinalDistrato =
+        digitsPortalOdometro(dadosDistrato.odometroFim || dadosDistrato.kmFinal) ||
+        digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroFim")?.value) ||
+        digitsPortalOdometro(prev.kmFinal || prev.odometroFim);
       locs[idx] = {
         ...prev,
         fim: fimBr,
+        dataFim: fimBr,
+        horaFim:
+          String(dadosDistrato.horaFim || document.getElementById("operacaoLocacaoHoraFim")?.value || prev.horaFim || "").trim(),
+        kmFinal: kmFinalDistrato,
+        odometroFim: kmFinalDistrato,
+        iniciativaDistrato: String(dadosDistrato.iniciativa || "Cliente").trim(),
+        motivoDistrato: String(dadosDistrato.motivoDistrato || "").trim(),
+        distratoGeradoEmMs: finNow,
         statusLocacao: "FINALIZADO",
         portalLocacaoFinalizadoPorCpf: finCpf,
         portalLocacaoFinalizadoPorNome: String(regFin?.nome || "").trim(),
@@ -20419,7 +20523,7 @@
       } catch (err) {
         console.error(err);
         portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
-        return;
+        return false;
       }
       portalPushCloudSnapshotAfterPersist();
       if (typeof addAuditLog === "function") {
@@ -20450,25 +20554,35 @@
           }
         });
       }
+      return true;
     };
 
-    openPortalLocacaoConfirmModal(
+    abrirPortalDistratoDadosModal(
       {
-        titulo: "Confirmar finalização da locação",
-        lead: "Revise o resumo e confirme para encerrar o protocolo.",
-        confirmLabel: "Confirmar finalização",
-        rows: [
-          { label: "Protocolo", value: ncNorm },
-          { label: "Cliente", value: nomeCliente || "—" },
-          { label: "Placa", value: placa || "—" },
-          { label: "Tipo de plano", value: plano || "—" },
-          { label: "Valor da locação", value: valorLoc },
-          { label: "Data fim", value: fimBr },
-          { label: "Valor devido", value: saldos.devidoFmt },
-          { label: "Valor pago", value: saldos.pagoFmt },
-          { label: "Saldo", value: saldos.saldoFmt },
-          ...(saldos.dataPagamentoSaldo ? [{ label: "Pagamento do saldo", value: saldos.dataPagamentoSaldo }] : []),
-        ],
+        protocolo: ncNorm,
+        numeroContrato: ncNorm,
+        cpfDigits,
+        cpfFmt: typeof formatCpf === "function" ? formatCpf(cpfDigits) : cpfDigits,
+        nome: nomeCliente,
+        placa,
+        modalidade: plano,
+        plano,
+        inicio: String(prev.inicio || document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim(),
+        fim: fimBr,
+        horaInicio: String(prev.horaInicio || document.getElementById("operacaoLocacaoHoraInicio")?.value || "").trim(),
+        horaFim: String(document.getElementById("operacaoLocacaoHoraFim")?.value || prev.horaFim || "").trim(),
+        diasContrato: Number(document.getElementById("operacaoLocacaoTempoDiasContrato")?.value || 0),
+        codigoCliente: String(
+          document.getElementById("operacaoLocacaoClienteCodigo")?.value || prev.clienteCodigo || ""
+        ).trim(),
+        odometroInicio:
+          document.getElementById("operacaoLocacaoOdometroInicio")?.value || prev.kmInicial || prev.odometroInicio,
+        odometroFim:
+          document.getElementById("operacaoLocacaoOdometroFim")?.value || prev.kmFinal || prev.odometroFim,
+        iniciativa: prev.iniciativaDistrato || "Cliente",
+        motivoDistrato: prev.motivoDistrato || "Cliente desistiu do Processo.",
+        valorLocacao: valorLoc,
+        saldosFinalizacao: saldos,
       },
       finalizarLocacao
     );
