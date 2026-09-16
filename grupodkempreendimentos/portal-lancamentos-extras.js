@@ -963,7 +963,7 @@
     const slice = ordenadas.slice(0, max);
     panel.classList.remove("hidden");
     panel.removeAttribute("hidden");
-    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === ordenadas.length ? slice.length : `${slice.length} de ${ordenadas.length}`} protocolo(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice}
+    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === ordenadas.length ? slice.length : `${slice.length} de ${ordenadas.length}`} protocolo(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
       .map((row) => {
         const placaLbl = row.placa ? ` · ${escHtml(row.placa)}` : "";
         const status = row.ativo ? "ativo" : "inativo";
