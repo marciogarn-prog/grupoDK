@@ -302,7 +302,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-2-5-semanas-pagas",
-      "descricao": "No relatório 2.5, cada protocolo mostra SEMANAS PAGAS (valor pago total ÷ valor semanal do contrato, parte inteira) e SALDO POSITIVO (o que sobrou). Ex.: R$ 1.100,00 pagos em contrato de R$ 350,00/semana = 3 semanas e R$ 50,00.",
+      "descricao": "No relatório 2.5, cada protocolo mostra SEMANAS PAGAS (valor pago total ÷ valor semanal do contrato, parte inteira) e SALDO POSITIVO calculado por VALOR PAGO TOTAL menos VALOR DEVIDO DO PLANO. Ex.: R$ 17.850,00 pagos − R$ 17.600,00 devidos = R$ 250,00.",
       "ficheiros": {
         "index.html": [
           "SEMANAS PAGAS",
@@ -312,6 +312,8 @@
         "portal-locadora-ui.js": [
           "semanasPagas",
           "saldoSemanas",
+          "computePortalRelClienteSaldoPositivoPlano",
+          "SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR DEVIDO DO PLANO",
           "SEMANAS PAGAS",
           "SALDO POSITIVO"
         ],

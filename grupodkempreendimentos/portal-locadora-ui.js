@@ -16344,6 +16344,11 @@
       : Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
+  function computePortalRelClienteSaldoPositivoPlano(pago, devidoPlano) {
+    const resultado = Math.round((Number(pago || 0) - Number(devidoPlano || 0)) * 100) / 100;
+    return Math.abs(resultado) < 0.009 ? 0 : resultado;
+  }
+
   /** Resumo do protocolo no dia de emissão: devido aluguel, plano, investimento, pago e saldo. */
   function computePortalRelClienteVidaResumoNum(loc) {
     const parseCur =
@@ -16368,9 +16373,9 @@
     let saldoSemanas = 0;
     if (semanal > 0.009) {
       semanasPagas = Math.floor((pagoNum + 1e-9) / semanal);
-      saldoSemanas = Math.round((pagoNum - semanasPagas * semanal) * 100) / 100;
-      if (Math.abs(saldoSemanas) < 0.009) saldoSemanas = 0;
     }
+    /* SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR DEVIDO DO PLANO. */
+    saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano);
     return {
       devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
       devidoPlano: Number.isFinite(devidoPlano) ? devidoPlano : 0,

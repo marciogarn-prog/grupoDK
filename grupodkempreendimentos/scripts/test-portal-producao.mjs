@@ -416,6 +416,13 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
+      "relatório 2.5 saldo positivo = pago total menos devido do plano",
+      portalUiLancJs.includes("computePortalRelClienteSaldoPositivoPlano") &&
+        portalUiLancJs.includes(
+          "saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano)"
+        )
+    );
+    record(
       "lançamento aluguel calendário anual (bloco + modal)",
       htmlLancAluguel.includes("operacaoLancAluguelValorSimples") &&
         htmlLancAluguel.includes("operacaoLancAluguelLancBlocoBtn") &&
