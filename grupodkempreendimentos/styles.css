@@ -11755,6 +11755,19 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ffd54f;
 }
 
+.fin-ceo-desp-lista__cel-lancamento > span,
+.fin-ceo-desp-pagamento-data {
+  display: block;
+  white-space: nowrap;
+}
+
+.fin-ceo-desp-pagamento-data {
+  margin-top: 0.2rem;
+  color: #6ee7a0;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .fin-ceo-desp-lista__col-situacao,
 .fin-ceo-desp-lista__cel-situacao {
   min-width: 6.5rem;

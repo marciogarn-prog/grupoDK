@@ -540,6 +540,15 @@
       if (tr) {
         const cel = tr.querySelector(".fin-ceo-desp-lista__cel-situacao");
         if (cel) cel.innerHTML = `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--pago" aria-label="Pago">PAGO</span>`;
+        const celLancamento = tr.querySelector(".fin-ceo-desp-lista__cel-lancamento");
+        const dtPagamento = new Date(blocoUi.pagoEm || "");
+        if (celLancamento && !Number.isNaN(dtPagamento.getTime())) {
+          celLancamento.querySelector(".fin-ceo-desp-pagamento-data")?.remove();
+          celLancamento.insertAdjacentHTML(
+            "beforeend",
+            `<small class="fin-ceo-desp-pagamento-data">PAGO EM ${esc(fmtBrDate(dtPagamento))}</small>`
+          );
+        }
         tr.classList.remove("fin-ceo-desp-row--vencida");
         body.appendChild(tr);
       }
@@ -1582,7 +1591,19 @@
     return item?.situacao === "PAGO" ? "PAGO" : "A_PAGAR";
   }
 
-  function marcarPagamentoLinhaComoPago(despesaId, pagNum, data) {
+  function getRegistroPagamentoLinha(despesaId, pagNum, data) {
+    const map = loadSituacaoPagamentosMap();
+    return map.get(chaveSituacaoPagamento(despesaId, pagNum, data)) || null;
+  }
+
+  function dataPagamentoLinhaLabel(despesaId, pagNum, data) {
+    const item = getRegistroPagamentoLinha(despesaId, pagNum, data);
+    if (item?.situacao !== "PAGO" || !String(item.pagoEm || "").trim()) return "";
+    const dt = new Date(item.pagoEm);
+    return Number.isNaN(dt.getTime()) ? "" : fmtBrDate(dt);
+  }
+
+  function marcarPagamentoLinhaComoPago(despesaId, pagNum, data, pagoEmRaw) {
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return;
     }
@@ -1594,7 +1615,7 @@
       carimboCeoEscrita({
         chave,
         situacao: "PAGO",
-        pagoEm: new Date().toISOString(),
+        pagoEm: String(pagoEmRaw || "").trim() || new Date().toISOString(),
       })
     );
     saveSituacaoPagamentosMap(map);
@@ -1643,20 +1664,22 @@
     if (!pending) return;
     setBotoesGravacaoCeoDisabled(true);
     fecharModalConfirmPagoDespesa();
+    const pagoEm = new Date().toISOString();
     const sit = carimboCeoEscrita({
       chave: chaveSituacaoPagamento(pending.despesaId, pending.pagNum, pending.data),
       situacao: "PAGO",
-      pagoEm: new Date().toISOString(),
+      pagoEm,
     });
     const operationId = `financeiro-ceo-pagamento:${pending.despesaId}:${pending.pagNum}:${Date.now()}`;
     await gravarFinanceiroCeoComSeguranca(
-      () => marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data),
+      () => marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data, pagoEm),
       () =>
         aplicarBlocoNaTela({
           tipo: "pagar",
           despesaId: pending.despesaId,
           pagNum: pending.pagNum,
           valor: Number(pending.row?.valor) || 0,
+          pagoEm,
         }),
       { situacao: [sit] },
       operationId
@@ -3603,7 +3626,8 @@
           ...edited,
           id: editedId,
           repeticoes: 1,
-          cadastradoEm: pag === 1 ? original.cadastradoEm : new Date().toISOString(),
+          /* Edição não cria uma nova data de lançamento: conserva o primeiro cadastro. */
+          cadastradoEm: original.cadastradoEm,
         })
       );
       if (pag < R) {
@@ -3614,7 +3638,7 @@
             id: novoIdDespesa(),
             repeticoes: R - pag,
             dataEvento: futuro?.data || original.dataEvento,
-            cadastradoEm: new Date().toISOString(),
+            cadastradoEm: original.cadastradoEm,
           })
         );
       }
@@ -3671,7 +3695,8 @@
         serializarDespesa({
           ...updated,
           id: savedId,
-          cadastradoEm: new Date().toISOString(),
+          /* Editar esta parcela em diante também preserva o lançamento original. */
+          cadastradoEm: original.cadastradoEm,
         })
       );
     }
@@ -3689,6 +3714,7 @@
       dataLabel: fmtBrDate(p.data),
       lancamento,
       lancamentoLabel: fmtBrDate(lancamento) || "—",
+      pagamentoDataLabel: dataPagamentoLinhaLabel(d.id, p.numero, p.data),
       valor: p.valor,
       valorLabel: brl(p.valor),
       categoria: labelCategoria(d.categoria),
@@ -3817,7 +3843,14 @@
           <td>${esc(row.categoria)}</td>
           <td>${esc(row.rubrica)}</td>
           <td>${esc(row.detalhe)}</td>
-          <td>${esc(row.lancamentoLabel)}</td>
+          <td class="fin-ceo-desp-lista__cel-lancamento">
+            <span>${esc(row.lancamentoLabel)}</span>
+            ${
+              row.pagamentoDataLabel
+                ? `<small class="fin-ceo-desp-pagamento-data">PAGO EM ${esc(row.pagamentoDataLabel)}</small>`
+                : ""
+            }
+          </td>
           <td>${esc(row.dataLabel)}</td>
           <td>${esc(row.valorLabel)}</td>
           <td class="fin-ceo-desp-lista__cel-situacao">${situacaoHtml}</td>
@@ -5358,7 +5391,7 @@
           id: novoIdDespesa(),
           repeticoes: R - pag,
           dataEvento: futuro?.data || original.dataEvento,
-          cadastradoEm: new Date().toISOString(),
+          cadastradoEm: original.cadastradoEm,
         })
       );
     }

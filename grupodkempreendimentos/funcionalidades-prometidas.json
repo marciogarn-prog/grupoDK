@@ -1025,6 +1025,21 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-datas-lancamento-pagamento",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas, DATA DE LANÇAMENTO conserva para sempre a data do primeiro cadastro, inclusive após marcar PAGO ou editar. Na mesma célula aparece PAGO EM com a data efetiva do pagamento.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "dataPagamentoLinhaLabel",
+          "PAGO EM",
+          "Edição não cria uma nova data de lançamento: conserva o primeiro cadastro.",
+          "cadastradoEm: original.cadastradoEm"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-pagamento-data"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesa-critica-lancamento-igual",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas: se já existir um lançamento com a mesma data de vencimento, mesma instituição e mesmo valor, o sistema pergunta «JÁ EXISTE UM LANÇAMENTO IGUAL, DESEJA GRAVAR ASSIM MESMO?» com botões SIM e CANCELAR.",
       "ficheiros": {
