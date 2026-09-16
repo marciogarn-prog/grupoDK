@@ -18562,6 +18562,74 @@
    * Dias do contrato: com data fim → diferença em dias corridos entre fim e início (alinhado à Receita 2026, ex. 57 para 22/04→18/06).
    * Sem data fim → dias desde o início até hoje (contrato em curso no formulário).
    */
+  const PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS = new Date(2026, 8, 17, 0, 0, 0, 0).getTime();
+
+  function portalHoraAtualHHMM() {
+    const agora = new Date();
+    return `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+  }
+
+  function portalHoraMinutos(raw) {
+    const m = String(raw || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+
+  function portalLocacaoUsaRegraDiaria24h(loc) {
+    /* Sem a marca explícita é cadastro legado e mantém a regra antiga. */
+    return Boolean(
+      loc &&
+        Object.prototype.hasOwnProperty.call(loc, "regraDiaria24hAtiva") &&
+        loc.regraDiaria24hAtiva === true
+    );
+  }
+
+  function portalLocacaoFormUsaRegraDiaria24h() {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const isNovo = !sel || String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    if (isNovo) return Date.now() >= PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS;
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    return portalLocacaoUsaRegraDiaria24h(loc);
+  }
+
+  function portalLocacaoDiariasPorIntervalo(inicio, horaInicioRaw, fim, horaFimRaw, agoraOpt) {
+    const minInicio = portalHoraMinutos(horaInicioRaw);
+    if (!(inicio instanceof Date) || Number.isNaN(inicio.getTime()) || minInicio === null) return null;
+    const inicioMs = new Date(
+      inicio.getFullYear(),
+      inicio.getMonth(),
+      inicio.getDate(),
+      Math.floor(minInicio / 60),
+      minInicio % 60
+    ).getTime();
+    let fimMs;
+    if (fim instanceof Date && !Number.isNaN(fim.getTime())) {
+      const minFim = portalHoraMinutos(horaFimRaw);
+      if (minFim === null) return null;
+      fimMs = new Date(
+        fim.getFullYear(),
+        fim.getMonth(),
+        fim.getDate(),
+        Math.floor(minFim / 60),
+        minFim % 60
+      ).getTime();
+    } else {
+      fimMs = agoraOpt instanceof Date ? agoraOpt.getTime() : Date.now();
+    }
+    if (fimMs < inicioMs) return 0;
+    return Math.max(1, Math.ceil((fimMs - inicioMs) / 86400000));
+  }
+
+  function sugerirHorasLocacaoNova() {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (sel && String(sel.value || "") !== "__PORTAL_PROTO_NOVO__") return;
+    const hora = portalHoraAtualHHMM();
+    const inicio = document.getElementById("operacaoLocacaoHoraInicio");
+    const fim = document.getElementById("operacaoLocacaoHoraFim");
+    if (inicio && !String(inicio.value || "").trim()) inicio.value = hora;
+    if (fim && !String(fim.value || "").trim()) fim.value = hora;
+  }
+
   function syncOperacaoLocacaoTempoDiasContrato() {
     const inpDataInicio = document.getElementById("operacaoLocacaoDataInicio");
     const inpDataFim = document.getElementById("operacaoLocacaoDataFim");
@@ -18578,6 +18646,18 @@
       return;
     }
     const rawFim = String(inpDataFim?.value || "").trim();
+    const regra24h = portalLocacaoFormUsaRegraDiaria24h();
+    if (regra24h) {
+      const fim = rawFim && typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
+      const diarias = portalLocacaoDiariasPorIntervalo(
+        inicio,
+        document.getElementById("operacaoLocacaoHoraInicio")?.value,
+        fim,
+        document.getElementById("operacaoLocacaoHoraFim")?.value
+      );
+      inpTempo.value = diarias === null ? "" : String(diarias);
+      return;
+    }
     if (rawFim) {
       const fim = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
       if (fim && !Number.isNaN(fim.getTime())) {
@@ -19332,6 +19412,8 @@
     const modeloEl = document.getElementById("operacaoLocacaoModelo");
     const diEl = document.getElementById("operacaoLocacaoDataInicio");
     const dfEl = document.getElementById("operacaoLocacaoDataFim");
+    const hiEl = document.getElementById("operacaoLocacaoHoraInicio");
+    const hfEl = document.getElementById("operacaoLocacaoHoraFim");
     const diaPagEl = document.getElementById("operacaoLocacaoDiaPagamento");
     const valLocEl = document.getElementById("operacaoLocacaoValorAluguel");
     const valInvEl = document.getElementById("operacaoLocacaoValorInvestimento");
@@ -19363,7 +19445,12 @@
       return s;
     };
     if (diEl) diEl.value = fmtDate(loc.inicio);
-    if (dfEl) dfEl.value = fmtDate(loc.fim);
+    if (dfEl) {
+      dfEl.value = fmtDate(loc.fim);
+      dfEl.dataset.portalValorAnterior = dfEl.value;
+    }
+    if (hiEl) hiEl.value = String(loc.horaInicio || "").trim();
+    if (hfEl) hfEl.value = String(loc.horaFim || "").trim();
     if (diaPagEl) diaPagEl.value = String(loc.diaPagto || loc.diaPagamento || "").trim();
     const odIni = document.getElementById("operacaoLocacaoOdometroInicio");
     const odFim = document.getElementById("operacaoLocacaoOdometroFim");
@@ -19417,6 +19504,13 @@
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    const hiEl = document.getElementById("operacaoLocacaoHoraInicio");
+    const hfEl = document.getElementById("operacaoLocacaoHoraFim");
+    const dfEl = document.getElementById("operacaoLocacaoDataFim");
+    if (hiEl) hiEl.value = "";
+    if (hfEl) hfEl.value = "";
+    if (dfEl) dfEl.dataset.portalValorAnterior = "";
+    sugerirHorasLocacaoNova();
     const tp = document.getElementById("operacaoLocacaoTotalPago");
     const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
     if (tp) tp.value = formatOperacaoLocacaoValorNumDisplay(0);
@@ -20788,10 +20882,13 @@
     }
     const inicioBr =
       typeof formatPortalDataBr === "function" ? formatPortalDataBr(inicioDt) : rawInicio;
+    const horaInicio = String(document.getElementById("operacaoLocacaoHoraInicio")?.value || "").trim();
+    const horaFim = String(document.getElementById("operacaoLocacaoHoraFim")?.value || "").trim();
     const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
     let fimBr = "";
+    let fimDt = null;
     if (rawFim) {
-      const fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
+      fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
       if (!fimDt || Number.isNaN(fimDt.getTime())) {
         if (msg) msg.textContent = "Data fim inválida (DD/MM/AAAA).";
         return;
@@ -20968,6 +21065,33 @@
       if (msg) msg.textContent = "Remova «NOVO» do protocolo para atualizar um contrato já existente.";
       return;
     }
+    const regraDiaria24hAtiva = prev
+      ? portalLocacaoUsaRegraDiaria24h(prev)
+      : Date.now() >= PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS;
+    if (horaInicio && portalHoraMinutos(horaInicio) === null) {
+      if (msg) msg.textContent = "Hora de início inválida. Informe no formato HH:MM.";
+      return;
+    }
+    if (horaFim && portalHoraMinutos(horaFim) === null) {
+      if (msg) msg.textContent = "Hora de fim inválida. Informe no formato HH:MM.";
+      return;
+    }
+    if (regraDiaria24hAtiva && portalHoraMinutos(horaInicio) === null) {
+      if (msg) msg.textContent = "Informe a hora de início no formato HH:MM.";
+      return;
+    }
+    if (regraDiaria24hAtiva && fimBr && portalHoraMinutos(horaFim) === null) {
+      if (msg) msg.textContent = "Informe a hora de fim no formato HH:MM.";
+      return;
+    }
+    if (
+      regraDiaria24hAtiva &&
+      fimDt &&
+      portalLocacaoDiariasPorIntervalo(inicioDt, horaInicio, fimDt, horaFim) === 0
+    ) {
+      if (msg) msg.textContent = "A data e a hora de fim não podem ser anteriores ao início.";
+      return;
+    }
 
     const ncKey =
       typeof normalizeNumeroContratoKey === "function" ? normalizeNumeroContratoKey(nc) : nc;
@@ -21042,6 +21166,9 @@
       placa: plate,
       inicio: inicioBr,
       fim: fimBr,
+      horaInicio,
+      horaFim,
+      regraDiaria24hAtiva,
       plano: planoNome,
       valorLocacao: cb(valorLocNum),
       valorInvestimento: cb(valorInvNum),
@@ -21166,6 +21293,9 @@
           { label: "Protocolo", value: nc },
           { label: "Cliente", value: nomeCliente || "—" },
           { label: "Placa", value: plate },
+          { label: "Início", value: `${inicioBr}${horaInicio ? ` ${horaInicio}` : ""}` },
+          { label: "Fim", value: fimBr ? `${fimBr}${horaFim ? ` ${horaFim}` : ""}` : "Em aberto" },
+          { label: "Diárias", value: String(tempoN) },
           { label: "Tipo de plano", value: planoNome || "—" },
           { label: "Valor da locação", value: cb(valorLocNum) },
         ],
@@ -21454,6 +21584,16 @@
     const inicio = parseD(rawInicio);
     if (!inicio || Number.isNaN(inicio.getTime())) return 0;
     const rawFim = String(loc?.fim || "").trim();
+    if (portalLocacaoUsaRegraDiaria24h(loc)) {
+      const fim24h = rawFim ? parseD(rawFim) : null;
+      const diarias = portalLocacaoDiariasPorIntervalo(
+        inicio,
+        loc?.horaInicio,
+        fim24h,
+        loc?.horaFim
+      );
+      return diarias === null ? 0 : diarias;
+    }
     if (rawFim) {
       const fim = parseD(rawFim);
       if (fim && !Number.isNaN(fim.getTime())) {
@@ -21475,6 +21615,16 @@
     const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
     const inicio = parseD(String(loc?.inicio || "").trim());
     if (!inicio || Number.isNaN(inicio.getTime())) return 0;
+    if (portalLocacaoUsaRegraDiaria24h(loc)) {
+      const fim24h = portalLocacaoTemDataFim(loc) ? parseD(String(loc?.fim || "").trim()) : null;
+      const diarias = portalLocacaoDiariasPorIntervalo(
+        inicio,
+        loc?.horaInicio,
+        fim24h,
+        loc?.horaFim
+      );
+      return diarias === null ? 0 : diarias;
+    }
     const start = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
     let end;
     if (portalLocacaoTemDataFim(loc)) {
@@ -24905,9 +25055,28 @@
     inpDataInicio?.addEventListener("change", syncOperacaoLocacaoFromDataInicio);
     inpDataInicio?.addEventListener("input", syncOperacaoLocacaoFromDataInicio);
     const inpDataFim = document.getElementById("operacaoLocacaoDataFim");
+    const sugerirHoraFimAoPreencherData = () => {
+      if (!inpDataFim) return;
+      const atual = String(inpDataFim.value || "").trim();
+      const anterior = String(inpDataFim.dataset.portalValorAnterior || "").trim();
+      if (atual && !anterior) {
+        const inpHoraFim = document.getElementById("operacaoLocacaoHoraFim");
+        if (inpHoraFim) inpHoraFim.value = portalHoraAtualHHMM();
+      }
+      inpDataFim.dataset.portalValorAnterior = atual;
+    };
     inpDataFim?.addEventListener("blur", syncOperacaoLocacaoFromDataInicio);
     inpDataFim?.addEventListener("change", syncOperacaoLocacaoFromDataInicio);
-    inpDataFim?.addEventListener("input", syncOperacaoLocacaoFromDataInicio);
+    inpDataFim?.addEventListener("input", () => {
+      sugerirHoraFimAoPreencherData();
+      syncOperacaoLocacaoFromDataInicio();
+    });
+    ["operacaoLocacaoHoraInicio", "operacaoLocacaoHoraFim"].forEach((id) => {
+      const el = document.getElementById(id);
+      el?.addEventListener("input", syncOperacaoLocacaoTempoDiasContrato);
+      el?.addEventListener("change", syncOperacaoLocacaoTempoDiasContrato);
+    });
+    sugerirHorasLocacaoNova();
   }
 
   function formatOperacaoLocacaoValorNumDisplay(num) {
@@ -27696,6 +27865,7 @@
 
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
   window.__DK_computePortalDiasAteHoje = computePortalDiasAteHoje;
+  window.__DK_portalLocacaoDiariasPorIntervalo = portalLocacaoDiariasPorIntervalo;
   window.__DK_refreshLancAluguelSituacao = refreshOperacaoLancAluguelSituacaoAposPagamento;
   window.__DK_renderPortalLancPagamentosDoDia = renderPortalLancPagamentosDoDia;
   if (!window.__DK_portalLancPagDiaWatch) {

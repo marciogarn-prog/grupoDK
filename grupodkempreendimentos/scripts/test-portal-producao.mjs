@@ -174,6 +174,15 @@ async function runSuite() {
       "ativos/finalizados × 3 planos + PLANOS SEMANAIS ATIVOS"
     );
     record(
+      "locação tem horas e diárias por blocos de 24h",
+      html.includes("operacaoLocacaoHoraInicio") &&
+        html.includes("operacaoLocacaoHoraFim") &&
+        portalUiOpsJs.includes("PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS") &&
+        portalUiOpsJs.includes("portalLocacaoDiariasPorIntervalo") &&
+        portalUiOpsJs.includes("regraDiaria24hAtiva"),
+      "novas locações desde 17/09/2026; anteriores preservadas"
+    );
+    record(
       "cadastro de despesas não trava a lista",
       finCeoPagJs.includes("CEO_LISTA_PAGINA = 80") &&
         finCeoPagJs.includes("__DK_runWithoutCloudPush") &&

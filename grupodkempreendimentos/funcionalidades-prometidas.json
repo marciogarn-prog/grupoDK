@@ -3016,6 +3016,33 @@
           "KM fim"
         ]
       }
+    },
+    {
+      "id": "locacao-horas-regra-diarias-24h",
+      "descricao": "Cadastro de locação mostra HORA DE INÍCIO e HORA DE FIM editáveis no formato HH:MM ao lado das datas, sugerindo a hora atual. Somente novas locações cadastradas a partir de 17/09/2026 usam blocos iniciados de 24 horas: até 24h = 1 diária; acima de 24h até 48h = 2; contratos anteriores mantêm a regra antiga.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoHoraInicio",
+          "operacaoLocacaoHoraFim",
+          "portal-locacao-data-hora"
+        ],
+        "portal-locadora-ui.js": [
+          "PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS",
+          "portalLocacaoDiariasPorIntervalo",
+          "regraDiaria24hAtiva",
+          "horaInicio",
+          "horaFim"
+        ],
+        "app.js": [
+          "calcularDiarias24hLocacao",
+          "regraDiaria24hAtiva",
+          "horaInicio",
+          "horaFim"
+        ],
+        "styles.css": [
+          "portal-locacao-data-hora"
+        ]
+      }
     }
   ]
 }

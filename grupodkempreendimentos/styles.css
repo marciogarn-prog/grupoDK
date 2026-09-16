@@ -2450,6 +2450,18 @@ body.portal-body--admin-ceo {
   min-width: 0;
 }
 
+.portal-locacao-data-hora {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.portal-field--locacao-data-hora .portal-locacao-data-hora > input {
+  width: 100%;
+  min-width: 0;
+}
+
 .portal-field--locacao-codigo {
   max-width: 100%;
 }

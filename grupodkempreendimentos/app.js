@@ -2813,6 +2813,15 @@ function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
   };
   const scoreRec = (r) => Number(r?.updatedAt || r?.createdAt || r?.id || 0);
   const newer = scoreRec(l) >= scoreRec(ex) ? l : ex;
+  const older = newer === l ? ex : l;
+  out.horaInicio = String(newer.horaInicio || older.horaInicio || "").trim();
+  out.horaFim = String(newer.horaFim || older.horaFim || "").trim();
+  if (
+    Object.prototype.hasOwnProperty.call(newer, "regraDiaria24hAtiva") ||
+    Object.prototype.hasOwnProperty.call(older, "regraDiaria24hAtiva")
+  ) {
+    out.regraDiaria24hAtiva = newer.regraDiaria24hAtiva === true || older.regraDiaria24hAtiva === true;
+  }
   const newerFimRaw = String(newer.fim || newer.dataFim || "").trim();
   const newerSemFim = !newerFimRaw || newerFimRaw === "...";
   const newerSt = String(newer.statusLocacao || newer.status || "")
@@ -11142,6 +11151,35 @@ function toDateOnly(value) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
 
+function calcularDiarias24hLocacao(record, inicioDate, fimDate) {
+  if (record?.regraDiaria24hAtiva !== true) return null;
+  const parseHora = (raw) => {
+    const m = String(raw || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const minInicio = parseHora(record?.horaInicio);
+  const minFim = fimDate ? parseHora(record?.horaFim) : null;
+  if (!inicioDate || minInicio === null || (fimDate && minFim === null)) return 0;
+  const startMs = new Date(
+    inicioDate.getFullYear(),
+    inicioDate.getMonth(),
+    inicioDate.getDate(),
+    Math.floor(minInicio / 60),
+    minInicio % 60
+  ).getTime();
+  const endMs = fimDate
+    ? new Date(
+        fimDate.getFullYear(),
+        fimDate.getMonth(),
+        fimDate.getDate(),
+        Math.floor(minFim / 60),
+        minFim % 60
+      ).getTime()
+    : Date.now();
+  if (endMs < startMs) return 0;
+  return Math.max(1, Math.ceil((endMs - startMs) / 86400000));
+}
+
 function calculateDynamicFinancialFields(record) {
   const inicioDate =
     excelSerialToDate(record?.inicioSerial) || parseBrDate(record?.inicio);
@@ -11156,7 +11194,8 @@ function calculateDynamicFinancialFields(record) {
   const fimDate = excelSerialToDate(record?.fimSerial) || parseBrDate(record?.fim);
   const inicio = toDateOnly(inicioDate);
   const referenciaFim = toDateOnly(fimDate) || hoje;
-  const dias = inicio && referenciaFim ? diffDays(inicio, referenciaFim) : 0;
+  const diarias24h = calcularDiarias24hLocacao(record, inicioDate, fimDate);
+  const dias = diarias24h ?? (inicio && referenciaFim ? diffDays(inicio, referenciaFim) : 0);
   const valorSemanal = parseCurrencyBR(record?.valorSemanal);
   const devidoCalculado =
     valorSemanal > 0 && dias > 0
@@ -11780,12 +11819,15 @@ function buildClientePagamentosTimelineTexto(cpfDigits) {
 
 function buildWeeklyDevidoPagoSeries(record) {
   const devidoSemanal = parseCurrencyBR(record?.valorSemanal);
-  const inicio = toDateOnly(parseRecordStartDate(record));
-  const fim = toDateOnly(excelSerialToDate(record?.fimSerial) || parseBrDate(record?.fim));
+  const inicioRaw = parseRecordStartDate(record);
+  const fimRaw = excelSerialToDate(record?.fimSerial) || parseBrDate(record?.fim);
+  const inicio = toDateOnly(inicioRaw);
+  const fim = toDateOnly(fimRaw);
   const hoje = toDateOnly(new Date());
   if (!(inicio instanceof Date) || !(hoje instanceof Date) || devidoSemanal <= 0) return [];
   const referenciaFim = fim && fim < hoje ? fim : hoje;
-  const diasContrato = Math.max(1, diffDays(inicio, referenciaFim));
+  const diarias24h = calcularDiarias24hLocacao(record, inicioRaw, fimRaw && fimRaw < new Date() ? fimRaw : null);
+  const diasContrato = Math.max(1, diarias24h ?? diffDays(inicio, referenciaFim));
   const weeksNeeded = Math.max(1, Math.ceil(diasContrato / 7));
   const full = getMergedWeeklyPaymentTrail(record);
   if (!full.length) return [];
@@ -12316,11 +12358,15 @@ function mergeContractsForPlaca(placaRaw) {
 }
 
 function calcContratoDias(contrato) {
-  const ini = inferStartDateForContrato(contrato);
-  if (!ini) return null;
-  const fimDate = String(contrato.fim || "").trim()
+  const iniRaw = inferStartDateForContrato(contrato);
+  if (!iniRaw) return null;
+  const fimRaw = String(contrato.fim || "").trim()
     ? inferEndDateForContrato(contrato)
-    : toDateOnly(new Date());
+    : null;
+  const diarias24h = calcularDiarias24hLocacao(contrato, iniRaw, fimRaw);
+  if (diarias24h !== null) return diarias24h;
+  const ini = toDateOnly(iniRaw);
+  const fimDate = fimRaw || toDateOnly(new Date());
   if (!fimDate || fimDate < ini) return 1;
   return Math.max(1, diffDays(ini, fimDate));
 }
@@ -12604,11 +12650,15 @@ function mergeContractsForCliente(cpfDigits) {
 }
 
 function diasTotalContratoVida(contract) {
-  const ini = toDateOnly(parseRecordStartDate(contract));
-  if (!ini) return 1;
-  const fimContrato = String(contract.fim || "").trim()
-    ? toDateOnly(excelSerialToDate(contract.fimSerial) || parseBrDate(contract.fim))
-    : toDateOnly(new Date());
+  const iniRaw = parseRecordStartDate(contract);
+  const ini = toDateOnly(iniRaw);
+  if (!ini || !iniRaw) return 1;
+  const fimRaw = String(contract.fim || "").trim()
+    ? excelSerialToDate(contract.fimSerial) || parseBrDate(contract.fim)
+    : null;
+  const diarias24h = calcularDiarias24hLocacao(contract, iniRaw, fimRaw);
+  if (diarias24h !== null) return diarias24h;
+  const fimContrato = toDateOnly(fimRaw) || toDateOnly(new Date());
   if (!fimContrato || fimContrato < ini) return 1;
   return Math.max(1, diffDays(ini, fimContrato));
 }
