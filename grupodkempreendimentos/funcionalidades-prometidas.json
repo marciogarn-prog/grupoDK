@@ -3043,6 +3043,28 @@
           "portal-locacao-data-hora"
         ]
       }
+    },
+    {
+      "id": "fin-ceo-relatorio-rotatividade-financeira",
+      "descricao": "Abaixo de GRÁFICO DE DESPESAS, o FINANCEIRO CEO tem Relatório de rotatividade financeira mensal. À esquerda mostra novos compromissos no mês da primeira parcela; à direita mostra, no mês seguinte à última parcela, os compromissos finalizados no mês anterior. Exibe contas do mês, novos, finalizados e saldo de acréscimo ou redução.",
+      "ficheiros": {
+        "index.html": [
+          "btn-fin-ceo-rotatividade-financeira",
+          "finCeoPaneRotatividadeFinanceira",
+          "Novos compromissos",
+          "Compromissos finalizados"
+        ],
+        "portal-financeiro-ceo.js": [
+          "coletarRotatividadeFinanceira",
+          "renderRotatividadeFinanceira",
+          "saidaChave",
+          "Compromissos finalizados no mês anterior"
+        ],
+        "styles.css": [
+          "fin-ceo-rot-fin-mes__cols",
+          "fin-ceo-rot-fin-mes__col--entrada"
+        ]
+      }
     }
   ]
 }

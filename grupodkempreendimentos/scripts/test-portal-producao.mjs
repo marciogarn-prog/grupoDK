@@ -250,6 +250,15 @@ async function runSuite() {
       "A PAGAR → PAGO deixa o trecho do mês verde"
     );
     record(
+      "relatório de rotatividade financeira é mensal",
+      html.includes("btn-fin-ceo-rotatividade-financeira") &&
+        html.includes("finCeoPaneRotatividadeFinanceira") &&
+        finCeoPagJs.includes("coletarRotatividadeFinanceira") &&
+        finCeoPagJs.includes("saidaChave: monthKey(addMonths(ultimo.data, 1))") &&
+        finCeoPagJs.includes("const saldo = novos - finalizados"),
+      "primeira parcela entra; mês após a última parcela sai"
+    );
+    record(
       "régua do gráfico marca até abril de 2035",
       finCeoPagJs.includes("GRAFICO_DESPESAS_FIM") &&
         finCeoPagJs.includes("horizonteGraficoDespesasAteAbril2035") &&

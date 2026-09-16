@@ -493,6 +493,7 @@
     if (paneAberto === "dashboard") renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
+    if (paneAberto === "rotatividade-financeira") renderRotatividadeFinanceira();
     if (paneAberto === "periodo") renderResumoPeriodoCeo();
     if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
   }
@@ -5788,6 +5789,156 @@
     bindGraficoDespesasScroll();
   }
 
+  function parseMesRotatividadeFinanceira(raw) {
+    const m = String(raw || "").trim().match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, 1) : null;
+  }
+
+  function prepararFiltrosRotatividadeFinanceira() {
+    const inicioEl = document.getElementById("finCeoRotFinMesInicio");
+    const fimEl = document.getElementById("finCeoRotFinMesFim");
+    const atual = new Date();
+    const inicio = new Date(atual.getFullYear(), atual.getMonth(), 1);
+    if (inicioEl && !inicioEl.value) inicioEl.value = monthKey(inicio);
+    if (fimEl && !fimEl.value) fimEl.value = monthKey(addMonths(inicio, 12));
+  }
+
+  function coletarRotatividadeFinanceira() {
+    const compromissos = [];
+    const totaisMes = new Map();
+    loadDespesasCeo()
+      .map(normalizeDespesa)
+      .forEach((d) => {
+        if (d.deleted) return;
+        const excluidos = new Set(
+          Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []
+        );
+        const pagamentos = expandirPagamentosDespesa(d, d.repeticoes)
+          .filter((p) => !excluidos.has(Number(p.numero)))
+          .sort((a, b) => a.data - b.data);
+        if (!pagamentos.length) return;
+        pagamentos.forEach((p) => {
+          const key = monthKey(p.data);
+          totaisMes.set(key, (totaisMes.get(key) || 0) + (Number(p.valor) || 0));
+        });
+        const primeiro = pagamentos[0];
+        const ultimo = pagamentos[pagamentos.length - 1];
+        const detalhe = detalheDespesaLista(d);
+        compromissos.push({
+          id: d.id,
+          categoria: labelCategoria(d.categoria),
+          rubrica: detalhe.tipo,
+          detalhe: detalhe.desc || d.descricao || "—",
+          primeiraData: primeiro.data,
+          primeiraChave: monthKey(primeiro.data),
+          primeiroNumero: primeiro.numero,
+          primeiraValor: Number(primeiro.valor) || 0,
+          ultimaData: ultimo.data,
+          saidaChave: monthKey(addMonths(ultimo.data, 1)),
+          ultimoNumero: ultimo.numero,
+          totalParcelas: pagamentos.length,
+          ultimaValor: Number(ultimo.valor) || 0,
+        });
+      });
+    return { compromissos, totaisMes };
+  }
+
+  function htmlLinhaRotatividadeFinanceira(row, tipo) {
+    const entrada = tipo === "entrada";
+    const numero = entrada ? row.primeiroNumero : row.ultimoNumero;
+    const valor = entrada ? row.primeiraValor : row.ultimaValor;
+    const data = entrada ? row.primeiraData : row.ultimaData;
+    const parcela = `${String(numero).padStart(2, "0")}/${String(row.totalParcelas).padStart(2, "0")}`;
+    return `<div class="fin-ceo-rot-fin-row">
+      <span class="fin-ceo-rot-fin-row__nome" title="${esc(row.detalhe)}">${esc(row.detalhe)}</span>
+      <span class="fin-ceo-rot-fin-row__tipo">${esc(row.categoria)} · ${esc(row.rubrica || "—")}</span>
+      <span class="fin-ceo-rot-fin-row__parcela">${entrada ? "Primeira" : "Última"} ${esc(parcela)} · ${esc(fmtBrDate(data))}</span>
+      <strong>${esc(brl(valor))}</strong>
+    </div>`;
+  }
+
+  function renderRotatividadeFinanceira() {
+    prepararFiltrosRotatividadeFinanceira();
+    const inicioEl = document.getElementById("finCeoRotFinMesInicio");
+    const fimEl = document.getElementById("finCeoRotFinMesFim");
+    const lista = document.getElementById("finCeoRotFinLista");
+    const hint = document.getElementById("finCeoRotFinHint");
+    let inicio = parseMesRotatividadeFinanceira(inicioEl?.value);
+    let fim = parseMesRotatividadeFinanceira(fimEl?.value);
+    if (!inicio || !fim || !lista) return;
+    if (fim < inicio) {
+      const tmp = inicio;
+      inicio = fim;
+      fim = tmp;
+      if (inicioEl) inicioEl.value = monthKey(inicio);
+      if (fimEl) fimEl.value = monthKey(fim);
+    }
+    const { compromissos, totaisMes } = coletarRotatividadeFinanceira();
+    const meses = [];
+    let totalNovos = 0;
+    let totalFinalizados = 0;
+    for (let mes = new Date(inicio); mes <= fim; mes = addMonths(mes, 1)) {
+      const chave = monthKey(mes);
+      const chaveAnterior = monthKey(addMonths(mes, -1));
+      const entradas = compromissos
+        .filter((c) => c.primeiraChave === chave)
+        .sort((a, b) => b.primeiraValor - a.primeiraValor);
+      const saidas = compromissos
+        .filter((c) => c.saidaChave === chave)
+        .sort((a, b) => b.ultimaValor - a.ultimaValor);
+      const novos = entradas.reduce((s, r) => s + r.primeiraValor, 0);
+      const finalizados = saidas.reduce((s, r) => s + r.ultimaValor, 0);
+      const saldo = novos - finalizados;
+      const totalAtual = totaisMes.get(chave) || 0;
+      const totalAnterior = totaisMes.get(chaveAnterior) || 0;
+      totalNovos += novos;
+      totalFinalizados += finalizados;
+      const entHtml = entradas.length
+        ? entradas.map((r) => htmlLinhaRotatividadeFinanceira(r, "entrada")).join("")
+        : `<p class="fin-ceo-rot-fin-empty">Sem novos compromissos</p>`;
+      const saiHtml = saidas.length
+        ? saidas.map((r) => htmlLinhaRotatividadeFinanceira(r, "saida")).join("")
+        : `<p class="fin-ceo-rot-fin-empty">Sem compromissos finalizados</p>`;
+      meses.push(`<article class="fin-ceo-rot-fin-mes">
+        <h4>${esc(mesLabelCurtoCeo(mes))}</h4>
+        <div class="fin-ceo-rot-fin-mes__totais">
+          <span>Mês anterior <strong>${esc(brl(totalAnterior))}</strong></span>
+          <span>Contas no mês <strong>${esc(brl(totalAtual))}</strong></span>
+          <span>Novos <strong class="is-up">${esc(brl(novos))}</strong></span>
+          <span>Finalizados <strong class="is-down">${esc(brl(finalizados))}</strong></span>
+          <span>Saldo <strong class="${saldo > 0 ? "is-up" : saldo < 0 ? "is-down" : "is-flat"}">${esc(brl(saldo))}</strong></span>
+        </div>
+        <div class="fin-ceo-rot-fin-mes__cols">
+          <section class="fin-ceo-rot-fin-mes__col fin-ceo-rot-fin-mes__col--entrada">
+            <h5>Novos compromissos</h5>${entHtml}
+          </section>
+          <section class="fin-ceo-rot-fin-mes__col fin-ceo-rot-fin-mes__col--saida">
+            <h5>Compromissos finalizados no mês anterior</h5>${saiHtml}
+          </section>
+        </div>
+      </article>`);
+    }
+    const saldoGeral = totalNovos - totalFinalizados;
+    const setTxt = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+    setTxt("finCeoRotFinNovos", brl(totalNovos));
+    setTxt("finCeoRotFinFinalizados", brl(totalFinalizados));
+    setTxt("finCeoRotFinSaldo", brl(Math.abs(saldoGeral)));
+    setTxt(
+      "finCeoRotFinSaldoLab",
+      saldoGeral > 0 ? "Acréscimo de compromissos" : saldoGeral < 0 ? "Redução de compromissos" : "Compromissos estáveis"
+    );
+    const saldoBox = document.getElementById("finCeoRotFinSaldoBox");
+    saldoBox?.classList.remove("is-up", "is-down", "is-flat");
+    saldoBox?.classList.add(saldoGeral > 0 ? "is-up" : saldoGeral < 0 ? "is-down" : "is-flat");
+    if (hint) {
+      hint.textContent = `${mesLabelCurtoCeo(inicio)} a ${mesLabelCurtoCeo(fim)} · novos ${brl(totalNovos)} · finalizados ${brl(totalFinalizados)} · saldo ${brl(saldoGeral)}.`;
+    }
+    lista.innerHTML = meses.join("");
+  }
+
   function bindGraficoDespesasScroll() {
     const pane = document.getElementById("finCeoPaneGraficoDespesas");
     if (!pane || pane.__dkGrafScrollBound) return;
@@ -5838,6 +5989,7 @@
       renderCadastroDespesas();
     }
     if (id === "grafico-despesas") renderGraficoDespesas();
+    if (id === "rotatividade-financeira") renderRotatividadeFinanceira();
     if (id === "relatorio") renderRelatorio();
     if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
   }
@@ -5849,6 +6001,9 @@
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
     });
+    document.getElementById("finCeoRotFinAtualizar")?.addEventListener("click", renderRotatividadeFinanceira);
+    document.getElementById("finCeoRotFinMesInicio")?.addEventListener("change", renderRotatividadeFinanceira);
+    document.getElementById("finCeoRotFinMesFim")?.addEventListener("change", renderRotatividadeFinanceira);
 
     document.getElementById("finCeoDashAnosFiltro")?.addEventListener("click", (ev) => {
       const btn = ev.target.closest("[data-ceo-ano]");

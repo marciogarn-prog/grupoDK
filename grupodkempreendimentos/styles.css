@@ -13576,6 +13576,163 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   color: #ffd54f;
 }
 
+.fin-ceo-rot-fin__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin: 0.8rem 0;
+}
+
+.fin-ceo-rot-fin__filtros .portal-field {
+  min-width: 11rem;
+}
+
+.fin-ceo-rot-fin__hint {
+  margin: 0.35rem 0 0.75rem;
+}
+
+.fin-ceo-rot-fin__resumo,
+.fin-ceo-rot-fin-mes__totais {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.fin-ceo-rot-fin-kpi,
+.fin-ceo-rot-fin-mes__totais span {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: rgba(9, 14, 22, 0.72);
+}
+
+.fin-ceo-rot-fin-kpi span,
+.fin-ceo-rot-fin-mes__totais span {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+}
+
+.fin-ceo-rot-fin-kpi strong,
+.fin-ceo-rot-fin-mes__totais strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-ceo-rot-fin-kpi--saldo.is-up strong { color: #6ee7a0; }
+.fin-ceo-rot-fin-kpi--saldo.is-down strong { color: #fbbf24; }
+.fin-ceo-rot-fin-kpi--saldo.is-flat strong { color: #f5d76e; }
+
+.fin-ceo-rot-fin__lista {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.fin-ceo-rot-fin-mes {
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  background: rgba(8, 13, 20, 0.72);
+}
+
+.fin-ceo-rot-fin-mes > h4 {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  background: #123522;
+  color: #86efac;
+}
+
+.fin-ceo-rot-fin-mes__totais {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0.65rem;
+}
+
+.fin-ceo-rot-fin-mes__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #334155;
+}
+
+.fin-ceo-rot-fin-mes__col {
+  min-width: 0;
+  padding: 0.7rem;
+}
+
+.fin-ceo-rot-fin-mes__col--entrada {
+  border-right: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.fin-ceo-rot-fin-mes__col h5 {
+  margin: 0 0 0.45rem;
+  color: #e2e8f0;
+}
+
+.fin-ceo-rot-fin-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.3fr) minmax(7rem, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.17);
+  font-size: 0.72rem;
+}
+
+.fin-ceo-rot-fin-row__nome {
+  overflow: hidden;
+  color: #f8fafc;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fin-ceo-rot-fin-row__tipo,
+.fin-ceo-rot-fin-row__parcela {
+  color: #cbd5e1;
+}
+
+.fin-ceo-rot-fin-row strong,
+.fin-ceo-rot-fin-mes__col--entrada .fin-ceo-rot-fin-row strong,
+.fin-ceo-rot-fin__resumo .is-up,
+.fin-ceo-rot-fin-mes__totais .is-up {
+  color: #6ee7a0 !important;
+}
+
+.fin-ceo-rot-fin-mes__col--saida .fin-ceo-rot-fin-row strong,
+.fin-ceo-rot-fin__resumo .is-down,
+.fin-ceo-rot-fin-mes__totais .is-down {
+  color: #fbbf24 !important;
+}
+
+.fin-ceo-rot-fin__resumo .is-flat,
+.fin-ceo-rot-fin-mes__totais .is-flat {
+  color: #f5d76e !important;
+}
+
+.fin-ceo-rot-fin-empty {
+  margin: 0.4rem 0;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .fin-ceo-rot-fin__resumo,
+  .fin-ceo-rot-fin-mes__totais,
+  .fin-ceo-rot-fin-mes__cols {
+    grid-template-columns: 1fr;
+  }
+  .fin-ceo-rot-fin-mes__col--entrada {
+    border-right: 0;
+    border-bottom: 1px solid rgba(34, 197, 94, 0.35);
+  }
+  .fin-ceo-rot-fin-row {
+    grid-template-columns: 1fr auto;
+  }
+}
+
 .portal-lanc-dia-log {
   margin-top: 1.35rem;
   padding-top: 1rem;
