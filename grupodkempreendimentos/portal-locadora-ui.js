@@ -27977,9 +27977,8 @@
       if (!isDemo || veiculosArr.length) {
         apiTasks.push(dkPortalPushToApi("cadastro-veiculos", veiculosArr));
       }
-      if (!isDemo || locacoesArr.length) {
-        apiTasks.push(dkPortalPushToApi("cadastro-locacoes", locacoesArr));
-      }
+      // Locações têm uma única fonte oficial: dk-cloud-snapshot/default.
+      // A antiga rota cadastro-locacoes permanece somente como leitura compatível.
       if (apiTasks.length) await Promise.all(apiTasks);
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
         await window.__DK_pushCloudSnapshotNow();
@@ -27996,8 +27995,8 @@
     const origSave = saveCadastro;
     const origSaveFuncionarios =
       typeof saveFuncionariosAccess === "function" ? saveFuncionariosAccess : null;
-    window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
-      origSave(key, list);
+    window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list, opts) {
+      origSave(key, list, opts);
       if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush || window.__DK_suppressPortalCadastroPush === true) return;
       if (
         key === CAD_CLIENTES_KEY ||
@@ -28079,7 +28078,6 @@
       await Promise.all([
         dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
         dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
-        dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
         typeof window.__DK_portalPullManutencoesRapidas === "function"
           ? window.__DK_portalPullManutencoesRapidas()
           : Promise.resolve(),

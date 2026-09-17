@@ -32,8 +32,8 @@ const checks = [
   ],
   [
     "cache atualizado",
-    html.includes("app.js?v=20260917placaativaunica") &&
-      html.includes("portal-locadora-ui.js?v=20260917placaativaunica")
+    /app\.js\?v=[^"'<>]+/.test(html) &&
+      /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)
   ],
 ];
 

@@ -1,27 +1,22 @@
 /**
- * Sincronização do cadastro de locações do portal (incl. lançamentos embutidos no registro).
- * API no root do projeto para Vercel.
- * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
+ * Compatibilidade de leitura do cadastro de locações.
+ * Fonte canônica única: payload.dk_locacoes_cadastro em dk-cloud-snapshot/default.
+ * Escritas nesta rota são recusadas: toda gravação passa por dk-cloud-snapshot,
+ * onde há lock e validação de uma placa por protocolo ativo.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
 const { dropLocacoesCpfExcluidos } = require("../lib/dk-deploy-channel-api.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { CANONICAL_SNAPSHOT_KEY } = require("../lib/dk-locacoes-integrity.cjs");
 
-const STORAGE_KEY = "dk:portal:locacoes_cadastro:v1";
-
-function parseRedisArray(raw) {
-  if (raw == null) return [];
-  if (typeof raw === "string") {
-    try {
-      const p = JSON.parse(raw);
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return [];
-    }
+function parseCanonicalRow(raw) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
-  if (Array.isArray(raw)) return raw;
-  return [];
 }
 
 module.exports = async function handler(req, res) {
@@ -45,9 +40,18 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const raw = await redis.get(STORAGE_KEY);
-      const data = dropLocacoesCpfExcluidos(parseRedisArray(raw));
-      return res.status(200).json({ ok: true, data });
+      const row = parseCanonicalRow(await redis.get(CANONICAL_SNAPSHOT_KEY));
+      const data = dropLocacoesCpfExcluidos(
+        Array.isArray(row?.payload?.dk_locacoes_cadastro)
+          ? row.payload.dk_locacoes_cadastro
+          : []
+      );
+      return res.status(200).json({
+        ok: true,
+        data,
+        canonical: "dk-cloud-snapshot/default",
+        updated_at: row?.updated_at || null,
+      });
     }
 
     if (req.method === "POST") {
@@ -55,20 +59,11 @@ module.exports = async function handler(req, res) {
       if (!writeGate.ok) {
         return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
       }
-      let body = req.body;
-      if (typeof body === "string") {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
-      const incoming = Array.isArray(body?.data) ? body.data : [];
-      const existingRaw = await redis.get(STORAGE_KEY);
-      const existing = parseRedisArray(existingRaw);
-      const merged = dropLocacoesCpfExcluidos(mergeLocacoesCadastro(existing, incoming));
-      await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, count: merged.length });
+      return res.status(409).json({
+        ok: false,
+        reason: "canonical_snapshot_only",
+        message: "Cadastro de locações possui uma única fonte oficial. Atualize o portal e envie pelo snapshot oficial.",
+      });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

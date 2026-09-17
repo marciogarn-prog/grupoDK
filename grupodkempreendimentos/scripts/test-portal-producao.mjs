@@ -865,8 +865,34 @@ async function runSuite() {
           cliApi.status === 200 && seenCli.size >= 400 && seenCli.has("01503608514"),
           `api=${cliApi.status} unicos=${seenCli.size} otavio=${seenCli.has("01503608514")}`
         );
+        const locCanonicalApi = await fetch(`${BASE_URL}api/cadastro-locacoes?nocache=${Date.now()}`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: locações usam uma única fonte canônica",
+          locCanonicalApi.status === 200 &&
+            locCanonicalApi.j?.canonical === "dk-cloud-snapshot/default" &&
+            Array.isArray(locCanonicalApi.j?.data),
+          `status=${locCanonicalApi.status} fonte=${locCanonicalApi.j?.canonical || "?"}`
+        );
+        const locIntegrityApi = await fetch(`${BASE_URL}api/dk-locacoes-integridade?nocache=${Date.now()}`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: auditoria automática confirma canais e placas ativas",
+          locIntegrityApi.status === 200 &&
+            locIntegrityApi.j?.ok === true &&
+            locIntegrityApi.j?.channelsEqual === true &&
+            Array.isArray(locIntegrityApi.j?.activePlateConflicts) &&
+            locIntegrityApi.j.activePlateConflicts.length === 0,
+          `status=${locIntegrityApi.status} motivo=${locIntegrityApi.j?.reason || "ok"}`
+        );
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
+        record("oficial: locações usam uma única fonte canônica", false, "sem token");
+        record("oficial: auditoria automática confirma canais e placas ativas", false, "sem token");
       }
       const snapAuthH = tokCeo
         ? dkCeoApiHeaders(tokCeo)

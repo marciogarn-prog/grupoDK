@@ -3467,6 +3467,11 @@ function cloudSnapshotWouldMutateLocal(cloudPayload) {
         const prevF = filterFn(k, prevRaw);
         const incF = filterFn(k, inc);
         if (prevF.length !== prevRaw.length) return true;
+        if (window.__DK_IS_DEMO_DEPLOY__ !== true) {
+          // Oficial: locações são cópia exata da fonte canônica snapshot/default.
+          if (JSON.stringify(prevF) !== JSON.stringify(incF)) return true;
+          continue;
+        }
         if (cloudPayload.dk_oficial_sem_protocolos_v1 && prevRaw.length > 0 && incF.length === 0) {
           return true;
         }

@@ -9269,6 +9269,24 @@ body.dk-pwa-update-bar-visible {
   position: sticky;
 }
 
+.portal-admin-banner__integridade {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(48rem, 62vw);
+  padding: 0.22rem 0.5rem;
+  border: 1px solid #fde047;
+  border-radius: 0.35rem;
+  background: #7f1d1d;
+  color: #fff7ae;
+  font-size: 0.69rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.portal-admin-banner__integridade.hidden {
+  display: none;
+}
+
 .portal-body--admin-logado {
   padding-top: var(--portal-admin-banner-h, 0px);
 }

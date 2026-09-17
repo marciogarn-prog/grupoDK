@@ -2876,7 +2876,7 @@
     },
     {
       "id": "locacao-placa-um-unico-protocolo-ativo",
-      "descricao": "Uma placa nunca pode ficar em dois protocolos ativos diferentes. Antes da confirmação e novamente no momento de gravar, o Cadastro de locação procura outro contrato ativo da mesma placa, inclusive ao atualizar um protocolo. Havendo conflito, não grava e abre a janela: ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO XXXXX. É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO.",
+      "descricao": "Uma placa nunca pode ficar em dois protocolos ativos diferentes. A fonte canônica única é dk-cloud-snapshot/default; a rota cadastro-locacoes apenas lê essa fonte e recusa escrita. Antes da confirmação e no momento de gravar, o navegador bloqueia o conflito. No servidor, toda gravação usa lock distribuído e é rejeitada com HTTP 409 se houver placa ativa duplicada. A auditoria automática compara Redis com o espelho Supabase diariamente e a cada sincronização do CEO; qualquer divergência ou placa conflitante aparece na faixa superior.",
       "ficheiros": {
         "portal-locadora-ui.js": [
           "portalLocacaoAtivaConflitantePorPlaca",
@@ -2885,6 +2885,39 @@
           "ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO",
           "É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO",
           "window.alert(texto)"
+        ],
+        "api/dk-cloud-snapshot.js": [
+          "acquireLocacoesWriteLock",
+          "findActivePlateConflicts",
+          "active_plate_conflict"
+        ],
+        "api/cadastro-locacoes.js": [
+          "CANONICAL_SNAPSHOT_KEY",
+          "canonical_snapshot_only",
+          "dk-cloud-snapshot/default"
+        ],
+        "api/dk-locacoes-integridade.js": [
+          "runLocacoesIntegrityAudit",
+          "owner_required"
+        ],
+        "lib/dk-locacoes-integrity.cjs": [
+          "findActivePlateConflicts",
+          "LOCACOES_WRITE_LOCK_KEY",
+          "canonicalLocacoesDigest"
+        ],
+        "portal-supabase-sync.js": [
+          "refreshLocacoesIntegrityAlert",
+          "o snapshot/default é a fonte canônica",
+          "ALERTA: LOCAÇÕES DIVERGENTES ENTRE REDIS"
+        ],
+        "app.js": [
+          "locações são cópia exata da fonte canônica"
+        ],
+        "index.html": [
+          "portalLocacoesIntegridadeAlerta"
+        ],
+        "api/cron-daily-backup.js": [
+          "locacoesIntegrity"
         ]
       }
     },

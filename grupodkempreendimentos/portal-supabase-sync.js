@@ -1163,19 +1163,25 @@
         if (k === "dk_locacoes_cadastro") {
           if (isClienteAppPage() && !arr.length) continue;
           arr = normalizeLocacoesContratoAtivoList(arr);
-          const localArr = readLocalJsonArray(k);
-          const mergeFn =
-            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
-              ? window.__DK_mergeLocacoesCadastroCliente
-              : mergeLocacoesCadastroBeforePush;
-          arr = mergeFn(localArr, arr);
+          if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) {
+            const localArr = readLocalJsonArray(k);
+            const mergeFn =
+              typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+                ? window.__DK_mergeLocacoesCadastroCliente
+                : mergeLocacoesCadastroBeforePush;
+            arr = mergeFn(localArr, arr);
+          }
           consolidateLocacoesPagamentosInPlace(arr, opts);
         } else if (oficialFrotaPlanilha && veiculoKeysReplace.has(k) && Array.isArray(arr)) {
           /* Oficial: frota = exactamente a nuvem/planilha — não acumula fantasmas locais. */
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           arr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), arr);
         }
-        if (demoTenReplace || (oficialFrotaPlanilha && veiculoKeysReplace.has(k))) {
+        if (
+          demoTenReplace ||
+          (oficialFrotaPlanilha && veiculoKeysReplace.has(k)) ||
+          (k === "dk_locacoes_cadastro" && !isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true)
+        ) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
         } else {
           saveCadastro(k, arr);
@@ -1196,12 +1202,14 @@
         if (k === "dk_locacoes_cadastro") {
           if (isClienteAppPage() && !cloudArr.length) continue;
           cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
-          const localArr = readLocalJsonArray(k);
-          const mergeFn =
-            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
-              ? window.__DK_mergeLocacoesCadastroCliente
-              : mergeLocacoesCadastroBeforePush;
-          cloudArr = mergeFn(localArr, cloudArr);
+          if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) {
+            const localArr = readLocalJsonArray(k);
+            const mergeFn =
+              typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+                ? window.__DK_mergeLocacoesCadastroCliente
+                : mergeLocacoesCadastroBeforePush;
+            cloudArr = mergeFn(localArr, cloudArr);
+          }
           consolidateLocacoesPagamentosInPlace(cloudArr, opts);
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           cloudArr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), cloudArr);
@@ -1776,6 +1784,63 @@
       : false;
   }
 
+  let locacoesIntegrityLastCheckAt = 0;
+  let locacoesIntegrityInFlight = null;
+
+  async function refreshLocacoesIntegrityAlert(opts = {}) {
+    const alertEl = document.getElementById("portalLocacoesIntegridadeAlerta");
+    if (!alertEl) return null;
+    if (!portalSessaoEhCeoTitular()) {
+      alertEl.textContent = "";
+      alertEl.classList.add("hidden");
+      return null;
+    }
+    const force = opts.force === true;
+    if (!force && Date.now() - locacoesIntegrityLastCheckAt < 60000) return null;
+    if (locacoesIntegrityInFlight) return locacoesIntegrityInFlight;
+    locacoesIntegrityLastCheckAt = Date.now();
+    locacoesIntegrityInFlight = fetch("/api/dk-locacoes-integridade?nocache=" + Date.now(), {
+      method: "GET",
+      headers: { Accept: "application/json", ...dkCloudFetchHeaders() },
+      cache: "no-store",
+    })
+      .then(async (res) => ({ res, data: await res.json().catch(() => ({})) }))
+      .then(({ res, data }) => {
+        if (noteCloudAuthFailure(res, data)) return null;
+        if (!res.ok) throw new Error(data?.error || data?.reason || `HTTP ${res.status}`);
+        if (data.ok) {
+          alertEl.textContent = "";
+          alertEl.classList.add("hidden");
+          return data;
+        }
+        const conflicts = Array.isArray(data.activePlateConflicts) ? data.activePlateConflicts : [];
+        if (conflicts.length) {
+          const first = conflicts[0];
+          const protocolos = (first.contratos || []).map((item) => item.protocolo).join(" / ");
+          alertEl.textContent = `ALERTA: PLACA ${first.placa} EM PROTOCOLOS ATIVOS ${protocolos}. BLOQUEIE NOVAS LOCAÇÕES.`;
+        } else if (data.reason === "channels_diverged") {
+          alertEl.textContent =
+            `ALERTA: LOCAÇÕES DIVERGENTES ENTRE REDIS (${data.canonical?.count ?? "?"}) ` +
+            `E SUPABASE (${data.mirror?.count ?? "?"}).`;
+        } else {
+          alertEl.textContent = `ALERTA: AUDITORIA DE LOCAÇÕES — ${String(data.reason || "falha de integridade")}.`;
+        }
+        alertEl.title = `Auditoria: ${String(data.checkedAt || "")}`;
+        alertEl.classList.remove("hidden");
+        return data;
+      })
+      .catch((error) => {
+        console.warn("[DK locações] auditoria de integridade", error);
+        alertEl.textContent = "ALERTA: NÃO FOI POSSÍVEL CONFIRMAR A INTEGRIDADE DAS LOCAÇÕES.";
+        alertEl.classList.remove("hidden");
+        return null;
+      })
+      .finally(() => {
+        locacoesIntegrityInFlight = null;
+      });
+    return locacoesIntegrityInFlight;
+  }
+
   function refreshSessionKillBox() {
     const box = document.getElementById("portal-session-kill-box");
     if (!box) return;
@@ -2045,7 +2110,11 @@
           snapshotGetCache = { at: 0, data: null };
           if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
-          lastErr = data?.reason || data?.error || res.statusText;
+          lastErr = data?.message || data?.reason || data?.error || res.statusText;
+          if (data?.reason === "active_plate_conflict" && data?.message) {
+            window.alert(String(data.message));
+            void refreshLocacoesIntegrityAlert({ force: true });
+          }
         }
       } catch (e) {
         lastErr = e;
@@ -2445,12 +2514,16 @@
 
   function locacoesCloudMergeWouldChangeLocal(cloudPayload) {
     if (!cloudPayload || typeof cloudPayload !== "object") return false;
+    if (!Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")) return false;
     let cloudArr = Array.isArray(cloudPayload.dk_locacoes_cadastro) ? cloudPayload.dk_locacoes_cadastro : [];
+    const localArr = readLocalJsonArray("dk_locacoes_cadastro");
+    if (!isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+      return JSON.stringify(localArr) !== JSON.stringify(cloudArr);
+    }
     if (!cloudArr.length) return false;
     const cpf = isClienteAppPage() ? clienteAppSessaoCpf() : "";
     if (cpf) cloudArr = filterCloudLocacoesForCliente(cpf, cloudArr);
     if (!cloudArr.length) return false;
-    const localArr = readLocalJsonArray("dk_locacoes_cadastro");
     const mergeFn =
       typeof window.__DK_mergeLocacoesCadastroCliente === "function"
         ? window.__DK_mergeLocacoesCadastroCliente
@@ -4052,11 +4125,11 @@
         const localArr = readLocalJsonArray(k);
         let merged;
         if (k === "dk_locacoes_cadastro") {
-          const mergeFn =
-            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
-              ? window.__DK_mergeLocacoesCadastroCliente
-              : mergeLocacoesCadastroBeforePush;
-          merged = mergeFn(localArr, cloudArr);
+          // Oficial: o snapshot/default é a fonte canônica; não reanexa resíduos locais.
+          merged =
+            window.__DK_IS_DEMO_DEPLOY__ === true
+              ? mergeLocacoesCadastroBeforePush(localArr, cloudArr)
+              : normalizeLocacoesContratoAtivoList(cloudArr);
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
         } else {
@@ -4064,7 +4137,11 @@
         }
         if (JSON.stringify(merged) === JSON.stringify(localArr)) continue;
         if (typeof saveCadastro === "function") {
-          saveCadastro(k, merged);
+          if (k === "dk_locacoes_cadastro" && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+            saveCadastro(k, merged, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+          } else {
+            saveCadastro(k, merged);
+          }
         } else {
           localStorage.setItem(k, JSON.stringify(merged));
         }
@@ -4121,6 +4198,7 @@
         }
       }
     }
+    void refreshLocacoesIntegrityAlert({ force: true });
     return { ok: true, applied: changed };
   }
 
@@ -4326,6 +4404,7 @@
     }
 
     noteCloudPushTimestamp(updatedAt);
+    void refreshLocacoesIntegrityAlert({ force: true });
     if (fp) lastPushedFingerprint = fp;
     const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
     if (showUserMessages) setMsg(msg.text, msg.tone);
@@ -5272,22 +5351,38 @@
       });
     });
     refreshCloudBarVisibility();
+    void refreshLocacoesIntegrityAlert({ force: true });
     window.addEventListener("dk-supabase-ready", () => {
       refreshCloudBarVisibility();
+      void refreshLocacoesIntegrityAlert({ force: true });
       runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
     });
-    window.addEventListener("load", refreshCloudBarVisibility);
+    window.addEventListener("load", () => {
+      refreshCloudBarVisibility();
+      void refreshLocacoesIntegrityAlert({ force: true });
+    });
+    window.addEventListener("dk-locacoes-synced", () => {
+      void refreshLocacoesIntegrityAlert({ force: true });
+    });
     window.addEventListener("storage", (ev) => {
-      if (!ev.key || ev.key === "dk_sessao_cliente") refreshCloudBarVisibility();
+      if (!ev.key || ev.key === "dk_sessao_cliente") {
+        refreshCloudBarVisibility();
+        void refreshLocacoesIntegrityAlert({ force: true });
+      }
     });
     const panelLogado = document.getElementById("panel-logado");
     if (panelLogado) {
-      new MutationObserver(refreshCloudBarVisibility).observe(panelLogado, {
+      new MutationObserver(() => {
+        refreshCloudBarVisibility();
+        void refreshLocacoesIntegrityAlert();
+      }).observe(panelLogado, {
         attributes: true,
         attributeFilter: ["class"],
       });
     }
     setTimeout(refreshCloudBarVisibility, 800);
+    setTimeout(() => void refreshLocacoesIntegrityAlert({ force: true }), 1800);
+    window.setInterval(() => void refreshLocacoesIntegrityAlert(), 5 * 60 * 1000);
 
     runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
   }

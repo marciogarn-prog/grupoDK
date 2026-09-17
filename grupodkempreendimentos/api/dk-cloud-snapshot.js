@@ -48,6 +48,12 @@ const {
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
+const {
+  findActivePlateConflicts,
+  activePlateConflictMessage,
+  acquireLocacoesWriteLock,
+  releaseLocacoesWriteLock,
+} = require("../lib/dk-locacoes-integrity.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -1009,6 +1015,15 @@ async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const locacoesLockToken = await acquireLocacoesWriteLock(redis);
+      if (!locacoesLockToken) {
+        return res.status(409).json({
+          ok: false,
+          reason: "locacoes_write_busy",
+          message: "Outra gravação de locação está em andamento. Aguarde e tente novamente.",
+        });
+      }
+      try {
       const body = parseBody(req);
       let incoming = body.payload;
       if (!isObject(incoming)) {
@@ -1100,6 +1115,18 @@ async function handler(req, res) {
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
+      const activePlateConflicts = findActivePlateConflicts(payload.dk_locacoes_cadastro);
+      if (activePlateConflicts.length) {
+        const conflict = activePlateConflicts[0];
+        return res.status(409).json({
+          ok: false,
+          reason: "active_plate_conflict",
+          placa: conflict.placa,
+          protocolos: conflict.contratos.map((item) => item.protocolo),
+          conflicts: activePlateConflicts,
+          message: activePlateConflictMessage(conflict),
+        });
+      }
       payload.dk_dados_seguros_v1 = true;
       const incomingTs = Date.parse(updatedAt) || 0;
       const existingTs = Date.parse(existingUpdatedAt || "") || 0;
@@ -1123,6 +1150,9 @@ async function handler(req, res) {
         replace,
         keys: Object.keys(payload).length,
       });
+      } finally {
+        await releaseLocacoesWriteLock(redis, locacoesLockToken);
+      }
     }
   } catch (e) {
     if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {

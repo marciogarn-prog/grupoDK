@@ -5,6 +5,7 @@
 const { collectDkBackupPayload, backupFileBaseName } = require("../lib/dk-collect-backup.cjs");
 const { sendBackupEmail } = require("../lib/dk-send-backup-email.cjs");
 const { storeLastBackup } = require("../lib/dk-store-last-backup.cjs");
+const { runLocacoesIntegrityAudit } = require("../lib/dk-locacoes-integrity-audit.cjs");
 
 const BACKUP_CHANNELS = ["default"];
 
@@ -75,17 +76,23 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    const locacoesIntegrity = await runLocacoesIntegrityAudit().catch((error) => ({
+      ok: false,
+      reason: "audit_failed",
+      error: String(error?.message || error),
+    }));
     const results = [];
     for (const channel of BACKUP_CHANNELS) {
       results.push(await runChannelBackup());
     }
 
-    const allOk = results.every((r) => r.ok);
+    const allOk = results.every((r) => r.ok) && locacoesIntegrity.ok === true;
     const status = allOk ? 200 : results.some((r) => r.ok) ? 207 : 503;
 
     return res.status(status).json({
       ok: allOk,
       results,
+      locacoesIntegrity,
     });
   } catch (e) {
     return res.status(500).json({
