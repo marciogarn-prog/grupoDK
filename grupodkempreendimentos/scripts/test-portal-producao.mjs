@@ -1001,6 +1001,17 @@ async function runSuite() {
       "sem integridade o protocolo não grava"
     );
     record(
+      "uma placa não pode ficar em dois protocolos ativos",
+      portalUiProto.includes("function portalLocacaoAtivaConflitantePorPlaca") &&
+        portalUiProto.includes("portalBloquearPlacaComOutroProtocoloAtivo") &&
+        portalUiProto.includes("ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO") &&
+        portalUiProto.includes(
+          "É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO"
+        ) &&
+        portalUiProto.includes("window.alert(texto)"),
+      "cadastro e atualização bloqueiam e informam o protocolo conflitante"
+    );
+    record(
       "cadastro locação confirma cadastro e distrato na finalização",
       html.includes("portalLocacaoConfirmModal") &&
         html.includes("portalLocacaoConfirmResumo") &&

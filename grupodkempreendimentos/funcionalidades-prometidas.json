@@ -2875,6 +2875,20 @@
       }
     },
     {
+      "id": "locacao-placa-um-unico-protocolo-ativo",
+      "descricao": "Uma placa nunca pode ficar em dois protocolos ativos diferentes. Antes da confirmação e novamente no momento de gravar, o Cadastro de locação procura outro contrato ativo da mesma placa, inclusive ao atualizar um protocolo. Havendo conflito, não grava e abre a janela: ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO XXXXX. É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalLocacaoAtivaConflitantePorPlaca",
+          "portalBloquearPlacaComOutroProtocoloAtivo",
+          "statusLocacao === \"ATIVO\"",
+          "ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO",
+          "É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO",
+          "window.alert(texto)"
+        ]
+      }
+    },
+    {
       "id": "ceo-bloquear-outras-sessoes",
       "descricao": "Na Área da equipa do Administrador CEO existe CONTROLE DE SESSÕES com o botão BLOQUEAR OUTRAS SESSÕES. A API valida owner no servidor, incrementa a geração de sessão e devolve token novo ao CEO. Sessões antigas recebem session_revoked e o frontend novo para o sync.",
       "ficheiros": {

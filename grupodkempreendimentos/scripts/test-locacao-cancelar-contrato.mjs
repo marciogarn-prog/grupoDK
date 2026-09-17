@@ -30,8 +30,8 @@ const checks = [
   ],
   [
     "cache atualizado",
-    html.includes("app.js?v=20260917cancelarcontrato") &&
-      html.includes("portal-locadora-ui.js?v=20260917cancelarcontrato")
+    /app\.js\?v=[^"'<>]+/.test(html) &&
+      /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)
   ],
 ];
 

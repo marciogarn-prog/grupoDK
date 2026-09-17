@@ -11854,6 +11854,47 @@
     return !isPortalLocacaoFinalizada(locacao);
   }
 
+  function portalLocacaoAtivaConflitantePorPlaca(locs, placaRaw, protocoloIgnorarRaw) {
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(placaRaw || ""))
+        : String(placaRaw || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const ignorar = normPortalNumeroContrato(protocoloIgnorarRaw);
+    if (!placa || !Array.isArray(locs)) return null;
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
+    return (
+      locs.find((loc) => {
+        if (!loc || isGhost(loc) || !isPortalLocacaoAtiva(loc)) return false;
+        const protocolo = normPortalNumeroContrato(loc.numeroContrato || "");
+        if (!protocolo || protocolo === ignorar) return false;
+        const placaLoc =
+          typeof normalizePlate === "function"
+            ? normalizePlate(String(loc.placa || ""))
+            : String(loc.placa || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        return placaLoc === placa;
+      }) || null
+    );
+  }
+
+  function portalBloquearPlacaComOutroProtocoloAtivo(locs, placa, protocoloAtual) {
+    const conflito = portalLocacaoAtivaConflitantePorPlaca(locs, placa, protocoloAtual);
+    if (!conflito) return false;
+    const protocoloConflito = normPortalNumeroContrato(conflito.numeroContrato || "") || "NÃO INFORMADO";
+    const texto =
+      `ESTE VEÍCULO JÁ ESTÁ LOCADO COM PROTOCOLO ${protocoloConflito}. ` +
+      "É NECESSÁRIO FINALIZAR O PROTOCOLO PARA UTILIZAÇÃO DESTE VEÍCULO.";
+    portalLocacaoFeedback(texto);
+    window.alert(texto);
+    return true;
+  }
+
+  window.__DK_portalLocacaoAtivaConflitantePorPlaca = portalLocacaoAtivaConflitantePorPlaca;
+
   function getPortalMotosLocacaoDataset(escopo) {
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const isGhost =
@@ -21212,6 +21253,12 @@
       if (msg) msg.textContent = "Remova «NOVO» do protocolo para atualizar um contrato já existente.";
       return;
     }
+    if (
+      statusLocacao === "ATIVO" &&
+      portalBloquearPlacaComOutroProtocoloAtivo(locs, plate, nc)
+    ) {
+      return;
+    }
     const regraDiaria24hAtiva = prev
       ? portalLocacaoUsaRegraDiaria24h(prev)
       : Date.now() >= PORTAL_LOCACAO_REGRA_DIARIA_24H_CORTE_MS;
@@ -21353,6 +21400,16 @@
     }
 
     const doSaveLocacao = () => {
+      if (
+        statusLocacao === "ATIVO" &&
+        portalBloquearPlacaComOutroProtocoloAtivo(
+          loadCadastro(CAD_LOCACOES_KEY),
+          plate,
+          nc
+        )
+      ) {
+        return;
+      }
       if (prev) {
         locs[idxAll] = {
           ...prev,
