@@ -1812,6 +1812,23 @@
       }
     },
     {
+      "id": "locacao-cancelar-contrato-retorno-operador",
+      "descricao": "O botão Cancelar contrato continua acionável mesmo se a tela recriar o elemento. Ao clicar, mostra imediatamente Preparando o cancelamento, valida o protocolo e abre o resumo para confirmação; qualquer bloqueio ou erro fica escrito para o operador.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoCancelarBtn",
+          "portalLocacaoConfirmModal"
+        ],
+        "portal-locadora-ui.js": [
+          "onOperacaoLocacaoCancelarClick",
+          "e.target.closest(\"#operacaoLocacaoCancelarBtn\")",
+          "Preparando o cancelamento do contrato",
+          "Revise os dados do protocolo ${ncNorm} e confirme o cancelamento",
+          "Não foi possível abrir o cancelamento"
+        ]
+      }
+    },
+    {
       "id": "reativar-locacao-updatedAt-vence",
       "descricao": "Se o administrador reativa um protocolo (apaga a data fim, status ATIVO) com updatedAt mais novo, o merge da nuvem não devolve a data fim antiga de outro PC.",
       "ficheiros": {

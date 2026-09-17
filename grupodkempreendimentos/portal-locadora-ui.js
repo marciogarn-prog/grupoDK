@@ -15113,10 +15113,30 @@
     });
   });
 
-  document.getElementById("operacaoLocacaoCancelarBtn")?.addEventListener("click", (e) => {
+  function onOperacaoLocacaoCancelarClick(e) {
     e.preventDefault();
-    persistPortalLocacaoCancelar();
-  });
+    e.stopPropagation();
+    portalLocacaoFeedback("Preparando o cancelamento do contrato…");
+    try {
+      persistPortalLocacaoCancelar();
+    } catch (err) {
+      console.error("[DK portal] cancelar contrato", err);
+      portalLocacaoFeedback(
+        `Não foi possível abrir o cancelamento: ${err && err.message ? err.message : "erro inesperado"}.`
+      );
+    }
+  }
+
+  // Delegação no documento: continua a funcionar mesmo se a tela recriar o botão.
+  document.addEventListener(
+    "click",
+    (e) => {
+      const alvo = e.target instanceof Element ? e.target.closest("#operacaoLocacaoCancelarBtn") : null;
+      if (!alvo) return;
+      onOperacaoLocacaoCancelarClick(e);
+    },
+    true
+  );
 
   document.getElementById("operacaoLocacaoCaucaoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -20719,6 +20739,7 @@
       });
     }
 
+    portalLocacaoFeedback(`Revise os dados do protocolo ${ncNorm} e confirme o cancelamento.`);
     openPortalLocacaoConfirmModal(
       {
         titulo: "Confirmar cancelamento do contrato",

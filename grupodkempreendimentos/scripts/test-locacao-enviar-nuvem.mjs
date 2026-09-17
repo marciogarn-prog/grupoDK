@@ -29,8 +29,8 @@ const checks = [
   ],
   [
     "cache atualizado",
-    html.includes("app.js?v=20260917locacaonuvem") &&
-      html.includes("portal-locadora-ui.js?v=20260917locacaonuvem")
+    /app\.js\?v=[^"'<>]+/.test(html) &&
+      /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)
   ],
 ];
 

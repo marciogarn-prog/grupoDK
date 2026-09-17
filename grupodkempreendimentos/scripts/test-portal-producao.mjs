@@ -1055,6 +1055,15 @@ async function runSuite() {
         portalUiProto.includes('btn.textContent = "Enviando…"'),
       "clique envia, verifica o snapshot e mostra andamento/sucesso/falha"
     );
+    record(
+      "botão Cancelar contrato sempre dá retorno ao operador",
+      html.includes('id="operacaoLocacaoCancelarBtn"') &&
+        portalUiProto.includes("function onOperacaoLocacaoCancelarClick(e)") &&
+        portalUiProto.includes('e.target.closest("#operacaoLocacaoCancelarBtn")') &&
+        portalUiProto.includes("Preparando o cancelamento do contrato") &&
+        portalUiProto.includes("Não foi possível abrir o cancelamento"),
+      "delegação do clique + andamento, confirmação e erro visíveis"
+    );
     const stylesFitCss = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
