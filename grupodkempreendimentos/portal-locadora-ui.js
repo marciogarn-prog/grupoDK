@@ -12363,6 +12363,11 @@
                 if (n > 0) tdExtra = ' class="portal-rel-saldo-pos"';
                 else if (n < 0) tdExtra = ' class="portal-rel-saldo-neg"';
               }
+              const faixaIdx = reportOptions.valorFaixaColumnIndex;
+              if (typeof faixaIdx === "number" && faixaIdx === ci) {
+                const n = Number(reportOptions.valorFaixaNums?.[saldoOffset + ri] ?? 0);
+                if (n < 0) tdExtra = ' class="portal-rel-valor-dev"';
+              }
               if (valorIdx === ci) {
                 tdExtra = tdExtra ? `${tdExtra.slice(0, -1)} portal-rel-valor"` : ' class="portal-rel-valor"';
               }
@@ -12434,6 +12439,7 @@
       .portal-rel-status-inativo{background:#fff9c4}
       .portal-rel-saldo-pos{color:#1565c0;font-weight:700}
       .portal-rel-saldo-neg{color:#c62828;font-weight:700}
+      .portal-rel-valor-dev{color:#c62828;font-weight:700}
       .portal-rel-valor{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
       .portal-rel-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem}
       .portal-rel-topo__esq{flex:1 1 auto;min-width:0}
@@ -12655,6 +12661,8 @@
       statusColumnIndex: ctxView.statusColumnIndex,
       saldoColumnIndex: ctxView.saldoColumnIndex,
       saldoNums: ctxView.saldoNums,
+      valorFaixaColumnIndex: ctxView.valorFaixaColumnIndex,
+      valorFaixaNums: ctxView.valorFaixaNums,
       headerSubtitleLines: ctxView.headerSubtitleLines,
       compactTable: ctxView.compactTable,
       summaryHtml: ctxView.summaryHtml,
@@ -15280,8 +15288,9 @@
 
   /**
    * Relatórios 2.1 / 2.2: agregado por protocolo.
-   * valorFaixa = soma dos pagamentos (não devoluções) com data no intervalo;
-   * valorTotal = soma de todos os pagamentos do protocolo.
+   * valorFaixa = soma dos pagamentos e devoluções com data no intervalo
+   * (devolução entra como valor negativo e aparece em vermelho);
+   * valorTotal = soma de todos os pagamentos positivos do protocolo.
    */
   const PORTAL_REL_PAG_PLANOS = [
     "DK MINHA MOTO",
@@ -15373,23 +15382,27 @@
     for (const loc of locs || []) {
       const proto = normPortalNumeroContrato(loc.numeroContrato || "");
       if (!proto) continue;
-      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc).filter(
-        (lan) => !portalLancamentoEhDevolucaoInvestimento(lan)
-      );
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
       if (!lancs.length) continue;
       let valorFaixa = 0;
       let valorTotal = 0;
       let qtdNaFaixa = 0;
+      let qtdPagamentosNaFaixa = 0;
+      let qtdDevolucoesNaFaixa = 0;
       for (const lan of lancs) {
-        const v = Number(lan.valor || 0);
-        if (!Number.isFinite(v) || v <= 0) continue;
-        valorTotal += v;
+        const ehDev = portalLancamentoEhDevolucaoInvestimento(lan);
+        const raw = Number(lan.valor || 0);
+        if (!Number.isFinite(raw) || raw === 0) continue;
+        const v = ehDev ? -Math.abs(raw) : Math.abs(raw);
+        if (!ehDev) valorTotal += v;
         const dp = parse(String(lan.data || "").trim());
         if (!dp || Number.isNaN(dp.getTime())) continue;
         const payMs = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate()).getTime();
         if (payMs >= startMs && payMs <= endMs) {
           valorFaixa += v;
           qtdNaFaixa += 1;
+          if (ehDev) qtdDevolucoesNaFaixa += 1;
+          else qtdPagamentosNaFaixa += 1;
           const diaKey = `${dp.getFullYear()}-${String(dp.getMonth() + 1).padStart(2, "0")}-${String(dp.getDate()).padStart(2, "0")}`;
           totaisDia.set(diaKey, (totaisDia.get(diaKey) || 0) + v);
         }
@@ -15408,8 +15421,8 @@
       const saldo = Number(infoDev.saldo) || 0;
       const valorDevidoAluguel = Number(infoDev.devidoAluguel) || 0;
       if (cpfDigits.length === 11) clientes.add(cpfDigits);
-      qtdPagamentos += qtdNaFaixa;
-      porPlano[plano] = (porPlano[plano] || 0) + qtdNaFaixa;
+      qtdPagamentos += qtdPagamentosNaFaixa;
+      porPlano[plano] = (porPlano[plano] || 0) + qtdPagamentosNaFaixa;
 
       const prev = map.get(proto);
       if (prev) {
@@ -15417,7 +15430,8 @@
         prev.valorTotal = Math.max(prev.valorTotal, valorTotal);
         prev.valorDevidoAluguel = valorDevidoAluguel;
         prev.saldo = saldo;
-        prev.qtdPagamentos += qtdNaFaixa;
+        prev.qtdPagamentos += qtdPagamentosNaFaixa;
+        prev.qtdDevolucoes = (prev.qtdDevolucoes || 0) + qtdDevolucoesNaFaixa;
         if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
         if (!prev.placa || prev.placa === "—") prev.placa = placa;
       } else {
@@ -15430,7 +15444,8 @@
           valorDevidoAluguel,
           saldo,
           plano,
-          qtdPagamentos: qtdNaFaixa,
+          qtdPagamentos: qtdPagamentosNaFaixa,
+          qtdDevolucoes: qtdDevolucoesNaFaixa,
           cpf: cpfDigits,
         });
       }
@@ -15529,6 +15544,7 @@
       fmtSaldo(r.saldo),
     ]);
     const saldoNums = agg.rows.map((r) => Number(r.saldo) || 0);
+    const faixaNums = agg.rows.map((r) => Number(r.valorFaixa) || 0);
     const summaryHtml = agg.ok ? buildPortalRelPagAggSummaryHtml(agg, modo) : "";
     const previewHtml = agg.ok
       ? buildPortalRelatorioHtml(title, headers, rows, {
@@ -15536,6 +15552,8 @@
           summaryHtml,
           saldoColumnIndex: 5,
           saldoNums,
+          valorFaixaColumnIndex: 3,
+          valorFaixaNums: faixaNums,
         })
       : "";
     return {
@@ -15546,6 +15564,8 @@
       textColumns: [0, 1, 2],
       saldoColumnIndex: 5,
       saldoNums,
+      valorFaixaColumnIndex: 3,
+      valorFaixaNums: faixaNums,
       preserveRowOrder: true,
       totalFaixa: agg.totalFaixa,
       totalGeral: agg.totalGeral,
@@ -15658,6 +15678,11 @@
           const faixa = String(row[3] || "");
           const total = String(row[4] || "");
           const saldoTxt = String(row[5] || "");
+          const faixaN = Number(ctx.valorFaixaNums?.[ri] ?? 0);
+          const faixaCls =
+            faixaN < 0
+              ? "portal-rel-pag-agg__valor--dev"
+              : "";
           const saldoN = Number(ctx.saldoNums?.[ri] ?? 0);
           const saldoCls =
             saldoN > 0
@@ -15667,7 +15692,7 @@
                 : "";
           return `<tr><td>${portalEscapeHtml(proto)}</td><td>${portalEscapeHtml(
             nome
-          )}</td><td>${portalEscapeHtml(placa)}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(
+          )}</td><td>${portalEscapeHtml(placa)}</td><td class="${faixaCls}">${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(
             total
           )}</td><td class="${saldoCls}">${portalEscapeHtml(saldoTxt)}</td></tr>`;
         })

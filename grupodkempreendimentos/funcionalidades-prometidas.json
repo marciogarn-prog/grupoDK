@@ -161,7 +161,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-pagamento-dia-periodo",
-      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período; ambos mostram a coluna PLACA entre Nome do cliente e os valores, inclusive na impressão/PDF/Excel. A coluna Saldo usa o mesmo cálculo de SALDO/VALOR DEVOLVIDO (computePortalSaldoDevolucaoInvestimento: pago − devido só de aluguel); azul positivo / vermelho negativo; ordenado do menor ao maior.",
+      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período; ambos mostram a coluna PLACA entre Nome do cliente e os valores, inclusive na impressão/PDF/Excel. A coluna Saldo usa o mesmo cálculo de SALDO/VALOR DEVOLVIDO (computePortalSaldoDevolucaoInvestimento: pago − devido só de aluguel); azul positivo / vermelho negativo; ordenado do menor ao maior. Devolução de investimento do período/dia entra no Valor do dia/período como valor negativo em vermelho (tela e PDF).",
       "ficheiros": {
         "index.html": [
           "btn-lanc-aluguel-rel-pag",
@@ -174,7 +174,9 @@
           "portalRelPagDiaKpis",
           "portalRelPagPeriodoKpis",
           "<th>Placa</th>",
-          "<th>Saldo</th>"
+          "<th>Saldo</th>",
+          "Devolução aparece em vermelho",
+          "devolução no período em vermelho"
         ],
         "portal-locadora-ui.js": [
           "collectPortalRelPagamentoAgregadoPorProtocolo",
@@ -188,13 +190,17 @@
           "rel-periodo",
           "saldoColumnIndex",
           "portal-rel-saldo-pos",
-          "computePortalSaldoDevolucaoInvestimento"
+          "computePortalSaldoDevolucaoInvestimento",
+          "valorFaixaColumnIndex",
+          "portal-rel-valor-dev",
+          "portal-rel-pag-agg__valor--dev"
         ],
         "styles.css": [
           "portal-rel-pag-agg__table",
           "portal-rel-pag-agg-kpis",
           "portal-rel-pag-agg__saldo--pos",
-          "portal-rel-pag-agg__saldo--neg"
+          "portal-rel-pag-agg__saldo--neg",
+          "portal-rel-pag-agg__valor--dev"
         ]
       }
     },

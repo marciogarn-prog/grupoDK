@@ -2131,6 +2131,11 @@ body.portal-body--admin-ceo {
   font-weight: 700;
 }
 
+.portal-rel-pag-agg__valor--dev {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+
 .operacao-lanc-aluguel-bloco-pesquisa.hidden {
   display: none;
 }

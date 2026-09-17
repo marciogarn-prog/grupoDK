@@ -415,6 +415,9 @@ async function runSuite() {
     const portalUiLancJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVerLanc || "latest"}`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
+    const stylesCssRel = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
     record(
       "relatórios 2.1 e 2.2 mostram placa na tela, PDF e Excel",
       (htmlLancAluguel.match(/<th>Placa<\/th>/g) || []).length >= 3 &&
@@ -422,6 +425,16 @@ async function runSuite() {
           'const headers = ["Protocolo", "Nome do cliente", "Placa", colFaixa, "Valor total", "Saldo"]'
         ) &&
         portalUiLancJs.includes("saldoColumnIndex: 5")
+    );
+    record(
+      "relatórios 2.1 e 2.2 incluem devolução em vermelho",
+      portalUiLancJs.includes("valorFaixaColumnIndex") &&
+        portalUiLancJs.includes("portal-rel-valor-dev") &&
+        portalUiLancJs.includes("portal-rel-pag-agg__valor--dev") &&
+        portalUiLancJs.includes("ehDev ? -Math.abs(raw) : Math.abs(raw)") &&
+        stylesCssRel.includes("portal-rel-pag-agg__valor--dev") &&
+        htmlLancAluguel.includes("devolução no período em vermelho"),
+      "dia e período compartilham a mesma agregação"
     );
     record(
       "relatório 2.5 saldo positivo = pago total menos devido do plano",
