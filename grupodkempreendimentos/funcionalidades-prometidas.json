@@ -2375,7 +2375,7 @@
     },
     {
       "id": "salvar-cliente-so-libera-apos-nuvem",
-      "descricao": "Ao salvar o cadastro de um cliente, o sistema só libera para trabalhar depois de garantir que a informação está na nuvem. Botão Enviar para nuvem ao lado de Guardar cliente, Guardar veículo e Cadastrar locação. Trocar de tela baixa a última atualização e bloqueia até o download terminar. Próximo Cód. = maior código da base + 1.",
+      "descricao": "Ao salvar o cadastro de um cliente, o sistema só libera para trabalhar depois de garantir que a informação está na nuvem. Botão Enviar para nuvem ao lado de Guardar cliente, Guardar veículo e Cadastrar locação. Na locação, o botão tem evento próprio, valida o protocolo guardado, mostra Enviando e só informa Enviado/confirmado depois de localizar o protocolo no snapshot da nuvem; qualquer falha fica visível ao operador. Trocar de tela baixa a última atualização e bloqueia até o download terminar. Próximo Cód. = maior código da base + 1.",
       "ficheiros": {
         "index.html": [
           "portalNuvemSyncLock",
@@ -2388,6 +2388,8 @@
           "portalNuvemGarantirNaNuvem",
           "portalNuvemSyncLockShow",
           "A enviar o cadastro do cliente para a nuvem",
+          "operacaoLocacaoEnviarNuvemBtn\")?.addEventListener",
+          "Protocolo ${nc} confirmado na nuvem",
           "Só pode trabalhar quando o download terminar"
         ],
         "portal-supabase-sync.js": [

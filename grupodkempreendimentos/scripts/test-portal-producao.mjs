@@ -1044,6 +1044,17 @@ async function runSuite() {
         portalUiProto.includes("__DK_pullFromCloudOnScreenChange"),
       "salvar=upload; trocar tela espera push OK antes do download"
     );
+    record(
+      "botão Enviar para nuvem da locação confirma o protocolo",
+      html.includes('id="operacaoLocacaoEnviarNuvemBtn"') &&
+        portalUiProto.includes(
+          'document.getElementById("operacaoLocacaoEnviarNuvemBtn")?.addEventListener("click", async'
+        ) &&
+        portalUiProto.includes('verifyKind: "locacao"') &&
+        portalUiProto.includes("Protocolo ${nc} confirmado na nuvem") &&
+        portalUiProto.includes('btn.textContent = "Enviando…"'),
+      "clique envia, verifica o snapshot e mostra andamento/sucesso/falha"
+    );
     const stylesFitCss = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );

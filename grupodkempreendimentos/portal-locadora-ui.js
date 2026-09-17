@@ -25404,6 +25404,48 @@
     clearOperacaoLocacaoInlineForm();
   });
 
+  document.getElementById("operacaoLocacaoEnviarNuvemBtn")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    const nc = normPortalNumeroContrato(
+      String(document.getElementById("operacaoLocacaoProtocolo")?.value || "")
+    );
+    if (!nc) {
+      if (msg) msg.textContent = "Carregue ou cadastre uma locação antes de enviar para a nuvem.";
+      return;
+    }
+    const loc = findPortalLocacaoByProtocolo(nc);
+    if (!loc) {
+      if (msg) {
+        msg.textContent = `O protocolo ${nc} ainda não está guardado neste PC. Cadastre ou atualize a locação antes de enviar.`;
+      }
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+    if (msg) msg.textContent = `Enviando o protocolo ${nc} para a nuvem…`;
+    let ok = false;
+    try {
+      ok = await portalNuvemGarantirNaNuvem({
+        verifyKind: "locacao",
+        verifyValue: nc,
+        msgEl: msg,
+        textoEnviar: `Enviando o protocolo ${nc} para a nuvem. Aguarde a confirmação.`,
+        textoOk: `Protocolo ${nc} confirmado na nuvem. O operador já pode continuar.`,
+      });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = ok ? "Enviado ✓" : "Enviar para nuvem";
+      if (ok) {
+        window.setTimeout(() => {
+          if (btn.textContent === "Enviado ✓") btn.textContent = "Enviar para nuvem";
+        }, 5000);
+      }
+    }
+  });
+
   document.getElementById("operacaoLocacaoApagarProtocoloBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     if (!isPortalAdministradorTitularCpf()) return;
