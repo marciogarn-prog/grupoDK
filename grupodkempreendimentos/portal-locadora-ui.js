@@ -15339,6 +15339,9 @@
       if (!nome && cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
         nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
       }
+      const placa =
+        (typeof normalizePlate === "function" ? normalizePlate(String(loc.placa || "")) : String(loc.placa || "").trim()) ||
+        "—";
       const plano = portalRelPagAggClassificarPlano(loc);
       const infoDev = computePortalSaldoDevolucaoInvestimento(loc);
       const saldo = Number(infoDev.saldo) || 0;
@@ -15355,10 +15358,12 @@
         prev.saldo = saldo;
         prev.qtdPagamentos += qtdNaFaixa;
         if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
+        if (!prev.placa || prev.placa === "—") prev.placa = placa;
       } else {
         map.set(proto, {
           proto,
           nome: nome || "—",
+          placa,
           valorFaixa,
           valorTotal,
           valorDevidoAluguel,
@@ -15452,11 +15457,12 @@
     const periodoLabel = isDia
       ? agg.inicioFmt || String(inicioBr || "").trim() || "—"
       : `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
-    const headers = ["Protocolo", "Nome do cliente", colFaixa, "Valor total", "Saldo"];
+    const headers = ["Protocolo", "Nome do cliente", "Placa", colFaixa, "Valor total", "Saldo"];
     const fmtSaldo = (n) => formatPortalSaldoDevolucaoBrl(n);
     const rows = agg.rows.map((r) => [
       r.proto,
       r.nome,
+      r.placa,
       agg.fmtBrl(r.valorFaixa),
       agg.fmtBrl(r.valorTotal),
       fmtSaldo(r.saldo),
@@ -15467,7 +15473,7 @@
       ? buildPortalRelatorioHtml(title, headers, rows, {
           headerSubtitleLines: [isDia ? `Dia: ${periodoLabel}` : `Período: ${periodoLabel}`],
           summaryHtml,
-          saldoColumnIndex: 4,
+          saldoColumnIndex: 5,
           saldoNums,
         })
       : "";
@@ -15476,8 +15482,8 @@
       fileSlug: isDia ? "pagamentos-agregado-dia" : "pagamentos-agregado-periodo",
       headers,
       rows,
-      textColumns: [0, 1],
-      saldoColumnIndex: 4,
+      textColumns: [0, 1, 2],
+      saldoColumnIndex: 5,
       saldoNums,
       preserveRowOrder: true,
       totalFaixa: agg.totalFaixa,
@@ -15562,14 +15568,14 @@
     const fmt = (n) =>
       Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     if (!ctx?.ok) {
-      if (body) body.innerHTML = `<tr><td colspan="5" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
+      if (body) body.innerHTML = `<tr><td colspan="6" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
       if (resumo) resumo.textContent = "Datas inválidas.";
       renderPortalRelPagAggKpis(modo, ctx);
       return;
     }
     if (!ctx.rows.length) {
       if (body) {
-        body.innerHTML = `<tr><td colspan="5" class="subtext">Nenhum protocolo com pagamento ${
+        body.innerHTML = `<tr><td colspan="6" class="subtext">Nenhum protocolo com pagamento ${
           modo === "dia" ? "neste dia" : "neste período"
         }.</td></tr>`;
       }
@@ -15587,9 +15593,10 @@
         .map((row, ri) => {
           const proto = String(row[0] || "");
           const nome = String(row[1] || "");
-          const faixa = String(row[2] || "");
-          const total = String(row[3] || "");
-          const saldoTxt = String(row[4] || "");
+          const placa = String(row[2] || "");
+          const faixa = String(row[3] || "");
+          const total = String(row[4] || "");
+          const saldoTxt = String(row[5] || "");
           const saldoN = Number(ctx.saldoNums?.[ri] ?? 0);
           const saldoCls =
             saldoN > 0
@@ -15599,7 +15606,7 @@
                 : "";
           return `<tr><td>${portalEscapeHtml(proto)}</td><td>${portalEscapeHtml(
             nome
-          )}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(
+          )}</td><td>${portalEscapeHtml(placa)}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(
             total
           )}</td><td class="${saldoCls}">${portalEscapeHtml(saldoTxt)}</td></tr>`;
         })
@@ -16912,7 +16919,7 @@
     "rel-dia":
       "2.1 — Relatório por dia: escolha a data no calendário. Lista protocolo, cliente, valor do dia e valor total do protocolo.",
     "rel-periodo":
-      "2.2 — Relatório por período: escolha início e fim. Lista protocolo, cliente, valor no período e valor total do protocolo.",
+      "2.2 — Relatório por período: escolha início e fim. Lista protocolo, cliente, placa, valor no período e valor total do protocolo.",
     "rel-inadimplentes":
       "2.3 — Relação de clientes que não pagaram: escolha início e fim. Lista protocolo, nome, placa, modelo, valor do aluguel e valor em atraso (pago − devido).",
     "rel-ceo":

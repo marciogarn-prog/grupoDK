@@ -416,6 +416,14 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
+      "relatórios 2.1 e 2.2 mostram placa na tela, PDF e Excel",
+      (htmlLancAluguel.match(/<th>Placa<\/th>/g) || []).length >= 3 &&
+        portalUiLancJs.includes(
+          'const headers = ["Protocolo", "Nome do cliente", "Placa", colFaixa, "Valor total", "Saldo"]'
+        ) &&
+        portalUiLancJs.includes("saldoColumnIndex: 5")
+    );
+    record(
       "relatório 2.5 saldo positivo = pago total menos devido do plano",
       portalUiLancJs.includes("computePortalRelClienteSaldoPositivoPlano") &&
         portalUiLancJs.includes(

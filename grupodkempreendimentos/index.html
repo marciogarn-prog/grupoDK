@@ -1870,7 +1870,7 @@
             <h4 class="portal-lanc-aluguel-section__title">2.1 — Relatório por dia</h4>
             <p class="subtext">Escolha o dia no calendário — os dados atualizam na hora. O sistema lista os protocolos que <strong>pagaram nesse dia</strong>.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO DIA — VALOR TOTAL — SALDO</strong>
+              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — PLACA — VALOR DO DIA — VALOR TOTAL — SALDO</strong>
               (saldo = mesmo valor de «SALDO / VALOR DEVOLVIDO» no lançamento: pago − devido só de aluguel; azul positivo / vermelho negativo; ordenado do menor ao maior).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
@@ -1892,13 +1892,14 @@
                   <tr>
                     <th>Protocolo</th>
                     <th>Nome do cliente</th>
+                    <th>Placa</th>
                     <th>Valor do dia</th>
                     <th>Valor total</th>
                     <th>Saldo</th>
                   </tr>
                 </thead>
                 <tbody id="portalRelPagDiaBody">
-                  <tr><td colspan="5" class="subtext">—</td></tr>
+                  <tr><td colspan="6" class="subtext">—</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1908,7 +1909,7 @@
             <h4 class="portal-lanc-aluguel-section__title">2.2 — Relatório de pagamento por período</h4>
             <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários — os dados atualizam na hora. Para cada protocolo que pagou no intervalo, mostra o valor do período e o total do protocolo.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO PERÍODO — VALOR TOTAL — SALDO</strong>
+              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — PLACA — VALOR DO PERÍODO — VALOR TOTAL — SALDO</strong>
               (saldo = pago − devido aluguel sem investimento; azul = positivo / vermelho = negativo; ordenado do menor ao maior).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
@@ -1936,13 +1937,14 @@
                   <tr>
                     <th>Protocolo</th>
                     <th>Nome do cliente</th>
+                    <th>Placa</th>
                     <th>Valor do período</th>
                     <th>Valor total</th>
                     <th>Saldo</th>
                   </tr>
                 </thead>
                 <tbody id="portalRelPagPeriodoBody">
-                  <tr><td colspan="5" class="subtext">—</td></tr>
+                  <tr><td colspan="6" class="subtext">—</td></tr>
                 </tbody>
               </table>
             </div>
@@ -5582,7 +5584,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260915readd" defer></script>
   <script src="dk-portal-api-auth.js?v=20260915unico"></script>
-  <script src="app.js?v=20260916distratodias" defer></script>
+  <script src="app.js?v=20260916relplaca" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5593,7 +5595,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20260916distratodias" defer></script>
+  <script src="portal-locadora-ui.js?v=20260916relplaca" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
