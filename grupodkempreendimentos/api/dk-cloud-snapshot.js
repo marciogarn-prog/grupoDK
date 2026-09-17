@@ -51,6 +51,7 @@ const {
 const {
   findActivePlateConflicts,
   activePlateConflictMessage,
+  findNewDuplicatePayments,
   acquireLocacoesWriteLock,
   releaseLocacoesWriteLock,
 } = require("../lib/dk-locacoes-integrity.cjs");
@@ -1125,6 +1126,24 @@ async function handler(req, res) {
           protocolos: conflict.contratos.map((item) => item.protocolo),
           conflicts: activePlateConflicts,
           message: activePlateConflictMessage(conflict),
+        });
+      }
+      const duplicatePayments = findNewDuplicatePayments(
+        existingPayload?.dk_locacoes_cadastro,
+        payload.dk_locacoes_cadastro
+      );
+      if (duplicatePayments.length) {
+        const duplicate = duplicatePayments[0];
+        return res.status(409).json({
+          ok: false,
+          reason: "duplicate_payment_same_day_value",
+          protocolo: duplicate.protocoloContrato,
+          data: duplicate.data,
+          valor: duplicate.valor,
+          duplicates: duplicatePayments,
+          message:
+            `JÁ EXISTE UM PAGAMENTO DE R$ ${Number(duplicate.valor).toFixed(2).replace(".", ",")} ` +
+            `EM ${duplicate.data} PARA O PROTOCOLO ${duplicate.protocoloContrato}.`,
         });
       }
       payload.dk_dados_seguros_v1 = true;

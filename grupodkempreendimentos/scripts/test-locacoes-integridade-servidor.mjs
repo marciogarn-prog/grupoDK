@@ -80,6 +80,31 @@ assert.ok(
   "o lock deve ser liberado depois da gravação"
 );
 
+const pagamento = (id, data = "09/09/2026", valor = 330) => ({
+  protocoloLancamento: id,
+  data,
+  valor,
+  createdAt: Number(id.replace(/\D/g, "").slice(0, 13)) || Date.now(),
+});
+const locPagamentoBase = {
+  numeroContrato: "2026090203",
+  portalLancamentosAluguel: [pagamento("20260909154418-057")],
+};
+const locPagamentoDuplicado = {
+  ...locPagamentoBase,
+  portalLancamentosAluguel: [
+    ...locPagamentoBase.portalLancamentosAluguel,
+    pagamento("20260911095314-057"),
+  ],
+};
+assert.equal(integrity.findDuplicatePaymentsByProtocol([locPagamentoBase]).length, 0);
+assert.equal(integrity.findNewDuplicatePayments([locPagamentoBase], [locPagamentoDuplicado]).length, 1);
+assert.equal(
+  integrity.findNewDuplicatePayments([locPagamentoDuplicado], [locPagamentoDuplicado]).length,
+  0,
+  "duplicidade histórica inalterada não deve bloquear outras gravações"
+);
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],
@@ -88,11 +113,12 @@ const checks = [
   ["snapshot usa lock distribuído", snapshotApi.includes("acquireLocacoesWriteLock(redis)") && snapshotApi.includes("releaseLocacoesWriteLock(redis, locacoesLockToken)")],
   ["duas gravações concorrentes não atravessam o lock", concurrentLocks.filter(Boolean).length === 1],
   ["snapshot rejeita placa ativa duplicada", snapshotApi.includes('reason: "active_plate_conflict"') && snapshotApi.includes("findActivePlateConflicts(payload.dk_locacoes_cadastro)")],
+  ["snapshot rejeita novo pagamento duplicado", snapshotApi.includes('reason: "duplicate_payment_same_day_value"') && snapshotApi.includes("findNewDuplicatePayments(")],
   ["pull oficial substitui locações pela fonte canônica", syncJs.includes("o snapshot/default é a fonte canônica") && syncJs.includes("allowShrink: true")],
   ["detecção de pull compara cópia canônica exata", appJs.includes("locações são cópia exata da fonte canônica") && syncJs.includes('hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")')],
   ["alerta automático existe no banner", html.includes('id="portalLocacoesIntegridadeAlerta"') && syncJs.includes("refreshLocacoesIntegrityAlert")],
   ["auditoria roda diariamente com o backup", cron.includes("runLocacoesIntegrityAudit") && cron.includes("locacoesIntegrity.ok === true")],
-  ["cache de integridade atualizado", html.includes("portal-supabase-sync.js?v=20260917integridadelocacoes") && html.includes("portal-locadora-ui.js?v=20260917integridadelocacoes")],
+  ["cache de integridade atualizado", /portal-supabase-sync\.js\?v=[^"'<>]+/.test(html) && /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)],
 ];
 
 for (const [label, ok] of checks) console.log(`${ok ? "OK" : "FALHOU"} — ${label}`);

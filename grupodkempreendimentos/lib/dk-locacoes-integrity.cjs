@@ -69,6 +69,74 @@ function activePlateConflictMessage(conflict) {
   );
 }
 
+function normalizePaymentDate(value) {
+  const s = String(value || "").trim();
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (br) return `${String(Number(br[1])).padStart(2, "0")}/${String(Number(br[2])).padStart(2, "0")}/${br[3]}`;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return s;
+}
+
+function paymentIdentity(payment) {
+  const protocolo = String(payment?.protocoloLancamento || payment?.protocolo || "").trim();
+  if (protocolo) return `p:${protocolo}`;
+  return [
+    "l",
+    Number(payment?.createdAt || payment?.id || 0),
+    String(payment?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+  ].join(":");
+}
+
+function findDuplicatePaymentsByProtocol(locacoes) {
+  const duplicates = [];
+  for (const locacao of Array.isArray(locacoes) ? locacoes : []) {
+    const protocoloContrato = normalizeProtocol(locacao?.numeroContrato || locacao?.protocolo);
+    if (!protocoloContrato) continue;
+    const groups = new Map();
+    for (const payment of Array.isArray(locacao?.portalLancamentosAluguel)
+      ? locacao.portalLancamentosAluguel
+      : []) {
+      const tipo = String(payment?.tipoMovimento || "").trim().toUpperCase();
+      const valor = Number(payment?.valor);
+      if (!Number.isFinite(valor) || valor <= 0 || tipo === "DEVOLUCAO_INVESTIMENTO") continue;
+      const data = normalizePaymentDate(payment?.data || payment?.dataPagamento);
+      if (!data) continue;
+      const key = `${protocoloContrato}|${data}|${Math.round(valor * 100)}`;
+      if (!groups.has(key)) groups.set(key, { protocoloContrato, data, valor, pagamentos: [] });
+      groups.get(key).pagamentos.push(paymentIdentity(payment));
+    }
+    for (const group of groups.values()) {
+      const ids = Array.from(new Set(group.pagamentos)).sort();
+      if (ids.length > 1) duplicates.push({ ...group, pagamentos: ids });
+    }
+  }
+  return duplicates.sort((a, b) =>
+    `${a.protocoloContrato}|${a.data}|${a.valor}`.localeCompare(
+      `${b.protocoloContrato}|${b.data}|${b.valor}`,
+      "pt-BR"
+    )
+  );
+}
+
+function duplicatePaymentFingerprint(group) {
+  return [
+    group?.protocoloContrato,
+    group?.data,
+    Math.round(Number(group?.valor) * 100),
+    ...(Array.isArray(group?.pagamentos) ? group.pagamentos : []),
+  ].join("|");
+}
+
+function findNewDuplicatePayments(existingLocacoes, resultingLocacoes) {
+  const previous = new Set(
+    findDuplicatePaymentsByProtocol(existingLocacoes).map(duplicatePaymentFingerprint)
+  );
+  return findDuplicatePaymentsByProtocol(resultingLocacoes).filter(
+    (group) => !previous.has(duplicatePaymentFingerprint(group))
+  );
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (!value || typeof value !== "object") return value;
@@ -123,6 +191,9 @@ module.exports = {
   isActiveLocacao,
   findActivePlateConflicts,
   activePlateConflictMessage,
+  normalizePaymentDate,
+  findDuplicatePaymentsByProtocol,
+  findNewDuplicatePayments,
   canonicalLocacoesDigest,
   acquireLocacoesWriteLock,
   releaseLocacoesWriteLock,

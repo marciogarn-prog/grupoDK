@@ -2111,7 +2111,11 @@
           if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
-          if (data?.reason === "active_plate_conflict" && data?.message) {
+          if (
+            (data?.reason === "active_plate_conflict" ||
+              data?.reason === "duplicate_payment_same_day_value") &&
+            data?.message
+          ) {
             window.alert(String(data.message));
             void refreshLocacoesIntegrityAlert({ force: true });
           }

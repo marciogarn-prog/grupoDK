@@ -23703,6 +23703,7 @@
     if (!Array.isArray(loc.portalLancamentosAluguel)) loc.portalLancamentosAluguel = [];
     const somaPorIso = somaPagamentosCalendarioPorIso(loc, ano);
     const novos = [];
+    let bloqueioDuplicado = "";
     const now0 = Date.now();
     let tick = 0;
     if (celulasMap && typeof celulasMap.forEach === "function") {
@@ -23714,6 +23715,11 @@
         if (calendarioDelta <= 0.009) return;
         const dataStr = portalIsoParaDataBr(iso);
         if (!dataStr) return;
+        const duplicado = textoBloqueioLancamentoDuplicado(loc, dataStr, calendarioDelta);
+        if (duplicado) {
+          bloqueioDuplicado = duplicado;
+          return;
+        }
         const createdAt = now0 + tick * 1000;
         tick += 1;
         const entry = {
@@ -23745,6 +23751,14 @@
         });
         novos.push(entry);
       });
+    }
+    if (bloqueioDuplicado) {
+      const protocolosNovos = new Set(novos.map((item) => portalProtocoloLancamentoKey(item)));
+      loc.portalLancamentosAluguel = loc.portalLancamentosAluguel.filter(
+        (item) => !protocolosNovos.has(portalProtocoloLancamentoKey(item))
+      );
+      window.alert(bloqueioDuplicado);
+      return { ok: false, duplicado: true, msg: bloqueioDuplicado, added: 0 };
     }
     if (!novos.length) {
       return { ok: true, notify: { ok: true, skipped: true, count: 0 }, added: 0 };
@@ -23793,22 +23807,48 @@
     return s.replace(/\s+/g, "");
   }
 
-  function findPortalLancamentosMesmaData(loc, dataPagamentoBr) {
+  function findPortalLancamentosMesmoValorMesmaData(
+    loc,
+    dataPagamentoBr,
+    valorPagamento,
+    ignorarProtocoloLancamento = ""
+  ) {
     const key = portalDataPagamentoChave(dataPagamentoBr);
-    if (!key) return [];
+    const cents = Math.round(Number(valorPagamento) * 100);
+    if (!key || !Number.isFinite(cents) || cents <= 0) return [];
     return getPortalLancamentosAluguelDoContrato(loc)
       .filter(isLancamentoAluguelContabilizavel)
-      .filter((lan) => portalDataPagamentoChave(lan.data) === key)
+      .filter((lan) => !portalLancamentoEhDevolucaoInvestimento(lan))
+      .filter(
+        (lan) =>
+          !ignorarProtocoloLancamento ||
+          portalProtocoloLancamentoKey(lan) !== String(ignorarProtocoloLancamento).trim()
+      )
+      .filter(
+        (lan) =>
+          portalDataPagamentoChave(lan.data) === key &&
+          Math.round(Number(lan.valor) * 100) === cents
+      )
       .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   }
 
-  function textoAvisoLancamentoDuplicadoMesmaData(loc, dataPagamentoBr) {
-    const hits = findPortalLancamentosMesmaData(loc, dataPagamentoBr);
+  function textoBloqueioLancamentoDuplicado(
+    loc,
+    dataPagamentoBr,
+    valorPagamento,
+    ignorarProtocoloLancamento = ""
+  ) {
+    const hits = findPortalLancamentosMesmoValorMesmaData(
+      loc,
+      dataPagamentoBr,
+      valorPagamento,
+      ignorarProtocoloLancamento
+    );
     if (!hits.length) return "";
-    const lan = hits[0];
-    const nome = String(lan.registradoPorNome || "").trim() || "Um colaborador";
-    const valorJa = formatPortalLancamentoSumBrl(lan.valor);
-    return `${nome} na data de hoje realizou um lançamento de ${valorJa}. Você confirma o lançamento atual?`;
+    return (
+      `JÁ EXISTE UM PAGAMENTO DE ${formatPortalLancamentoSumBrl(valorPagamento)} ` +
+      `EM ${portalDataPagamentoChave(dataPagamentoBr)} PARA ESTE PROTOCOLO. O NOVO LANÇAMENTO FOI BLOQUEADO.`
+    );
   }
 
   function openPortalLancAluguelConfirmModal(texto, onConfirm) {
@@ -24213,6 +24253,12 @@
     const tipoMovimento = String(meios?.tipoMovimento || PORTAL_LANC_TIPO_PAGAMENTO).trim();
     const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Number(valorNum);
+    const bloqueioDuplicado = ehDevolucao
+      ? ""
+      : textoBloqueioLancamentoDuplicado(loc, dataStr, valorFinal);
+    if (bloqueioDuplicado) {
+      return { ok: false, duplicado: true, msg: bloqueioDuplicado };
+    }
     const entry = {
       data: dataStr,
       valor: valorFinal,
@@ -24466,6 +24512,18 @@
           }),
     });
     if (!merged) return false;
+    if (!ehDevolucao) {
+      const bloqueioDuplicado = textoBloqueioLancamentoDuplicado(
+        loc,
+        merged.data,
+        merged.valor,
+        portalProtocoloLancamentoKey(prev)
+      );
+      if (bloqueioDuplicado) {
+        window.alert(bloqueioDuplicado);
+        return false;
+      }
+    }
     const coment = String(comentarioPagamento ?? prev?.comentarioPagamento ?? prev?.comentario ?? "")
       .trim()
       .slice(0, 500);
@@ -27314,7 +27372,14 @@
     const locAtualConfirm = collectPortalLocacoesComProtocoloByCpf(digits).find(
       (l) => normPortalNumeroContrato(l.numeroContrato) === proto
     );
-    const avisoDup = locAtualConfirm ? textoAvisoLancamentoDuplicadoMesmaData(locAtualConfirm, dataStr) : "";
+    const bloqueioDup = locAtualConfirm
+      ? textoBloqueioLancamentoDuplicado(locAtualConfirm, dataStr, valorNum)
+      : "";
+    if (bloqueioDup) {
+      if (msg) msg.textContent = bloqueioDup;
+      window.alert(bloqueioDup);
+      return;
+    }
     const nome =
       typeof findClienteByCpfCadastro === "function"
         ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
@@ -27327,8 +27392,7 @@
         : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
     const textoPadrao = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
-    const texto = avisoDup || textoPadrao;
-    openPortalLancAluguelConfirmModal(texto, () => {
+    openPortalLancAluguelConfirmModal(textoPadrao, () => {
       void (async () => {
         const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
           valorEspecie: valorNum,
@@ -27338,7 +27402,9 @@
         });
         if (!res?.ok) {
           if (msg) {
-            msg.textContent = !getPortalSessaoAdminRole()
+            msg.textContent = res?.duplicado
+              ? res.msg
+              : !getPortalSessaoAdminRole()
               ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
               : res?.stripped
                 ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
