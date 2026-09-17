@@ -2069,6 +2069,7 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
     if (tipo.includes("DEVOL")) return true;
+    if (tipo.includes("CREDITO_MANUT") || tipo.includes("CREDITO DE MANUT")) return true;
     const v = Number(lan.valor);
     if (Number.isFinite(v) && v < 0) return true;
     return false;

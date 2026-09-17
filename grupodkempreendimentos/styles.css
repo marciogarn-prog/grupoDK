@@ -9794,6 +9794,32 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   container-name: lanc-card;
 }
 
+.portal-lanc-dual-col--credito-manut {
+  border-color: rgba(56, 189, 248, 0.32);
+}
+
+.portal-lanc-aluguel-section__title--credito-manut {
+  color: #7dd3fc;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.portal-lanc-credito-manut-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.portal-lanc-hist__tipo--credito-manut {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.portal-lanc-hist__valor--credito-manut {
+  color: #7dd3fc;
+}
+
 .portal-lanc-dual-col--devolucao {
   border-color: rgba(255, 180, 80, 0.28);
 }
@@ -14101,6 +14127,7 @@ body.portal-plataforma-android #operacaoLocacaoFinalizarBtn,
 body.portal-plataforma-android #operacaoLocacaoCancelarBtn,
 body.portal-plataforma-android #operacaoLancAluguelConfirmarPagamentoBtn,
 body.portal-plataforma-android #operacaoLancAluguelConfirmarDevolucaoBtn,
+body.portal-plataforma-android #operacaoLancAluguelConfirmarCreditoManutBtn,
 body.portal-plataforma-android #operacaoLancAluguelLancBlocoBtn,
 body.portal-plataforma-android #portalOperadorComprovanteConfirmarBtn,
 body.portal-plataforma-android #portalComprovanteClienteBtnConfirmar,

@@ -331,10 +331,14 @@
 
   const PORTAL_LANC_TIPO_PAGAMENTO = "PAGAMENTO";
   const PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO = "DEVOLUCAO_INVESTIMENTO";
+  const PORTAL_LANC_TIPO_CREDITO_MANUTENCAO = "CREDITO_MANUTENCAO";
 
   function lancamentoTipoMovimento(x) {
     const t = String(x?.tipoMovimento || "").trim().toUpperCase();
     if (t === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    if (t === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO || t === "CREDITO_DE_MANUTENCAO") {
+      return PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    }
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x || {}, k));
     if (!hasMeios && Number(x?.valor) < 0) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
@@ -345,6 +349,10 @@
     return lancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
   }
 
+  function lancamentoEhCreditoManutencao(x) {
+    return lancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+  }
+
   function normalizeRow(raw) {
     if (!raw || typeof raw !== "object") return null;
     if (raw.pagamentoInvalidado) return null;
@@ -352,6 +360,7 @@
     if (!data) return null;
     const tipoMovimento = lancamentoTipoMovimento(raw);
     const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    const ehCreditoManut = tipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(raw, k));
     let valor;
@@ -364,6 +373,12 @@
       const abs = Math.abs(Number(valor));
       if (!Number.isFinite(abs) || abs <= 0) return null;
       valor = -abs;
+    } else if (ehCreditoManut) {
+      valor =
+        typeof raw.valor === "number" && Number.isFinite(raw.valor) ? raw.valor : parseValorRaw(raw.valor ?? raw.valorPago ?? 0);
+      const abs = Math.abs(Number(valor));
+      if (!Number.isFinite(abs) || abs <= 0) return null;
+      valor = abs;
     } else if (hasMeios) {
       valorEspecie = parseValorRaw(raw.valorEspecie ?? 0);
       valorPix = parseValorRaw(raw.valorPix ?? 0);
@@ -400,7 +415,8 @@
     const comentarioPagamento = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
     if (ehDevolucao) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
-    if (!ehDevolucao && hasMeios) {
+    if (ehCreditoManut) row.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    if (!ehDevolucao && !ehCreditoManut && hasMeios) {
       row.valorEspecie = valorEspecie;
       row.valorPix = valorPix;
       row.valorCartao = valorCartao;
@@ -728,12 +744,17 @@
         const quem = esc(x.registradoPorNome || x.registradoPorCpf || "—");
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
         const ehDev = lancamentoEhDevolucaoInvestimento(x);
+        const ehCred = lancamentoEhCreditoManutencao(x);
         const tipoHtml = ehDev
           ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--devolucao">Devolução invest.</span></td>`
-          : `<td>Pagamento</td>`;
+          : ehCred
+            ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--credito-manut">Crédito manut.</span></td>`
+            : `<td>Pagamento</td>`;
         const coment = String(x.comentarioPagamento || x.comentario || "").trim();
         const valorClass =
-          (ehDev ? " portal-lanc-hist__valor--devolucao" : "") + (coment ? " portal-lanc-hist__valor--comentario" : "");
+          (ehDev ? " portal-lanc-hist__valor--devolucao" : "") +
+          (ehCred ? " portal-lanc-hist__valor--credito-manut" : "") +
+          (coment ? " portal-lanc-hist__valor--comentario" : "");
         const valorFmt = ehDev
           ? (() => {
               const abs = Math.abs(Number(x.valor) || 0);
@@ -747,7 +768,7 @@
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";
-        const reciboHtml = ehDev
+        const reciboHtml = ehDev || ehCred
           ? `<td class="portal-lanc-hist__recibo">—</td>`
           : `<td class="portal-lanc-hist__recibo"><button type="button" class="btn-primary btn-secondary-outline portal-lanc-hist__recibo-btn" data-lanc-aluguel-recibo="${protoAttr}">Gerar recibo</button></td>`;
         return `<tr data-lanc-data="${esc(String(x.data || "").trim())}" data-lanc-proto="${protoAttr}"${x.ficticio ? ' class="portal-registro-teste"' : ""}>${reciboHtml}<td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;

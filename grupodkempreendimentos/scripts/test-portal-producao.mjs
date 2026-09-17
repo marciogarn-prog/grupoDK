@@ -418,6 +418,10 @@ async function runSuite() {
     const stylesCssRel = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
+    const finCeoVer = html.match(/portal-financeiro-ceo\.js\?v=([^"]+)/)?.[1] || "";
+    const financeiroCeoJs = await fetch(`${BASE_URL}portal-financeiro-ceo.js?v=${finCeoVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
     record(
       "relatórios 2.1 e 2.2 mostram placa na tela, PDF e Excel",
       (htmlLancAluguel.match(/<th>Placa<\/th>/g) || []).length >= 3 &&
@@ -435,6 +439,18 @@ async function runSuite() {
         stylesCssRel.includes("portal-rel-pag-agg__valor--dev") &&
         htmlLancAluguel.includes("devolução no período em vermelho"),
       "dia e período compartilham a mesma agregação"
+    );
+    record(
+      "crédito de manutenção soma no cliente e fica fora da receita CEO",
+      htmlLancAluguel.includes("operacaoLancAluguelConfirmarCreditoManutBtn") &&
+        htmlLancAluguel.includes("Registrar crédito de manutenção") &&
+        portalUiLancJs.includes("PORTAL_LANC_TIPO_CREDITO_MANUTENCAO") &&
+        portalUiLancJs.includes("portalLancamentoEhCreditoManutencao") &&
+        portalUiLancJs.includes("persistPortalLancamentoAluguelCreditoManutencao") &&
+        portalUiLancJs.includes("if (ehCred) continue") &&
+        financeiroCeoJs.includes("CREDITO_MANUT") &&
+        financeiroCeoJs.includes("receitaRealLocadoraNoPeriodo"),
+      "sem movimento de dinheiro"
     );
     record(
       "relatório 2.5 saldo positivo = pago total menos devido do plano",

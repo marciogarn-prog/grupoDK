@@ -145,15 +145,19 @@ function mergeVeiculosCadastro(previousList, incomingList) {
 function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
   const TIPO_DEV = "DEVOLUCAO_INVESTIMENTO";
+  const TIPO_CRED = "CREDITO_MANUTENCAO";
   const hasMeios = (o) =>
     o && typeof o === "object" && MEIOS.some((k) => Object.prototype.hasOwnProperty.call(o, k));
-  const ehDevolucao = (o) => {
-    if (!o || typeof o !== "object") return false;
+  const tipoMov = (o) => {
+    if (!o || typeof o !== "object") return "PAGAMENTO";
     const t = String(o.tipoMovimento || "").trim().toUpperCase();
-    if (t === TIPO_DEV) return true;
-    if (!hasMeios(o) && Number(o.valor) < 0) return true;
-    return false;
+    if (t === TIPO_DEV) return TIPO_DEV;
+    if (t === TIPO_CRED || t === "CREDITO_DE_MANUTENCAO") return TIPO_CRED;
+    if (!hasMeios(o) && Number(o.valor) < 0) return TIPO_DEV;
+    return "PAGAMENTO";
   };
+  const ehDevolucao = (o) => tipoMov(o) === TIPO_DEV;
+  const ehCredito = (o) => tipoMov(o) === TIPO_CRED;
   const parseVal = (v) => {
     if (typeof v === "number" && Number.isFinite(v)) return v;
     const s = String(v ?? "")
@@ -171,6 +175,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       const data = String(raw.data || raw.dataPagamento || raw.semanaInicio || "").trim();
       if (!data) continue;
       const isDev = ehDevolucao(raw);
+      const isCred = ehCredito(raw);
       let valor =
         typeof raw.valor === "number" && Number.isFinite(raw.valor)
           ? raw.valor
@@ -179,6 +184,10 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
         const abs = Math.abs(Number(valor));
         if (!Number.isFinite(abs) || abs <= 0) continue;
         valor = -abs;
+      } else if (isCred) {
+        const abs = Math.abs(Number(valor));
+        if (!Number.isFinite(abs) || abs <= 0) continue;
+        valor = abs;
       } else if (hasMeios(raw)) {
         const sum = MEIOS.reduce((s, k) => s + parseVal(raw[k]), 0);
         if (sum > 0) valor = sum;
@@ -186,7 +195,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       if (!Number.isFinite(valor)) continue;
       if (isDev ? valor >= 0 : valor <= 0) continue;
       const ca = Number(raw.createdAt || raw.id || 0);
-      const key = `${data}|${valor}|${ca}|${isDev ? "DEV" : "PAG"}`;
+      const key = `${data}|${valor}|${ca}|${isDev ? "DEV" : isCred ? "CRED" : "PAG"}`;
       if (byKey.has(key)) continue;
       const row = { ...raw, data, valor, createdAt: ca || Date.now() };
       row.registradoPorCpf = onlyDigits(raw.registradoPorCpf).slice(0, 11);
@@ -196,6 +205,11 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       }
       if (isDev) {
         row.tipoMovimento = TIPO_DEV;
+        delete row.valorEspecie;
+        delete row.valorPix;
+        delete row.valorCartao;
+      } else if (isCred) {
+        row.tipoMovimento = TIPO_CRED;
         delete row.valorEspecie;
         delete row.valorPix;
         delete row.valorCartao;
