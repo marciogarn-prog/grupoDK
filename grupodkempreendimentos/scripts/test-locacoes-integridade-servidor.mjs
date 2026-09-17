@@ -51,12 +51,42 @@ assert.equal(
   integrity.canonicalLocacoesDigest([ativa("2026090201", "BBB2B22"), ativa("2026090101", "AAA1A11")])
 );
 
+class FakeRedisLock {
+  constructor() {
+    this.values = new Map();
+  }
+  async set(key, value, opts) {
+    if (opts?.nx && this.values.has(key)) return null;
+    this.values.set(key, value);
+    return "OK";
+  }
+  async get(key) {
+    return this.values.get(key) || null;
+  }
+  async del(key) {
+    return this.values.delete(key) ? 1 : 0;
+  }
+}
+
+const fakeRedis = new FakeRedisLock();
+const concurrentLocks = await Promise.all([
+  integrity.acquireLocacoesWriteLock(fakeRedis, { attempts: 1 }),
+  integrity.acquireLocacoesWriteLock(fakeRedis, { attempts: 1 }),
+]);
+assert.equal(concurrentLocks.filter(Boolean).length, 1, "duas gravações não podem adquirir o mesmo lock");
+await integrity.releaseLocacoesWriteLock(fakeRedis, concurrentLocks.find(Boolean));
+assert.ok(
+  await integrity.acquireLocacoesWriteLock(fakeRedis, { attempts: 1 }),
+  "o lock deve ser liberado depois da gravação"
+);
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],
   ["portal não lê nem escreve mais cadastro-locacoes", !portalUi.includes('dkPortalPushToApi("cadastro-locacoes"') && !portalUi.includes('dkPortalPullOne("cadastro-locacoes"')],
   ["wrapper preserva allowShrink da fonte canônica", portalUi.includes("function dkPortalSaveCadastroWrapped(key, list, opts)") && portalUi.includes("origSave(key, list, opts)")],
   ["snapshot usa lock distribuído", snapshotApi.includes("acquireLocacoesWriteLock(redis)") && snapshotApi.includes("releaseLocacoesWriteLock(redis, locacoesLockToken)")],
+  ["duas gravações concorrentes não atravessam o lock", concurrentLocks.filter(Boolean).length === 1],
   ["snapshot rejeita placa ativa duplicada", snapshotApi.includes('reason: "active_plate_conflict"') && snapshotApi.includes("findActivePlateConflicts(payload.dk_locacoes_cadastro)")],
   ["pull oficial substitui locações pela fonte canônica", syncJs.includes("o snapshot/default é a fonte canônica") && syncJs.includes("allowShrink: true")],
   ["detecção de pull compara cópia canônica exata", appJs.includes("locações são cópia exata da fonte canônica") && syncJs.includes('hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")')],
