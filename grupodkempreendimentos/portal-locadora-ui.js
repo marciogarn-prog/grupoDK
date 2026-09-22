@@ -13921,13 +13921,15 @@
     return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function portalTotalPagoAteDataBr(loc, dataBr) {
+  /** Totais acumulados até a data do recibo: aluguel (sem caução), caução e soma. */
+  function portalTotaisPagosAteDataBr(loc, dataBr) {
     const lim = portalDataIsoKeyFromBr(dataBr);
     const lancs =
       typeof getPortalLancamentosAluguelContabilizaveisDoContrato === "function"
         ? getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
         : [];
-    let total = 0;
+    let aluguel = 0;
+    let caucao = 0;
     for (const lan of lancs) {
       if (typeof portalLancamentoEhDevolucaoInvestimento === "function" && portalLancamentoEhDevolucaoInvestimento(lan)) {
         continue;
@@ -13935,9 +13937,22 @@
       const k = portalDataIsoKeyFromBr(lan.data);
       if (!k || (lim && k > lim)) continue;
       const v = Number(lan.valor) || 0;
-      if (v > 0) total += v;
+      if (v <= 0) continue;
+      if (typeof portalLancamentoEhCaucao === "function" && portalLancamentoEhCaucao(lan)) {
+        caucao += v;
+      } else {
+        aluguel += v;
+      }
     }
-    return total;
+    return {
+      aluguel,
+      caucao,
+      total: aluguel + caucao,
+    };
+  }
+
+  function portalTotalPagoAteDataBr(loc, dataBr) {
+    return portalTotaisPagosAteDataBr(loc, dataBr).total;
   }
 
   function portalRenderReciboLancamentoHtml(p) {
@@ -13948,6 +13963,11 @@
       `<div class="portal-recibo-doc__linha"><dt>${esc(lab)}</dt><dd>${esc(val)}</dd></div>`;
     const dataBr = String(p.dataPagamentoBr || "").trim() || "—";
     const comentario = String(p.comentario || "").trim() || "—";
+    const aluguelNum =
+      p.valorPagoAluguelNum != null ? Number(p.valorPagoAluguelNum) : Number(p.totalPagoAteDataNum) || 0;
+    const caucaoNum = p.valorCaucaoPagoNum != null ? Number(p.valorCaucaoPagoNum) : 0;
+    const totalPagoNum =
+      p.totalPagoAteDataNum != null ? Number(p.totalPagoAteDataNum) : aluguelNum + caucaoNum;
     return `<div class="portal-recibo-doc">
       <p class="portal-recibo-doc__marca">Grupo DK Empreendimentos — DK Locadora</p>
       <dl class="portal-recibo-doc__lista">
@@ -13959,7 +13979,9 @@
         ${p.protocolo ? linha("Protocolo", p.protocolo) : ""}
         ${p.placa ? linha("Placa", p.placa) : ""}
         ${linha("Comentário", comentario)}
-        ${linha(`Valor total já pago até ${dataBr}`, fmt(p.totalPagoAteDataNum))}
+        ${linha("Valor de aluguel", fmt(aluguelNum))}
+        ${linha("Valor de caução", fmt(caucaoNum))}
+        ${linha(`Valor total já pago até ${dataBr}`, fmt(totalPagoNum))}
       </dl>
       <p class="portal-recibo-doc__texto">${esc(portalMontarTextoReciboPagamentoAluguel(p))}</p>
     </div>`;
@@ -14156,13 +14178,16 @@
     const recebedor = operador && operador !== "—"
       ? `Grupo DK Empreendimentos — DK Locadora · ${operador}`
       : "Grupo DK Empreendimentos — DK Locadora";
+    const totaisAte = portalTotaisPagosAteDataBr(loc, dataBr);
     portalOpenReciboPagamentoWindow({
       modo: "lancamento",
       nome,
       cpfExib: cpfFmt,
       dataPagamentoBr: dataBr,
       totalNum: valor,
-      totalPagoAteDataNum: portalTotalPagoAteDataBr(loc, dataBr),
+      valorPagoAluguelNum: totaisAte.aluguel,
+      valorCaucaoPagoNum: totaisAte.caucao,
+      totalPagoAteDataNum: totaisAte.total,
       recebedor,
       protocolo,
       placa,
@@ -27966,6 +27991,15 @@
         msg.textContent =
           "Caução registada. Entra na receita da empresa; não contabiliza no aluguel do cliente.";
       }
+      portalAbrirReciboAposLancamentoAvulso({
+        loc: locAtual,
+        valor: valorNum,
+        dataBr: dataStr,
+        nome: nomeExibir,
+        cpfDigits: digits,
+        protocolo: proto,
+        comentario,
+      });
     });
   });
 

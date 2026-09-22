@@ -2163,7 +2163,7 @@
     },
     {
       "id": "lanc-aluguel-recibo-apos-confirmar",
-      "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK + nome e 3 primeiros dígitos do CPF do funcionário que lançou), Cliente e Valor total já pago até aquela data. O texto do recibo não informa a forma de pagamento. No recibo há Imprimir e Compartilhar (WhatsApp).",
+      "descricao": "No Lançamento avulso, ao clicar em Confirmar no modal de pagamento, o sistema gera o Recibo de pagamento com Valor, Data, Recebedor (Grupo DK + nome e 3 primeiros dígitos do CPF do funcionário que lançou), Cliente, Comentário, Valor de aluguel, Valor de caução e Valor total já pago até aquela data (aluguel+caução). O texto do recibo não informa a forma de pagamento. No recibo há Imprimir e Compartilhar (WhatsApp).",
       "ficheiros": {
         "index.html": [
           "portalReciboModal",
@@ -2174,8 +2174,11 @@
         ],
         "portal-locadora-ui.js": [
           "portalAbrirReciboAposLancamentoAvulso",
+          "portalTotaisPagosAteDataBr",
           "portalTotalPagoAteDataBr",
           "portalRenderReciboLancamentoHtml",
+          "Valor de aluguel",
+          "Valor de caução",
           "Valor total já pago até",
           "wa.me/",
           "omitirFormaPagamento",
