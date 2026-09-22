@@ -105,6 +105,24 @@ assert.equal(
   "duplicidade histórica inalterada não deve bloquear outras gravações"
 );
 
+const locAluguelMaisCaucao = {
+  ...locPagamentoBase,
+  portalLancamentosAluguel: [
+    ...locPagamentoBase.portalLancamentosAluguel,
+    {
+      ...locPagamentoBase.portalLancamentosAluguel[0],
+      protocoloLancamento: "20260909154419-057",
+      tipoMovimento: "CAUCAO",
+      createdAt: Number(locPagamentoBase.portalLancamentosAluguel[0].createdAt) + 1,
+    },
+  ],
+};
+assert.equal(
+  integrity.findDuplicatePaymentsByProtocol([locAluguelMaisCaucao]).length,
+  0,
+  "caução com o mesmo valor do aluguel no mesmo dia não é duplicidade"
+);
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],

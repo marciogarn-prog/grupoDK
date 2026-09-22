@@ -24100,7 +24100,8 @@
     if (!key || !Number.isFinite(cents) || cents <= 0) return [];
     return getPortalLancamentosAluguelDoContrato(loc)
       .filter(isLancamentoAluguelContabilizavel)
-      .filter((lan) => !portalLancamentoEhDevolucaoInvestimento(lan))
+      /* Só aluguel (PAGAMENTO): caução/crédito podem ter o mesmo valor no mesmo dia. */
+      .filter((lan) => portalLancamentoTipoMovimento(lan) === PORTAL_LANC_TIPO_PAGAMENTO)
       .filter(
         (lan) =>
           !ignorarProtocoloLancamento ||
@@ -24128,7 +24129,7 @@
     );
     if (!hits.length) return "";
     return (
-      `JÁ EXISTE UM PAGAMENTO DE ${formatPortalLancamentoSumBrl(valorPagamento)} ` +
+      `JÁ EXISTE UM PAGAMENTO DE ALUGUEL DE ${formatPortalLancamentoSumBrl(valorPagamento)} ` +
       `EM ${portalDataPagamentoChave(dataPagamentoBr)} PARA ESTE PROTOCOLO. O NOVO LANÇAMENTO FOI BLOQUEADO.`
     );
   }
@@ -24569,7 +24570,7 @@
       tipoMovimento === "CREDITO_DE_MANUTENCAO";
     const ehCaucao = tipoMovimento === PORTAL_LANC_TIPO_CAUCAO || tipoMovimento === "CAUÇÃO";
     const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Math.abs(Number(valorNum));
-    const bloqueioDuplicado = ehDevolucao
+    const bloqueioDuplicado = ehDevolucao || ehCreditoManut || ehCaucao
       ? ""
       : textoBloqueioLancamentoDuplicado(loc, dataStr, valorFinal);
     if (bloqueioDuplicado) {
@@ -24858,7 +24859,7 @@
           }),
     });
     if (!merged) return false;
-    if (!ehDevolucao) {
+    if (!ehDevolucao && !ehCreditoManut && !ehCaucao) {
       const bloqueioDuplicado = textoBloqueioLancamentoDuplicado(
         loc,
         merged.data,
@@ -28016,17 +28017,6 @@
       return;
     }
     if (msg) msg.textContent = "";
-    const locAtualConfirm = collectPortalLocacoesComProtocoloByCpf(digits).find(
-      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-    );
-    const bloqueioDup = locAtualConfirm
-      ? textoBloqueioLancamentoDuplicado(locAtualConfirm, dataStr, valorNum)
-      : "";
-    if (bloqueioDup) {
-      if (msg) msg.textContent = bloqueioDup;
-      window.alert(bloqueioDup);
-      return;
-    }
     const nome =
       typeof findClienteByCpfCadastro === "function"
         ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
@@ -28115,17 +28105,6 @@
       return;
     }
     if (msg) msg.textContent = "";
-    const locAtualConfirm = collectPortalLocacoesComProtocoloByCpf(digits).find(
-      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-    );
-    const bloqueioDup = locAtualConfirm
-      ? textoBloqueioLancamentoDuplicado(locAtualConfirm, dataStr, valorNum)
-      : "";
-    if (bloqueioDup) {
-      if (msg) msg.textContent = bloqueioDup;
-      window.alert(bloqueioDup);
-      return;
-    }
     const nome =
       typeof findClienteByCpfCadastro === "function"
         ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()

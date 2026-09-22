@@ -2307,11 +2307,13 @@
     },
     {
       "id": "lanc-aluguel-bloqueio-mesmo-protocolo-data-valor",
-      "descricao": "No Lançamento de aluguel não é permitido gravar dois pagamentos com o mesmo valor, na mesma data de pagamento e no mesmo protocolo. O navegador bloqueia sem oferecer confirmação e o snapshot oficial também rejeita com HTTP 409. Duplicidades históricas já existentes não bloqueiam outras alterações enquanto permanecerem inalteradas.",
+      "descricao": "No Lançamento de aluguel não é permitido gravar dois pagamentos de ALUGUEL com o mesmo valor, na mesma data e no mesmo protocolo. Caução (e crédito de manutenção) podem ter o mesmo valor do aluguel no mesmo dia. O navegador bloqueia aluguel duplicado sem confirmação e o snapshot oficial rejeita com HTTP 409. Duplicidades históricas já existentes não bloqueiam outras alterações enquanto permanecerem inalteradas.",
       "ficheiros": {
         "portal-locadora-ui.js": [
           "findPortalLancamentosMesmoValorMesmaData",
           "textoBloqueioLancamentoDuplicado",
+          "PORTAL_LANC_TIPO_PAGAMENTO",
+          "PAGAMENTO DE ALUGUEL",
           "O NOVO LANÇAMENTO FOI BLOQUEADO",
           "duplicado: true"
         ],
@@ -2322,7 +2324,8 @@
         "lib/dk-locacoes-integrity.cjs": [
           "findDuplicatePaymentsByProtocol",
           "findNewDuplicatePayments",
-          "duplicatePaymentFingerprint"
+          "duplicatePaymentFingerprint",
+          "CAUCAO"
         ],
         "portal-supabase-sync.js": [
           "duplicate_payment_same_day_value"

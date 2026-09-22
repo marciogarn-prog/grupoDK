@@ -99,7 +99,18 @@ function findDuplicatePaymentsByProtocol(locacoes) {
       : []) {
       const tipo = String(payment?.tipoMovimento || "").trim().toUpperCase();
       const valor = Number(payment?.valor);
-      if (!Number.isFinite(valor) || valor <= 0 || tipo === "DEVOLUCAO_INVESTIMENTO") continue;
+      if (!Number.isFinite(valor) || valor <= 0) continue;
+      /* Só aluguel: caução/crédito/devolução podem coincidir no valor no mesmo dia. */
+      if (
+        tipo === "DEVOLUCAO_INVESTIMENTO" ||
+        tipo === "CREDITO_MANUTENCAO" ||
+        tipo === "CREDITO_DE_MANUTENCAO" ||
+        tipo === "CAUCAO" ||
+        tipo === "CAUÇÃO" ||
+        tipo === "CAUÇAO"
+      ) {
+        continue;
+      }
       const data = normalizePaymentDate(payment?.data || payment?.dataPagamento);
       if (!data) continue;
       const key = `${protocoloContrato}|${data}|${Math.round(valor * 100)}`;
