@@ -2578,17 +2578,20 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
   const TIPO_DEV = "DEVOLUCAO_INVESTIMENTO";
   const TIPO_CRED = "CREDITO_MANUTENCAO";
+  const TIPO_CAU = "CAUCAO";
   const rawHasMeios = (o) =>
     o && typeof o === "object" && MEIOS.some((k) => Object.prototype.hasOwnProperty.call(o, k));
   const tipoMovRaw = (o) => {
     const t = String(o?.tipoMovimento || "").trim().toUpperCase();
     if (t === TIPO_DEV) return TIPO_DEV;
     if (t === TIPO_CRED || t === "CREDITO_DE_MANUTENCAO") return TIPO_CRED;
+    if (t === TIPO_CAU || t === "CAUÇÃO" || t === "CAUÇAO") return TIPO_CAU;
     if (!rawHasMeios(o) && Number(o?.valor) < 0) return TIPO_DEV;
     return "PAGAMENTO";
   };
   const ehDevolucaoRaw = (o) => tipoMovRaw(o) === TIPO_DEV;
   const ehCreditoRaw = (o) => tipoMovRaw(o) === TIPO_CRED;
+  const ehCaucaoRaw = (o) => tipoMovRaw(o) === TIPO_CAU;
   const dig = (s) => onlyDigits(String(s || ""));
   const byKey = new Map();
 
@@ -2598,6 +2601,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     if (!data) return null;
     const ehDev = ehDevolucaoRaw(raw);
     const ehCred = ehCreditoRaw(raw);
+    const ehCau = ehCaucaoRaw(raw);
     let valor;
     if (ehDev) {
       valor =
@@ -2607,7 +2611,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       const abs = Math.abs(Number(valor));
       if (!Number.isFinite(abs) || abs <= 0) return null;
       valor = -abs;
-    } else if (ehCred) {
+    } else if (ehCred || ehCau) {
       valor =
         typeof raw.valor === "number" && Number.isFinite(raw.valor)
           ? raw.valor
@@ -2638,6 +2642,8 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       row.tipoMovimento = TIPO_DEV;
     } else if (ehCred) {
       row.tipoMovimento = TIPO_CRED;
+    } else if (ehCau) {
+      row.tipoMovimento = TIPO_CAU;
     } else if (rawHasMeios(raw)) {
       const ve = Number(parseCurrencyBR(raw.valorEspecie ?? 0));
       const vp = Number(parseCurrencyBR(raw.valorPix ?? 0));
@@ -2653,7 +2659,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     const coment = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
     if (coment) row.comentarioPagamento = coment;
     if (raw.ficticio) row.ficticio = true;
-    const key = `${row.data}|${row.valor}|${ca}|${rp}|${ehDev ? "DEV" : ehCred ? "CRED" : "PAG"}`;
+    const key = `${row.data}|${row.valor}|${ca}|${rp}|${ehDev ? "DEV" : ehCred ? "CRED" : ehCau ? "CAU" : "PAG"}`;
     return { key, row };
   }
 

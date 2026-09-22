@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260917credmanut">
+  <link rel="stylesheet" href="styles.css?v=20260922caucao">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -1723,6 +1723,34 @@
                         <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelConfirmarCreditoManutBtn">Confirmar crédito de manutenção</button>
                       </div>
                     </div>
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--caucao" data-lanc-layout-box="caucao">
+                      <h4 id="portal-lanc-aluguel-caucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--caucao">Registrar pagamento de caução</h4>
+                      <p class="subtext portal-lanc-caucao-hint">Entra no financeiro da empresa (receita real) e não contabiliza no aluguel do cliente.</p>
+                      <div class="portal-lanc-dual-col__grid">
+                        <label class="portal-field portal-lanc-field--data">
+                          <span>DATA DA CAUÇÃO</span>
+                          <input type="text" id="operacaoLancAluguelDataCaucao" name="dataCaucao" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA CAUÇÃO">
+                        </label>
+                        <label class="portal-field portal-lanc-field--valor">
+                          <span>VALOR (R$)</span>
+                          <input type="text" id="operacaoLancAluguelValorCaucao" name="valorCaucao" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da caução">
+                        </label>
+                      </div>
+                      <label class="portal-field portal-lanc-comentario-pagamento">
+                        <span>COMENTÁRIO (opcional)</span>
+                        <textarea
+                          id="operacaoLancAluguelComentarioCaucao"
+                          name="comentarioCaucao"
+                          rows="2"
+                          maxlength="500"
+                          placeholder="Observação sobre esta caução…"
+                          aria-label="Comentário da caução"
+                        ></textarea>
+                      </label>
+                      <div class="portal-lanc-dual-col__actions">
+                        <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelConfirmarCaucaoBtn">Confirmar caução</button>
+                      </div>
+                    </div>
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao" data-lanc-layout-box="devolucao">
                       <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
                       <p class="subtext portal-lanc-devolucao-hint">Sugestão = total pago − devido só de aluguel. Valor registado como saída do caixa.</p>
@@ -1810,10 +1838,18 @@
                     <div class="portal-lanc-aluguel-pagamento-saldo">
                       <span id="operacaoLancAluguelTotalDevidoHojeLabel" class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DEVIDO ATÉ HOJE</span>
                       <strong id="operacaoLancAluguelTotalDevidoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor">R$ 0,00</strong>
+                      <div class="portal-lanc-aluguel-pagamento-saldo__foot portal-lanc-aluguel-pagamento-saldo__foot--caucao">
+                        <span class="portal-lanc-aluguel-pagamento-saldo__label">CAUÇÃO PAGO</span>
+                        <strong id="operacaoLancAluguelCaucaoPago" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--caucao">R$ 0,00</strong>
+                      </div>
                     </div>
                     <div class="portal-lanc-aluguel-pagamento-saldo">
-                      <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL PAGO ATÉ HOJE</span>
+                      <span id="operacaoLancAluguelTotalPagoHojeLabel" class="portal-lanc-aluguel-pagamento-saldo__label">valor pago de aluguel</span>
                       <strong id="operacaoLancAluguelTotalPagoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--pago">R$ 0,00</strong>
+                      <div class="portal-lanc-aluguel-pagamento-saldo__foot portal-lanc-aluguel-pagamento-saldo__foot--total">
+                        <span class="portal-lanc-aluguel-pagamento-saldo__label">total pago</span>
+                        <strong id="operacaoLancAluguelTotalPagoGeral" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--total-geral">R$ 0,00</strong>
+                      </div>
                     </div>
                   </div>
                 <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos e devoluções do protocolo" hidden></div>
@@ -5611,9 +5647,9 @@
   <script src="home-unit-nav.js?v=20260903home-loc" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="dk-lancamento-protocolo.js?v=20260917credmanut" defer></script>
+  <script src="dk-lancamento-protocolo.js?v=20260922caucao" defer></script>
   <script src="dk-portal-api-auth.js?v=20260915unico"></script>
-  <script src="app.js?v=20260917credmanut" defer></script>
+  <script src="app.js?v=20260922caucao" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5624,11 +5660,11 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20260917credmanut" defer></script>
+  <script src="portal-locadora-ui.js?v=20260922caucao" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20260917credmanut" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260922caucao" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -5674,7 +5710,7 @@
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260917credmanut" defer></script>
+  <script src="portal-supabase-sync.js?v=20260922caucao" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

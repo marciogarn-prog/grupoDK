@@ -1,14 +1,12 @@
 /**
- * Janela Pagamento de caução no Cadastro de locação.
+ * Caução no lançamento avulso (entra na receita; fora do aluguel do cliente).
  * node grupodkempreendimentos/scripts/test-janela-caucao.mjs
  */
 import fs from "fs";
 import path from "path";
-import { createRequire } from "module";
 import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(import.meta.url);
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -23,48 +21,14 @@ function readLocal(rel) {
 const html = readLocal("index.html");
 const ui = readLocal("portal-locadora-ui.js");
 const css = readLocal("styles.css");
-const mergeSrc = readLocal("lib/dk-append-only-merge.cjs");
 const protoSrc = readLocal("dk-lancamento-protocolo.js");
 
-record("botao cadastro", html.includes('id="operacaoLocacaoCaucaoBtn"') && html.includes("Pagamento de caução"));
-record("modal html", html.includes('id="portalCaucaoModal"') && html.includes("portalCaucaoConfirmarBtn"));
-record("campos data valor", html.includes('id="portalCaucaoData"') && html.includes('id="portalCaucaoValor"'));
-record("lista historico", html.includes('id="portalCaucaoLista"'));
-record("css janela", css.includes("portal-modal__card--caucao") && css.includes("portal-caucao-lista"));
-record("abrir/persistir", ui.includes("function abrirPortalCaucaoModal") && ui.includes("function persistPortalLancamentoCaucao"));
-record("grava portalLancamentosCaucao", ui.includes("loc.portalLancamentosCaucao") && ui.includes('tipoMovimento: "CAUCAO"'));
-record("preserva no save", ui.includes("portalLancamentosCaucao: prev.portalLancamentosCaucao"));
-record("merge nuvem cjs", mergeSrc.includes("portalLancamentosCaucao"));
-record("merge protocolo js", protoSrc.includes("portalLancamentosCaucao"));
-record("cache pwa", html.includes("20260901reativa-0303") || html.includes("20260901janela-caucao"));
-record("mascara valor", ui.includes('"portalCaucaoValor"'));
-
-const merge = require(path.join(ROOT, "lib/dk-append-only-merge.cjs"));
-const a = [{ numeroContrato: "2026070801", placa: "UHY7B16", cpf: "35287865821", nome: "A", inicio: "08/07/2026" }];
-const b = [
-  {
-    numeroContrato: "2026070801",
-    placa: "UHY7B16",
-    cpf: "35287865821",
-    nome: "A",
-    inicio: "08/07/2026",
-    updatedAt: Date.now(),
-    portalLancamentosCaucao: [{ data: "01/09/2026", valor: 500, createdAt: 1, protocoloLancamento: "c1", tipoMovimento: "CAUCAO" }],
-  },
-];
-const out = merge.mergeLocacoesCadastro(a, b);
-const hit = out.find((l) => String(l.numeroContrato) === "2026070801");
-record(
-  "merge nao perde caução",
-  Array.isArray(hit?.portalLancamentosCaucao) && hit.portalLancamentosCaucao.some((x) => Number(x.valor) === 500),
-  `n=${hit?.portalLancamentosCaucao?.length || 0}`
-);
-const alug = Array.isArray(hit?.portalLancamentosAluguel) ? hit.portalLancamentosAluguel : [];
-record(
-  "caucao fora do aluguel",
-  !alug.some((x) => String(x?.tipoMovimento || "").toUpperCase() === "CAUCAO"),
-  `aluguel=${alug.length}`
-);
+record("caixa caução no avulso", html.includes("Registrar pagamento de caução") && html.includes("operacaoLancAluguelConfirmarCaucaoBtn"));
+record("saldos caução + total pago", html.includes("operacaoLancAluguelCaucaoPago") && html.includes("operacaoLancAluguelTotalPagoGeral") && html.includes("valor pago de aluguel"));
+record("tipo CAUCAO no UI", ui.includes("PORTAL_LANC_TIPO_CAUCAO") && ui.includes("persistPortalLancamentoAluguelCaucao") && ui.includes("sumPortalLancamentosCaucaoTotal"));
+record("caução fora do aluguel", ui.includes("if (portalLancamentoEhCaucao(x)) return a"));
+record("histórico Caução", protoSrc.includes("portal-lanc-hist__tipo--caucao") && protoSrc.includes("Caução"));
+record("css caução", css.includes("portal-lanc-dual-col--caucao") && css.includes("portal-lanc-aluguel-pagamento-saldo__foot--caucao"));
 
 const failed = results.filter((r) => !r.ok);
 if (failed.length) {

@@ -332,12 +332,16 @@
   const PORTAL_LANC_TIPO_PAGAMENTO = "PAGAMENTO";
   const PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO = "DEVOLUCAO_INVESTIMENTO";
   const PORTAL_LANC_TIPO_CREDITO_MANUTENCAO = "CREDITO_MANUTENCAO";
+  const PORTAL_LANC_TIPO_CAUCAO = "CAUCAO";
 
   function lancamentoTipoMovimento(x) {
     const t = String(x?.tipoMovimento || "").trim().toUpperCase();
     if (t === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (t === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO || t === "CREDITO_DE_MANUTENCAO") {
       return PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    }
+    if (t === PORTAL_LANC_TIPO_CAUCAO || t === "CAUÇÃO" || t === "CAUÇAO") {
+      return PORTAL_LANC_TIPO_CAUCAO;
     }
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x || {}, k));
@@ -353,6 +357,10 @@
     return lancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
   }
 
+  function lancamentoEhCaucao(x) {
+    return lancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_CAUCAO;
+  }
+
   function normalizeRow(raw) {
     if (!raw || typeof raw !== "object") return null;
     if (raw.pagamentoInvalidado) return null;
@@ -361,6 +369,7 @@
     const tipoMovimento = lancamentoTipoMovimento(raw);
     const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const ehCreditoManut = tipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    const ehCaucao = tipoMovimento === PORTAL_LANC_TIPO_CAUCAO;
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(raw, k));
     let valor;
@@ -373,7 +382,7 @@
       const abs = Math.abs(Number(valor));
       if (!Number.isFinite(abs) || abs <= 0) return null;
       valor = -abs;
-    } else if (ehCreditoManut) {
+    } else if (ehCreditoManut || ehCaucao) {
       valor =
         typeof raw.valor === "number" && Number.isFinite(raw.valor) ? raw.valor : parseValorRaw(raw.valor ?? raw.valorPago ?? 0);
       const abs = Math.abs(Number(valor));
@@ -416,7 +425,8 @@
     if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
     if (ehDevolucao) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (ehCreditoManut) row.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
-    if (!ehDevolucao && !ehCreditoManut && hasMeios) {
+    if (ehCaucao) row.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
+    if (!ehDevolucao && !ehCreditoManut && !ehCaucao && hasMeios) {
       row.valorEspecie = valorEspecie;
       row.valorPix = valorPix;
       row.valorCartao = valorCartao;
@@ -745,15 +755,19 @@
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
         const ehDev = lancamentoEhDevolucaoInvestimento(x);
         const ehCred = lancamentoEhCreditoManutencao(x);
+        const ehCau = lancamentoEhCaucao(x);
         const tipoHtml = ehDev
           ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--devolucao">Devolução invest.</span></td>`
           : ehCred
             ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--credito-manut">Crédito manut.</span></td>`
-            : `<td>Pagamento</td>`;
+            : ehCau
+              ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--caucao">Caução</span></td>`
+              : `<td>Pagamento</td>`;
         const coment = String(x.comentarioPagamento || x.comentario || "").trim();
         const valorClass =
           (ehDev ? " portal-lanc-hist__valor--devolucao" : "") +
           (ehCred ? " portal-lanc-hist__valor--credito-manut" : "") +
+          (ehCau ? " portal-lanc-hist__valor--caucao" : "") +
           (coment ? " portal-lanc-hist__valor--comentario" : "");
         const valorFmt = ehDev
           ? (() => {

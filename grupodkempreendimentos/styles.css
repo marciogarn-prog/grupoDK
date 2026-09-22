@@ -9820,6 +9820,32 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #7dd3fc;
 }
 
+.portal-lanc-dual-col--caucao {
+  border-color: rgba(52, 211, 153, 0.38);
+}
+
+.portal-lanc-aluguel-section__title--caucao {
+  color: #6ee7b7;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.portal-lanc-caucao-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.portal-lanc-hist__tipo--caucao {
+  color: #6ee7b7;
+  font-weight: 600;
+}
+
+.portal-lanc-hist__valor--caucao {
+  color: #6ee7b7;
+}
+
 .portal-lanc-dual-col--devolucao {
   border-color: rgba(255, 180, 80, 0.28);
 }
@@ -10129,6 +10155,33 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .portal-lanc-aluguel-pagamento-saldo__valor--pago {
   color: #93c5fd;
+}
+
+.portal-lanc-aluguel-pagamento-saldo__foot {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.portal-lanc-aluguel-pagamento-saldo__foot--caucao {
+  border-top-color: rgba(96, 165, 250, 0.45);
+}
+
+.portal-lanc-aluguel-pagamento-saldo__foot--total {
+  border-top-color: rgba(248, 113, 113, 0.45);
+}
+
+.portal-lanc-aluguel-pagamento-saldo__valor--caucao {
+  color: #93c5fd;
+  font-size: 0.95rem;
+}
+
+.portal-lanc-aluguel-pagamento-saldo__valor--total-geral {
+  color: #fca5a5;
+  font-size: 0.95rem;
 }
 
 /* Situa??o do protocolo ap?s o pagamento (Lan?amento de aluguel) */

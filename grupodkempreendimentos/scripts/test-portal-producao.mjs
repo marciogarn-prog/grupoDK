@@ -453,6 +453,20 @@ async function runSuite() {
       "sem movimento de dinheiro"
     );
     record(
+      "caução entra na receita e fica fora do aluguel do cliente",
+      htmlLancAluguel.includes("operacaoLancAluguelConfirmarCaucaoBtn") &&
+        htmlLancAluguel.includes("Registrar pagamento de caução") &&
+        htmlLancAluguel.includes("valor pago de aluguel") &&
+        htmlLancAluguel.includes("operacaoLancAluguelCaucaoPago") &&
+        htmlLancAluguel.includes("operacaoLancAluguelTotalPagoGeral") &&
+        portalUiLancJs.includes("PORTAL_LANC_TIPO_CAUCAO") &&
+        portalUiLancJs.includes("portalLancamentoEhCaucao") &&
+        portalUiLancJs.includes("persistPortalLancamentoAluguelCaucao") &&
+        portalUiLancJs.includes("sumPortalLancamentosCaucaoTotal") &&
+        portalUiLancJs.includes("if (portalLancamentoEhCaucao(x)) return a"),
+      "financeiro da empresa + saldos CAUÇÃO PAGO / total pago"
+    );
+    record(
       "relatório 2.5 saldo positivo = pago total menos devido do plano",
       portalUiLancJs.includes("computePortalRelClienteSaldoPositivoPlano") &&
         portalUiLancJs.includes(

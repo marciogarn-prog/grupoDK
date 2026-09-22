@@ -72,23 +72,32 @@
     },
     {
       "id": "lanc-aluguel-scroll-saldos-lado",
-      "descricao": "No Lançamento de aluguel: a bola do mouse move o conteúdo para cima e para baixo (formulário com overflow-y auto, sem scroll interno que engole a roda); TOTAL DEVIDO ATÉ HOJE e TOTAL PAGO ATÉ HOJE ficam lado a lado (não empilhados), no painel da direita acima de Lançamentos registados.",
+      "descricao": "No Lançamento de aluguel: a bola do mouse move o conteúdo para cima e para baixo (formulário com overflow-y auto, sem scroll interno que engole a roda); TOTAL DEVIDO ATÉ HOJE e valor pago de aluguel ficam lado a lado (não empilhados), com CAUÇÃO PAGO sob o devido e total pago (aluguel+caução) sob o pago de aluguel, no painel da direita acima de Lançamentos registados.",
       "ficheiros": {
         "index.html": [
           "operacaoInlineLancamentoAluguel",
           "operacao-inline-form operacao-inline-form--rodar-mouse",
-          "operacaoLancAluguelSaldosHojeBox"
+          "operacaoLancAluguelSaldosHojeBox",
+          "valor pago de aluguel",
+          "operacaoLancAluguelCaucaoPago",
+          "operacaoLancAluguelTotalPagoGeral",
+          "CAUÇÃO PAGO",
+          "total pago"
         ],
         "styles.css": [
           "portal-lanc-aluguel-pagamento-saldos--dual",
           "TOTAL DEVIDO e TOTAL PAGO lado a lado",
           "um único scroll no formulário",
           "a bola do mouse move o conteúdo",
-          "portal-lanc-avulso-workspace__hist > .portal-lanc-aluguel-pagamento-saldos"
+          "portal-lanc-avulso-workspace__hist > .portal-lanc-aluguel-pagamento-saldos",
+          "portal-lanc-aluguel-pagamento-saldo__foot--caucao",
+          "portal-lanc-aluguel-pagamento-saldo__foot--total"
         ],
         "portal-locadora-ui.js": [
           "portalSyncLancAluguelLayoutScrollSpacer",
-          "root.scrollTop += event.deltaY"
+          "root.scrollTop += event.deltaY",
+          "sumPortalLancamentosCaucaoTotal",
+          "totalPagoGeral"
         ]
       }
     },
@@ -161,7 +170,7 @@
     },
     {
       "id": "lanc-credito-manutencao",
-      "descricao": "No lançamento avulso existe Registrar crédito de manutenção (data + valor): aparece em Lançamentos registados, soma no TOTAL PAGO ATÉ HOJE do cliente e não entra na RECEITA REAL da empresa (sem movimento de dinheiro).",
+      "descricao": "No lançamento avulso existe Registrar crédito de manutenção (data + valor): aparece em Lançamentos registados, soma no valor pago de aluguel do cliente e não entra na RECEITA REAL da empresa (sem movimento de dinheiro).",
       "ficheiros": {
         "index.html": [
           "operacaoLancAluguelDataCreditoManut",
@@ -186,6 +195,35 @@
         "styles.css": [
           "portal-lanc-dual-col--credito-manut",
           "portal-lanc-hist__tipo--credito-manut"
+        ]
+      }
+    },
+    {
+      "id": "lanc-caucao",
+      "descricao": "No lançamento avulso existe Registrar pagamento de caução (data + valor): aparece em Lançamentos registados, entra na RECEITA REAL / financeiro da empresa e não contabiliza no aluguel do cliente; CAUÇÃO PAGO e total pago (aluguel+caução) aparecem nos saldos da direita.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancAluguelDataCaucao",
+          "operacaoLancAluguelValorCaucao",
+          "operacaoLancAluguelConfirmarCaucaoBtn",
+          "Registrar pagamento de caução",
+          "operacaoLancAluguelCaucaoPago",
+          "operacaoLancAluguelTotalPagoGeral"
+        ],
+        "portal-locadora-ui.js": [
+          "PORTAL_LANC_TIPO_CAUCAO",
+          "portalLancamentoEhCaucao",
+          "persistPortalLancamentoAluguelCaucao",
+          "sumPortalLancamentosCaucaoTotal"
+        ],
+        "dk-lancamento-protocolo.js": [
+          "CAUCAO",
+          "portal-lanc-hist__tipo--caucao"
+        ],
+        "styles.css": [
+          "portal-lanc-dual-col--caucao",
+          "portal-lanc-hist__tipo--caucao",
+          "portal-lanc-aluguel-pagamento-saldo__foot--caucao"
         ]
       }
     },

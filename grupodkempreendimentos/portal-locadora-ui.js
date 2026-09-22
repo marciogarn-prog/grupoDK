@@ -18638,6 +18638,7 @@
     "operacaoLancAluguelValorCartao",
     "operacaoLancAluguelValorSimples",
     "operacaoLancAluguelValorCreditoManut",
+    "operacaoLancAluguelValorCaucao",
     "operacaoLancMultasValorMulta",
     "operacaoLancManutencaoValorManutencao",
     "portalLancAluguelEditValor",
@@ -21579,12 +21580,16 @@
   const PORTAL_LANC_TIPO_PAGAMENTO = "PAGAMENTO";
   const PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO = "DEVOLUCAO_INVESTIMENTO";
   const PORTAL_LANC_TIPO_CREDITO_MANUTENCAO = "CREDITO_MANUTENCAO";
+  const PORTAL_LANC_TIPO_CAUCAO = "CAUCAO";
 
   function portalLancamentoTipoMovimento(x) {
     const t = String(x?.tipoMovimento || "").trim().toUpperCase();
     if (t === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (t === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO || t === "CREDITO_DE_MANUTENCAO") {
       return PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    }
+    if (t === PORTAL_LANC_TIPO_CAUCAO || t === "CAUÇÃO" || t === "CAUÇAO") {
+      return PORTAL_LANC_TIPO_CAUCAO;
     }
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x || {}, k));
@@ -21600,7 +21605,11 @@
     return portalLancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
   }
 
-  /** Entra no caixa / receita real da empresa (pagamento em dinheiro). */
+  function portalLancamentoEhCaucao(x) {
+    return portalLancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_CAUCAO;
+  }
+
+  /** Entra no caixa / receita real da empresa (pagamento em dinheiro). Caução entra; crédito de manutenção não. */
   function portalLancamentoEhReceitaCaixa(x) {
     return (
       !portalLancamentoEhDevolucaoInvestimento(x) && !portalLancamentoEhCreditoManutencao(x)
@@ -21614,6 +21623,7 @@
     const tipoMovimento = portalLancamentoTipoMovimento(x);
     const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const ehCreditoManut = tipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    const ehCaucao = tipoMovimento === PORTAL_LANC_TIPO_CAUCAO;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const registradoPorCpf = dig(String(x.registradoPorCpf ?? x.registradoPor ?? "")).slice(0, 11);
@@ -21632,7 +21642,7 @@
       const abs = Math.abs(Number(valor));
       if (!Number.isFinite(abs) || abs <= 0) return null;
       valor = -abs;
-    } else if (ehCreditoManut) {
+    } else if (ehCreditoManut || ehCaucao) {
       valor =
         typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
       const abs = Math.abs(Number(valor));
@@ -21653,9 +21663,10 @@
     const out = { data, valor, createdAt, registradoPorCpf, registradoPorNome };
     if (ehDevolucao) out.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (ehCreditoManut) out.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    if (ehCaucao) out.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
     const proto = String(x.protocoloLancamento || x.protocolo || "").trim();
     if (proto) out.protocoloLancamento = proto;
-    if (!ehDevolucao && !ehCreditoManut && anyMeiosKeys) {
+    if (!ehDevolucao && !ehCreditoManut && !ehCaucao && anyMeiosKeys) {
       out.valorEspecie = valorEspecie;
       out.valorPix = valorPix;
       out.valorCartao = valorCartao;
@@ -21816,12 +21827,23 @@
   }
 
   function sumPortalLancamentosAluguelTotal(arr) {
-    return (arr || []).reduce((a, x) => a + Number(x.valor || 0), 0);
+    return (arr || []).reduce((a, x) => {
+      if (portalLancamentoEhCaucao(x)) return a;
+      return a + Number(x.valor || 0);
+    }, 0);
+  }
+
+  function sumPortalLancamentosCaucaoTotal(arr) {
+    return (arr || []).reduce((a, x) => {
+      if (!portalLancamentoEhCaucao(x)) return a;
+      return a + Math.abs(Number(x.valor || 0));
+    }, 0);
   }
 
   function sumPortalLancamentosAluguelNoAno(arr, year) {
     let s = 0;
     for (const x of arr || []) {
+      if (portalLancamentoEhCaucao(x)) continue;
       const d = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
       if (!d || Number.isNaN(d.getTime())) continue;
       if (d.getFullYear() !== year) continue;
@@ -21995,6 +22017,7 @@
     );
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
+    const caucaoPagoNum = sumPortalLancamentosCaucaoTotal(lancs);
     const investimentoAcumuladoNum = computePortalInvestimentoAcumuladoNum(
       valorDevidoAluguelNum,
       valorDevidoMultasNum,
@@ -22020,6 +22043,9 @@
       devidoAteDataFim: devidoRef.ateDataFim,
       devidoAteDataFimBr: devidoRef.dataFimBr,
       totalPago: fmtBrl(totalPagoNum),
+      caucaoPagoNum,
+      caucaoPago: fmtBrl(caucaoPagoNum),
+      totalPagoGeral: fmtBrl(totalPagoNum + caucaoPagoNum),
       tipoPlano: tipoPlanoStr,
       valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
       valorDevidoManutencao: fmtBrl(valorDevidoManutencaoNum),
@@ -22463,13 +22489,19 @@
     const devidoEl = document.getElementById("operacaoLancAluguelTotalDevidoHoje");
     const devidoLbl = document.getElementById("operacaoLancAluguelTotalDevidoHojeLabel");
     const pagoEl = document.getElementById("operacaoLancAluguelTotalPagoHoje");
-    if (!devidoEl && !pagoEl) return;
+    const pagoLbl = document.getElementById("operacaoLancAluguelTotalPagoHojeLabel");
+    const caucaoEl = document.getElementById("operacaoLancAluguelCaucaoPago");
+    const totalGeralEl = document.getElementById("operacaoLancAluguelTotalPagoGeral");
+    if (!devidoEl && !pagoEl && !caucaoEl && !totalGeralEl) return;
     const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
     const zero = formatPortalLancamentoSumBrl(0);
+    if (pagoLbl) pagoLbl.textContent = "valor pago de aluguel";
     if (!target) {
       if (devidoLbl) devidoLbl.textContent = "TOTAL DEVIDO ATÉ HOJE";
       if (devidoEl) devidoEl.textContent = zero;
       if (pagoEl) pagoEl.textContent = zero;
+      if (caucaoEl) caucaoEl.textContent = zero;
+      if (totalGeralEl) totalGeralEl.textContent = zero;
       refreshOperacaoLancAluguelSugestaoDevolucao(null);
       return;
     }
@@ -22477,6 +22509,8 @@
     if (devidoLbl) devidoLbl.textContent = resumo.devidoAteLabel || "TOTAL DEVIDO ATÉ HOJE";
     if (devidoEl) devidoEl.textContent = resumo.valorDevidoAteHoje || zero;
     if (pagoEl) pagoEl.textContent = resumo.totalPago || zero;
+    if (caucaoEl) caucaoEl.textContent = resumo.caucaoPago || zero;
+    if (totalGeralEl) totalGeralEl.textContent = resumo.totalPagoGeral || zero;
     refreshOperacaoLancAluguelSugestaoDevolucao(target);
   }
 
@@ -22652,14 +22686,20 @@
     const dataCredEl = document.getElementById("operacaoLancAluguelDataCreditoManut");
     const valCredEl = document.getElementById("operacaoLancAluguelValorCreditoManut");
     const comCredEl = document.getElementById("operacaoLancAluguelComentarioCreditoManut");
+    const dataCauEl = document.getElementById("operacaoLancAluguelDataCaucao");
+    const valCauEl = document.getElementById("operacaoLancAluguelValorCaucao");
+    const comCauEl = document.getElementById("operacaoLancAluguelComentarioCaucao");
     const hoje = formatPortalDataBr(new Date());
     if (dataEl) dataEl.value = hoje;
     if (dataDevEl) dataDevEl.value = hoje;
     if (dataCredEl) dataCredEl.value = hoje;
+    if (dataCauEl) dataCauEl.value = hoje;
     if (comEl) comEl.value = "";
     if (comDevEl) comDevEl.value = "";
     if (comCredEl) comCredEl.value = "";
+    if (comCauEl) comCauEl.value = "";
     if (valCredEl) valCredEl.value = "";
+    if (valCauEl) valCauEl.value = "";
     const loc = resolveLocOperacaoLancAluguelAtual();
     const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
     if (valSimples && valPlano) valSimples.value = valPlano;
@@ -23979,6 +24019,11 @@
         delete base.valorEspecie;
         delete base.valorPix;
         delete base.valorCartao;
+      } else if (portalLancamentoEhCaucao(v)) {
+        base.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
+        delete base.valorEspecie;
+        delete base.valorPix;
+        delete base.valorCartao;
       }
       return base;
     });
@@ -24048,7 +24093,22 @@
       }
       const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
-      if (portalLancamentoEhDevolucaoInvestimento(x)) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+      if (portalLancamentoEhDevolucaoInvestimento(x)) {
+        row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+        delete row.valorEspecie;
+        delete row.valorPix;
+        delete row.valorCartao;
+      } else if (portalLancamentoEhCreditoManutencao(x)) {
+        row.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+        delete row.valorEspecie;
+        delete row.valorPix;
+        delete row.valorCartao;
+      } else if (portalLancamentoEhCaucao(x)) {
+        row.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
+        delete row.valorEspecie;
+        delete row.valorPix;
+        delete row.valorCartao;
+      }
       return row;
     });
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
@@ -24322,6 +24382,7 @@
     const ehCreditoManut =
       tipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO ||
       tipoMovimento === "CREDITO_DE_MANUTENCAO";
+    const ehCaucao = tipoMovimento === PORTAL_LANC_TIPO_CAUCAO || tipoMovimento === "CAUÇÃO";
     const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Math.abs(Number(valorNum));
     const bloqueioDuplicado = ehDevolucao
       ? ""
@@ -24344,6 +24405,8 @@
       entry.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     } else if (ehCreditoManut) {
       entry.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    } else if (ehCaucao) {
+      entry.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
     } else {
       entry.valorEspecie = Number.isFinite(ve) && ve >= 0 ? ve : 0;
       entry.valorPix = Number.isFinite(vp) && vp >= 0 ? vp : 0;
@@ -24366,7 +24429,9 @@
         ? "Devolução de licenciamento"
         : ehCreditoManut
           ? "Crédito de manutenção"
-          : "",
+          : ehCaucao
+            ? "Caução"
+            : "",
     });
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
@@ -24412,6 +24477,15 @@
     return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCreditoBr, {
       ...(extras || {}),
       tipoMovimento: PORTAL_LANC_TIPO_CREDITO_MANUTENCAO,
+    });
+  }
+
+  function persistPortalLancamentoAluguelCaucao(cpfDigits, numeroContratoNorm, valorAbsNum, dataCaucaoBr, extras) {
+    const abs = Math.abs(Number(valorAbsNum));
+    if (!Number.isFinite(abs) || abs <= 0) return { ok: false };
+    return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCaucaoBr, {
+      ...(extras || {}),
+      tipoMovimento: PORTAL_LANC_TIPO_CAUCAO,
     });
   }
 
@@ -24584,12 +24658,13 @@
     const tipo = portalLancamentoTipoMovimento(prev);
     const ehDevolucao = tipo === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const ehCreditoManut = tipo === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    const ehCaucao = tipo === PORTAL_LANC_TIPO_CAUCAO;
     const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Math.abs(Number(valorNum));
     const merged = normalizePortalLancamentoAluguelEntry({
       data: String(dataPagamentoBr || "").trim(),
       valor: valorFinal,
       tipoMovimento: tipo,
-      ...(ehDevolucao || ehCreditoManut
+      ...(ehDevolucao || ehCreditoManut || ehCaucao
         ? {}
         : {
             valorEspecie: valorNum,
@@ -24624,13 +24699,15 @@
         ? { tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO }
         : ehCreditoManut
           ? { tipoMovimento: PORTAL_LANC_TIPO_CREDITO_MANUTENCAO }
-          : Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
-            ? {
-                valorEspecie: merged.valorEspecie,
-                valorPix: merged.valorPix,
-                valorCartao: merged.valorCartao,
-              }
-            : {}),
+          : ehCaucao
+            ? { tipoMovimento: PORTAL_LANC_TIPO_CAUCAO }
+            : Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
+              ? {
+                  valorEspecie: merged.valorEspecie,
+                  valorPix: merged.valorPix,
+                  valorCartao: merged.valorCartao,
+                }
+              : {}),
       ...(coment ? { comentarioPagamento: coment } : {}),
     };
     const fmtAud = (n) =>
@@ -24797,6 +24874,7 @@
     portalLancAluguelEditTipoMovimento = String(tipoMovimento || PORTAL_LANC_TIPO_PAGAMENTO).trim();
     const ehDevolucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const ehCreditoManut = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    const ehCaucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_CAUCAO;
     const modal = document.getElementById("portalLancAluguelEditModal");
     const titulo = document.getElementById("portalLancAluguelEditTitulo");
     const texto = modal?.querySelector(".portal-modal__text");
@@ -24806,17 +24884,25 @@
         ? "Editar devolução de investimento"
         : ehCreditoManut
           ? "Editar crédito de manutenção"
-          : "Editar pagamento";
+          : ehCaucao
+            ? "Editar caução"
+            : "Editar pagamento";
     }
     if (texto) {
       texto.textContent = ehDevolucao
         ? "Altere o valor ou a data da devolução selecionada (valor positivo; será registado como saída)."
         : ehCreditoManut
-          ? "Altere o valor ou a data do crédito de manutenção (soma no TOTAL PAGO do cliente; não entra na receita da empresa)."
-          : "Altere o valor ou a data do pagamento selecionado.";
+          ? "Altere o valor ou a data do crédito de manutenção (soma no valor pago de aluguel do cliente; não entra na receita da empresa)."
+          : ehCaucao
+            ? "Altere o valor ou a data da caução (entra na receita da empresa; não contabiliza no aluguel do cliente)."
+            : "Altere o valor ou a data do pagamento selecionado.";
     }
     if (lblValor) {
-      lblValor.textContent = ehCreditoManut ? "VALOR DO CRÉDITO (R$)" : "VALOR (R$)";
+      lblValor.textContent = ehCreditoManut
+        ? "VALOR DO CRÉDITO (R$)"
+        : ehCaucao
+          ? "VALOR DA CAUÇÃO (R$)"
+          : "VALOR (R$)";
     }
     const inpV = document.getElementById("portalLancAluguelEditValor");
     const inpD = document.getElementById("portalLancAluguelEditData");
@@ -27318,6 +27404,7 @@
     const dataStr = String(inpD?.value || "").trim();
     const ehDevolucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const ehCreditoManut = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
+    const ehCaucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_CAUCAO;
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo.";
       return;
@@ -27328,7 +27415,9 @@
           ? "Informe um valor devolvido válido."
           : ehCreditoManut
             ? "Informe um valor de crédito válido."
-            : "Informe um valor pago válido.";
+            : ehCaucao
+              ? "Informe um valor de caução válido."
+              : "Informe um valor pago válido.";
       }
       return;
     }
@@ -27339,7 +27428,9 @@
           ? "Informe a data da devolução (DD/MM/AAAA)."
           : ehCreditoManut
             ? "Informe a data do crédito (DD/MM/AAAA)."
-            : "Informe a data do pagamento (DD/MM/AAAA).";
+            : ehCaucao
+              ? "Informe a data da caução (DD/MM/AAAA)."
+              : "Informe a data do pagamento (DD/MM/AAAA).";
       }
       return;
     }
@@ -27361,7 +27452,9 @@
           ? "Devolução atualizada. Totais recalculados."
           : ehCreditoManut
             ? "Crédito de manutenção atualizado. Totais recalculados."
-            : "Pagamento atualizado. Totais recalculados.";
+            : ehCaucao
+              ? "Caução atualizada. Totais recalculados."
+              : "Pagamento atualizado. Totais recalculados.";
       } else if (msg) {
         msg.textContent = "Não foi possível guardar a alteração.";
       }
@@ -27384,7 +27477,9 @@
             ? "Confirmar alteração — devolução de investimento"
             : ehCreditoManut
               ? "Confirmar alteração — crédito de manutenção"
-              : "Confirmar alteração — pagamento de aluguel",
+              : ehCaucao
+                ? "Confirmar alteração — caução"
+                : "Confirmar alteração — pagamento de aluguel",
           changes,
         },
         doSaveLancEdit
@@ -27431,10 +27526,17 @@
     const row = arr[indice];
     const ehDevApagar = portalLancamentoEhDevolucaoInvestimento(row);
     const ehCredApagar = portalLancamentoEhCreditoManutencao(row);
+    const ehCauApagar = portalLancamentoEhCaucao(row);
     if (
       !window.confirm(
         `Apagar ${
-          ehDevApagar ? "a devolução" : ehCredApagar ? "o crédito de manutenção" : "o pagamento"
+          ehDevApagar
+            ? "a devolução"
+            : ehCredApagar
+              ? "o crédito de manutenção"
+              : ehCauApagar
+                ? "a caução"
+                : "o pagamento"
         } de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}? Só o administrador pode fazer esta operação.`
       )
     ) {
@@ -27763,6 +27865,106 @@
       if (msg) {
         msg.textContent =
           "Crédito de manutenção registado. Soma no TOTAL PAGO do cliente; não entra na receita real da empresa.";
+      }
+    });
+  });
+
+
+  document.getElementById("operacaoLancAluguelConfirmarCaucaoBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpValor = document.getElementById("operacaoLancAluguelValorCaucao");
+    const inpData = document.getElementById("operacaoLancAluguelDataCaucao");
+    const inpComentario = document.getElementById("operacaoLancAluguelComentarioCaucao");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!getPortalSessaoAdminRole()) {
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar caução.";
+      return;
+    }
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf?.value || "") : String(inpCpf?.value || "").replace(/\D/g, "");
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const valorNum = Math.abs(Number(parseVal(String(inpValor?.value || ""))));
+    const dataStr = String(inpData?.value || "").trim();
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
+      return;
+    }
+    if (!Number.isFinite(valorNum) || valorNum <= 0) {
+      if (msg) msg.textContent = "Informe o valor da caução.";
+      return;
+    }
+    const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
+    if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
+      if (msg) msg.textContent = "Informe a data da caução (DD/MM/AAAA).";
+      return;
+    }
+    if (msg) msg.textContent = "";
+    const locAtualConfirm = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const bloqueioDup = locAtualConfirm
+      ? textoBloqueioLancamentoDuplicado(locAtualConfirm, dataStr, valorNum)
+      : "";
+    if (bloqueioDup) {
+      if (msg) msg.textContent = bloqueioDup;
+      window.alert(bloqueioDup);
+      return;
+    }
+    const nome =
+      typeof findClienteByCpfCadastro === "function"
+        ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
+        : resolveOperacaoLancAluguelNomePorCpf(digits);
+    const nomeExibir = nome || "—";
+    const cpfFmt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
+    const valorFmt =
+      typeof currencyBRL === "function"
+        ? currencyBRL(valorNum)
+        : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
+    const texto = `Caução de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor entra na receita da empresa e não contabiliza no aluguel do cliente.`;
+    openPortalLancAluguelConfirmModal(texto, () => {
+      const res = persistPortalLancamentoAluguelCaucao(digits, proto, valorNum, dataStr, {
+        comentarioPagamento: comentario,
+      });
+      if (!res?.ok) {
+        if (msg) {
+          msg.textContent = res?.duplicado
+            ? res.msg
+            : !getPortalSessaoAdminRole()
+              ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
+              : res?.stripped
+                ? `A caução de ${dataStr} não ficou gravada. Confirme de novo.`
+                : "Não foi possível guardar a caução.";
+        }
+        return;
+      }
+      const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+      );
+      if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
+      refreshOperacaoLancAluguelResumoCompacto();
+      refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
+      refreshOperacaoLancAluguelSaldosHoje(locAtual || null);
+      renderOperacaoLancAluguelHistorico();
+      destacarLancamentoHistorico(dataStr, res.entry?.protocoloLancamento);
+      if (inpValor) inpValor.value = "";
+      if (inpComentario) inpComentario.value = "";
+      if (msg) {
+        msg.textContent =
+          "Caução registada. Entra na receita da empresa; não contabiliza no aluguel do cliente.";
       }
     });
   });
@@ -28656,6 +28858,7 @@
     "operacaoLancAluguelConfirmarPagamentoBtn",
     "operacaoLancAluguelConfirmarDevolucaoBtn",
     "operacaoLancAluguelConfirmarCreditoManutBtn",
+    "operacaoLancAluguelConfirmarCaucaoBtn",
     "operacaoLancAluguelLancBlocoBtn",
     "portalOperadorComprovanteConfirmarBtn",
     "portalComprovanteClienteBtnConfirmar",
