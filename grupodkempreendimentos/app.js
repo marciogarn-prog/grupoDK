@@ -3001,7 +3001,11 @@ function mergeCadastroClienteHistorico(ex, incoming) {
         const na = Number(onlyDigits(fa));
         const nb = Number(onlyDigits(fb));
         if (na === nb) return fa;
-        return cadastroRecordScore(incoming) >= cadastroRecordScore(ex) ? fb : fa;
+        /* Código diverge: vence updatedAt puro (sem bónus origemPortal). Empate → incoming (nuvem no pull). */
+        const ta = Number(ex?.updatedAt || 0);
+        const tb = Number(incoming?.updatedAt || 0);
+        if (tb !== ta) return tb > ta ? fb : fa;
+        return fb;
       }
       return fb || fa || b || a;
     }

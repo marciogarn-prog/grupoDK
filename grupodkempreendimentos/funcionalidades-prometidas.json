@@ -2024,13 +2024,16 @@
     },
     {
       "id": "relatorio-clientes-sincroniza-nuvem",
-      "descricao": "Gerar relatório de clientes no portal oficial sincroniza o cadastro com a nuvem antes de abrir a pré-visualização, para os códigos (ex.: 0405–0408) não ficarem diferentes do banco oficial por causa do cache do PC.",
+      "descricao": "Cadastro de cliente e relatório de clientes usam a mesma fonte: ao abrir o ecrã ou gerar o relatório, o portal copia o cadastro oficial da nuvem para o PC (códigos 0405–0408 inclusive) e só depois mostra os dados. PDF/Excel voltam a alinhar antes de exportar. Não há uma versão na nuvem e outra diferente no relatório.",
       "ficheiros": {
         "portal-locadora-ui.js": [
-          "portalCarregarClientesNuvemParaRelatorio",
-          "clientesDaNuvem",
+          "portalSincronizarClientesCadastroComNuvemOficial",
+          "portalAbrirRelatorioClientesOficial",
           "fonteNuvem",
-          "A carregar o cadastro de clientes da nuvem para o relatório"
+          "A alinhar o cadastro de clientes com a nuvem oficial"
+        ],
+        "app.js": [
+          "Empate → incoming (nuvem no pull)"
         ]
       }
     },
@@ -2750,7 +2753,7 @@
     },
     {
       "id": "cadastro-cliente-quantitativo-nuvem",
-      "descricao": "O total de clientes cadastrados é o mesmo em todos os PCs: autoridade local não impede unir dk_clientes_cadastro da nuvem; o envio grava a união de volta neste PC; abrir Cadastro de cliente puxa a API de cadastro mesmo com autoridade local.",
+      "descricao": "O total de clientes cadastrados é o mesmo em todos os PCs: ao abrir Cadastro de cliente o portal alinha o cadastro com a nuvem oficial (mesma fonte do relatório) e actualiza o quantitativo. A união por CPF e o merge append-only continuam a proteger cadastros.",
       "ficheiros": {
         "portal-supabase-sync.js": [
           "pullCadastroOperacionalFromCloud",
@@ -2760,12 +2763,11 @@
           "countClientesCpfUnicos"
         ],
         "portal-locadora-ui.js": [
-          "dkPortalPullAndMergeAll",
+          "portalSincronizarClientesCadastroComNuvemOficial",
           "refreshOperacaoClienteTotalCadastrados",
           "countOperacaoClientesCadastrados",
           "dkPortalCountCpfUnicos",
-          "precisaEnviarUniao",
-          "A atualizar da nuvem"
+          "A alinhar com a nuvem"
         ],
         "dk-oficial-cadastro-guard.js": [
           "cadastroRetroativo === true) return true",
