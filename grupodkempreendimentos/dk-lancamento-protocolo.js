@@ -730,14 +730,16 @@
   }
 
   function renderHistoricoLancamentosHtml(lancs, opts) {
-    const owner = Boolean(opts && opts.adminActions);
+    const podeEditar = Boolean(opts && (opts.podeEditar != null ? opts.podeEditar : opts.adminActions));
+    const podeApagar = Boolean(opts && (opts.podeApagar != null ? opts.podeApagar : opts.adminActions));
+    const showActions = podeEditar || podeApagar;
     const arr = (lancs || []).slice().sort(compareLancamentosHistoricoPorDataDesc);
     if (!arr.length) {
       return '<p class="subtext">Nenhum lançamento registado neste protocolo.</p>';
     }
     const esc = escapeHtml;
     const reciboTh = `<th>Recibo</th>`;
-    const thead = owner
+    const thead = showActions
       ? `<thead><tr>${reciboTh}<th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th><th>Ações</th></tr></thead>`
       : `<thead><tr>${reciboTh}<th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th></tr></thead>`;
     const fmtBrl =
@@ -779,8 +781,16 @@
         const valorHtml = coment
           ? `<td class="portal-lanc-hist__valor${valorClass}" title="${esc(coment)}">${esc(valorFmt)}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
           : `<td class="portal-lanc-hist__valor${valorClass}">${esc(valorFmt)}${fict}</td>`;
-        const actions = owner
-          ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
+        const actions = showActions
+          ? `<td class="portal-lanc-hist__actions">${
+              podeEditar
+                ? `<button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> `
+                : ""
+            }${
+              podeApagar
+                ? `<button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button>`
+                : ""
+            }</td>`
           : "";
         const reciboHtml = ehDev || ehCred
           ? `<td class="portal-lanc-hist__recibo">—</td>`

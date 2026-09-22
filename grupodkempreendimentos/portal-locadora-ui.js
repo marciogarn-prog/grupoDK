@@ -922,6 +922,29 @@
     return portalTitularPodeUsarVerComo() && !portalTitularVerComo();
   }
 
+  /** Liberação temporária: Lucelina (05780277478) pode apagar lançamentos de aluguel até 30/10/2026 (inclusive). */
+  const PORTAL_LUCELINA_APAGAR_LANC_CPF = "05780277478";
+  const PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO = "2026-10-30";
+
+  function portalHojeIsoLocalBr() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  }
+
+  function portalLucelinaPodeApagarLancamentosAluguel() {
+    if (portalGetSessaoCpfDigits() !== PORTAL_LUCELINA_APAGAR_LANC_CPF) return false;
+    if (!getPortalSessaoAdminRole()) return false;
+    return portalHojeIsoLocalBr() <= PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO;
+  }
+
+  function portalPodeApagarLancamentosAluguel() {
+    return isPortalAdministradorTitularCpf() || portalLucelinaPodeApagarLancamentosAluguel();
+  }
+
+  function portalPodeEditarLancamentosAluguel() {
+    return isPortalAdministradorTitularCpf();
+  }
+
   /** CPF titular com acesso FINANCEIRO CEO. */
   function isPortalAdministradorTitularCeo() {
     return isPortalAdministradorTitularCpf();
@@ -24515,7 +24538,7 @@
   }
 
   function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
-    if (!isPortalAdministradorTitularCpf()) return false;
+    if (!portalPodeApagarLancamentosAluguel()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
     }
@@ -24611,7 +24634,7 @@
   }
 
   function apagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
-    if (!isPortalAdministradorTitularCpf()) return false;
+    if (!portalPodeApagarLancamentosAluguel()) return false;
     const proto = String(protocoloLancamento || "").trim();
     if (!proto) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -24769,10 +24792,15 @@
       return;
     }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
-    const owner = isPortalAdministradorTitularCpf();
+    const podeEditar = portalPodeEditarLancamentosAluguel();
+    const podeApagar = portalPodeApagarLancamentosAluguel();
     const html =
       typeof window.__DK_renderHistoricoLancamentosHtml === "function"
-        ? window.__DK_renderHistoricoLancamentosHtml(lancs, { adminActions: owner })
+        ? window.__DK_renderHistoricoLancamentosHtml(lancs, {
+            adminActions: podeEditar || podeApagar,
+            podeEditar,
+            podeApagar,
+          })
         : `<p class="subtext">${lancs.length} pagamento(s)</p>`;
     wrap.innerHTML = html;
     wrap.classList.remove("hidden");
@@ -24801,8 +24829,12 @@
     e.preventDefault();
     e.stopPropagation();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalAdministradorTitularCpf()) {
-      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados.");
+    if (del && !portalPodeApagarLancamentosAluguel()) {
+      window.alert("Sem permissão para apagar pagamentos já registados.");
+      return;
+    }
+    if (edit && !portalPodeEditarLancamentosAluguel()) {
+      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar pagamentos já registados.");
       return;
     }
     const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
@@ -24887,6 +24919,12 @@
     const owner = isPortalTitularAdministrador();
     if (aviso) {
       aviso.classList.toggle("hidden", owner);
+    }
+    const avisoApagar = document.getElementById("operacaoLancAluguelCeoApagarAviso");
+    if (avisoApagar) {
+      avisoApagar.textContent = portalLucelinaPodeApagarLancamentosAluguel()
+        ? "ATÉ 30/10/2026 A OPERADORA LUCELINA PODE APAGAR PAGAMENTOS (IGUAL AO CEO)"
+        : "O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS";
     }
     renderOperacaoLancAluguelHistorico();
   }
@@ -27522,8 +27560,12 @@
     if (!editEl && !delEl) return;
     e.preventDefault();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalAdministradorTitularCpf()) {
-      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados.");
+    if (delEl && !portalPodeApagarLancamentosAluguel()) {
+      window.alert("Sem permissão para apagar pagamentos já registados.");
+      return;
+    }
+    if (editEl && !portalPodeEditarLancamentosAluguel()) {
+      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar pagamentos já registados.");
       return;
     }
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
@@ -27562,7 +27604,7 @@
               : ehCauApagar
                 ? "a caução"
                 : "o pagamento"
-        } de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}? Só o administrador pode fazer esta operação.`
+        } de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}?`
       )
     ) {
       return;
@@ -28644,6 +28686,8 @@
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
+  window.__DK_portalPodeApagarLancamentosAluguel = portalPodeApagarLancamentosAluguel;
+  window.__DK_portalLucelinaPodeApagarLancamentosAluguel = portalLucelinaPodeApagarLancamentosAluguel;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
@@ -28744,6 +28788,8 @@
   window.__DK_portalRefreshMielAcesso = refreshPortalMielHomeAcesso;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
+  window.__DK_portalPodeApagarLancamentosAluguel = portalPodeApagarLancamentosAluguel;
+  window.__DK_portalLucelinaPodeApagarLancamentosAluguel = portalLucelinaPodeApagarLancamentosAluguel;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_isPortalAdministradorTitularCeo = isPortalAdministradorTitularCeo;
   window.__DK_portalForcarLogoutOperador = portalForcarLogoutOperador;

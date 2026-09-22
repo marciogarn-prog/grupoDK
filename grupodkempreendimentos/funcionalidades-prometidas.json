@@ -1990,15 +1990,35 @@
     },
     {
       "id": "admin-privilegios-titular-cpf",
-      "descricao": "Outros administradores acedem a todo o sistema, inclusive finalização de contrato, sem limite de horário. Só o CPF 03037897430 pode apagar registros, alterar ou apagar pagamentos e alterar protocolo.",
+      "descricao": "Outros administradores acedem a todo o sistema, inclusive finalização de contrato, sem limite de horário. Só o CPF 03037897430 pode apagar registros, alterar ou apagar pagamentos e alterar protocolo — com a exceção temporária da operadora Lucelina (05780277478) poder apagar lançamentos de aluguel até 30/10/2026.",
       "ficheiros": {
         "portal-locadora-ui.js": [
           "isPortalAdministradorTitularCpf",
           "portalFuncionarioTemLimiteHorario",
-          "Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados."
+          "portalPodeApagarLancamentosAluguel",
+          "Apenas o administrador CPF 030.378.974-30 pode alterar pagamentos já registados."
         ],
         "portal-colab-horario.js": [
           "ehAdministradorSemHorario"
+        ]
+      }
+    },
+    {
+      "id": "lucelina-apagar-lancamentos-ate-20261030",
+      "descricao": "Até 30/10/2026 (inclusive), a operadora Lucelina Delmondes da Silva (CPF 05780277478) vê e usa o botão Apagar nos lançamentos de aluguel, como o administrador CEO. Após essa data a liberação acaba automaticamente. Editar continua só com o CEO.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "PORTAL_LUCELINA_APAGAR_LANC_CPF",
+          "PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO",
+          "05780277478",
+          "2026-10-30",
+          "portalLucelinaPodeApagarLancamentosAluguel",
+          "portalPodeApagarLancamentosAluguel",
+          "ATÉ 30/10/2026 A OPERADORA LUCELINA PODE APAGAR PAGAMENTOS"
+        ],
+        "dk-lancamento-protocolo.js": [
+          "podeApagar",
+          "data-lanc-aluguel-del"
         ]
       }
     },
