@@ -1945,11 +1945,13 @@ async function runSuite() {
       html.includes("operacaoLancAluguelTotalDevidoHoje") &&
         html.includes("operacaoLancAluguelTotalPagoHoje") &&
         html.includes("TOTAL DEVIDO ATÉ HOJE") &&
-        html.includes("TOTAL PAGO ATÉ HOJE") &&
+        html.includes("valor pago de aluguel") &&
+        html.includes("operacaoLancAluguelCaucaoPago") &&
+        html.includes("operacaoLancAluguelTotalPagoGeral") &&
         portalUiLancPersistJs.includes("refreshOperacaoLancAluguelSaldosHoje") &&
         portalUiLancPersistJs.includes("computePortalDiasAteHoje") &&
         portalUiLancPersistJs.includes("valorDevidoAteHoje"),
-      "caixas ao lado da data/valor no registrar pagamento"
+      "caixas ao lado: devido, valor pago de aluguel, caução e total pago"
     );
     record(
       "lançamento aluguel bloqueia mesmo valor na mesma data e protocolo",
