@@ -1116,8 +1116,8 @@ async function runSuite() {
         cloudSyncJs.includes("pullCadastroOperacionalFromCloud") &&
         cloudSyncJs.includes("persistCadastroOperacionalFromMerged") &&
         cloudSyncJs.includes("unifyLocalClientesCadastroKeys") &&
-        portalUiProto.includes("precisaEnviarUniao") &&
-        portalUiProto.includes("A atualizar da nuvem") &&
+        portalUiProto.includes("portalSincronizarClientesCadastroComNuvemOficial") &&
+        portalUiProto.includes("A alinhar com a nuvem") &&
         finCeoJs.includes("enviarFinanceiroCeoNuvem") &&
         finCeoJs.includes("sincronizarFinanceiroCeoAbrir") &&
         portalUiProto.includes("portalOperacaoOnScreenChange") &&
