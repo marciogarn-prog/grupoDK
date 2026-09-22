@@ -216,7 +216,7 @@ async function postPartial(headers, partialPayload) {
 
 async function main() {
   const headers = await portalAuth();
-  const bumpTs = Date.now() + 60_000;
+  const bumpTs = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
   const snap = await fetch(SNAP_URL + "?nocache=" + Date.now(), { headers }).then((r) => r.json());
   const clientes = Array.isArray(snap?.payload?.dk_clientes_cadastro) ? snap.payload.dk_clientes_cadastro : [];

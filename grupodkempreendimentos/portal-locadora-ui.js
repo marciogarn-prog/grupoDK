@@ -12317,6 +12317,15 @@
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
     }
+    if (fonteData) {
+      if (context.fileSlug === "clientes" && context.fonteNuvem) {
+        fonteData.textContent =
+          "Relatório de clientes alinhado à nuvem oficial (códigos e dados do snapshot). O PC local é actualizado para não divergir.";
+      } else if (context.fileSlug === "clientes") {
+        fonteData.textContent =
+          "Relatório de clientes: se a nuvem estiver disponível, o botão Gerar relatório sincroniza antes de mostrar. Caso contrário usa o cadastro deste navegador.";
+      }
+    }
     if (preview) {
       if (context.previewHtml) {
         preview.innerHTML = context.previewHtml;
@@ -12783,11 +12792,13 @@
     });
   }
 
-  function getPortalRelatorioClienteContext() {
+  function getPortalRelatorioClienteContext(opts) {
     const isOficial =
       typeof window.__DK_isOficialCadastroGuardActive === "function"
         ? window.__DK_isOficialCadastroGuardActive()
         : window.__DK_IS_DEMO_DEPLOY__ !== true;
+    const clientesDaNuvem =
+      opts && Array.isArray(opts.clientesDaNuvem) && opts.clientesDaNuvem.length ? opts.clientesDaNuvem : null;
     const bundledSnapshot = isOficial ? [] : getPortalClientesBundledSnapshot();
     const bundledFallbackSeed =
       isOficial
@@ -12848,8 +12859,18 @@
       if (sNew > sPrev || (preferOnTie && sNew === sPrev)) byCpf.set(cpfDigits, c);
     };
 
-    bundledRows.forEach((c) => mergeOne(c, false));
-    cadastroLocal.forEach((c) => mergeOne(c, true));
+    /* Oficial: a nuvem manda no código/nome — o relatório não pode ficar preso ao cache do PC. */
+    if (clientesDaNuvem) {
+      clientesDaNuvem.forEach((c) => mergeOne(c, true));
+      cadastroLocal.forEach((c) => {
+        const cpfDigits =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        if (cpfDigits.length === 11 && !byCpf.has(cpfDigits)) mergeOne(c, true);
+      });
+    } else {
+      bundledRows.forEach((c) => mergeOne(c, false));
+      cadastroLocal.forEach((c) => mergeOne(c, true));
+    }
 
     const extraIdxByCpf = buildPortalExtraClienteIndexByCpf(byCpf);
 
@@ -12921,6 +12942,7 @@
       fileSlug: "clientes",
       textColumns: [0, 2],
       compactTable: true,
+      fonteNuvem: Boolean(clientesDaNuvem),
       previewHtml,
       buildPdfHtml: () =>
         buildPortalRelatorioHtml("Relatório de clientes — lista unificada", headers, rows, reportOpts),
@@ -15176,9 +15198,72 @@
     if (msg) msg.textContent = rows.length ? `Excel gerado (${rows.length} linha(s)).` : "Excel gerado — nenhum registo neste filtro.";
   }
 
+  async function portalCarregarClientesNuvemParaRelatorio() {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    try {
+      const headers =
+        typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+      const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+      const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+      const url = `/api/dk-cloud-snapshot${q || ""}${sep}nocache=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store", headers });
+      const data = await res.json().catch(() => ({}));
+      const cloud = data?.payload?.dk_clientes_cadastro;
+      if (!Array.isArray(cloud) || !cloud.length) return null;
+      if (typeof loadCadastro === "function" && typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+        const local = loadCadastro(CAD_CLIENTES_KEY);
+        const byCpf = new Map();
+        (Array.isArray(local) ? local : []).forEach((c) => {
+          const d = dig(String(c?.cpf || "")).slice(0, 11);
+          if (d.length === 11) byCpf.set(d, c);
+        });
+        const now = Date.now();
+        cloud.forEach((c) => {
+          const d = dig(String(c?.cpf || "")).slice(0, 11);
+          if (d.length !== 11) return;
+          const ex = byCpf.get(d) || {};
+          byCpf.set(d, {
+            ...ex,
+            ...c,
+            cpf: d,
+            codigo: c.codigo != null && String(c.codigo).trim() !== "" ? c.codigo : ex.codigo,
+            updatedAt: Math.max(Number(ex.updatedAt || 0), Number(c.updatedAt || 0), now) + 1,
+            createdAt: Math.max(Number(ex.createdAt || 0), Number(c.createdAt || 0)),
+            origemPortal: true,
+          });
+        });
+        const prevSuppress = window.__DK_suppressPortalCadastroPush;
+        window.__DK_suppressPortalCadastroPush = true;
+        try {
+          saveCadastro(CAD_CLIENTES_KEY, Array.from(byCpf.values()), { allowShrink: true });
+        } finally {
+          window.__DK_suppressPortalCadastroPush = prevSuppress;
+        }
+      }
+      return cloud;
+    } catch {
+      return null;
+    }
+  }
+
   document.getElementById("operacaoClienteGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    openPortalRelatorioModal(getPortalRelatorioClienteContext());
+    const btn = e.currentTarget instanceof HTMLButtonElement ? e.currentTarget : null;
+    const msg = document.getElementById("operacaoClienteInlineMsg");
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "A carregar o cadastro de clientes da nuvem para o relatório…";
+    void (async () => {
+      const cloud = await portalCarregarClientesNuvemParaRelatorio();
+      const ctx = getPortalRelatorioClienteContext(cloud ? { clientesDaNuvem: cloud } : undefined);
+      openPortalRelatorioModal(ctx);
+      if (msg) {
+        msg.textContent = cloud?.length
+          ? `Relatório com dados da nuvem (${ctx.rows.length} cliente(s)).`
+          : `Relatório com dados deste PC (${ctx.rows.length} cliente(s)).`;
+      }
+      if (btn) btn.disabled = false;
+    })();
   });
 
   document.getElementById("operacaoVeiculoGerarRelatorioBtn")?.addEventListener("click", (e) => {

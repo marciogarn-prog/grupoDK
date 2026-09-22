@@ -2023,6 +2023,18 @@
       }
     },
     {
+      "id": "relatorio-clientes-sincroniza-nuvem",
+      "descricao": "Gerar relatório de clientes no portal oficial sincroniza o cadastro com a nuvem antes de abrir a pré-visualização, para os códigos (ex.: 0405–0408) não ficarem diferentes do banco oficial por causa do cache do PC.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalCarregarClientesNuvemParaRelatorio",
+          "clientesDaNuvem",
+          "fonteNuvem",
+          "A carregar o cadastro de clientes da nuvem para o relatório"
+        ]
+      }
+    },
+    {
       "id": "titular-ver-como-perfis",
       "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO; nesse fundo a fonte de destaque é amarela (não vermelha). Em VER COMO ADMINISTRADOR, VER COMO COLABORADOR ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO.",
       "ficheiros": {
