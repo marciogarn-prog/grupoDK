@@ -1904,14 +1904,35 @@
     },
     {
       "id": "reativar-locacao-updatedAt-vence",
-      "descricao": "Se o administrador reativa um protocolo (apaga a data fim, status ATIVO) com updatedAt mais novo, o merge da nuvem não devolve a data fim antiga de outro PC.",
+      "descricao": "Se o administrador reativa um protocolo (apaga a data fim, status ATIVO) com updatedAt mais novo, o merge da nuvem não devolve a data fim antiga nem o cancelamento de outro PC.",
       "ficheiros": {
         "app.js": [
           "newerReativado",
-          "Recorde mais novo sem data fim = reativação"
+          "Recorde mais novo sem data fim = reativação",
+          "portalLocacaoCanceladoEmMs = 0"
         ],
         "lib/dk-append-only-merge.cjs": [
-          "portalLocacaoFinalizadoEmMs = 0"
+          "portalLocacaoFinalizadoEmMs = 0",
+          "contratoCancelado = false",
+          "portalLocacaoCanceladoEmMs = 0"
+        ]
+      }
+    },
+    {
+      "id": "ceo-reativar-protocolo-botao",
+      "descricao": "No Cadastro de locação, ao lado de Cancelar contrato, o administrador CEO vê o botão Reativar protocolo para reabrir locação finalizada ou cancelada de forma precipitada (limpa data fim e volta a ATIVO).",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoReativarBtn",
+          "Reativar protocolo"
+        ],
+        "portal-locadora-ui.js": [
+          "persistPortalLocacaoReativar",
+          "refreshOperacaoLocacaoReativarBtn",
+          "portalLocacaoPodeReativar",
+          "onOperacaoLocacaoReativarClick",
+          "e.target.closest(\"#operacaoLocacaoReativarBtn\")",
+          "Confirmar reativação do protocolo"
         ]
       }
     },

@@ -430,12 +430,17 @@ function mergeLocacaoCadastroPar(ex, incoming) {
     .trim()
     .toUpperCase();
   const wCancel = wSt.includes("CANCEL") || Boolean(winner?.contratoCancelado);
-  if (!wCancel && (!wFim || wFim === "...") && wSt !== "FINALIZADO" && !wSt.includes("INATIV")) {
+  if ((!wFim || wFim === "...") && wSt !== "FINALIZADO" && !wSt.includes("INATIV") && !wCancel) {
     merged.fim = "";
+    merged.dataFim = "";
     merged.statusLocacao = "ATIVO";
+    merged.contratoCancelado = false;
     merged.portalLocacaoFinalizadoEmMs = 0;
     merged.portalLocacaoFinalizadoPorCpf = "";
     merged.portalLocacaoFinalizadoPorNome = "";
+    merged.portalLocacaoCanceladoEmMs = 0;
+    merged.portalLocacaoCanceladoPorCpf = "";
+    merged.portalLocacaoCanceladoPorNome = "";
   }
   return merged;
 }

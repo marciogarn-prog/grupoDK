@@ -11862,6 +11862,17 @@
     return true;
   }
 
+  /** Finalizado ou cancelado — elegível a «Reativar protocolo» (CEO). */
+  function portalLocacaoPodeReativar(locacao) {
+    if (!locacao || typeof locacao !== "object") return false;
+    if (isPortalLocacaoCancelada(locacao)) return true;
+    if (portalLocacaoTemDataFim(locacao)) return true;
+    const s = String(locacao.statusLocacao || locacao.status || "")
+      .trim()
+      .toUpperCase();
+    return s.includes("FINALIZ") || s.includes("INATIV");
+  }
+
   function isPortalLocacaoFinalizada(locacao) {
     if (isPortalLocacaoCancelada(locacao)) return true;
     const nk =
@@ -15358,6 +15369,30 @@
       const alvo = e.target instanceof Element ? e.target.closest("#operacaoLocacaoCancelarBtn") : null;
       if (!alvo) return;
       onOperacaoLocacaoCancelarClick(e);
+    },
+    true
+  );
+
+  function onOperacaoLocacaoReativarClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    portalLocacaoFeedback("Preparando a reativação do protocolo…");
+    try {
+      persistPortalLocacaoReativar();
+    } catch (err) {
+      console.error("[DK portal] reativar protocolo", err);
+      portalLocacaoFeedback(
+        `Não foi possível abrir a reativação: ${err && err.message ? err.message : "erro inesperado"}.`
+      );
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      const alvo = e.target instanceof Element ? e.target.closest("#operacaoLocacaoReativarBtn") : null;
+      if (!alvo) return;
+      onOperacaoLocacaoReativarClick(e);
     },
     true
   );
@@ -19054,7 +19089,10 @@
     if (!btn) return;
     const admin = isPortalTitularAdministrador();
     btn.classList.toggle("hidden", !admin);
-    if (!admin) return;
+    if (!admin) {
+      refreshOperacaoLocacaoReativarBtn();
+      return;
+    }
     const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
     const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
     const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
@@ -19071,6 +19109,32 @@
     } else {
       btn.title =
         "Cancelar contrato: data fim = data início, sem débito e receita prevista zero. Só administrador.";
+    }
+    refreshOperacaoLocacaoReativarBtn();
+  }
+
+  /** Só administrador CEO — reabrir protocolo finalizado ou cancelado por engano. */
+  function refreshOperacaoLocacaoReativarBtn() {
+    const btn = document.getElementById("operacaoLocacaoReativarBtn");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!btn) return;
+    const ceo = isPortalAdministradorTitularCpf();
+    btn.classList.toggle("hidden", !ceo);
+    if (!ceo) return;
+    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    const can = !isNovo && Boolean(loc && portalLocacaoPodeReativar(loc));
+    btn.disabled = !can;
+    if (!can) {
+      if (loc && !portalLocacaoPodeReativar(loc)) {
+        btn.title = "Protocolo já está ativo — não precisa reativar.";
+      } else {
+        btn.title = "Selecione um protocolo finalizado ou cancelado para reativar.";
+      }
+    } else {
+      btn.title =
+        "Reativar protocolo: limpa data fim e cancelamento, volta a ATIVO. Só administrador CEO.";
     }
   }
 
@@ -21003,6 +21067,165 @@
         rows,
       },
       cancelarContrato
+    );
+  }
+
+  function persistPortalLocacaoReativar() {
+    if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
+    if (!isPortalAdministradorTitularCpf()) {
+      portalLocacaoFeedback("Apenas o administrador CEO pode reativar um protocolo.");
+      return;
+    }
+    if (
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
+    ) {
+      portalLocacaoFeedback("Cadastro indisponível neste ambiente.");
+      return;
+    }
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel || String(sel.value || "") === "__PORTAL_PROTO_NOVO__") {
+      portalLocacaoFeedback("Selecione um protocolo já cadastrado para reativar.");
+      return;
+    }
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const ncNorm = normPortalNumeroContrato(String(hid?.value || ""));
+    if (!ncNorm) {
+      portalLocacaoFeedback("Protocolo inválido.");
+      return;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
+    if (idx === -1) {
+      portalLocacaoFeedback("Locação não encontrada na base deste navegador.");
+      return;
+    }
+    const prev = locs[idx];
+    if (!portalLocacaoPodeReativar(prev)) {
+      portalLocacaoFeedback("Este protocolo já está ativo — não precisa reativar.");
+      return;
+    }
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(prev.cpf || document.getElementById("operacaoLocacaoCpf")?.value || ""));
+    const nomeCliente =
+      String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
+      String(prev.nome || "").trim();
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || ""))
+        : String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || "").trim();
+    const plano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || prev.plano || "").trim();
+    const inicioBr = String(prev.inicio || document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const statusAntes = isPortalLocacaoCancelada(prev)
+      ? "CANCELADO"
+      : String(prev.statusLocacao || prev.status || "FINALIZADO").trim().toUpperCase() || "FINALIZADO";
+    const conflito = portalLocacaoAtivaConflitantePorPlaca(locs, placa, ncNorm);
+    if (conflito) {
+      const outro = normPortalNumeroContrato(conflito.numeroContrato) || "—";
+      portalLocacaoFeedback(
+        `Não é possível reativar: a placa ${placa || "—"} já está em locação ativa (protocolo ${outro}).`
+      );
+      return;
+    }
+
+    const reativarContrato = () => {
+      const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
+      const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      const finNow = Date.now();
+      const idAntigo = Number(prev.id || 0);
+      const idConflito = locs.some(
+        (l, i) => i !== idx && Number(l?.id || 0) > 0 && Number(l.id) === idAntigo
+      );
+      const novoId = idConflito || !idAntigo ? finNow : idAntigo;
+      locs[idx] = {
+        ...prev,
+        id: novoId,
+        fim: "",
+        dataFim: "",
+        horaFim: "",
+        kmFinal: "",
+        odometroFim: "",
+        statusLocacao: "ATIVO",
+        status: "ATIVO",
+        contratoCancelado: false,
+        tempoDiasContrato: "",
+        portalLocacaoFinalizadoPorCpf: "",
+        portalLocacaoFinalizadoPorNome: "",
+        portalLocacaoFinalizadoEmMs: 0,
+        portalLocacaoCanceladoPorCpf: "",
+        portalLocacaoCanceladoPorNome: "",
+        portalLocacaoCanceladoEmMs: 0,
+        iniciativaDistrato: "",
+        motivoDistrato: "",
+        distratoGeradoEmMs: 0,
+        portalLocacaoReativadoPorCpf: finCpf,
+        portalLocacaoReativadoPorNome: String(regFin?.nome || "").trim(),
+        portalLocacaoReativadoEmMs: finNow,
+        updatedAt: finNow,
+      };
+      try {
+        saveCadastro(CAD_LOCACOES_KEY, locs, { allowShrink: true });
+      } catch (err) {
+        console.error(err);
+        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+        return;
+      }
+      portalPushCloudSnapshotAfterPersist();
+      if (typeof addAuditLog === "function") {
+        try {
+          addAuditLog(
+            "reativar_protocolo_portal",
+            "locacao",
+            `${ncNorm} · de ${statusAntes} → ATIVO · CPF ${cpfDigits}`
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      const dfEl = document.getElementById("operacaoLocacaoDataFim");
+      const tempoEl = document.getElementById("operacaoLocacaoTempoDias");
+      const tempoContratoEl = document.getElementById("operacaoLocacaoTempoDiasContrato");
+      if (dfEl) dfEl.value = "";
+      if (tempoEl) tempoEl.value = "";
+      if (tempoContratoEl) tempoContratoEl.value = "";
+      portalLocacaoFeedback(`Protocolo ${ncNorm} reativado — status ATIVO, data fim limpa.`);
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      applyPortalLocacaoRowFromRecord(locs[idx]);
+      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoFinalizarBtn();
+      refreshOperacaoLocacaoCancelarBtn();
+      refreshOperacaoLocacaoReativarBtn();
+      if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+        void window.__DK_contratoLocacaoSincronizarPasta(ncNorm, "ATIVO", { fim: "" }).then((r) => {
+          if (r?.moved) {
+            portalLocacaoFeedback(
+              `Protocolo ${ncNorm} reativado. Contrato movido para Contratos ATIVOS (nuvem).`
+            );
+          }
+        });
+      }
+    };
+
+    const rows = [
+      { label: "Protocolo", value: ncNorm },
+      { label: "Cliente", value: nomeCliente || "—" },
+      { label: "Placa", value: placa || "—" },
+      { label: "Tipo de plano", value: plano || "—" },
+      { label: "Data início", value: inicioBr || "—" },
+      { label: "Situação atual", value: statusAntes },
+      { label: "Após reativar", value: "ATIVO (sem data fim)" },
+    ];
+    portalLocacaoFeedback(`Revise o protocolo ${ncNorm} e confirme a reativação.`);
+    openPortalLocacaoConfirmModal(
+      {
+        titulo: "Confirmar reativação do protocolo",
+        lead: "Use quando o protocolo foi finalizado ou cancelado de forma precipitada. A data fim e o cancelamento são limpos.",
+        confirmLabel: "Confirmar reativação",
+        rows,
+      },
+      reativarContrato
     );
   }
 
@@ -29050,6 +29273,7 @@
     "operacaoLocacaoApagarProtocoloBtn",
     "operacaoLocacaoFinalizarBtn",
     "operacaoLocacaoCancelarBtn",
+    "operacaoLocacaoReativarBtn",
     "operacaoLancAluguelConfirmarPagamentoBtn",
     "operacaoLancAluguelConfirmarDevolucaoBtn",
     "operacaoLancAluguelConfirmarCreditoManutBtn",
