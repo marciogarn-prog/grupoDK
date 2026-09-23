@@ -1786,6 +1786,184 @@
 
   let locacoesIntegrityLastCheckAt = 0;
   let locacoesIntegrityInFlight = null;
+  let locacoesIntegrityLastAudit = null;
+
+  function escIntegridadeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatIntegridadeQuando(iso) {
+    const raw = String(iso || "").trim();
+    if (!raw) return "—";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleString("pt-BR");
+  }
+
+  function textoMotivoIntegridade(data) {
+    const reason = String(data?.reason || "").trim();
+    const mirrorReason = String(data?.mirror?.reason || "").trim();
+    if (reason === "active_plate_conflict") {
+      return "Há placa(s) em mais de um protocolo ativo ao mesmo tempo.";
+    }
+    if (reason === "mirror_unavailable") {
+      if (mirrorReason === "cloud_budget") {
+        return "O espelho Supabase não foi lido agora por proteção de custo (cloud_budget). A fonte oficial continua no Redis.";
+      }
+      if (mirrorReason === "supabase_timeout") {
+        return "O espelho Supabase não respondeu a tempo. A fonte oficial continua no Redis.";
+      }
+      return `O espelho Supabase está indisponível (${mirrorReason || "sem detalhe"}). A fonte oficial continua no Redis.`;
+    }
+    if (reason === "channels_diverged") {
+      return "Redis e Supabase responderam, mas as listas de locações não são iguais.";
+    }
+    if (reason === "canonical_missing") {
+      return "A fonte oficial (Redis) não devolveu o snapshot de locações.";
+    }
+    if (reason === "audit_failed" || !data) {
+      return "Não foi possível completar a auditoria (rede, sessão ou API).";
+    }
+    return reason ? `Motivo técnico: ${reason}.` : "Auditoria sem detalhe adicional.";
+  }
+
+  function textoAlertaIntegridade(data) {
+    if (!data) return "ALERTA: NÃO FOI POSSÍVEL CONFIRMAR A INTEGRIDADE DAS LOCAÇÕES. (clique para detalhe)";
+    const conflicts = Array.isArray(data.activePlateConflicts) ? data.activePlateConflicts : [];
+    if (conflicts.length) {
+      const first = conflicts[0];
+      const protocolos = (first.contratos || []).map((item) => item.protocolo).join(" / ");
+      return `ALERTA: PLACA ${first.placa} EM PROTOCOLOS ATIVOS ${protocolos}. BLOQUEIE NOVAS LOCAÇÕES. (clique para detalhe)`;
+    }
+    if (data.reason === "mirror_unavailable") {
+      const motivo = String(data.mirror?.reason || "indisponível");
+      return (
+        `ALERTA: ESPELHO SUPABASE INDISPONÍVEL (${motivo}). REDIS OFICIAL: ${data.canonical?.count ?? "?"}. ` +
+        `(clique para detalhe)`
+      );
+    }
+    if (data.reason === "channels_diverged") {
+      return (
+        `ALERTA: LOCAÇÕES DIVERGENTES ENTRE REDIS (${data.canonical?.count ?? "?"}) ` +
+        `E SUPABASE (${data.mirror?.count ?? "?"}). (clique para detalhe)`
+      );
+    }
+    return `ALERTA: AUDITORIA DE LOCAÇÕES — ${String(data.reason || "falha de integridade")}. (clique para detalhe)`;
+  }
+
+  function renderLocacoesIntegridadeModalBody(data) {
+    const body = document.getElementById("portalLocacoesIntegridadeBody");
+    const lead = document.getElementById("portalLocacoesIntegridadeLead");
+    if (!body) return;
+    if (lead) {
+      lead.textContent = data?.ok
+        ? "Última auditoria: Redis e Supabase estão alinhados."
+        : "Última auditoria encontrou diferença ou não conseguiu ler o espelho. Clique em Rechecar para atualizar.";
+    }
+    if (!data) {
+      body.innerHTML =
+        `<p class="portal-locacoes-integridade-aviso">${escIntegridadeHtml(
+          "Sem resultado de auditoria ainda. Clique em «Rechecar agora»."
+        )}</p>`;
+      return;
+    }
+    const conflicts = Array.isArray(data.activePlateConflicts) ? data.activePlateConflicts : [];
+    const diff = data.protocolDiff && typeof data.protocolDiff === "object" ? data.protocolDiff : {};
+    const onlyRedis = Array.isArray(diff.onlyRedis) ? diff.onlyRedis : [];
+    const onlySb = Array.isArray(diff.onlySupabase) ? diff.onlySupabase : [];
+    const rows = [
+      ["Situação", data.ok ? "OK — canais alinhados" : "Atenção — ver motivo abaixo"],
+      ["Verificado em", formatIntegridadeQuando(data.checkedAt)],
+      ["Motivo", textoMotivoIntegridade(data)],
+      ["Redis (oficial)", `${data.canonical?.count ?? "?"} locações · ${data.canonical?.source || "—"}`],
+      ["Supabase (espelho)", data.mirror?.available
+        ? `${data.mirror?.count ?? "?"} locações`
+        : `não lido (${data.mirror?.reason || "indisponível"})`],
+      ["Canais iguais", data.channelsEqual ? "Sim" : "Não"],
+    ];
+    let html = `<div class="portal-locacoes-integridade-aviso">${escIntegridadeHtml(textoMotivoIntegridade(data))}</div>`;
+    html += "<dl>";
+    for (const [k, v] of rows) {
+      html += `<dt>${escIntegridadeHtml(k)}</dt><dd>${escIntegridadeHtml(v)}</dd>`;
+    }
+    html += "</dl>";
+    if (conflicts.length) {
+      html += `<h4>Placas em mais de um protocolo ativo (${conflicts.length})</h4><ul>`;
+      for (const c of conflicts.slice(0, 30)) {
+        const protos = (c.contratos || [])
+          .map((x) => `${x.protocolo} (${x.cliente || "—"})`)
+          .join(" · ");
+        html += `<li><strong>${escIntegridadeHtml(c.placa)}</strong> — ${escIntegridadeHtml(protos)}</li>`;
+      }
+      html += "</ul>";
+    }
+    if (data.mirror?.available && (Number(diff.onlyRedisCount) || Number(diff.onlySupabaseCount))) {
+      html += `<h4>Diferença por protocolo</h4>`;
+      html += `<p class="subtext">Só no Redis: ${Number(diff.onlyRedisCount) || 0} · Só no Supabase: ${Number(diff.onlySupabaseCount) || 0}</p>`;
+      if (onlyRedis.length) {
+        html += "<ul>";
+        for (const row of onlyRedis) {
+          html += `<li>Redis: ${escIntegridadeHtml(row.protocolo)} · ${escIntegridadeHtml(row.nome)} · ${escIntegridadeHtml(row.placa || "—")}</li>`;
+        }
+        if (Number(diff.onlyRedisCount) > onlyRedis.length) {
+          html += `<li>… e mais ${Number(diff.onlyRedisCount) - onlyRedis.length}</li>`;
+        }
+        html += "</ul>";
+      }
+      if (onlySb.length) {
+        html += "<ul>";
+        for (const row of onlySb) {
+          html += `<li>Supabase: ${escIntegridadeHtml(row.protocolo)} · ${escIntegridadeHtml(row.nome)} · ${escIntegridadeHtml(row.placa || "—")}</li>`;
+        }
+        if (Number(diff.onlySupabaseCount) > onlySb.length) {
+          html += `<li>… e mais ${Number(diff.onlySupabaseCount) - onlySb.length}</li>`;
+        }
+        html += "</ul>";
+      }
+    } else if (data.reason === "mirror_unavailable") {
+      html +=
+        `<p class="subtext">Isto <strong>não apaga</strong> locações. O portal e o backup usam o Redis como fonte oficial ` +
+        `(${escIntegridadeHtml(String(data.canonical?.count ?? "?"))} protocolos). ` +
+        `A mensagem verde «Nuvem actualizada» só confirma o último envio deste PC — não substitui esta auditoria.</p>`;
+    }
+    body.innerHTML = html;
+  }
+
+  function closePortalLocacoesIntegridadeModal() {
+    const modal = document.getElementById("portalLocacoesIntegridadeModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("hidden", "");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function openPortalLocacoesIntegridadeModal(data) {
+    const modal = document.getElementById("portalLocacoesIntegridadeModal");
+    if (!modal) return;
+    renderLocacoesIntegridadeModalBody(data || locacoesIntegrityLastAudit);
+    modal.classList.remove("hidden");
+    modal.removeAttribute("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function applyLocacoesIntegrityAlertUi(data) {
+    const alertEl = document.getElementById("portalLocacoesIntegridadeAlerta");
+    if (!alertEl) return;
+    if (!data || data.ok) {
+      alertEl.textContent = "";
+      alertEl.classList.add("hidden");
+      alertEl.setAttribute("hidden", "");
+      return;
+    }
+    alertEl.textContent = textoAlertaIntegridade(data);
+    alertEl.title = `Auditoria: ${String(data.checkedAt || "")} — clique para ver o detalhe`;
+    alertEl.classList.remove("hidden");
+    alertEl.removeAttribute("hidden");
+  }
 
   async function refreshLocacoesIntegrityAlert(opts = {}) {
     const alertEl = document.getElementById("portalLocacoesIntegridadeAlerta");
@@ -1793,10 +1971,11 @@
     if (!portalSessaoEhCeoTitular()) {
       alertEl.textContent = "";
       alertEl.classList.add("hidden");
+      alertEl.setAttribute("hidden", "");
       return null;
     }
     const force = opts.force === true;
-    if (!force && Date.now() - locacoesIntegrityLastCheckAt < 60000) return null;
+    if (!force && Date.now() - locacoesIntegrityLastCheckAt < 60000) return locacoesIntegrityLastAudit;
     if (locacoesIntegrityInFlight) return locacoesIntegrityInFlight;
     locacoesIntegrityLastCheckAt = Date.now();
     locacoesIntegrityInFlight = fetch("/api/dk-locacoes-integridade?nocache=" + Date.now(), {
@@ -1808,31 +1987,25 @@
       .then(({ res, data }) => {
         if (noteCloudAuthFailure(res, data)) return null;
         if (!res.ok) throw new Error(data?.error || data?.reason || `HTTP ${res.status}`);
-        if (data.ok) {
-          alertEl.textContent = "";
-          alertEl.classList.add("hidden");
-          return data;
+        locacoesIntegrityLastAudit = data;
+        applyLocacoesIntegrityAlertUi(data);
+        const modal = document.getElementById("portalLocacoesIntegridadeModal");
+        if (modal && !modal.classList.contains("hidden")) {
+          renderLocacoesIntegridadeModalBody(data);
         }
-        const conflicts = Array.isArray(data.activePlateConflicts) ? data.activePlateConflicts : [];
-        if (conflicts.length) {
-          const first = conflicts[0];
-          const protocolos = (first.contratos || []).map((item) => item.protocolo).join(" / ");
-          alertEl.textContent = `ALERTA: PLACA ${first.placa} EM PROTOCOLOS ATIVOS ${protocolos}. BLOQUEIE NOVAS LOCAÇÕES.`;
-        } else if (data.reason === "channels_diverged") {
-          alertEl.textContent =
-            `ALERTA: LOCAÇÕES DIVERGENTES ENTRE REDIS (${data.canonical?.count ?? "?"}) ` +
-            `E SUPABASE (${data.mirror?.count ?? "?"}).`;
-        } else {
-          alertEl.textContent = `ALERTA: AUDITORIA DE LOCAÇÕES — ${String(data.reason || "falha de integridade")}.`;
-        }
-        alertEl.title = `Auditoria: ${String(data.checkedAt || "")}`;
-        alertEl.classList.remove("hidden");
         return data;
       })
       .catch((error) => {
         console.warn("[DK locações] auditoria de integridade", error);
-        alertEl.textContent = "ALERTA: NÃO FOI POSSÍVEL CONFIRMAR A INTEGRIDADE DAS LOCAÇÕES.";
-        alertEl.classList.remove("hidden");
+        locacoesIntegrityLastAudit = {
+          ok: false,
+          reason: "audit_failed",
+          checkedAt: new Date().toISOString(),
+          error: String(error?.message || error),
+          canonical: locacoesIntegrityLastAudit?.canonical || null,
+          mirror: locacoesIntegrityLastAudit?.mirror || null,
+        };
+        applyLocacoesIntegrityAlertUi(locacoesIntegrityLastAudit);
         return null;
       })
       .finally(() => {
@@ -1840,6 +2013,25 @@
       });
     return locacoesIntegrityInFlight;
   }
+
+  document.getElementById("portalLocacoesIntegridadeAlerta")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openPortalLocacoesIntegridadeModal(locacoesIntegrityLastAudit);
+  });
+  document.getElementById("portalLocacoesIntegridadeRechecarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const body = document.getElementById("portalLocacoesIntegridadeBody");
+    if (body) body.innerHTML = "<p class=\"subtext\">A rechecar…</p>";
+    void refreshLocacoesIntegrityAlert({ force: true }).then((data) => {
+      renderLocacoesIntegridadeModalBody(data || locacoesIntegrityLastAudit);
+    });
+  });
+  document.querySelectorAll("[data-close-locacoes-integridade]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      closePortalLocacoesIntegridadeModal();
+    });
+  });
 
   function refreshSessionKillBox() {
     const box = document.getElementById("portal-session-kill-box");

@@ -23,6 +23,57 @@ function parseStoredRow(raw) {
   }
 }
 
+function normalizeProtocolKey(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+/** Diferença por protocolo entre Redis (oficial) e Supabase (espelho). */
+function diffLocacoesByProtocol(canonicalList, mirrorList) {
+  const byNc = (list) => {
+    const map = new Map();
+    for (const loc of Array.isArray(list) ? list : []) {
+      const nc = normalizeProtocolKey(loc?.numeroContrato || loc?.protocolo);
+      if (!nc) continue;
+      map.set(nc, loc);
+    }
+    return map;
+  };
+  const redis = byNc(canonicalList);
+  const supabase = byNc(mirrorList);
+  const onlyRedis = [];
+  const onlySupabase = [];
+  for (const [nc, loc] of redis) {
+    if (supabase.has(nc)) continue;
+    onlyRedis.push({
+      protocolo: nc,
+      nome: String(loc?.nome || loc?.cliente || "").trim() || "—",
+      placa: String(loc?.placa || "")
+        .trim()
+        .toUpperCase(),
+      status: String(loc?.statusLocacao || loc?.status || "").trim() || "—",
+    });
+  }
+  for (const [nc, loc] of supabase) {
+    if (redis.has(nc)) continue;
+    onlySupabase.push({
+      protocolo: nc,
+      nome: String(loc?.nome || loc?.cliente || "").trim() || "—",
+      placa: String(loc?.placa || "")
+        .trim()
+        .toUpperCase(),
+      status: String(loc?.statusLocacao || loc?.status || "").trim() || "—",
+    });
+  }
+  const sampleLimit = 40;
+  return {
+    onlyRedisCount: onlyRedis.length,
+    onlySupabaseCount: onlySupabase.length,
+    onlyRedis: onlyRedis.slice(0, sampleLimit),
+    onlySupabase: onlySupabase.slice(0, sampleLimit),
+    sampleLimit,
+  };
+}
+
 async function runLocacoesIntegrityAudit() {
   const checkedAt = new Date().toISOString();
   if (!isRedisKvConfigured()) {
@@ -53,7 +104,21 @@ async function runLocacoesIntegrityAudit() {
     : "";
   const mirrorAvailable = Boolean(mirror?.payload && typeof mirror.payload === "object");
   const channelsEqual = mirrorAvailable && canonicalHash === mirrorHash;
+  const protocolDiff = mirrorAvailable
+    ? diffLocacoesByProtocol(canonicalLocacoes, mirrorLocacoes)
+    : {
+        onlyRedis: [],
+        onlySupabase: [],
+        onlyRedisCount: canonicalLocacoes.length,
+        onlySupabaseCount: 0,
+        sampleLimit: 40,
+      };
   const ok = Boolean(canonicalPayload) && conflicts.length === 0 && channelsEqual;
+  let reason = "";
+  if (!canonicalPayload) reason = "canonical_missing";
+  else if (conflicts.length) reason = "active_plate_conflict";
+  else if (!mirrorAvailable) reason = "mirror_unavailable";
+  else if (!channelsEqual) reason = "channels_diverged";
   const result = {
     ok,
     checkedAt,
@@ -71,13 +136,8 @@ async function runLocacoesIntegrityAudit() {
     },
     channelsEqual,
     activePlateConflicts: conflicts,
-    reason: !canonicalPayload
-      ? "canonical_missing"
-      : conflicts.length
-        ? "active_plate_conflict"
-        : !channelsEqual
-          ? "channels_diverged"
-          : "",
+    protocolDiff,
+    reason,
   };
   await redis.set(LOCACOES_INTEGRITY_KEY, JSON.stringify(result), { ex: 7 * 24 * 60 * 60 });
   return result;

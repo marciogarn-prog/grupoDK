@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260922caucao">
+  <link rel="stylesheet" href="styles.css?v=20260923integridade-modal">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -64,7 +64,7 @@
     <div class="portal-admin-banner__lead">
       <span id="portalAdminBannerLabel" class="portal-admin-banner__label">LOGADO COMO ADMINISTRADOR</span>
       <span id="portalAdminBannerOperadoresCpfs" class="portal-admin-banner__label portal-admin-banner__ops" hidden></span>
-      <span id="portalLocacoesIntegridadeAlerta" class="portal-admin-banner__integridade hidden" role="alert"></span>
+      <button type="button" id="portalLocacoesIntegridadeAlerta" class="portal-admin-banner__integridade hidden" hidden aria-haspopup="dialog" aria-controls="portalLocacoesIntegridadeModal" title="Clique para ver o detalhe da auditoria de locações."></button>
       <div id="portalAdminVerComoWrap" class="portal-admin-ver-como hidden" hidden>
         <button type="button" id="portalAdminVerComoAdminBtn" class="portal-admin-ver-como__btn" data-ver-como="admin" title="Ver o sistema como administrador normal, sem permissões especiais.">VER COMO ADMINISTRADOR</button>
         <button type="button" id="portalAdminVerComoColabBtn" class="portal-admin-ver-como__btn" data-ver-como="colaborador" title="Ver o sistema como colaborador.">VER COMO COLABORADOR</button>
@@ -5169,6 +5169,19 @@
     </div>
   </div>
 
+  <div id="portalLocacoesIntegridadeModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLocacoesIntegridadeTitulo" aria-hidden="true" hidden>
+    <div class="portal-modal__backdrop" data-close-locacoes-integridade></div>
+    <div class="portal-modal__card portal-locacoes-integridade-card">
+      <h3 id="portalLocacoesIntegridadeTitulo" class="portal-modal__title">Auditoria de integridade das locações</h3>
+      <p id="portalLocacoesIntegridadeLead" class="subtext">Detalhe da comparação entre Redis (fonte oficial) e Supabase (espelho).</p>
+      <div id="portalLocacoesIntegridadeBody" class="portal-locacoes-integridade-body"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalLocacoesIntegridadeRechecarBtn">Rechecar agora</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-close-locacoes-integridade>Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalLocacaoConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLocacaoConfirmTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-locacao-confirm></div>
     <div class="portal-modal__card portal-locacao-confirm-card">
@@ -5719,7 +5732,7 @@
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20260922caucao" defer></script>
+  <script src="portal-supabase-sync.js?v=20260923integridade-modal" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

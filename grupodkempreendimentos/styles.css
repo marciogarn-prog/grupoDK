@@ -9286,10 +9286,72 @@ body.dk-pwa-update-bar-visible {
   font-size: 0.69rem;
   font-weight: 900;
   line-height: 1.2;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.portal-admin-banner__integridade:hover,
+.portal-admin-banner__integridade:focus-visible {
+  background: #991b1b;
+  outline: 2px solid #fde047;
+  outline-offset: 1px;
 }
 
 .portal-admin-banner__integridade.hidden {
   display: none;
+}
+
+.portal-locacoes-integridade-card {
+  max-width: min(42rem, 94vw);
+  max-height: min(88vh, 44rem);
+  overflow: auto;
+}
+
+.portal-locacoes-integridade-body {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.portal-locacoes-integridade-body dl {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.portal-locacoes-integridade-body dt {
+  font-weight: 700;
+  color: #475569;
+}
+
+.portal-locacoes-integridade-body dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.portal-locacoes-integridade-body h4 {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.95rem;
+}
+
+.portal-locacoes-integridade-body ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.portal-locacoes-integridade-body .portal-locacoes-integridade-aviso {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.4rem;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #7c2d12;
+  font-weight: 600;
 }
 
 .portal-body--admin-logado {
