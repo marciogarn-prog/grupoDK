@@ -896,6 +896,7 @@
     "dk_portal_veiculos_cadastro",
     "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
+    "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
     "dk_financeiro_ceo_despesas_v1",
     "dk_financeiro_despesas_v1",
@@ -4310,6 +4311,7 @@
       "dk_veiculos_cadastro",
       "dk_portal_veiculos_cadastro",
       "dk_locacoes_cadastro",
+      "dk_manutencoes_cadastro",
       "dk_manutencoes_rapidas_v1",
     ];
     let changed = false;
@@ -4326,6 +4328,14 @@
             window.__DK_IS_DEMO_DEPLOY__ === true
               ? mergeLocacoesCadastroBeforePush(localArr, cloudArr)
               : normalizeLocacoesContratoAtivoList(cloudArr);
+        } else if (k === "dk_manutencoes_cadastro") {
+          // União local+nuvem (placa activa / id); nuvem vazia não apaga manutenção local.
+          merged =
+            typeof mergeCadastroHistoricoImutavel === "function"
+              ? mergeCadastroHistoricoImutavel(k, localArr, cloudArr)
+              : localArr.length
+                ? localArr
+                : cloudArr;
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
         } else {

@@ -3229,6 +3229,71 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     return dropLocacoesProtocoloSubstituido([...byNc.values(), ...byFallback.values()]);
   }
 
+  if (key === CAD_MANUTENCOES_KEY) {
+    const plateKey = (p) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(p || ""))
+        : String(p || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const scoreManut = (x) =>
+      Number(x?.updatedAt || 0) ||
+      Number(x?.checklistRascunhoEm || 0) ||
+      Number(x?.checklistHandoffEm || 0) ||
+      Number(x?.checklistTriagemCongeladoEm || 0) ||
+      Number(x?.id || 0) ||
+      0;
+    const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+    const byId = new Map();
+    const byPlacaAtiva = new Map();
+    const closed = [];
+    const add = (r) => {
+      if (!r || typeof r !== "object") return;
+      const id = String(r.id || "").trim();
+      const pl = plateKey(r.placa);
+      if (ativa(r) && pl) {
+        const ex = byPlacaAtiva.get(pl);
+        if (!ex) {
+          byPlacaAtiva.set(pl, { ...r });
+          return;
+        }
+        const newer = scoreManut(r) >= scoreManut(ex) ? { ...ex, ...r } : { ...r, ...ex };
+        const snapEx = ex.checklistRascunhoEm || 0;
+        const snapR = r.checklistRascunhoEm || 0;
+        if (snapR > snapEx && r.checklistRascunhoSnapshot) {
+          newer.checklistRascunhoSnapshot = r.checklistRascunhoSnapshot;
+          newer.checklistRascunhoEm = r.checklistRascunhoEm;
+          newer.checklistRascunhoCategoria = r.checklistRascunhoCategoria;
+        } else if (snapEx >= snapR && ex.checklistRascunhoSnapshot) {
+          newer.checklistRascunhoSnapshot = ex.checklistRascunhoSnapshot;
+          newer.checklistRascunhoEm = ex.checklistRascunhoEm;
+          newer.checklistRascunhoCategoria = ex.checklistRascunhoCategoria;
+        }
+        byPlacaAtiva.set(pl, newer);
+        return;
+      }
+      if (id) {
+        const ex = byId.get(id);
+        if (!ex) {
+          byId.set(id, { ...r });
+          return;
+        }
+        byId.set(id, scoreManut(r) >= scoreManut(ex) ? { ...ex, ...r } : { ...r, ...ex });
+        return;
+      }
+      closed.push({ ...r });
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    for (const r of byId.values()) {
+      if (!ativa(r)) {
+        const pl = plateKey(r.placa);
+        if (pl) byPlacaAtiva.delete(pl);
+      }
+    }
+    return [...byPlacaAtiva.values(), ...byId.values(), ...closed];
+  }
+
   if (key === CAD_MANUTENCOES_RAPIDAS_KEY) {
     const byId = new Map();
     const add = (r) => {
@@ -3390,6 +3455,7 @@ function saveCadastro(key, list, opts) {
     key === PORTAL_VEICULOS_KEY ||
     key === FROTA_VEICULOS_KEY ||
     key === CAD_LOCACOES_KEY ||
+    key === CAD_MANUTENCOES_KEY ||
     key === CAD_MANUTENCOES_RAPIDAS_KEY ||
     key === "dk_financeiro_ceo_despesas_v1" ||
     key === "dk_financeiro_ceo_situacao_pag_v1" ||

@@ -4698,6 +4698,7 @@
       document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
       portalRefreshManutencaoPlacasGrid(false);
     }
+    void portalPullManutencoesQuadroAoAbrir();
     window.setTimeout(() => {
       if (usesGrid) return;
       const inp = document.getElementById("portalChecklistPlacaInput");
@@ -6376,6 +6377,146 @@
     portalSetChecklistEntradaTriagemCongelada(true);
     portalUpdateProximaTrocaKm();
     return true;
+  }
+
+  /** Restaura rascunho completo gravado com «Salvar alterações» (itens A/R, staff, datas). */
+  function portalApplyChecklistRascunho(snap) {
+    if (!snap || typeof snap !== "object") return false;
+    const assign = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val != null ? String(val) : "";
+    };
+    assign("portalChecklistEntradaData", snap.entradaData);
+    assign("portalChecklistEntradaHora", snap.entradaHora);
+    assign("portalChecklistSaidaData", snap.saidaData);
+    assign("portalChecklistSaidaHora", snap.saidaHora);
+    assign("portalChecklistOdometro", snap.odometro);
+    assign("portalChecklistProximaTroca", snap.proximaTroca);
+    if (snap.oleo) {
+      const oleo = document.querySelector(`input[name="portalChecklistOleo"][value="${snap.oleo}"]`);
+      if (oleo) oleo.checked = true;
+    }
+    if (snap.pagou) {
+      const pagou = document.querySelector(`input[name="portalChecklistPagou"][value="${snap.pagou}"]`);
+      if (pagou) pagou.checked = true;
+    }
+    (snap.itens || []).forEach((it) => {
+      const n = Number(it.n);
+      if (!Number.isFinite(n) || n < 1) return;
+      const a = document.querySelector(`input[name="portalChecklistItem${n}"][value="A"]`);
+      const r = document.querySelector(`input[name="portalChecklistItem${n}"][value="R"]`);
+      if (it.estado === "R") {
+        if (r) r.checked = true;
+        if (a) a.checked = false;
+      } else {
+        if (a) a.checked = true;
+        if (r) r.checked = false;
+      }
+      const obs = String(it.obs || "").trim();
+      if (portalChecklistItemEhLivre(n)) {
+        const inp = document.getElementById(`portalChecklistObs${n}`);
+        if (inp && obs) inp.value = obs;
+      } else {
+        const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+        const inp = document.getElementById(`portalChecklistObs${n}`);
+        if (sel && obs) {
+          const opt = [...sel.options].find((o) => o.value === obs);
+          if (opt) sel.value = obs;
+          else {
+            sel.value = "OUTRO";
+            if (inp) inp.value = obs;
+          }
+        } else if (inp && obs) {
+          inp.value = obs;
+        }
+      }
+      portalSyncChecklistObsUi(n);
+    });
+    portalSyncChecklistObsUi(PORTAL_CHECKLIST_ITEM_LIVRE_N);
+    const setSelectTexto = (id, texto) => {
+      const sel = document.getElementById(id);
+      if (!sel || !texto) return;
+      const t = String(texto).trim();
+      const opt =
+        [...sel.options].find((o) => o.value === t) ||
+        [...sel.options].find((o) => String(o.textContent || "").trim() === t);
+      if (opt) sel.value = opt.value;
+    };
+    setSelectTexto("portalChecklistMecanico", snap.mecanico);
+    setSelectTexto("portalChecklistSupervisor", snap.supervisor);
+    portalUpdateProximaTrocaKm();
+    return true;
+  }
+
+  /**
+   * Grava o check-list actual no cadastro de manutenções e envia o quadro para a nuvem.
+   */
+  function portalSalvarAlteracoesChecklistManutencao() {
+    if (!portalChecklistIsManutencaoMode()) {
+      return { ok: false, message: "Salvar alterações só na área Em manutenção." };
+    }
+    const placaRaw = portalGetPlacaChecklistAtual();
+    if (!placaRaw) return { ok: false, message: "Abra uma placa do check-list antes de salvar." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro indisponível neste ambiente." };
+    }
+    const placaKey = portalNkPlate(placaRaw);
+    const categoria = portalManutEmManutSubAtivo || "triagem";
+    const collectFn = window.__DK_portalCollectChecklistSnapshot;
+    if (typeof collectFn !== "function") {
+      return { ok: false, message: "Função de snapshot do check-list indisponível. Recarregue a página." };
+    }
+    const snap = collectFn(categoria, "");
+    if (!snap) return { ok: false, message: "Não foi possível ler o check-list actual." };
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    const idx = manutencoes.findIndex(
+      (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
+    );
+    if (idx < 0) {
+      return { ok: false, message: "Não há manutenção activa para esta placa." };
+    }
+    const agora = Date.now();
+    manutencoes[idx] = {
+      ...manutencoes[idx],
+      checklistRascunhoSnapshot: snap,
+      checklistRascunhoEm: agora,
+      checklistRascunhoCategoria: categoria,
+      updatedAt: agora,
+    };
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_checklist_salvar_alteracoes", "manutencao", `${placaKey}:${categoria}`);
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_salvar_checklist",
+      placa: placaKey,
+      de: categoria,
+      para: categoria,
+      motivo: "salvar alterações check-list",
+    });
+    return { ok: true, placa: placaKey, categoria, em: agora };
+  }
+
+  /** Download do quadro de manutenções da nuvem (union) e refresca a grelha. */
+  function portalPullManutencoesQuadroAoAbrir() {
+    const pull =
+      typeof window.__DK_pullFromCloudOnScreenChange === "function"
+        ? window.__DK_pullFromCloudOnScreenChange()
+        : Promise.resolve({ ok: true, skipped: true });
+    return Promise.resolve(pull)
+      .then(() => {
+        try {
+          refreshPortalChecklistPlacasAtivasCache();
+          if (portalChecklistUsesPlacasGrid()) portalRefreshManutencaoPlacasGrid(true);
+        } catch {
+          /* ignore */
+        }
+        return { ok: true };
+      })
+      .catch((e) => {
+        console.warn("[DK portal] pull manutenções ao abrir", e);
+        return { ok: false, error: e };
+      });
   }
 
   function portalClearChecklistInspection() {
@@ -8412,10 +8553,17 @@
 
     const b1 = document.getElementById("portalChecklistBtnImprimir");
     const b2 = document.getElementById("portalChecklistBtnPdf");
+    const bSalvar = document.getElementById("portalChecklistBtnSalvarAlteracoes");
     const b3 = document.getElementById("portalChecklistBtnDevolvido");
     const b4 = document.getElementById("portalChecklistBtnManutencao");
     if (b1) b1.disabled = !printOk;
     if (b2) b2.disabled = !printOk;
+    if (bSalvar) {
+      const placaAberta = Boolean(portalNkPlate(portalGetPlacaChecklistAtual() || ""));
+      bSalvar.disabled = !(isManut && placaAberta);
+      bSalvar.classList.toggle("hidden", !isManut);
+      bSalvar.hidden = !isManut;
+    }
     if (b3) b3.disabled = !formOk || isManut;
     if (b4) b4.disabled = isTriagem ? !enviarOficinaOk : isOficina ? true : !formOk;
     document.querySelectorAll("#portalChecklistCategoriaMove [data-manut-move-cat], #portalChecklistCategoriaMove [data-manut-move-dest]").forEach((btn) => {
@@ -8772,6 +8920,19 @@
       portalExportChecklistPdf();
     });
 
+    document.getElementById("portalChecklistBtnSalvarAlteracoes")?.addEventListener("click", () => {
+      const hint = document.getElementById("portalChecklistExportHint");
+      const msg = document.getElementById("portalChecklistDispositionMsg");
+      if (!portalChecklistIsManutencaoMode()) return;
+      if (document.getElementById("portalChecklistBtnSalvarAlteracoes")?.disabled) return;
+      const r = portalSalvarAlteracoesChecklistManutencao();
+      const texto = r.ok
+        ? `Alterações da placa ${r.placa} salvas e enviadas para a nuvem. Outros PCs actualizam ao abrir Em manutenção.`
+        : r.message || "Não foi possível salvar as alterações.";
+      if (hint) hint.textContent = texto;
+      if (msg) msg.textContent = texto;
+    });
+
     document.getElementById("portalChecklistBtnDevolvido")?.addEventListener("click", () => {
       if (portalChecklistIsManutencaoMode()) return;
       if (!portalValidateChecklistCompleto()) return;
@@ -9001,6 +9162,21 @@
     } else if (msgEl) {
       msgEl.textContent = res.message;
     }
+    const rascunho = manutRec?.checklistRascunhoSnapshot;
+    const rascunhoCat = String(manutRec?.checklistRascunhoCategoria || "").trim().toLowerCase();
+    const etapaAtual = String(portalManutEmManutSubAtivo || "").trim().toLowerCase();
+    if (
+      portalChecklistIsManutencaoMode() &&
+      rascunho &&
+      typeof rascunho === "object" &&
+      (!rascunhoCat || rascunhoCat === etapaAtual)
+    ) {
+      portalApplyChecklistRascunho(rascunho);
+      if (msgEl) {
+        msgEl.textContent =
+          "Check-list restaurado das alterações salvas na nuvem. Pode continuar e clicar «Salvar alterações» de novo.";
+      }
+    }
     mount?.classList.remove("hidden");
     mount?.classList.add("portal-checklist-mount--tablet");
     fotosGrid?.classList.remove("hidden");
@@ -9137,6 +9313,7 @@
           <div class="portal-checklist-export-actions">
             <button type="button" class="btn-primary" id="portalChecklistBtnImprimir" data-checklist-layout-item="btn-imprimir" disabled>Imprimir</button>
             <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnPdf" data-checklist-layout-item="btn-pdf" disabled>Guardar PDF</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnSalvarAlteracoes" data-checklist-layout-item="btn-salvar-alteracoes" disabled>Salvar alterações</button>
           </div>
           <div class="portal-checklist-disposition-actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnDevolvido" data-checklist-layout-item="btn-devolvido" disabled>DEVOLVIDO AO CLIENTE</button>
@@ -9317,6 +9494,7 @@
   });
 
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
+    void portalPullManutencoesQuadroAoAbrir();
     expandManutencaoParentMenuOnly(
       "btn-manutencao-em-manutencao",
       "Escolha uma das opções em «Em manutenção» à esquerda (6 Triagem, 7–10)."

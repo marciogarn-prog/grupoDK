@@ -3372,6 +3372,29 @@
           "fin-ceo-rot-fin-mes__col--entrada"
         ]
       }
+    },
+    {
+      "id": "manutencao-checklist-salvar-alteracoes-nuvem",
+      "descricao": "No check-list Em manutenção (6–10), botão «Salvar alterações» ao lado de Guardar PDF: grava o quadro (itens A/R, mecânico, supervisor) em dk_manutencoes_cadastro e faz upload imediato; ao abrir Em manutenção / sub-opções faz download (merge) para o mesmo estado noutros PCs.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalChecklistBtnSalvarAlteracoes",
+          "Salvar alterações",
+          "portalSalvarAlteracoesChecklistManutencao",
+          "portalApplyChecklistRascunho",
+          "checklistRascunhoSnapshot",
+          "portalPullManutencoesQuadroAoAbrir",
+          "manutencao_salvar_checklist"
+        ],
+        "portal-supabase-sync.js": [
+          "dk_manutencoes_cadastro",
+          "pullCadastroOperacionalFromCloud"
+        ],
+        "app.js": [
+          "CAD_MANUTENCOES_KEY",
+          "checklistRascunhoEm"
+        ]
+      }
     }
   ]
 }
