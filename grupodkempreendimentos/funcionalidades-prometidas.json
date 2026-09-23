@@ -200,7 +200,7 @@
     },
     {
       "id": "lanc-caucao",
-      "descricao": "No lançamento avulso existe Registrar pagamento de caução (data + valor): aparece em Lançamentos registados, entra na RECEITA REAL / financeiro da empresa e não contabiliza no aluguel do cliente; CAUÇÃO PAGO e total pago (aluguel+caução) aparecem nos saldos da direita.",
+      "descricao": "No lançamento avulso existe Registrar pagamento de caução (data + valor): aparece em Lançamentos registados, entra na RECEITA REAL / financeiro da empresa e não contabiliza no aluguel do cliente; CAUÇÃO PAGO e total pago (aluguel+caução) aparecem nos saldos da direita. O SALDO / VALOR DEVOLVIDO soma a caução: total pago de aluguel + caução − valor devido.",
       "ficheiros": {
         "index.html": [
           "operacaoLancAluguelDataCaucao",
@@ -208,13 +208,16 @@
           "operacaoLancAluguelConfirmarCaucaoBtn",
           "Registrar pagamento de caução",
           "operacaoLancAluguelCaucaoPago",
-          "operacaoLancAluguelTotalPagoGeral"
+          "operacaoLancAluguelTotalPagoGeral",
+          "total pago de aluguel + caução − valor devido"
         ],
         "portal-locadora-ui.js": [
           "PORTAL_LANC_TIPO_CAUCAO",
           "portalLancamentoEhCaucao",
           "persistPortalLancamentoAluguelCaucao",
-          "sumPortalLancamentosCaucaoTotal"
+          "sumPortalLancamentosCaucaoTotal",
+          "sumPortalCaucaoPagoDoContrato",
+          "computePortalSaldoDevolucaoInvestimento"
         ],
         "dk-lancamento-protocolo.js": [
           "CAUCAO",
@@ -229,7 +232,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-pagamento-dia-periodo",
-      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período; ambos mostram a coluna PLACA entre Nome do cliente e os valores, inclusive na impressão/PDF/Excel. A coluna Saldo usa o mesmo cálculo de SALDO/VALOR DEVOLVIDO (computePortalSaldoDevolucaoInvestimento: pago − devido só de aluguel); azul positivo / vermelho negativo; ordenado do menor ao maior. Devolução de investimento do período/dia entra no Valor do dia/período como valor negativo em vermelho (tela e PDF).",
+      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período; ambos mostram a coluna PLACA entre Nome do cliente e os valores, inclusive na impressão/PDF/Excel. A coluna Saldo usa o mesmo cálculo de SALDO/VALOR DEVOLVIDO (computePortalSaldoDevolucaoInvestimento: pago de aluguel + caução − valor devido); azul positivo / vermelho negativo; ordenado do menor ao maior. Devolução de investimento do período/dia entra no Valor do dia/período como valor negativo em vermelho (tela e PDF).",
       "ficheiros": {
         "index.html": [
           "btn-lanc-aluguel-rel-pag",
@@ -259,6 +262,7 @@
           "saldoColumnIndex",
           "portal-rel-saldo-pos",
           "computePortalSaldoDevolucaoInvestimento",
+          "sumPortalCaucaoPagoDoContrato",
           "valorFaixaColumnIndex",
           "portal-rel-valor-dev",
           "portal-rel-pag-agg__valor--dev"
@@ -356,7 +360,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-2-5-por-cliente",
-      "descricao": "Em Lançamento de aluguel: 2.5 Relatório de pagamento por cliente mostra a vida do cliente no sistema, separado por protocolo, com todas as datas e valores pagos. Resumo no dia de emissão: valor devido só de aluguel, valor devido do plano, valor de investimento, valor pago total e saldo a devolver (pago − devido só de aluguel). Se o saldo for negativo, o nome vira VALOR EM ATRASO SÓ DE ALUGUEL.",
+      "descricao": "Em Lançamento de aluguel: 2.5 Relatório de pagamento por cliente mostra a vida do cliente no sistema, separado por protocolo, com todas as datas e valores pagos. Resumo no dia de emissão: valor devido só de aluguel, valor devido do plano, valor de investimento, valor pago total e saldo a devolver (pago de aluguel + caução − valor devido). Se o saldo for negativo, o nome vira VALOR EM ATRASO SÓ DE ALUGUEL.",
       "ficheiros": {
         "index.html": [
           "btn-lanc-aluguel-rel-cliente",

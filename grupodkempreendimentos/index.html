@@ -1762,7 +1762,7 @@
                     </div>
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao" data-lanc-layout-box="devolucao">
                       <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
-                      <p class="subtext portal-lanc-devolucao-hint">Sugestão = total pago − devido só de aluguel. Valor registado como saída do caixa.</p>
+                      <p class="subtext portal-lanc-devolucao-hint">Sugestão = total pago de aluguel + caução − valor devido. Valor registado como saída do caixa.</p>
                       <p id="operacaoLancAluguelDevolucaoAvisoNegativo" class="portal-lanc-devolucao-aviso-negativo hidden" role="alert" hidden>
                         Cliente negativo — bloquear moto
                       </p>
@@ -1945,7 +1945,7 @@
             <p class="subtext">Escolha o dia no calendário — os dados atualizam na hora. O sistema lista os protocolos que <strong>pagaram ou tiveram devolução nesse dia</strong>. Devolução aparece em vermelho.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
               Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — PLACA — VALOR DO DIA — VALOR TOTAL — SALDO</strong>
-              (saldo = mesmo valor de «SALDO / VALOR DEVOLVIDO» no lançamento: pago − devido só de aluguel; azul positivo / vermelho negativo; devolução no dia em vermelho; ordenado do menor ao maior).
+              (saldo = mesmo valor de «SALDO / VALOR DEVOLVIDO» no lançamento: pago de aluguel + caução − valor devido; azul positivo / vermelho negativo; devolução no dia em vermelho; ordenado do menor ao maior).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
@@ -1984,7 +1984,7 @@
             <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários — os dados atualizam na hora. Para cada protocolo que pagou ou teve devolução no intervalo, mostra o valor do período e o total do protocolo. Devolução aparece em vermelho.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
               Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — PLACA — VALOR DO PERÍODO — VALOR TOTAL — SALDO</strong>
-              (saldo = pago − devido aluguel sem investimento; azul = positivo / vermelho = negativo; devolução no período em vermelho; ordenado do menor ao maior).
+              (saldo = pago de aluguel + caução − valor devido; azul = positivo / vermelho = negativo; devolução no período em vermelho; ordenado do menor ao maior).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
@@ -2118,7 +2118,7 @@
             <h4 class="portal-lanc-aluguel-section__title">2.5 — Relatório de pagamento por cliente</h4>
             <p class="subtext">A <strong>vida do cliente</strong> no sistema: pesquise pelo nome ou CPF. Os contratos aparecem <strong>separados por protocolo</strong>, com todas as datas e valores pagos e o resumo na data de emissão do relatório.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Resumo de cada protocolo: <strong>VALOR DEVIDO SÓ DE ALUGUEL</strong> · <strong>VALOR DEVIDO DO PLANO</strong> · <strong>VALOR DE INVESTIMENTO</strong> · <strong>VALOR PAGO TOTAL</strong> · <strong>SALDO A DEVOLVER</strong> (pago − devido só de aluguel). Se o saldo for negativo, o nome vira <strong>VALOR EM ATRASO SÓ DE ALUGUEL</strong>. Também mostra <strong>SEMANAS PAGAS</strong> (valor pago ÷ valor semanal do contrato, só as semanas fechadas) e o <strong>SALDO POSITIVO</strong> que sobrou. Ex.: contrato de R$ 350,00/semana e pago R$ 1.100,00 → 3 semanas e saldo de R$ 50,00.
+              Resumo de cada protocolo: <strong>VALOR DEVIDO SÓ DE ALUGUEL</strong> · <strong>VALOR DEVIDO DO PLANO</strong> · <strong>VALOR DE INVESTIMENTO</strong> · <strong>VALOR PAGO TOTAL</strong> · <strong>SALDO A DEVOLVER</strong> (pago de aluguel + caução − valor devido). Se o saldo for negativo, o nome vira <strong>VALOR EM ATRASO SÓ DE ALUGUEL</strong>. Também mostra <strong>SEMANAS PAGAS</strong> (valor pago ÷ valor semanal do contrato, só as semanas fechadas) e o <strong>SALDO POSITIVO</strong> que sobrou. Ex.: contrato de R$ 350,00/semana e pago R$ 1.100,00 → 3 semanas e saldo de R$ 50,00.
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field portal-rel-cli-vida__busca">
@@ -5658,7 +5658,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260915unico"></script>
-  <script src="app.js?v=20260922reativar-proto" defer></script>
+  <script src="app.js?v=20260923saldo-caucao" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5669,7 +5669,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20260922reativar-proto" defer></script>
+  <script src="portal-locadora-ui.js?v=20260923saldo-caucao" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>

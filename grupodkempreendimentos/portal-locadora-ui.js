@@ -16682,7 +16682,8 @@
     const investimento = dias * (Number(valInv) / 7);
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const pago = sumPortalLancamentosAluguelTotal(lancs);
-    const saldo = Number(pago || 0) - Number(devidoAluguel || 0);
+    const caucao = sumPortalCaucaoPagoDoContrato(loc);
+    const saldo = Number(pago || 0) + Number(caucao || 0) - Number(devidoAluguel || 0);
     const negativo = Number.isFinite(saldo) && saldo < -0.009;
     const semanal = Number(plano) > 0.009 ? Number(plano) : Number(valLoc) > 0.009 ? Number(valLoc) : 0;
     const pagoNum = Number.isFinite(pago) ? pago : 0;
@@ -22248,6 +22249,18 @@
     }, 0);
   }
 
+  /** Caução paga do protocolo: lançamentos CAUCAO no aluguel + array dedicado (se existir). */
+  function sumPortalCaucaoPagoDoContrato(loc) {
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+    let total = sumPortalLancamentosCaucaoTotal(lancs);
+    const extra = Array.isArray(loc?.portalLancamentosCaucao) ? loc.portalLancamentosCaucao : [];
+    for (const x of extra) {
+      const v = Math.abs(Number(x?.valor || 0));
+      if (Number.isFinite(v)) total += v;
+    }
+    return total;
+  }
+
   function sumPortalLancamentosAluguelNoAno(arr, year) {
     let s = 0;
     for (const x of arr || []) {
@@ -22425,7 +22438,7 @@
     );
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
-    const caucaoPagoNum = sumPortalLancamentosCaucaoTotal(lancs);
+    const caucaoPagoNum = sumPortalCaucaoPagoDoContrato(loc);
     const investimentoAcumuladoNum = computePortalInvestimentoAcumuladoNum(
       valorDevidoAluguelNum,
       valorDevidoMultasNum,
@@ -22923,23 +22936,25 @@
   }
 
   /**
-   * Saldo sugestão devolução = total pago − devido só de aluguel (início→hoje ou →fim).
-   * Positivo = a devolver; negativo = cliente não cobre nem o aluguel.
+   * Saldo sugestão devolução = total pago de aluguel + caução − valor devido (só aluguel).
+   * Positivo = a devolver; negativo = cliente não cobre o devido.
    */
   function computePortalSaldoDevolucaoInvestimento(loc) {
     if (!loc || typeof loc !== "object" || isPortalLocacaoCancelada(loc)) {
-      return { saldo: 0, devidoAluguel: 0, totalPago: 0, negativo: false };
+      return { saldo: 0, devidoAluguel: 0, totalPago: 0, caucaoPago: 0, negativo: false };
     }
     const valLoc = portalValorAluguelNumFromLoc(loc);
     const dias = computePortalDiasAteHoje(loc);
     const devidoAluguel = dias * (Number(valLoc) / 7);
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const totalPago = sumPortalLancamentosAluguelTotal(lancs);
-    const saldo = Number(totalPago) - Number(devidoAluguel);
+    const caucaoPago = sumPortalCaucaoPagoDoContrato(loc);
+    const saldo = Number(totalPago) + Number(caucaoPago) - Number(devidoAluguel);
     return {
       saldo: Number.isFinite(saldo) ? saldo : 0,
       devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
       totalPago: Number.isFinite(totalPago) ? totalPago : 0,
+      caucaoPago: Number.isFinite(caucaoPago) ? caucaoPago : 0,
       negativo: Number.isFinite(saldo) && saldo < -0.009,
     };
   }
