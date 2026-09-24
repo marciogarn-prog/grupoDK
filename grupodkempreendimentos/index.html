@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260923enviar41">
+  <link rel="stylesheet" href="styles.css?v=20260924devolucao41">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2961,7 +2961,25 @@
               <div class="operacao-inline-form__title-row portal-setor-relatorio-head">
                 <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Locados</h3>
                 <div class="portal-manut-locados-head-acoes">
-                  <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnLocados" data-setor-relatorio="">RELATÓRIO</button>
+                  <div class="portal-manut-locados-rel-filtros" id="portalLocadosRelFiltros" role="group" aria-label="Filtros do relatório de manutenção">
+                    <label class="portal-manut-locados-rel-chk" for="portalLocadosRelPorPlaca">
+                      <input type="checkbox" id="portalLocadosRelPorPlaca">
+                      <span>por placa</span>
+                    </label>
+                    <label class="portal-manut-locados-rel-chk" for="portalLocadosRelPorPeriodo">
+                      <input type="checkbox" id="portalLocadosRelPorPeriodo">
+                      <span>por período</span>
+                    </label>
+                    <label class="portal-field portal-manut-locados-rel-data" for="portalLocadosRelDataIni">
+                      <span class="portal-manut-locados-rel-data__lab">Início</span>
+                      <input type="text" id="portalLocadosRelDataIni" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do período">
+                    </label>
+                    <label class="portal-field portal-manut-locados-rel-data" for="portalLocadosRelDataFim">
+                      <span class="portal-manut-locados-rel-data__lab">Fim</span>
+                      <input type="text" id="portalLocadosRelDataFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do período">
+                    </label>
+                  </div>
+                  <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnLocados" data-setor-relatorio="" data-locados-relatorio="1">RELATÓRIO</button>
                 </div>
               </div>
               <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadOperacao">Pesquise a placa e encaminhe para manutenção.</p>
@@ -2969,6 +2987,26 @@
                 <div class="portal-manut-locados-split__corretiva">
                   <div id="portalChecklistHostOperacao" class="portal-checklist-host"></div>
                 </div>
+                <aside class="portal-manut-locados-split__devolucao" id="portalLocadosDevolucao41" aria-labelledby="portalDevolucao41Titulo">
+                  <h4 id="portalDevolucao41Titulo" class="portal-devolucao41__title">Devolver de 4.1 — Ativo disponível</h4>
+                  <p class="subtext portal-devolucao41__lead">Busca placas que concluíram a manutenção com protocolo activo. Ao formalizar, o veículo reserva vai para Triagem (check-list).</p>
+                  <label class="portal-field portal-field--combobox" for="portalDevolucao41PlacaInput">
+                    <span>Placa a devolver (4.1)</span>
+                    <div class="portal-combobox" id="portalDevolucao41PlacaCombo">
+                      <input type="text" id="portalDevolucao41PlacaInput" maxlength="10" autocomplete="off" placeholder="Digite ou escolha a placa" aria-autocomplete="list" aria-expanded="false" aria-controls="portalDevolucao41PlacaLista" autocapitalize="characters">
+                      <div id="portalDevolucao41PlacaLista" class="portal-placa-dropdown hidden" role="listbox" aria-label="Placas em 4.1 Ativo disponível" hidden></div>
+                    </div>
+                  </label>
+                  <label class="portal-field" for="portalDevolucao41ReservaInput">
+                    <span>Veículo reserva (vinculado)</span>
+                    <input type="text" id="portalDevolucao41ReservaInput" readonly tabindex="-1" placeholder="Aparece ao escolher a placa" aria-live="polite">
+                  </label>
+                  <p class="portal-devolucao41__proto subtext" id="portalDevolucao41ProtoBox" hidden>
+                    Protocolo de manutenção: <strong id="portalDevolucao41ProtoTexto">—</strong>
+                  </p>
+                  <button type="button" class="btn-primary" id="portalDevolucao41FormalizarBtn" disabled>FORMALIZAR DEVOLUÇÃO</button>
+                  <p id="portalDevolucao41Msg" class="portal-feedback" role="status" aria-live="polite"></p>
+                </aside>
               </div>
             </div>
             <div id="manutencaoInlineRapida" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-rapida">
@@ -5675,7 +5713,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260915unico"></script>
-  <script src="app.js?v=20260923fix41" defer></script>
+  <script src="app.js?v=20260924devolucao41" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5686,7 +5724,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20260923fix41" defer></script>
+  <script src="portal-locadora-ui.js?v=20260924devolucao41" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
@@ -5732,7 +5770,7 @@
   <script src="portal-multas-ocr.js?v=20260904placa-frota" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260915itemlivre" defer></script>
-  <script src="portal-setor-relatorio.js?v=20260923enviar41" defer></script>
+  <script src="portal-setor-relatorio.js?v=20260924devolucao41" defer></script>
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>

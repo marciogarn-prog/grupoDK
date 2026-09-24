@@ -3445,6 +3445,62 @@
           "checklistRascunhoEm"
         ]
       }
+    },
+    {
+      "id": "manutencao-locados-devolucao-4-1",
+      "descricao": "Em Locados: espaço vermelho «Devolver de 4.1 — Ativo disponível» busca placas em 4.1, mostra o veículo reserva vinculado e, ao formalizar, envia a reserva para Triagem com check-list.",
+      "ficheiros": {
+        "index.html": [
+          "portalLocadosDevolucao41",
+          "Devolver de 4.1 — Ativo disponível",
+          "portalDevolucao41FormalizarBtn",
+          "FORMALIZAR DEVOLUÇÃO"
+        ],
+        "portal-locadora-ui.js": [
+          "portalFormalizarDevolucaoAtivoDisponivel",
+          "portalColetarPlacasAtivoDisponivel",
+          "portalResolverReservaDeAtivoDisponivel",
+          "portalBindDevolucao41Once"
+        ],
+        "styles.css": [
+          "portal-manut-locados-split__devolucao",
+          "portal-devolucao41__title"
+        ]
+      }
+    },
+    {
+      "id": "manutencao-protocolo-aaaammddxx-os",
+      "descricao": "Protocolo de manutenção com composição AAAAMMDDXX + \"-\" + número da OS (ex.: 2026092301-OS000042), gerado no envio Locados→manutenção e na liberação para 4.1.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalGerarProtocoloManutencao",
+          "protocoloManutencao",
+          "AAAAMMDDXX"
+        ]
+      }
+    },
+    {
+      "id": "manutencao-locados-relatorio-por-placa-periodo",
+      "descricao": "Em Locados: filtros rosa «por placa» e «por período» com dois calendários; o botão RELATÓRIO aplica esses filtros e mostra o protocolo de manutenção.",
+      "ficheiros": {
+        "index.html": [
+          "portalLocadosRelPorPlaca",
+          "portalLocadosRelPorPeriodo",
+          "por placa",
+          "por período",
+          "portalLocadosRelDataIni",
+          "portalLocadosRelDataFim"
+        ],
+        "portal-setor-relatorio.js": [
+          "optsFromLocadosFiltrosRosa",
+          "portalLocadosRelPorPlaca",
+          "Protocolo manut."
+        ],
+        "styles.css": [
+          "portal-manut-locados-rel-filtros",
+          "portal-manut-locados-rel-chk"
+        ]
+      }
     }
   ]
 }

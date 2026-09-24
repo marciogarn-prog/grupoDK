@@ -229,17 +229,47 @@
     return { ok: true, id: now, placa, de: deKey, para: paraKey };
   }
 
-  function filtrarRows(setorKey, placaQuery) {
+  function filtrarRows(setorKey, placaQuery, opts) {
     const setor = normalizeSetorKey(setorKey) || String(setorKey || "").trim();
     const q = nkPlate(placaQuery);
+    const dataIni = parseDataBrToMs(opts?.dataIni);
+    const dataFim = parseDataBrToMs(opts?.dataFim, true);
     return loadLista()
       .filter((r) => {
         if (setor && r.de !== setor && r.para !== setor) return false;
         if (q && !nkPlate(r.placa).includes(q)) return false;
+        const t = Number(r.createdAt || 0);
+        if (dataIni && t && t < dataIni) return false;
+        if (dataFim && t && t > dataFim) return false;
         return true;
       })
       .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   }
+
+  function parseDataBrToMs(raw, endOfDay) {
+    const s = String(raw || "").trim();
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return 0;
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+    return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+
+  function protocoloManutencaoDaPlaca(placa) {
+    try {
+      if (typeof loadCadastro !== "function") return "";
+      const key = typeof CAD_MANUTENCOES_KEY !== "undefined" ? CAD_MANUTENCOES_KEY : "dk_manutencoes_cadastro";
+      const rows = loadCadastro(key) || [];
+      const pl = nkPlate(placa);
+      const hit = [...rows]
+        .reverse()
+        .find((m) => nkPlate(m?.placa) === pl && String(m?.protocoloManutencao || "").trim());
+      return String(hit?.protocoloManutencao || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  let relatorioOpts = { dataIni: "", dataFim: "" };
 
   function renderRelatorio() {
     const host = document.getElementById("portalSetorRelatorioLista");
@@ -249,21 +279,25 @@
     if (!host) return;
 
     const setorLabel = setorFiltro ? labelSetor(setorFiltro) : "todos os setores 1 a 10";
-    if (titulo) titulo.textContent = `Relatório de movimentações — ${setorLabel}`;
+    const periodoTxt =
+      relatorioOpts.dataIni || relatorioOpts.dataFim
+        ? ` · período ${relatorioOpts.dataIni || "…"} a ${relatorioOpts.dataFim || "…"}`
+        : "";
+    if (titulo) titulo.textContent = `Relatório de movimentações — ${setorLabel}${periodoTxt}`;
     if (lead) {
       lead.innerHTML = setorFiltro
-        ? `Quem enviou cada placa <strong>para</strong> «${escHtml(setorLabel)}» e quem a tirou daqui para outro setor.`
-        : "Quem movimentou cada placa de um setor para outro (opções 1 a 10).";
+        ? `Quem enviou cada placa <strong>para</strong> «${escHtml(setorLabel)}» e quem a tirou daqui para outro setor.${periodoTxt ? ` Filtro${escHtml(periodoTxt)}.` : ""}`
+        : `Quem movimentou cada placa de um setor para outro (opções 1 a 10).${periodoTxt ? ` Filtro${escHtml(periodoTxt)}.` : ""}`;
     }
 
-    const rows = filtrarRows(setorFiltro, placaFiltro);
+    const rows = filtrarRows(setorFiltro, placaFiltro, relatorioOpts);
     if (!rows.length) {
       host.innerHTML = "";
       if (empty) {
         empty.classList.remove("hidden");
         empty.textContent = placaFiltro
-          ? `Nenhuma movimentação da placa «${placaFiltro}»${setorFiltro ? ` em «${setorLabel}»` : ""}.`
-          : `Nenhuma movimentação registada ainda${setorFiltro ? ` em «${setorLabel}»` : ""}. Os envios passam a aparecer aqui com o nome de quem enviou.`;
+          ? `Nenhuma movimentação da placa «${placaFiltro}»${setorFiltro ? ` em «${setorLabel}»` : ""}${periodoTxt}.`
+          : `Nenhuma movimentação registada ainda${setorFiltro ? ` em «${setorLabel}»` : ""}${periodoTxt}. Os envios passam a aparecer aqui com o nome de quem enviou.`;
       }
       return;
     }
@@ -273,6 +307,7 @@
       <thead><tr>
         <th>Data / hora</th>
         <th>Placa</th>
+        <th>Protocolo manut.</th>
         <th>De</th>
         <th>Para</th>
         <th>Quem movimentou</th>
@@ -282,9 +317,11 @@
           const deL = r.deLabel || labelSetor(r.de);
           const paraL = r.paraLabel || labelSetor(r.para);
           const quem = String(r.operadorLabel || r.operadorNome || "—").trim() || "—";
+          const proto = protocoloManutencaoDaPlaca(r.placa) || "—";
           return `<tr>
             <td>${escHtml(formatDataHoraMs(r.createdAt))}</td>
             <td><strong>${escHtml(r.placa)}</strong></td>
+            <td>${escHtml(proto)}</td>
             <td>${escHtml(deL)}</td>
             <td>${escHtml(paraL)}</td>
             <td>${escHtml(quem)}</td>
@@ -307,13 +344,20 @@
     return "";
   }
 
-  function openModal(setorRaw) {
+  function openModal(setorRaw, opts) {
     const modal = document.getElementById("portalSetorRelatorioModal");
     if (!modal) return;
-    setorFiltro = normalizeSetorKey(setorRaw) || normalizeSetorKey(setorAtualDoPainel()) || "";
-    placaFiltro = "";
+    const o = opts && typeof opts === "object" ? opts : {};
+    setorFiltro = o.todosSetores
+      ? ""
+      : normalizeSetorKey(setorRaw) || normalizeSetorKey(setorAtualDoPainel()) || "";
+    placaFiltro = nkPlate(o.placa || "");
+    relatorioOpts = {
+      dataIni: String(o.dataIni || "").trim(),
+      dataFim: String(o.dataFim || "").trim(),
+    };
     const inp = document.getElementById("portalSetorRelatorioPlacaFiltro");
-    if (inp) inp.value = "";
+    if (inp) inp.value = placaFiltro;
     renderRelatorio();
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -327,21 +371,27 @@
   }
 
   function imprimirRelatorio() {
-    const rows = filtrarRows(setorFiltro, placaFiltro);
+    const rows = filtrarRows(setorFiltro, placaFiltro, relatorioOpts);
     const setorLabel = setorFiltro ? labelSetor(setorFiltro) : "Setores 1 a 10";
+    const periodoTxt =
+      relatorioOpts.dataIni || relatorioOpts.dataFim
+        ? ` · período ${relatorioOpts.dataIni || "…"} a ${relatorioOpts.dataFim || "…"}`
+        : "";
     const corpo = rows.length
       ? rows
           .map((r) => {
+            const proto = protocoloManutencaoDaPlaca(r.placa) || "—";
             return `<tr>
               <td>${escHtml(formatDataHoraMs(r.createdAt))}</td>
               <td>${escHtml(r.placa)}</td>
+              <td>${escHtml(proto)}</td>
               <td>${escHtml(r.deLabel || labelSetor(r.de))}</td>
               <td>${escHtml(r.paraLabel || labelSetor(r.para))}</td>
               <td>${escHtml(r.operadorLabel || r.operadorNome || "—")}</td>
             </tr>`;
           })
           .join("")
-      : `<tr><td colspan="5">Nenhuma movimentação registada.</td></tr>`;
+      : `<tr><td colspan="6">Nenhuma movimentação registada.</td></tr>`;
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório de movimentações — ${escHtml(setorLabel)}</title>
       <style>
         body { font-family: Arial, sans-serif; color: #111; padding: 1.2rem; }
@@ -352,9 +402,9 @@
         th { background: #f3f3f3; }
         @media print { button { display: none; } }
       </style></head><body>
-      <h1>Relatório de movimentações — ${escHtml(setorLabel)}</h1>
+      <h1>Relatório de movimentações — ${escHtml(setorLabel)}${escHtml(periodoTxt)}</h1>
       <p>Quem movimentou cada placa de um setor para outro. Grupo DK Empreendimentos.</p>
-      <table><thead><tr><th>Data / hora</th><th>Placa</th><th>De</th><th>Para</th><th>Quem movimentou</th></tr></thead>
+      <table><thead><tr><th>Data / hora</th><th>Placa</th><th>Protocolo manut.</th><th>De</th><th>Para</th><th>Quem movimentou</th></tr></thead>
       <tbody>${corpo}</tbody></table>
       <p>${rows.length} movimentação(ões).</p>
       <button type="button" onclick="window.print()">Imprimir</button>
@@ -363,6 +413,33 @@
     if (!w) return;
     w.document.write(html);
     w.document.close();
+  }
+
+  function syncLocadosRelFiltrosUi() {
+    const porPeriodo = Boolean(document.getElementById("portalLocadosRelPorPeriodo")?.checked);
+    ["portalLocadosRelDataIni", "portalLocadosRelDataFim"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = !porPeriodo;
+      el.closest?.(".portal-manut-locados-rel-data")?.classList.toggle("is-disabled", !porPeriodo);
+    });
+  }
+
+  function optsFromLocadosFiltrosRosa() {
+    const porPlaca = Boolean(document.getElementById("portalLocadosRelPorPlaca")?.checked);
+    const porPeriodo = Boolean(document.getElementById("portalLocadosRelPorPeriodo")?.checked);
+    const placa = porPlaca
+      ? nkPlate(
+          document.getElementById("portalChecklistPlacaInput")?.value ||
+            document.getElementById("portalDevolucao41PlacaInput")?.value ||
+            ""
+        )
+      : "";
+    return {
+      placa,
+      dataIni: porPeriodo ? String(document.getElementById("portalLocadosRelDataIni")?.value || "").trim() : "",
+      dataFim: porPeriodo ? String(document.getElementById("portalLocadosRelDataFim")?.value || "").trim() : "",
+    };
   }
 
   function bindOnce() {
@@ -374,6 +451,10 @@
       if (!btn) return;
       e.preventDefault();
       const setor = btn.getAttribute("data-setor-relatorio") || setorAtualDoPainel();
+      if (btn.id === "portalSetorRelatorioBtnLocados" || btn.getAttribute("data-locados-relatorio") === "1") {
+        openModal(setor, optsFromLocadosFiltrosRosa());
+        return;
+      }
       openModal(setor);
     });
 
@@ -387,6 +468,10 @@
       placaFiltro = nkPlate(inp.value);
       renderRelatorio();
     });
+
+    document.getElementById("portalLocadosRelPorPeriodo")?.addEventListener("change", syncLocadosRelFiltrosUi);
+    document.getElementById("portalLocadosRelPorPlaca")?.addEventListener("change", () => {});
+    syncLocadosRelFiltrosUi();
 
     document.addEventListener("keydown", (ev) => {
       const modal = document.getElementById("portalSetorRelatorioModal");
