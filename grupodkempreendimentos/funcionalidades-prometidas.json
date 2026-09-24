@@ -3374,6 +3374,22 @@
       }
     },
     {
+      "id": "manutencao-4-1-protocolo-e-grelha",
+      "descricao": "4.1 Ativo disponível: detecta protocolo activo mesmo com reserva na locação; grava categoria com allowShrink; cura grelha a partir de destinoPortal; botão 4.1 activa nesses casos.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalLocacaoAtivaCobrePlaca",
+          "portalGarantirVeiculoAtivoDisponivel",
+          "portalHealAtivoDisponivelFromManutencoes",
+          "protocoloAtivoNaLiberacao",
+          "destinoPortal"
+        ],
+        "app.js": [
+          "Fecho (dataRealSaida) vence registo activo"
+        ]
+      }
+    },
+    {
       "id": "manutencao-enviar-para-4-1-checklist",
       "descricao": "No check-list 7 Oficina própria: botão «4.1 — Ativo disponível» ao lado de 4 Pronto; só activo com protocolo vivo e check-list sem R; libera manutenção sem encerrar o contrato e mantém vínculo com a reserva em 5.1.",
       "ficheiros": {

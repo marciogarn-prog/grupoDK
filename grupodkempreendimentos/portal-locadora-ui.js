@@ -4303,6 +4303,27 @@
         veiculo,
       };
     }
+    /* Fallback: manutenção fechada para 4.1 sem marca no veículo (cura na próxima grelha). */
+    if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      const manuts = loadCadastro(CAD_MANUTENCOES_KEY) || [];
+      const hit41 = [...manuts].reverse().find(
+        (m) =>
+          portalNkPlate(m?.placa) === plateKey &&
+          String(m?.destinoPortal || "").trim() === "ativo-disponivel" &&
+          String(m?.dataRealSaida || "").trim()
+      );
+      if (hit41 && !getPortalPlacasEmManutencaoSet().has(plateKey)) {
+        return {
+          ok: true,
+          placa: plateKey,
+          grupo: "disponiveis",
+          sub: "ativo-disponivel",
+          corCls: "ativo-disponivel",
+          label: "DISPONÍVEIS → 4.1 — Ativo disponível",
+          veiculo,
+        };
+      }
+    }
 
     /* Locação/protocolo activo vence marca «Disponíveis» stale no cadastro de veículos. */
     const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
@@ -5425,12 +5446,67 @@
     portalSyncManutPlacaBarVisibility();
   }
 
-  /** Placa do check-list actual ainda tem protocolo/locação activa. */
+  /** Locação activa que cobre a placa (contrato na placa, original ou reserva vinculada). */
+  function portalLocacaoAtivaCobrePlaca(placaRaw) {
+    const placaKey = portalNkPlate(placaRaw);
+    if (!placaKey || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return null;
+    }
+    const locs = (loadCadastro(CAD_LOCACOES_KEY) || []).filter((l) => {
+      const fim = String(l?.fim || l?.dataFim || "").trim();
+      return !fim || fim === "...";
+    });
+    const hit = locs.find((l) => {
+      const pl = portalNkPlate(l?.placa);
+      const orig = portalNkPlate(l?.placaLocadaOriginal || "");
+      const reserva = portalNkPlate(l?.placaReserva || "");
+      return pl === placaKey || orig === placaKey || reserva === placaKey;
+    });
+    return hit || null;
+  }
+
+  /**
+   * Placa do check-list com protocolo activo:
+   * — está no set de placas locadas, OU
+   * — há locação activa cobrindo a placa (inclui placa original / reserva), OU
+   * — manutenção activa veio de Locados (tem reserva ou flag de check-list portal).
+   */
   function portalChecklistPlacaTemProtocoloAtivo(placaRaw) {
     const placaKey = portalNkPlate(placaRaw || portalGetPlacaChecklistAtual() || "");
     if (!placaKey) return false;
     const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
-    return activeSet.has(placaKey);
+    if (activeSet.has(placaKey)) return true;
+    if (portalLocacaoAtivaCobrePlaca(placaKey)) return true;
+    if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      const ativa = (loadCadastro(CAD_MANUTENCOES_KEY) || []).find(
+        (m) => portalNkPlate(m?.placa) === placaKey && !String(m?.dataRealSaida || "").trim()
+      );
+      if (ativa) {
+        if (portalNkPlate(ativa.placaReserva || "")) return true;
+        if (ativa.reservaNaoDisponibilizada) return true;
+        if (ativa.origemPortalChecklist || ativa.protocoloAtivoNaLiberacao) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Garante marca 4.1 no cadastro de veículos (cura se o merge/nuvem falhar). */
+  function portalGarantirVeiculoAtivoDisponivel(placaRaw, opts) {
+    const placaKey = portalNkPlate(placaRaw);
+    if (!placaKey) return { ok: false };
+    const patch = {
+      disponivelCategoria: "ativo-disponivel",
+      categoriaDisponivel: "ativo-disponivel",
+      updatedAt: Date.now(),
+    };
+    const plano = String(opts?.plano || "").trim();
+    if (plano === "minha-moto" || plano === "meu-transporte" || plano === "carros") {
+      patch.planoUltimaLocacao = plano;
+    }
+    const reserva = portalNkPlate(opts?.placaReserva || "");
+    if (reserva) patch.placaReservaVinculo = reserva;
+    if (opts?.reservaNaoDisponibilizada) patch.reservaNaoDisponibilizada = true;
+    return portalPatchVeiculoCadastro(placaKey, patch);
   }
 
   /** Botões «Encaminhar após check-list» conforme fluxo 6→7→4/4.1/8/9/10 e 8|9|10→7. */
@@ -7047,9 +7123,35 @@
       if (idx < 0) return;
       found = true;
       veiculos[idx] = { ...veiculos[idx], ...patch, updatedAt: Date.now() };
-      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true, allowShrink: true });
     });
     return { ok: found, found, placa: plateKey };
+  }
+
+  /** Recupera placas liberadas para 4.1 cuja marca no veículo se perdeu. */
+  function portalHealAtivoDisponivelFromManutencoes() {
+    if (typeof loadCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") return;
+    const manutAtivas = getPortalPlacasEmManutencaoSet();
+    const manuts = loadCadastro(CAD_MANUTENCOES_KEY) || [];
+    manuts.forEach((m) => {
+      if (String(m?.destinoPortal || "").trim() !== "ativo-disponivel") return;
+      if (!String(m?.dataRealSaida || "").trim()) return;
+      const pl = portalNkPlate(m.placa);
+      if (!pl || manutAtivas.has(pl)) return;
+      const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+      const v = vmap?.get(pl) || null;
+      if (v && portalNormDisponivelCategoria(v) === "ativo-disponivel") return;
+      const aindaActivo =
+        m.protocoloAtivoNaLiberacao ||
+        portalLocacaoAtivaCobrePlaca(pl) ||
+        portalChecklistPlacaTemProtocoloAtivo(pl);
+      if (!aindaActivo) return;
+      portalGarantirVeiculoAtivoDisponivel(pl, {
+        plano: v?.planoUltimaLocacao || "",
+        placaReserva: m.placaReserva,
+        reservaNaoDisponibilizada: m.reservaNaoDisponibilizada,
+      });
+    });
   }
 
   function portalFindLocacaoPorPlaca(placaRaw) {
@@ -7873,7 +7975,10 @@
       servico: String(prev.servico || "").trim() || `Portal check-list — liberado para ${cat}`,
       updatedAt: Date.now(),
     };
-    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes, {
+      bypassImmutabilidadeCadastro: true,
+      allowShrink: true,
+    });
     /* Força categoria em Disponíveis (a placa acabou de sair da manutenção). */
     const keys = [];
     if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
@@ -7905,13 +8010,20 @@
         ...veiculos[vIdx],
         ...patch,
       };
-      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true, allowShrink: true });
     });
     if (!found) {
       return {
         ok: false,
         message: `Manutenção encerrada, mas a placa ${placaKey} não foi encontrada no cadastro de veículos.`,
       };
+    }
+    if (cat === "ativo-disponivel") {
+      portalGarantirVeiculoAtivoDisponivel(placaKey, {
+        plano: planoLocacao,
+        placaReserva: prev.placaReserva,
+        reservaNaoDisponibilizada: prev.reservaNaoDisponibilizada,
+      });
     }
     if (cat === "prontos" && locacaoAjuste?.placaReserva) {
       portalMoverReservaOperacaoParaPatio(locacaoAjuste.placaReserva);
@@ -8251,16 +8363,29 @@
     return String(cliente?.nome || loc.nome || loc.cliente || loc.nomeCliente || "").trim();
   }
 
-  /** Placas em Disponíveis (prontos | reserva-operacao | reserva-patio). */
+  /** Placas em Disponíveis (prontos | ativo-disponivel | reserva-operacao | reserva-patio…). */
   function portalRefreshManutencaoDisponiveisPlacas() {
+    if (portalManutDispSubAtivo === "ativo-disponivel") {
+      try {
+        portalHealAtivoDisponivelFromManutencoes();
+      } catch (e) {
+        console.warn("[DK portal] heal 4.1", e);
+      }
+    }
     portalSanearReservaOperacaoOrfas();
     const grid = document.getElementById("portalDisponiveisPlacasGrid");
     const msg = document.getElementById("portalDisponiveisPlacasMsg");
     if (!grid) return;
     const sub = MANUT_DISP_SUB_META[portalManutDispSubAtivo] ? portalManutDispSubAtivo : "prontos";
-    const livres = portalColetarVeiculosDisponiveisFrota().filter(
-      (v) => portalNormDisponivelCategoria(v) === sub
-    );
+    const livres = portalColetarVeiculosDisponiveisFrota().filter((v) => {
+      const cat = portalNormDisponivelCategoria(v);
+      if (cat === sub) return true;
+      if (sub === "ativo-disponivel") {
+        const est = portalResolverEstadoExclusivoPlaca(v.placa);
+        return est.grupo === "disponiveis" && est.sub === "ativo-disponivel";
+      }
+      return false;
+    });
     const filtro =
       sub === "reserva-operacao"
         ? ""

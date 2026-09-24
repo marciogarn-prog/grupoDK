@@ -3278,6 +3278,17 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
           byId.set(id, { ...r });
           return;
         }
+        /* Fecho (dataRealSaida) vence registo activo com o mesmo id. */
+        const closedEx = !ativa(ex);
+        const closedR = !ativa(r);
+        if (closedR && !closedEx) {
+          byId.set(id, { ...ex, ...r });
+          return;
+        }
+        if (closedEx && !closedR) {
+          byId.set(id, { ...r, ...ex });
+          return;
+        }
         byId.set(id, scoreManut(r) >= scoreManut(ex) ? { ...ex, ...r } : { ...r, ...ex });
         return;
       }
