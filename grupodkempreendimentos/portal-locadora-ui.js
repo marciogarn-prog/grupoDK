@@ -3803,6 +3803,11 @@
       lead:
         "Placas coloridas (azul, verde ou marrom) passaram pela manutenção: clique para «Devolver ao cliente» — voltam a Locados (1, 2 ou 3) e o veículo reserva vai para Triagem. Demais placas podem ir para «5.2 — Reserva no pátio» ou saem ao locar.",
     },
+    "ativo-disponivel": {
+      title: "Disponíveis — 4.1 Ativo disponível",
+      lead:
+        "Veículos com protocolo activo que concluíram a manutenção. Ficam aqui até a devolução formal (área de devolução). Mantêm vínculo com o veículo reserva em «5.1 — Reserva em operação».",
+    },
     "reserva-operacao": {
       title: "Disponíveis — 5.1 Reserva em operação",
       lead:
@@ -3838,12 +3843,14 @@
     if (sub === "reserva-patio") return "5.2 — Reserva no pátio";
     if (sub === "veiculos-operacionais") return "5.3 — Veículos operacionais";
     if (sub === "veiculos-vendidos") return "5.4 — Veículos vendidos";
+    if (sub === "ativo-disponivel") return "4.1 — Ativo disponível";
     if (sub === "prontos") return "4 — Pronto para alugar";
     return "Disponíveis";
   }
 
   const PORTAL_DISP_ADMIN_DESTINOS = [
     { dest: "prontos", tipo: "disponivel", label: "4 — Pronto para alugar" },
+    { dest: "ativo-disponivel", tipo: "disponivel", label: "4.1 — Ativo disponível" },
     { dest: "reserva-operacao", tipo: "disponivel", label: "5.1 — Reserva em operação" },
     { dest: "reserva-patio", tipo: "disponivel", label: "5.2 — Reserva no pátio" },
     { dest: "veiculos-operacionais", tipo: "disponivel", label: "5.3 — Veículos operacionais" },
@@ -4170,7 +4177,7 @@
     return "";
   }
 
-  /** prontos | reserva-operacao | reserva-patio | veiculos-operacionais | veiculos-vendidos — default prontos. */
+  /** prontos | ativo-disponivel | reserva-operacao | reserva-patio | veiculos-operacionais | veiculos-vendidos — default prontos. */
   function portalNormDisponivelCategoria(veiculo) {
     const raw = String(
       veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || veiculo?.estadoDisponivel || ""
@@ -4180,6 +4187,15 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "-");
+    if (
+      raw === "ativo-disponivel" ||
+      raw === "4.1" ||
+      raw === "4-1" ||
+      raw.includes("ativo-disponivel") ||
+      (raw.includes("ativo") && raw.includes("disponivel"))
+    ) {
+      return "ativo-disponivel";
+    }
     if (
       raw === "veiculos-operacionais" ||
       raw === "operacionais" ||
@@ -4273,6 +4289,19 @@
       };
     }
 
+    /* 4.1 — Ativo disponível: protocol activo mantém-se, mas a placa já saiu da manutenção. */
+    if (veiculo && portalNormDisponivelCategoria(veiculo) === "ativo-disponivel") {
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "disponiveis",
+        sub: "ativo-disponivel",
+        corCls: "ativo-disponivel",
+        label: "DISPONÍVEIS → 4.1 — Ativo disponível",
+        veiculo,
+      };
+    }
+
     /* Locação/protocolo activo vence marca «Disponíveis» stale no cadastro de veículos. */
     const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
     if (activeSet.has(plateKey)) {
@@ -4293,7 +4322,7 @@
       };
     }
 
-    /* Disponíveis explícito (4 / 5.1 / 5.2) — só sem locação activa. */
+    /* Disponíveis explícito (4 / 4.1 / 5.1 / 5.2) — só sem locação activa (excepto 4.1 acima). */
     if (veiculo) {
       const dispMarcado = String(veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || "").trim();
       if (dispMarcado) {
@@ -4304,6 +4333,7 @@
         }
         const labelMap = {
           prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
+          "ativo-disponivel": "DISPONÍVEIS → 4.1 — Ativo disponível",
           "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
           "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
           "veiculos-operacionais": "DISPONÍVEIS → 5.3 — Veículos operacionais",
@@ -4339,6 +4369,7 @@
       const disp = portalNormDisponivelCategoria(veiculo);
       const labelMap = {
         prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
+        "ativo-disponivel": "DISPONÍVEIS → 4.1 — Ativo disponível",
         "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
         "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
         "veiculos-operacionais": "DISPONÍVEIS → 5.3 — Veículos operacionais",
@@ -8182,6 +8213,8 @@
     if (!rows.length) {
       const emptyHints = {
         prontos: "Nenhuma placa pronta para alugar.",
+        "ativo-disponivel":
+          "Nenhuma placa em 4.1 — Ativo disponível. Entram aqui veículos com protocolo activo após concluir a manutenção (botão «Enviar para 4.1»).",
         "reserva-operacao":
           "Nenhuma reserva em operação. Aparecem aqui quando Locados envia um veículo à manutenção com placa reserva de «5.2 — Reserva no pátio».",
         "reserva-patio":
@@ -8287,6 +8320,7 @@
     if (msg) {
       const countHints = {
         prontos: `${rows.length} placa(s) prontas para alugar.`,
+        "ativo-disponivel": `${rows.length} placa(s) em ativo disponível (protocolo activo).`,
         "reserva-patio": `${rows.length} veículo(s) em reserva no pátio.`,
         "veiculos-operacionais": `${rows.length} veículo(s) operacional(is).`,
         "veiculos-vendidos": `${rows.length} veículo(s) vendido(s).`,
@@ -8355,15 +8389,17 @@
         para:
           cat === "prontos"
             ? "4-prontos"
-            : cat === "reserva-patio"
-              ? "5.2-reserva-patio"
-              : cat === "reserva-operacao"
-                ? "5.1-reserva-operacao"
-                : cat === "veiculos-operacionais"
-                  ? "5.3-veiculos-operacionais"
-                  : cat === "veiculos-vendidos"
-                    ? "5.4-veiculos-vendidos"
-                    : cat,
+            : cat === "ativo-disponivel"
+              ? "4.1-ativo-disponivel"
+              : cat === "reserva-patio"
+                ? "5.2-reserva-patio"
+                : cat === "reserva-operacao"
+                  ? "5.1-reserva-operacao"
+                  : cat === "veiculos-operacionais"
+                    ? "5.3-veiculos-operacionais"
+                    : cat === "veiculos-vendidos"
+                      ? "5.4-veiculos-vendidos"
+                      : cat,
       });
     } else {
       portalPushCloudSnapshotAfterPersist();

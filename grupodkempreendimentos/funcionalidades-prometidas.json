@@ -3374,6 +3374,27 @@
       }
     },
     {
+      "id": "manutencao-disp-4-1-ativo-disponivel",
+      "descricao": "Em Manutenção → Disponíveis: item 4.1 — Ativo disponível entre 4 Pronto e 5 Reserva; grelha de placas com protocolo activo que concluíram manutenção; exclusividade reconhece a categoria mesmo com protocolo vivo.",
+      "ficheiros": {
+        "index.html": [
+          "btn-disp-sub-ativo-disponivel",
+          "4.1 — Ativo disponível",
+          "data-disp-sub=\"ativo-disponivel\""
+        ],
+        "portal-locadora-ui.js": [
+          "ativo-disponivel",
+          "4.1 — Ativo disponível",
+          "Disponíveis — 4.1 Ativo disponível",
+          "portalNormDisponivelCategoria"
+        ],
+        "portal-setor-relatorio.js": [
+          "ativo-disponivel",
+          "4.1 — Ativo disponível"
+        ]
+      }
+    },
+    {
       "id": "manutencao-checklist-salvar-alteracoes-nuvem",
       "descricao": "No check-list Em manutenção (6–10), botão «Salvar alterações» ao lado de Guardar PDF: grava o quadro (itens A/R, mecânico, supervisor) em dk_manutencoes_cadastro e faz upload imediato; ao abrir Em manutenção / sub-opções faz download (merge) para o mesmo estado noutros PCs.",
       "ficheiros": {
