@@ -3374,6 +3374,19 @@
       }
     },
     {
+      "id": "manutencao-enviar-para-4-1-checklist",
+      "descricao": "No check-list 7 Oficina própria: botão «4.1 — Ativo disponível» ao lado de 4 Pronto; só activo com protocolo vivo e check-list sem R; libera manutenção sem encerrar o contrato e mantém vínculo com a reserva em 5.1.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "data-manut-move-dest=\"ativo-disponivel\"",
+          "4.1 — Ativo disponível",
+          "portalChecklistPlacaTemProtocoloAtivo",
+          "protocoloAtivoNaLiberacao",
+          "placaReservaVinculo"
+        ]
+      }
+    },
+    {
       "id": "manutencao-disp-4-1-ativo-disponivel",
       "descricao": "Em Manutenção → Disponíveis: item 4.1 — Ativo disponível entre 4 Pronto e 5 Reserva; grelha de placas com protocolo activo que concluíram manutenção; exclusividade reconhece a categoria mesmo com protocolo vivo.",
       "ficheiros": {

@@ -3956,14 +3956,14 @@
     { cat: "sinistrado-roubo", label: "10 — Sinistro Roubo" },
   ];
 
-  /** Caminho padronizado: 6→7 · 7→4/8/9/10 · 8|9|10→7 */
+  /** Caminho padronizado: 6→7 · 7→4/4.1/8/9/10 · 8|9|10→7 */
   function portalManutDestinosPermitidos(origemSub) {
     const o = portalNormManutCategoria(origemSub) || String(origemSub || "").trim().toLowerCase();
     if (o === "triagem") return { cats: ["oficina-propria"], dests: [] };
     if (o === "oficina-propria") {
       return {
         cats: ["oficina-terceiros", "enviado-seguro", "sinistrado-roubo"],
-        dests: ["prontos"],
+        dests: ["prontos", "ativo-disponivel"],
       };
     }
     if (o === "oficina-terceiros" || o === "enviado-seguro" || o === "sinistrado-roubo") {
@@ -3986,12 +3986,14 @@
     let alvo = String(alvoRaw || "").trim().toLowerCase();
     if (alvo === "reserva") alvo = "reserva-patio";
     const perm = portalManutDestinosPermitidos(origem);
-    if (alvo === "prontos" || alvo === "reserva-patio") {
+    if (alvo === "prontos" || alvo === "reserva-patio" || alvo === "ativo-disponivel") {
       if (!perm.dests.includes(alvo)) {
         const msg =
           alvo === "prontos"
             ? `De «${portalLabelManutSub(origem)}» só pode ir para 4 — Pronto para alugar (via Oficina própria).`
-            : `De «${portalLabelManutSub(origem)}» não pode ir para 5.2 — Reserva no pátio.`;
+            : alvo === "ativo-disponivel"
+              ? `De «${portalLabelManutSub(origem)}» só pode ir para 4.1 — Ativo disponível (via Oficina própria).`
+              : `De «${portalLabelManutSub(origem)}» não pode ir para 5.2 — Reserva no pátio.`;
         return { ok: false, message: msg };
       }
       return { ok: true, tipo: "disponivel", destino: alvo };
@@ -4001,7 +4003,7 @@
     if (!perm.cats.includes(cat)) {
       return {
         ok: false,
-        message: `De «${portalLabelManutSub(origem)}» não pode encaminhar para «${portalLabelManutSub(cat)}». Fluxo: 6→7 · 7→4/8/9/10 · 8|9|10→7 · 4→5.2→5.1.`,
+        message: `De «${portalLabelManutSub(origem)}» não pode encaminhar para «${portalLabelManutSub(cat)}». Fluxo: 6→7 · 7→4/4.1/8/9/10 · 8|9|10→7 · 4→5.2→5.1.`,
       };
     }
     return { ok: true, tipo: "categoria", destino: cat };
@@ -4014,7 +4016,7 @@
     },
     "oficina-propria": {
       title: "Em manutenção — 7 Oficina própria",
-      lead: "Escolha a placa na grelha para editar o check-list. Encaminhe para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.",
+      lead: "Escolha a placa na grelha para editar o check-list. Encaminhe para 4 Pronto (sem protocolo), 4.1 Ativo disponível (com protocolo activo), 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.",
     },
     "oficina-terceiros": {
       title: "Em manutenção — 8 Oficina de terceiro",
@@ -5423,7 +5425,15 @@
     portalSyncManutPlacaBarVisibility();
   }
 
-  /** Botões «Encaminhar após check-list» conforme fluxo 6→7→4/8/9/10 e 8|9|10→7. */
+  /** Placa do check-list actual ainda tem protocolo/locação activa. */
+  function portalChecklistPlacaTemProtocoloAtivo(placaRaw) {
+    const placaKey = portalNkPlate(placaRaw || portalGetPlacaChecklistAtual() || "");
+    if (!placaKey) return false;
+    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    return activeSet.has(placaKey);
+  }
+
+  /** Botões «Encaminhar após check-list» conforme fluxo 6→7→4/4.1/8/9/10 e 8|9|10→7. */
   function portalSyncChecklistEncaminharBtns() {
     const catWrap = document.getElementById("portalChecklistCategoriaMove");
     if (!catWrap) return;
@@ -5442,6 +5452,7 @@
     if (isOficina) {
       btns.innerHTML = `
       <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-dest="prontos" disabled>4 — Pronto para alugar</button>
+      <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-dest="ativo-disponivel" disabled title="Só com protocolo activo">4.1 — Ativo disponível</button>
       <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros" disabled>8 — Oficina de terceiro</button>
       <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro" disabled>9 — Seguro</button>
       <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo" disabled>10 — Sinistro Roubo</button>
@@ -5458,6 +5469,11 @@
       if (d === "prontos") {
         parts.push(
           `<button type="button" class="btn-primary btn-secondary-outline" data-manut-move-dest="prontos">4 — Pronto para alugar</button>`
+        );
+      }
+      if (d === "ativo-disponivel") {
+        parts.push(
+          `<button type="button" class="btn-primary btn-secondary-outline" data-manut-move-dest="ativo-disponivel" title="Só com protocolo activo">4.1 — Ativo disponível</button>`
         );
       }
     });
@@ -7003,6 +7019,8 @@
       delete next.estadoDisponivel;
       delete next.planoUltimaLocacao;
       delete next.reservaOperacaoManual;
+      delete next.placaReservaVinculo;
+      delete next.reservaNaoDisponibilizada;
       veiculos[idx] = next;
       saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
     });
@@ -7788,7 +7806,8 @@
   }
 
   /**
-   * Encerra manutenção ativa e coloca a placa em Disponíveis (prontos | reserva-patio).
+   * Encerra manutenção activa e coloca a placa em Disponíveis (prontos | ativo-disponivel | reserva-patio).
+   * 4.1 mantém o protocolo activo (não finaliza locação nem devolve a reserva ao pátio).
    */
   function portalLiberarManutencaoParaDisponivel(categoriaDispRaw) {
     const placaRaw = portalGetPlacaChecklistAtual();
@@ -7797,7 +7816,7 @@
       return {
         ok: false,
         message:
-          "A placa só fica disponível para locação se nenhum item estiver em R. Corrija os itens reprovados (incluindo o item extra) antes de enviar para 4 / 5.2.",
+          "A placa só fica disponível para locação se nenhum item estiver em R. Corrija os itens reprovados (incluindo o item extra) antes de enviar para 4 / 4.1 / 5.2.",
       };
     }
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
@@ -7811,6 +7830,18 @@
     }
     cat = valFluxo.destino;
     const placaKey = portalNkPlate(placaRaw);
+    if (cat === "ativo-disponivel" && !portalChecklistPlacaTemProtocoloAtivo(placaKey)) {
+      return {
+        ok: false,
+        message: "«4.1 — Ativo disponível» só para veículos com protocolo activo. Use «4 — Pronto para alugar».",
+      };
+    }
+    if (cat === "prontos" && portalChecklistPlacaTemProtocoloAtivo(placaKey)) {
+      return {
+        ok: false,
+        message: "Esta placa tem protocolo activo. Use «4.1 — Ativo disponível» (não encerra o contrato).",
+      };
+    }
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
     const idx = manutencoes.findIndex(
       (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
@@ -7824,19 +7855,23 @@
     const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
     const prev = manutencoes[idx] || {};
     const planoLocacao =
-      cat === "prontos" && typeof portalClassificarPlanoLocado === "function"
+      (cat === "prontos" || cat === "ativo-disponivel") && typeof portalClassificarPlanoLocado === "function"
         ? portalClassificarPlanoLocado(placaKey)
         : "";
     let locacaoAjuste = null;
     if (cat === "prontos") {
       locacaoAjuste = portalFinalizarLocacaoAoLiberarParaProntos(placaKey, prev);
     }
+    const destinoPortalLabel =
+      cat === "prontos" ? "pronto-para-alugar" : cat === "ativo-disponivel" ? "ativo-disponivel" : "reserva-patio";
     manutencoes[idx] = {
       ...prev,
       dataRealSaida: data,
-      destinoPortal: cat === "prontos" ? "pronto-para-alugar" : "reserva-patio",
+      destinoPortal: destinoPortalLabel,
       origemPortalChecklistLiberacao: true,
+      protocoloAtivoNaLiberacao: cat === "ativo-disponivel",
       servico: String(prev.servico || "").trim() || `Portal check-list — liberado para ${cat}`,
+      updatedAt: Date.now(),
     };
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     /* Força categoria em Disponíveis (a placa acabou de sair da manutenção). */
@@ -7859,8 +7894,12 @@
         categoriaDisponivel: cat,
         updatedAt: Date.now(),
       };
-      if (cat === "prontos" && planoLocacao) {
+      if ((cat === "prontos" || cat === "ativo-disponivel") && planoLocacao) {
         patch.planoUltimaLocacao = planoLocacao;
+      }
+      if (cat === "ativo-disponivel") {
+        patch.placaReservaVinculo = portalNkPlate(prev.placaReserva || "") || "";
+        patch.reservaNaoDisponibilizada = Boolean(prev.reservaNaoDisponibilizada);
       }
       veiculos[vIdx] = {
         ...veiculos[vIdx],
@@ -7891,8 +7930,14 @@
       acao: "manutencao_para_disponivel",
       placa: placaKey,
       de: portalManutEmManutSubAtivo || "manutencao",
-      para: cat === "prontos" ? "4-prontos" : "5.2-reserva-patio",
+      para:
+        cat === "prontos"
+          ? "4-prontos"
+          : cat === "ativo-disponivel"
+            ? "4.1-ativo-disponivel"
+            : "5.2-reserva-patio",
       locacaoTransferida: locacaoAjuste?.placaReserva || "",
+      placaReserva: portalNkPlate(prev.placaReserva || "") || "",
     });
     return { ok: true, placa: placaKey, categoria: cat, locacaoAjuste };
   }
@@ -8066,7 +8111,7 @@
 
   /**
    * Para uma placa em 5.1 (reserva em operação): encontra a placa locada coberta
-   * apenas por manutenção ativa com placaReserva (5.1 é informativo).
+   * por manutenção activa com placaReserva, ou por vínculo 4.1 (protocolo activo pós-oficina).
    */
   function portalResolverCoberturaReservaOperacao(placaReservaRaw) {
     const placaReserva = portalNkPlate(placaReservaRaw);
@@ -8081,6 +8126,30 @@
             portalNkPlate(m?.placaReserva) === placaReserva && !String(m?.dataRealSaida || "").trim()
         );
       if (ativa) placaLocada = portalNkPlate(ativa.placa);
+      if (!placaLocada) {
+        const pos41 = [...manutencoes]
+          .reverse()
+          .find(
+            (m) =>
+              portalNkPlate(m?.placaReserva) === placaReserva &&
+              String(m?.destinoPortal || "").trim() === "ativo-disponivel" &&
+              String(m?.dataRealSaida || "").trim()
+          );
+        if (pos41) {
+          const cand = portalNkPlate(pos41.placa);
+          const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+          const v = vmap?.get(cand);
+          if (v && portalNormDisponivelCategoria(v) === "ativo-disponivel") placaLocada = cand;
+        }
+      }
+    }
+    if (!placaLocada && typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      const hit = (loadCadastro(CAD_VEICULOS_KEY) || []).find(
+        (v) =>
+          portalNormDisponivelCategoria(v) === "ativo-disponivel" &&
+          portalNkPlate(v?.placaReservaVinculo) === placaReserva
+      );
+      if (hit) placaLocada = portalNkPlate(hit.placa);
     }
     if (!placaLocada) return { placaReserva, placaLocada: "", plano: "", nomeCliente: "" };
     const plano = portalClassificarPlanoLocado(placaLocada) || "minha-moto";
@@ -8293,7 +8362,27 @@
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
         const adminMover = portalHtmlDispAdminMover(r.placa, sub);
         let extraHtml = "";
-        if (planoPosManut) {
+        if (sub === "ativo-disponivel") {
+          const reserva =
+            portalNkPlate(r.record?.placaReservaVinculo || "") ||
+            (() => {
+              if (typeof loadCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") return "";
+              const hit = [...(loadCadastro(CAD_MANUTENCOES_KEY) || [])]
+                .reverse()
+                .find(
+                  (m) =>
+                    portalNkPlate(m.placa) === r.placa &&
+                    String(m.destinoPortal || "") === "ativo-disponivel" &&
+                    portalNkPlate(m.placaReserva || "")
+                );
+              return portalNkPlate(hit?.placaReserva || "");
+            })();
+          if (reserva) {
+            extraHtml = `<span class="portal-disp-ativo41-reserva">Reserva: ${portalEscapeHtml(reserva)}</span>`;
+          } else if (r.record?.reservaNaoDisponibilizada) {
+            extraHtml = `<span class="portal-disp-ativo41-reserva">Reserva não disponibilizada</span>`;
+          }
+        } else if (planoPosManut) {
           extraHtml = `<button type="button" class="btn-primary portal-disp-devolver-btn" data-disp-devolver="${portalEscapeHtml(r.placa)}">DEVOLVER AO CLIENTE</button>`;
         } else if (moveTargets.length && !adminMover) {
           extraHtml = moveTargets
@@ -8313,7 +8402,7 @@
           extraHtml,
           title,
           plateBtnExtraAttrs,
-          planoOverride: planoPosManut,
+          planoOverride: planoPosManut || (sub === "ativo-disponivel" ? portalPlanoProntosPosManutencao(r.placa, r.record) : ""),
         });
       })
       .join("");
@@ -8570,8 +8659,10 @@
           "Há serviço necessário (troca de óleo e/ou item em R). Pode imprimir, guardar PDF ou enviar para 7 — Oficina própria.";
       } else if (portalChecklistIsOficinaPropriaMode()) {
         hint.textContent = temItemR
-          ? "Ainda há item em R. Corrija (tudo em A) antes de enviar para 4 — Pronto para alugar. Pode encaminhar para 8, 9 ou 10 se precisar."
-          : "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
+          ? "Ainda há item em R. Corrija (tudo em A) antes de enviar para 4 / 4.1. Pode encaminhar para 8, 9 ou 10 se precisar."
+          : portalChecklistPlacaTemProtocoloAtivo()
+            ? "Formulário completo. Protocolo activo: use «4.1 — Ativo disponível» (mantém o contrato). Também pode ir para 8, 9 ou 10."
+            : "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
       } else if (portalChecklistIsEtapaExternaOficina()) {
         hint.textContent =
           "Formulário completo. Pode imprimir, guardar PDF ou voltar para 7 — Oficina própria.";
@@ -8607,8 +8698,12 @@
         ? btn.getAttribute("data-manut-move-dest")
         : btn.getAttribute("data-manut-move-cat");
       const val = portalValidarTransicaoManutencao(portalManutEmManutSubAtivo, alvo || "");
-      const destDisp = alvo === "prontos" || alvo === "reserva-patio";
-      btn.disabled = !(val.ok && formOk && (!destDisp || !temItemR));
+      const destDisp = alvo === "prontos" || alvo === "reserva-patio" || alvo === "ativo-disponivel";
+      const protocoloAtivo = portalChecklistPlacaTemProtocoloAtivo();
+      let okDest = val.ok && formOk && (!destDisp || !temItemR);
+      if (alvo === "ativo-disponivel") okDest = okDest && protocoloAtivo;
+      if (alvo === "prontos") okDest = okDest && !protocoloAtivo;
+      btn.disabled = !okDest;
     });
     return formOk;
   }

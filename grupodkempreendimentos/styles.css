@@ -5668,6 +5668,14 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   gap: 0.65rem;
 }
 
+.portal-disp-ativo41-reserva {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: #f0c674;
+  font-weight: 600;
+}
+
 .portal-checklist-export-actions .btn-primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
