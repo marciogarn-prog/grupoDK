@@ -931,8 +931,12 @@
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
   }
 
+  function portalEhOperadoraLucelinaDelmondes() {
+    return portalGetSessaoCpfDigits() === PORTAL_LUCELINA_APAGAR_LANC_CPF;
+  }
+
   function portalLucelinaPodeApagarLancamentosAluguel() {
-    if (portalGetSessaoCpfDigits() !== PORTAL_LUCELINA_APAGAR_LANC_CPF) return false;
+    if (!portalEhOperadoraLucelinaDelmondes()) return false;
     if (!getPortalSessaoAdminRole()) return false;
     return portalHojeIsoLocalBr() <= PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO;
   }
@@ -943,6 +947,11 @@
 
   function portalPodeEditarLancamentosAluguel() {
     return isPortalAdministradorTitularCpf();
+  }
+
+  /** Administrador (`owner`) ou Lucelina Delmondes — podem encerrar/finalizar contrato. */
+  function portalPodeFinalizarLocacao() {
+    return isPortalTitularAdministrador() || portalEhOperadoraLucelinaDelmondes();
   }
 
   /** CPF titular com acesso FINANCEIRO CEO. */
@@ -21574,8 +21583,8 @@
   function persistPortalLocacaoFinalizar() {
     if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
-    if (!isPortalTitularAdministrador()) {
-      portalLocacaoFeedback("Apenas o administrador pode encerrar (finalizar) uma locação.");
+    if (!portalPodeFinalizarLocacao()) {
+      portalLocacaoFeedback("Apenas o administrador (ou a operadora Lucelina Delmondes) pode encerrar (finalizar) uma locação.");
       return;
     }
     if (
@@ -29841,6 +29850,7 @@
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
   window.__DK_portalPodeApagarLancamentosAluguel = portalPodeApagarLancamentosAluguel;
   window.__DK_portalLucelinaPodeApagarLancamentosAluguel = portalLucelinaPodeApagarLancamentosAluguel;
+  window.__DK_portalPodeFinalizarLocacao = portalPodeFinalizarLocacao;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
@@ -29943,6 +29953,7 @@
   window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
   window.__DK_portalPodeApagarLancamentosAluguel = portalPodeApagarLancamentosAluguel;
   window.__DK_portalLucelinaPodeApagarLancamentosAluguel = portalLucelinaPodeApagarLancamentosAluguel;
+  window.__DK_portalPodeFinalizarLocacao = portalPodeFinalizarLocacao;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_isPortalAdministradorTitularCeo = isPortalAdministradorTitularCeo;
   window.__DK_portalForcarLogoutOperador = portalForcarLogoutOperador;
