@@ -3552,7 +3552,7 @@
     });
   }
 
-  const PORTAL_LOGIN_FAIL_LS_KEY = "dk_portal_login_fail_v1";
+  const PORTAL_LOGIN_FAIL_LS_KEY = "dk_portal_login_fail_v2";
   const PORTAL_LOGIN_FAIL_MAX = 3;
   const PORTAL_LOGIN_LOCK_MS = 60 * 60 * 1000;
 
