@@ -752,6 +752,24 @@
       }
     },
     {
+      "id": "relatorio-rotatividade-operador-data-hora",
+      "descricao": "No Relatório de rotatividade, cada novo contrato e cada finalização tem duas linhas: a 1.ª com protocolo/cliente/veículo/valor; a 2.ª entre parênteses com ( nome do operador - DD/MM/AAAA - HH:mm ).",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalFmtLinhaOperadorRotatividade",
+          "portalOperadorMovimentacaoRotatividade",
+          "portal-rotatividade-row__op",
+          "operadorLinha"
+        ],
+        "styles.css": [
+          "portal-rotatividade-row__op"
+        ],
+        "dk-relatorio-operacao-pdf.js": [
+          "portal-rotatividade-row__op"
+        ]
+      }
+    },
+    {
       "id": "relatorio-inatividade-operacao",
       "descricao": "No menu Operação, abaixo de Relatório de rotatividade: Relatório de inatividade no mesmo padrão (dois calendários, Atualizar relatório, resumo e folha por dia). Em cada data lista as placas da frota que não estavam vinculadas a nenhum protocolo.",
       "ficheiros": {

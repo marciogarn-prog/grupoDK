@@ -27870,6 +27870,53 @@
     return placa || modelo || "—";
   }
 
+  /**
+   * Operador + instante da movimentação (novo contrato ou finalização).
+   * Formato da 2.ª linha: ( Nome - DD/MM/AAAA - HH:mm )
+   */
+  function portalOperadorMovimentacaoRotatividade(loc, tipo) {
+    if (tipo === "sai") {
+      const nome = String(
+        loc?.portalLocacaoFinalizadoPorNome || loc?.cadastradoPorNome || loc?.registradoPorNome || ""
+      ).trim();
+      const ms =
+        Number(loc?.portalLocacaoFinalizadoEmMs || loc?.distratoGeradoEmMs || loc?.updatedAt || 0) || 0;
+      return { nome, ms };
+    }
+    const nome = String(
+      loc?.portalLocacaoExecutadoPorNome || loc?.cadastradoPorNome || loc?.registradoPorNome || ""
+    ).trim();
+    const ms =
+      Number(loc?.portalLocacaoExecutadoEmMs || loc?.createdAt || loc?.updatedAt || 0) || 0;
+    return { nome, ms };
+  }
+
+  function portalFmtLinhaOperadorRotatividade(op, dataBrFallback) {
+    const nome = String(op?.nome || "").trim() || "—";
+    let dia = String(dataBrFallback || "").trim();
+    let hora = "—";
+    const ms = Number(op?.ms || 0) || 0;
+    if (ms > 0) {
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) {
+        const parts = new Intl.DateTimeFormat("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).formatToParts(d);
+        const get = (t) => parts.find((p) => p.type === t)?.value || "";
+        dia = `${get("day")}/${get("month")}/${get("year")}` || dia;
+        hora = `${get("hour")}:${get("minute")}` || hora;
+      }
+    }
+    if (!dia) dia = "—";
+    return `( ${nome} - ${dia} - ${hora} )`;
+  }
+
   function portalInicioBrRotatividade(loc) {
     const raw = String(loc?.inicio || loc?.dataInicio || "").trim();
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
@@ -27954,12 +28001,26 @@
       const iniBr = portalInicioBrRotatividade(loc);
       const iniMs = portalBrToMsRotatividade(iniBr);
       if (Number.isFinite(iniMs) && iniMs >= periodo.startMs && iniMs <= periodo.endMs) {
-        entradas.push({ ...rowBase, dataBr: iniBr, dataMs: iniMs, tipo: "ent" });
+        const op = portalOperadorMovimentacaoRotatividade(loc, "ent");
+        entradas.push({
+          ...rowBase,
+          dataBr: iniBr,
+          dataMs: iniMs,
+          tipo: "ent",
+          operadorLinha: portalFmtLinhaOperadorRotatividade(op, iniBr),
+        });
       }
       const fimBr = portalFormatDataFinalizacaoLocacao(loc);
       const fimMs = portalBrToMsRotatividade(fimBr);
       if (Number.isFinite(fimMs) && fimMs >= periodo.startMs && fimMs <= periodo.endMs) {
-        saidas.push({ ...rowBase, dataBr: fimBr, dataMs: fimMs, tipo: "sai" });
+        const op = portalOperadorMovimentacaoRotatividade(loc, "sai");
+        saidas.push({
+          ...rowBase,
+          dataBr: fimBr,
+          dataMs: fimMs,
+          tipo: "sai",
+          operadorLinha: portalFmtLinhaOperadorRotatividade(op, fimBr),
+        });
       }
     });
 
@@ -27978,11 +28039,16 @@
   }
 
   function portalHtmlLinhaRotatividade(row) {
+    const op = String(row.operadorLinha || "").trim();
+    const opHtml = op
+      ? `<span class="portal-rotatividade-row__op">${portalEscapeHtml(op)}</span>`
+      : "";
     return `<div class="portal-rotatividade-row">
       <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.protocolo)}</span>
       <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.cliente)}">${portalEscapeHtml(row.cliente)}</span>
       <span class="portal-rotatividade-row__vei" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
       <span class="portal-rotatividade-row__val">${portalEscapeHtml(portalFmtBrlRotatividade(row.valor))}</span>
+      ${opHtml}
     </div>`;
   }
 
