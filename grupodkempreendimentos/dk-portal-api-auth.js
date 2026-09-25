@@ -148,15 +148,25 @@
         };
       }
       const allowLocalFallback =
-        reason === "snapshot_unavailable" ||
-        reason === "cloud_budget" ||
-        reason === "rate_limited" ||
-        reason === "auth_not_configured" ||
-        res.status === 429 ||
-        res.status >= 500;
-      let msg = "Não foi possível autenticar no servidor.";
-      if (reason === "invalid_credentials") msg = "CPF ou senha inválidos.";
-      else if (reason === "rate_limited" || res.status === 429) {
+        reason !== "invalid_credentials" &&
+        reason !== "password_locked" &&
+        reason !== "blocked" &&
+        reason !== "not_admin" &&
+        reason !== "use_admin" &&
+        (reason === "snapshot_unavailable" ||
+          reason === "cloud_budget" ||
+          reason === "rate_limited" ||
+          reason === "auth_not_configured" ||
+          (res.status === 429 && reason === "rate_limited") ||
+          res.status >= 500);
+      let msg = String(data.message || "").trim() || "Não foi possível autenticar no servidor.";
+      if (reason === "invalid_credentials" || reason === "password_locked") {
+        msg =
+          String(data.message || "").trim() ||
+          (reason === "password_locked"
+            ? "Acesso bloqueado por excesso de tentativas com senha. Tente novamente após 1 hora."
+            : "Senha não confere. Você tem mais tentativas.");
+      } else if (reason === "rate_limited" || (res.status === 429 && reason !== "password_locked")) {
         msg = "Muitas tentativas no servidor. Entrando com a cópia deste PC, se a senha estiver certa.";
       } else if (reason === "snapshot_unavailable" || reason === "cloud_budget" || res.status >= 500) {
         msg = "Cadastro na nuvem indisponível. Entrando com a cópia deste PC, se a senha estiver certa.";
@@ -168,6 +178,8 @@
         allowLocalFallback,
         msg,
         reason,
+        attemptsLeft: data.attemptsLeft,
+        lockedUntil: data.lockedUntil,
       };
     } catch {
       return { ok: false, networkError: true, msg: "Servidor de autenticação indisponível." };

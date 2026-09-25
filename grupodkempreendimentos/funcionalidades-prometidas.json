@@ -3514,6 +3514,32 @@
           "portal-manut-locados-rel-chk"
         ]
       }
+    },
+    {
+      "id": "login-senha-3-tentativas-1h",
+      "descricao": "No login da equipa: senha errada mostra «Senha não confere. Você tem mais X tentativa(s).»; após 3 erros o CPF fica bloqueado por 1 hora (servidor Redis + cópia local).",
+      "ficheiros": {
+        "api/dk-portal-auth.js": [
+          "rejectIfLoginPasswordLocked",
+          "registerLoginPasswordFailure",
+          "password_locked",
+          "attemptsLeft"
+        ],
+        "lib/dk-portal-auth.cjs": [
+          "LOGIN_FAIL_MAX",
+          "mensagemSenhaNaoConfere",
+          "Senha não confere. Você tem mais"
+        ],
+        "dk-portal-api-auth.js": [
+          "password_locked",
+          "Senha não confere"
+        ],
+        "portal-locadora-ui.js": [
+          "portalRegistrarFalhaLoginLocal",
+          "portalLoginBloqueadoMsg",
+          "PORTAL_LOGIN_FAIL_MAX"
+        ]
+      }
     }
   ]
 }

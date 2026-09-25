@@ -3552,15 +3552,99 @@
     });
   }
 
+  const PORTAL_LOGIN_FAIL_LS_KEY = "dk_portal_login_fail_v1";
+  const PORTAL_LOGIN_FAIL_MAX = 3;
+  const PORTAL_LOGIN_LOCK_MS = 60 * 60 * 1000;
+
+  function portalLoginFailMapLoad() {
+    try {
+      const raw = localStorage.getItem(PORTAL_LOGIN_FAIL_LS_KEY);
+      const o = raw ? JSON.parse(raw) : {};
+      return o && typeof o === "object" ? o : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function portalLoginFailMapSave(map) {
+    try {
+      localStorage.setItem(PORTAL_LOGIN_FAIL_LS_KEY, JSON.stringify(map || {}));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalLoginFailState(cpf) {
+    const dig = onlyDigits(String(cpf || "")).slice(0, 11);
+    if (dig.length !== 11) return { fails: 0, lockedUntil: 0 };
+    const row = portalLoginFailMapLoad()[dig] || {};
+    let fails = Math.max(0, Number(row.fails) || 0);
+    let lockedUntil = Math.max(0, Number(row.lockedUntil) || 0);
+    if (lockedUntil && lockedUntil <= Date.now()) {
+      fails = 0;
+      lockedUntil = 0;
+    }
+    return { fails, lockedUntil, dig };
+  }
+
+  function portalMensagemSenhaNaoConfereLocal(attemptsLeft) {
+    const n = Math.max(0, Number(attemptsLeft) || 0);
+    if (n <= 0) {
+      return "Senha não confere. Você esgotou as 3 tentativas. Tente novamente após 1 hora.";
+    }
+    return `Senha não confere. Você tem mais ${n} tentativa${n === 1 ? "" : "s"}.`;
+  }
+
+  function portalLoginBloqueadoMsg(cpf) {
+    const st = portalLoginFailState(cpf);
+    if (!st.lockedUntil || st.lockedUntil <= Date.now()) return "";
+    const mins = Math.max(1, Math.ceil((st.lockedUntil - Date.now()) / 60000));
+    return `Acesso bloqueado por excesso de tentativas com senha. Tente novamente após ${mins} min.`;
+  }
+
+  function portalRegistrarFalhaLoginLocal(cpf) {
+    const st = portalLoginFailState(cpf);
+    if (!st.dig) {
+      return { message: portalMensagemSenhaNaoConfereLocal(PORTAL_LOGIN_FAIL_MAX - 1), attemptsLeft: PORTAL_LOGIN_FAIL_MAX - 1 };
+    }
+    let fails = st.fails + 1;
+    let lockedUntil = st.lockedUntil;
+    if (fails >= PORTAL_LOGIN_FAIL_MAX) {
+      fails = PORTAL_LOGIN_FAIL_MAX;
+      lockedUntil = Date.now() + PORTAL_LOGIN_LOCK_MS;
+    }
+    const map = portalLoginFailMapLoad();
+    map[st.dig] = { fails, lockedUntil, at: Date.now() };
+    portalLoginFailMapSave(map);
+    const attemptsLeft = Math.max(0, PORTAL_LOGIN_FAIL_MAX - fails);
+    return {
+      attemptsLeft,
+      lockedUntil,
+      message:
+        lockedUntil > Date.now()
+          ? portalMensagemSenhaNaoConfereLocal(0)
+          : portalMensagemSenhaNaoConfereLocal(attemptsLeft),
+    };
+  }
+
+  function portalLimparFalhaLoginLocal(cpf) {
+    const dig = onlyDigits(String(cpf || "")).slice(0, 11);
+    if (dig.length !== 11) return;
+    const map = portalLoginFailMapLoad();
+    if (!map[dig]) return;
+    delete map[dig];
+    portalLoginFailMapSave(map);
+  }
+
   function portalAutenticarEquipaPorCpfSenha(role, cpf, senha) {
     const funcionario = funcionariosAccess.find(
       (f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha
     );
     if (!funcionario) {
+      const fail = portalRegistrarFalhaLoginLocal(cpf);
       return {
         ok: false,
-        msg:
-          "CPF ou senha inválidos. Se o cadastro foi feito noutro computador, aguarde alguns segundos e tente de novo (ou Ctrl+F5).",
+        msg: fail.message,
       };
     }
     if (role === "administrador") {
@@ -3581,6 +3665,7 @@
         return { ok: false, msg: st.motivo || "Fora do horário de acesso." };
       }
     }
+    portalLimparFalhaLoginLocal(cpf);
     return { ok: true, funcionario };
   }
 
@@ -3616,6 +3701,14 @@
     }
 
     if (role === "colaborador" || role === "administrador") {
+      const bloqueioLocal = portalLoginBloqueadoMsg(cpf);
+      if (bloqueioLocal) {
+        if (loginFeedback) {
+          loginFeedback.textContent = bloqueioLocal;
+          loginFeedback.classList.add("portal-feedback--error");
+        }
+        return;
+      }
       portalHydrateFuncionariosForLogin();
       if (typeof window.__DK_portalApiLoginEquipa === "function") {
         let remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role);
@@ -3628,10 +3721,38 @@
           remote = await window.__DK_portalApiLoginEquipa(cpf, senha, role, { confirmarUnico: true });
         }
         if (!remote.ok && !remote.networkError && !remote.allowLocalFallback) {
-          loginFeedback.textContent = remote.msg || "CPF ou senha inválidos.";
+          if (
+            remote.reason === "invalid_credentials" ||
+            remote.reason === "password_locked"
+          ) {
+            const dig = onlyDigits(cpf).slice(0, 11);
+            if (dig.length === 11) {
+              const left = Math.max(0, Number(remote.attemptsLeft));
+              const fails = Math.min(
+                PORTAL_LOGIN_FAIL_MAX,
+                remote.reason === "password_locked" || left === 0
+                  ? PORTAL_LOGIN_FAIL_MAX
+                  : PORTAL_LOGIN_FAIL_MAX - left
+              );
+              const map = portalLoginFailMapLoad();
+              map[dig] = {
+                fails,
+                lockedUntil:
+                  Number(remote.lockedUntil) ||
+                  (fails >= PORTAL_LOGIN_FAIL_MAX ? Date.now() + PORTAL_LOGIN_LOCK_MS : 0),
+                at: Date.now(),
+              };
+              portalLoginFailMapSave(map);
+            }
+          }
+          if (loginFeedback) {
+            loginFeedback.textContent = remote.msg || "Senha não confere.";
+            loginFeedback.classList.add("portal-feedback--error");
+          }
           return;
         }
         if (remote.ok) {
+          portalLimparFalhaLoginLocal(cpf);
           const hint =
             funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === cpf) ||
             remote.funcionario;
@@ -3664,7 +3785,10 @@
         auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
       }
       if (!auth.ok) {
-        loginFeedback.textContent = auth.msg;
+        if (loginFeedback) {
+          loginFeedback.textContent = auth.msg;
+          loginFeedback.classList.add("portal-feedback--error");
+        }
         return;
       }
       const funcionario = auth.funcionario;

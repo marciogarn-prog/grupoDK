@@ -423,6 +423,132 @@ async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
   return false;
 }
 
+/** 3 senhas erradas → bloqueio de 1 hora (por CPF). */
+const LOGIN_FAIL_MAX = 3;
+const LOGIN_LOCK_MS = 60 * 60 * 1000;
+const LOGIN_FAIL_TTL_SEC = 60 * 60 + 120;
+
+function chaveLoginFail(cpf) {
+  return `dk:portal:login_fail:v1:${onlyDigits(cpf).slice(0, 11)}`;
+}
+
+function mensagemSenhaNaoConfere(attemptsLeft) {
+  const n = Math.max(0, Number(attemptsLeft) || 0);
+  if (n <= 0) {
+    return "Senha não confere. Você esgotou as 3 tentativas. Tente novamente após 1 hora.";
+  }
+  return `Senha não confere. Você tem mais ${n} tentativa${n === 1 ? "" : "s"}.`;
+}
+
+function mensagemLoginBloqueado(lockedUntilMs) {
+  const restante = Math.max(0, Number(lockedUntilMs || 0) - Date.now());
+  const mins = Math.max(1, Math.ceil(restante / 60000));
+  return `Acesso bloqueado por excesso de tentativas com senha. Tente novamente após ${mins} min.`;
+}
+
+function parseLoginFailRaw(raw) {
+  if (raw == null) return { fails: 0, lockedUntil: 0 };
+  let row = raw;
+  if (typeof raw === "string") {
+    try {
+      row = JSON.parse(raw);
+    } catch {
+      return { fails: 0, lockedUntil: 0 };
+    }
+  }
+  if (!row || typeof row !== "object") return { fails: 0, lockedUntil: 0 };
+  return {
+    fails: Math.max(0, Number(row.fails) || 0),
+    lockedUntil: Math.max(0, Number(row.lockedUntil) || 0),
+  };
+}
+
+async function readLoginFailState(cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return { fails: 0, lockedUntil: 0 };
+  try {
+    const redis = createRedisClient();
+    return parseLoginFailRaw(await redis.get(chaveLoginFail(dig)));
+  } catch {
+    return { fails: 0, lockedUntil: 0 };
+  }
+}
+
+/**
+ * Se o CPF estiver bloqueado, responde 429 e devolve true.
+ * Caso contrário devolve false (pode tentar login).
+ */
+async function rejectIfLoginPasswordLocked(res, cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11) return false;
+  const st = await readLoginFailState(dig);
+  if (st.lockedUntil && st.lockedUntil > Date.now()) {
+    const retryAfter = Math.max(1, Math.ceil((st.lockedUntil - Date.now()) / 1000));
+    res.setHeader("Retry-After", String(retryAfter));
+    res.status(429).json({
+      ok: false,
+      reason: "password_locked",
+      message: mensagemLoginBloqueado(st.lockedUntil),
+      attemptsLeft: 0,
+      lockedUntil: st.lockedUntil,
+      retryAfter,
+    });
+    return true;
+  }
+  return false;
+}
+
+async function registerLoginPasswordFailure(cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  const empty = {
+    attemptsLeft: LOGIN_FAIL_MAX - 1,
+    locked: false,
+    lockedUntil: 0,
+    message: mensagemSenhaNaoConfere(LOGIN_FAIL_MAX - 1),
+  };
+  if (dig.length !== 11) return empty;
+  if (!isRedisKvConfigured()) return empty;
+  try {
+    const redis = createRedisClient();
+    const key = chaveLoginFail(dig);
+    const prev = parseLoginFailRaw(await redis.get(key));
+    let fails = Math.max(0, Number(prev.fails) || 0) + 1;
+    let lockedUntil = Math.max(0, Number(prev.lockedUntil) || 0);
+    if (lockedUntil && lockedUntil <= Date.now()) {
+      fails = 1;
+      lockedUntil = 0;
+    }
+    if (fails >= LOGIN_FAIL_MAX) {
+      lockedUntil = Date.now() + LOGIN_LOCK_MS;
+      fails = LOGIN_FAIL_MAX;
+    }
+    await redis.set(key, JSON.stringify({ fails, lockedUntil, at: Date.now() }), {
+      ex: LOGIN_FAIL_TTL_SEC,
+    });
+    const attemptsLeft = Math.max(0, LOGIN_FAIL_MAX - fails);
+    const locked = lockedUntil > Date.now();
+    return {
+      attemptsLeft,
+      locked,
+      lockedUntil,
+      message: locked ? mensagemSenhaNaoConfere(0) : mensagemSenhaNaoConfere(attemptsLeft),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+async function clearLoginPasswordFailures(cpf) {
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11 || !isRedisKvConfigured()) return;
+  try {
+    const redis = createRedisClient();
+    await redis.del(chaveLoginFail(dig));
+  } catch {
+    /* ignore */
+  }
+}
+
 function onlyDigits(s) {
   return String(s ?? "").replace(/\D/g, "");
 }
@@ -636,6 +762,11 @@ module.exports = {
   mintTokenWithSession,
   requireModuleAccess,
   enforceRateLimit,
+  rejectIfLoginPasswordLocked,
+  registerLoginPasswordFailure,
+  clearLoginPasswordFailures,
+  mensagemSenhaNaoConfere,
+  LOGIN_FAIL_MAX,
   loadOfficialSnapshotPayload,
   podeLoginCeoEmergencia,
   TITULAR_CEO_CPF,

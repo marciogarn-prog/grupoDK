@@ -26,6 +26,9 @@ const {
   needsPasswordUpgrade,
   clienteAuthRecord,
   persistPasswordUpgrade,
+  rejectIfLoginPasswordLocked,
+  registerLoginPasswordFailure,
+  clearLoginPasswordFailures,
 } = require("../lib/dk-portal-auth.cjs");
 
 function parseBody(req) {
@@ -105,11 +108,20 @@ module.exports = async function handler(req, res) {
   }
 
   if (tipo === "equipa") {
+    if (await rejectIfLoginPasswordLocked(res, cpf)) return;
     const roleWanted = String(body.role || "").trim();
     const f = findFuncionario(payload, cpf);
     if (!f || !verifySecretAgainstRecord(senha, f)) {
-      return res.status(401).json({ ok: false, reason: "invalid_credentials" });
+      const fail = await registerLoginPasswordFailure(cpf);
+      return res.status(401).json({
+        ok: false,
+        reason: fail.locked ? "password_locked" : "invalid_credentials",
+        message: fail.message,
+        attemptsLeft: fail.attemptsLeft,
+        lockedUntil: fail.lockedUntil || undefined,
+      });
     }
+    await clearLoginPasswordFailures(cpf);
     if (needsPasswordUpgrade(f)) {
       try {
         await persistPasswordUpgrade("equipa", cpf, senha);
@@ -130,13 +142,22 @@ module.exports = async function handler(req, res) {
   }
 
   if (tipo === "cliente") {
+    if (await rejectIfLoginPasswordLocked(res, cpf)) return;
     const proto = normalizeProto(body.protocolo);
     if (!proto) return res.status(400).json({ ok: false, reason: "protocolo" });
     const c = findCliente(payload, cpf);
     const rec = clienteAuthRecord(c);
     if (!c || !verifySecretAgainstRecord(senha, rec)) {
-      return res.status(401).json({ ok: false, reason: "invalid_credentials" });
+      const fail = await registerLoginPasswordFailure(cpf);
+      return res.status(401).json({
+        ok: false,
+        reason: fail.locked ? "password_locked" : "invalid_credentials",
+        message: fail.message,
+        attemptsLeft: fail.attemptsLeft,
+        lockedUntil: fail.lockedUntil || undefined,
+      });
     }
+    await clearLoginPasswordFailures(cpf);
     if (needsPasswordUpgrade(rec)) {
       try {
         await persistPasswordUpgrade("cliente", cpf, senha);
