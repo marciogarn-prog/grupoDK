@@ -19783,6 +19783,24 @@
     return `${day}/${month}/${y}`;
   }
 
+  /** Compara só o dia civil (sem horas). */
+  function portalMsInicioDoDiaLocal(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return NaN;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+
+  /** Data fim não pode ser posterior a hoje (evita finalizar com data futura). */
+  function portalDataFimEhFutura(fimDt) {
+    if (!(fimDt instanceof Date) || Number.isNaN(fimDt.getTime())) return false;
+    const hoje =
+      typeof parseBrDate === "function" && typeof todayBrDate === "function"
+        ? parseBrDate(todayBrDate())
+        : new Date();
+    const hojeMs = portalMsInicioDoDiaLocal(hoje instanceof Date && !Number.isNaN(hoje.getTime()) ? hoje : new Date());
+    const fimMs = portalMsInicioDoDiaLocal(fimDt);
+    return fimMs > hojeMs;
+  }
+
   const PORTAL_CURRENCY_INPUT_IDS = [
     "operacaoVeiculoValor",
     "operacaoLocacaoValorAluguel",
@@ -19983,9 +20001,14 @@
     }
     const raw = String(inp.value || "").trim();
     let okDate = false;
+    let fimFutura = false;
     if (raw.length >= 8 && typeof parseBrDate === "function") {
       const d = parseBrDate(raw);
       okDate = Boolean(d && !Number.isNaN(d.getTime()));
+      if (okDate && portalDataFimEhFutura(d)) {
+        okDate = false;
+        fimFutura = true;
+      }
     }
     const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
     const can = okDate && !isNovo;
@@ -19993,7 +20016,9 @@
     if (!can) {
       btn.title = isNovo
         ? "Selecione um protocolo já cadastrado (não «NOVO»)."
-        : "Informe a data fim completa (DD/MM/AAAA).";
+        : fimFutura
+          ? "A data fim não pode ser futura. Use hoje ou uma data anterior."
+          : "Informe a data fim completa (DD/MM/AAAA).";
     } else {
       btn.title = "Gravar data fim e marcar a locação como finalizada.";
     }
@@ -21744,6 +21769,10 @@
       portalLocacaoFeedback("Informe a data fim válida (DD/MM/AAAA).");
       return;
     }
+    if (portalDataFimEhFutura(fimDt)) {
+      portalLocacaoFeedback("A data fim não pode ser futura. Informe hoje ou uma data anterior.");
+      return;
+    }
     const fimBr = formatPortalDataBr(fimDt);
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
@@ -22450,6 +22479,10 @@
       fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
       if (!fimDt || Number.isNaN(fimDt.getTime())) {
         if (msg) msg.textContent = "Data fim inválida (DD/MM/AAAA).";
+        return;
+      }
+      if (portalDataFimEhFutura(fimDt)) {
+        if (msg) msg.textContent = "A data fim não pode ser futura. Informe hoje ou uma data anterior.";
         return;
       }
       fimBr = typeof formatPortalDataBr === "function" ? formatPortalDataBr(fimDt) : rawFim;
