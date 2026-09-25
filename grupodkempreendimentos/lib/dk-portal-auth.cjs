@@ -429,7 +429,7 @@ const LOGIN_LOCK_MS = 60 * 60 * 1000;
 const LOGIN_FAIL_TTL_SEC = 60 * 60 + 120;
 
 function chaveLoginFail(cpf) {
-  return `dk:portal:login_fail:v1:${onlyDigits(cpf).slice(0, 11)}`;
+  return `dk:portal:login_fail:v2:${onlyDigits(cpf).slice(0, 11)}`;
 }
 
 function mensagemSenhaNaoConfere(attemptsLeft) {

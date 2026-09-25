@@ -876,7 +876,7 @@ async function runSuite() {
         snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
         `status=${snapAnon.status}`
       );
-      const ownerSenha = String(process.env.DK_OWNER_SENHA || "110499@Gb").trim();
+      const ownerSenha = String(process.env.DK_OWNER_SENHA || "12345678").trim();
       const loginCeo = await fetch(`${BASE_URL}api/dk-portal-auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
