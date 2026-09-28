@@ -131,6 +131,8 @@
     "00445040556",
     "01303628514",
     "01503628514",
+    /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
+    "11369128423",
   ]);
   /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
   const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({

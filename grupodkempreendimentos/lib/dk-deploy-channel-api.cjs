@@ -63,6 +63,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "00445040556",
   "01303628514",
   "01503628514",
+  /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
+  "11369128423",
 ]);
 const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
   "01503608514": "0315",

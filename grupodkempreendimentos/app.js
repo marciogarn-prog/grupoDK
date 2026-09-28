@@ -7669,7 +7669,8 @@ function isLocacaoSeedDemoOficialProibida(loc) {
     cpf === "07534147409" ||
     cpf === "00445040556" ||
     cpf === "01303628514" ||
-    cpf === "01503628514"
+    cpf === "01503628514" ||
+    cpf === "11369128423"
   ) {
     return true;
   }
