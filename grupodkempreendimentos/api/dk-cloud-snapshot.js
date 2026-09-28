@@ -43,6 +43,7 @@ const {
 } = require("../lib/dk-portal-module-access.cjs");
 const {
   mergeClientesCadastro,
+  mergeVeiculosCadastro,
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
@@ -567,6 +568,17 @@ function stripInternalPayloadKeys(payload) {
   return out;
 }
 
+/** Tira da frota só o veículo marcado no próprio registo (limpeza de teste). Corre depois do merge. */
+function dropVeiculosMarcadosRemover(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const out = { ...payload };
+  for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
+    if (!Array.isArray(out[k])) continue;
+    out[k] = out[k].filter((v) => !(v && v.portalRemoverDaFrota === true));
+  }
+  return out;
+}
+
 /** União por número de protocolo — evita apagar contratos do portal (ex. 2026010104) em push parcial. */
 function applyCadastroLock(existing, incoming) {
   if (!isObject(existing) || !isObject(incoming)) return incoming;
@@ -587,6 +599,14 @@ function applyCadastroLock(existing, incoming) {
     if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
     if (k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro") {
       out[k] = mergeClientesCadastro(ex, inc);
+      continue;
+    }
+    if (
+      k === "dk_veiculos_cadastro" ||
+      k === "dk_portal_veiculos_cadastro" ||
+      k === "dk_veiculos_frota_planilha"
+    ) {
+      out[k] = mergeVeiculosCadastro(ex, inc);
       continue;
     }
     if (inc.length > ex.length) out[k] = ex;
@@ -1131,6 +1151,7 @@ async function handler(req, res) {
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
+      payload = dropVeiculosMarcadosRemover(payload);
       const activePlateConflicts = findActivePlateConflicts(payload.dk_locacoes_cadastro);
       if (activePlateConflicts.length) {
         const conflict = activePlateConflicts[0];
@@ -1208,3 +1229,4 @@ module.exports.sanitizePayloadForOficial = sanitizePayloadForOficial;
 module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
 module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
 module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;
+module.exports.applyCadastroLock = applyCadastroLock;
