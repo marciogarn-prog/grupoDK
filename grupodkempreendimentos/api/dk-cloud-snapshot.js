@@ -568,17 +568,6 @@ function stripInternalPayloadKeys(payload) {
   return out;
 }
 
-/** Tira da frota só o veículo marcado no próprio registo (limpeza de teste). Corre depois do merge. */
-function dropVeiculosMarcadosRemover(payload) {
-  if (!payload || typeof payload !== "object") return payload;
-  const out = { ...payload };
-  for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
-    if (!Array.isArray(out[k])) continue;
-    out[k] = out[k].filter((v) => !(v && v.portalRemoverDaFrota === true));
-  }
-  return out;
-}
-
 /** União por número de protocolo — evita apagar contratos do portal (ex. 2026010104) em push parcial. */
 function applyCadastroLock(existing, incoming) {
   if (!isObject(existing) || !isObject(incoming)) return incoming;
@@ -1151,7 +1140,6 @@ async function handler(req, res) {
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
-      payload = dropVeiculosMarcadosRemover(payload);
       const activePlateConflicts = findActivePlateConflicts(payload.dk_locacoes_cadastro);
       if (activePlateConflicts.length) {
         const conflict = activePlateConflicts[0];
