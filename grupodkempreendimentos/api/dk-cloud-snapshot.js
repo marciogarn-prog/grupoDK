@@ -180,6 +180,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
 /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
 const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
   "01503608514": "0315",
+  /* RAYNERES: o 0413 ocupa o 0412 que ficou vazio. O próximo cadastro é 0413. */
+  "11369128436": "0412",
 });
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
 const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([

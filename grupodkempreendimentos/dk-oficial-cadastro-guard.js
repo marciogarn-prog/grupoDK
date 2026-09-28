@@ -137,6 +137,8 @@
   /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
   const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
     "01503608514": "0315",
+    /* RAYNERES: o 0413 ocupa o 0412 que ficou vazio. O próximo cadastro é 0413. */
+    "11369128436": "0412",
   });
   /**
    * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
