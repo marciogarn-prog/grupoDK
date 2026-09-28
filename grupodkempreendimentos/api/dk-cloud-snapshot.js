@@ -214,6 +214,8 @@ const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
   "BBB0B00",
   "CCC0C00",
   "DDD0D000",
+  /* Moto de teste do agente (DKMT - 173). Não existe na frota. */
+  "QWE9Z99",
 ]);
 
 function isLocacaoNcOficialmenteBloqueado(r) {

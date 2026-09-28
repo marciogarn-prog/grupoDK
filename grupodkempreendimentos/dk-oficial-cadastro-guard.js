@@ -163,6 +163,8 @@
     "BBB0B00",
     "CCC0C00",
     "DDD0D000",
+    /* Moto de teste do agente (DKMT - 173). Não existe na frota. */
+    "QWE9Z99",
   ]);
   const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({
     "2026122501": "2025122201",

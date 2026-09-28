@@ -3125,6 +3125,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       const opLabel = String(v.cadastradoPorLabel || v.registradoPorLabel || "").trim();
       if (!opCpf && !opNome && !opLabel) return true;
       if (/^(AAA|BBB|CCC)0/i.test(pl)) return true;
+      if (pl === "QWE9Z99") return true;
       if (tip === "Z1" || tip === "HR70") return true;
       if (/FERRARI|BUGATTI|PORSCHE|FUSCA/.test(modelo)) return true;
       return false;
