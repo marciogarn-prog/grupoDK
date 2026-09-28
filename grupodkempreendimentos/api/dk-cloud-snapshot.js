@@ -967,6 +967,17 @@ async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
+      if (metaOnly) {
+        const rev = await redis.get(`${REDIS_KEY}:rev`);
+        return res.status(200).json({
+          ok: true,
+          meta: true,
+          label: LABEL,
+          updated_at: rev == null || rev === "" ? null : String(rev),
+          source: "redis",
+        });
+      }
       const raw = await redis.get(REDIS_KEY);
       if (!raw) {
         const mirror = isSupabaseDoormanConfigured()
@@ -1156,6 +1167,7 @@ async function handler(req, res) {
       const storedAt = existingTs > incomingTs ? existingUpdatedAt : updatedAt;
       const stored = { label: LABEL, payload, updated_at: storedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
+      await redis.set(`${REDIS_KEY}:rev`, storedAt);
       const supabase = isSupabaseDoormanConfigured()
         ? await withDoormanTimeout(
             upsertSnapshotByLabel(LABEL, payload, storedAt),

@@ -18851,11 +18851,19 @@
   }
 
   async function portalNuvemLerSnapshotPayload() {
+    if (typeof window.__DK_fetchRedisSnapshotFresh === "function") {
+      const data = await window.__DK_fetchRedisSnapshotFresh();
+      if (data?.payload) return data.payload;
+    }
     if (typeof window.__DK_fetchCloudSnapshotPayload === "function") {
-      const data = await window.__DK_fetchCloudSnapshotPayload();
+      const data = await window.__DK_fetchCloudSnapshotPayload({ fresh: true });
       return data?.payload || null;
     }
-    const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), { cache: "no-store" });
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+      cache: "no-store",
+      headers,
+    });
     if (!r.ok) return null;
     const data = await r.json();
     return data?.payload || null;
@@ -18866,13 +18874,17 @@
     if (!payload) return false;
     if (kind === "cliente") {
       const want = portalNuvemDigitsCpf(value);
-      const arr = payload.dk_clientes_cadastro;
-      if (!Array.isArray(arr) || want.length !== 11) return false;
+      const arr = [].concat(payload.dk_clientes_cadastro || [], payload.dk_portal_clientes_cadastro || []);
+      if (want.length !== 11) return false;
       return arr.some((c) => portalNuvemDigitsCpf(c?.cpf) === want);
     }
     if (kind === "veiculo") {
       const want = portalNuvemNormPlaca(value);
-      const arr = [].concat(payload.dk_veiculos_cadastro || [], payload.dk_portal_veiculos_cadastro || []);
+      const arr = [].concat(
+        payload.dk_veiculos_cadastro || [],
+        payload.dk_portal_veiculos_cadastro || [],
+        payload.dk_veiculos_frota_planilha || []
+      );
       if (!want) return false;
       return arr.some((v) => portalNuvemNormPlaca(v?.placa) === want);
     }
@@ -18910,14 +18922,18 @@
       }
       if (opts?.verifyKind && opts?.verifyValue) {
         let naNuvem = false;
-        try {
-          naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
-          if (!naNuvem) {
-            await new Promise((res) => setTimeout(res, 1200));
+        const prazo = Date.now() + 60000;
+        while (Date.now() < prazo) {
+          portalNuvemSyncLockShow(
+            "A confirmar o cadastro na nuvem. Os outros computadores recebem em até 1 minuto."
+          );
+          try {
             naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
+          } catch {
+            naNuvem = false;
           }
-        } catch {
-          naNuvem = false;
+          if (naNuvem) break;
+          await new Promise((res) => setTimeout(res, 4000));
         }
         if (!naNuvem) {
           const falha =

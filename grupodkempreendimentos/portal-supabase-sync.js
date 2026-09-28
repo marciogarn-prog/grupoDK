@@ -492,6 +492,7 @@
   let screenPullInFlight = null;
   let snapshotGetInFlight = null;
   let snapshotGetCache = { at: 0, data: null };
+  let snapshotGetGen = 0;
   let lastPushedFingerprint = "";
   let cloudPushDirty = false;
   let cloudBackoffUntil = 0;
@@ -2219,20 +2220,32 @@
     return null;
   }
 
-  async function fetchRedundantSnapshotPayload() {
-    if (snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
+  function invalidateSnapshotGetCache() {
+    snapshotGetGen += 1;
+    snapshotGetCache = { at: 0, data: null };
+  }
+
+  async function fetchRedundantSnapshotPayload(opts) {
+    const fresh = Boolean(opts && opts.fresh);
+    if (!fresh && snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
       return snapshotGetCache.data;
     }
-    if (snapshotGetInFlight) return snapshotGetInFlight;
-    snapshotGetInFlight = fetchRedundantSnapshotPayloadUncached()
-      .then((row) => {
-        if (row && row.payload) snapshotGetCache = { at: Date.now(), data: row };
-        return row;
-      })
-      .finally(() => {
-        snapshotGetInFlight = null;
-      });
+    if (!fresh && snapshotGetInFlight) return snapshotGetInFlight;
+    const gen = snapshotGetGen;
+    const flight = fetchRedundantSnapshotPayloadUncached().then((row) => {
+      if (row && row.payload && gen === snapshotGetGen) snapshotGetCache = { at: Date.now(), data: row };
+      return row;
+    });
+    if (fresh) return flight;
+    snapshotGetInFlight = flight.finally(() => {
+      if (snapshotGetInFlight === flight) snapshotGetInFlight = null;
+    });
     return snapshotGetInFlight;
+  }
+
+  async function fetchRedisSnapshotFresh() {
+    invalidateSnapshotGetCache();
+    return fetchRedundantSnapshotPayload({ fresh: true });
   }
 
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
@@ -2300,7 +2313,7 @@
         }
         if (res.ok && data?.ok) {
           anyOk = true;
-          snapshotGetCache = { at: 0, data: null };
+          invalidateSnapshotGetCache();
           if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
@@ -2422,12 +2435,12 @@
     return data;
   }
 
-  async function fetchCloudSnapshotPayload() {
+  async function fetchCloudSnapshotPayload(opts) {
     if (isClienteAppPage()) {
       return fetchCloudSnapshotPayloadClienteApp();
     }
     const supa = await fetchSupabaseSnapshotPayload();
-    const redis = await fetchRedundantSnapshotPayload();
+    const redis = await fetchRedundantSnapshotPayload(opts);
     const mergedPayload = mergeRemoteSnapshotsBeforePush(supa, redis);
     if (!mergedPayload) return null;
     const newest = pickNewestCloudRow([supa, redis]);
@@ -4583,7 +4596,8 @@
     let redisErr = "";
 
     const fp = fingerprintCloudPayload(payload);
-    if (fp && fp === lastPushedFingerprint && !forceReplace) {
+    const forceSend = Boolean(opts && opts.force);
+    if (fp && fp === lastPushedFingerprint && !forceReplace && !forceSend) {
       return { ok: true, skipped: true, reason: "unchanged", supaOk: true, redisOk: true, source: "unchanged" };
     }
 
@@ -5008,6 +5022,8 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_fetchRedisSnapshotFresh = fetchRedisSnapshotFresh;
+    window.__DK_invalidateCloudSnapshotGetCache = invalidateSnapshotGetCache;
     window.__DK_collectPayloadFromLocalStorage = collectPayloadFromLocalStorage;
     window.__DK_applyPayloadToLocalStorage = applyPayloadToLocalStorage;
     window.__DK_upsertClienteCadastroFromCloud = upsertClienteCadastroFromCloud;
@@ -5494,6 +5510,29 @@
     startSilentPull();
   }
 
+  let lastSeenCloudRev = "";
+  /** Outros PCs logados: a cada 20s, se a nuvem mudou, trazem cliente, veículo e locação. */
+  async function watchCadastroOutrosComputadores() {
+    if (isClienteAppPage() || cloudSyncIsHalted() || !hasUsableCloudToken()) return;
+    try {
+      const res = await fetch("/api/dk-cloud-snapshot?meta=1&nocache=" + Date.now(), {
+        method: "GET",
+        cache: "no-store",
+        headers: dkCloudFetchHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) return;
+      const rev = String(data.updated_at || "").trim();
+      if (!rev || rev === lastSeenCloudRev) return;
+      lastSeenCloudRev = rev;
+      if (rev === readCloudPushTimestamp()) return;
+      invalidateSnapshotGetCache();
+      await pullCadastroOperacionalFromCloud();
+    } catch (e) {
+      console.warn("[DK cloud] acompanhamento do cadastro", e);
+    }
+  }
+
   function bind() {
     installLocalStorageCloudHook();
 
@@ -5594,6 +5633,9 @@
     setTimeout(refreshCloudBarVisibility, 800);
     setTimeout(() => void refreshLocacoesIntegrityAlert({ force: true }), 1800);
     window.setInterval(() => void refreshLocacoesIntegrityAlert(), 5 * 60 * 1000);
+    if (!isClienteAppPage()) {
+      window.setInterval(() => void watchCadastroOutrosComputadores(), 20000);
+    }
 
     runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
   }
