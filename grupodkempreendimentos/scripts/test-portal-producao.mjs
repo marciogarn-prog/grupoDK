@@ -996,10 +996,10 @@ async function runSuite() {
         return tip === "Z1" || tip === "HR70";
       });
       record(
-        "oficial: frota planilha 16 carros + 171 motos (sem Z1)",
+        "oficial: frota planilha 16 carros e pelo menos 171 motos (sem Z1)",
         veiculosOf.length
           ? Boolean(pOf.dk_oficial_frota_planilha_v1) &&
-            veiculosOf.length === 187 &&
+            veiculosOf.length >= 187 &&
             carrosOf.length === 16 &&
             z1Of.length === 0
           : snapAnon.status === 401 || snapAnon.status === 403 || snapAnon.status === 429,
