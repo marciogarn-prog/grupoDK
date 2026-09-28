@@ -8432,12 +8432,7 @@
         message: "«4.1 — Ativo disponível» só para veículos com protocolo activo. Use «4 — Pronto para alugar».",
       };
     }
-    if (cat === "prontos" && portalChecklistPlacaTemProtocoloAtivo(placaKey)) {
-      return {
-        ok: false,
-        message: "Esta placa tem protocolo activo. Use «4.1 — Ativo disponível» (não encerra o contrato).",
-      };
-    }
+    /* 4 — Pronto para alugar encerra o contrato e tira a placa da oficina. */
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
     const idx = manutencoes.findIndex(
       (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
@@ -8551,6 +8546,105 @@
       placaReserva: portalNkPlate(prev.placaReserva || "") || "",
     });
     return { ok: true, placa: placaKey, categoria: cat, locacaoAjuste };
+  }
+
+  /**
+   * Uma vez: tira SOW5B81 da oficina própria e deixa em 4 — Pronto para alugar.
+   * Não repete depois da marca no cadastro do veículo.
+   */
+  function portalForcarPlacaProntaParaAlugar(placaRaw) {
+    const placaKey = portalNkPlate(placaRaw);
+    const marca = "sow5b81-20260928";
+    if (!placaKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false };
+    }
+    if (typeof CAD_VEICULOS_KEY === "undefined" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false };
+    }
+    const veiculos = loadCadastro(CAD_VEICULOS_KEY) || [];
+    const vIdx = veiculos.findIndex((v) => portalNkPlate(v?.placa) === placaKey);
+    if (vIdx >= 0 && String(veiculos[vIdx].curaProntosV1 || "") === marca) {
+      return { ok: true, skipped: true };
+    }
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY) || [];
+    const idx = manutencoes.findIndex(
+      (m) => portalNkPlate(m?.placa) === placaKey && !String(m?.dataRealSaida || "").trim()
+    );
+    if (idx < 0) return { ok: false, pending: true };
+    const data = typeof todayBrDate === "function" ? todayBrDate() : "";
+    const prev = manutencoes[idx] || {};
+    const locacaoAjuste = portalFinalizarLocacaoAoLiberarParaProntos(placaKey, prev);
+    manutencoes[idx] = {
+      ...prev,
+      dataRealSaida: data,
+      destinoPortal: "pronto-para-alugar",
+      origemPortalChecklistLiberacao: true,
+      protocoloAtivoNaLiberacao: false,
+      servico: String(prev.servico || "").trim() || "Portal check-list — liberado para prontos",
+      updatedAt: Date.now(),
+    };
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes, {
+      bypassImmutabilidadeCadastro: true,
+      allowShrink: true,
+    });
+    const keys = [];
+    keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
+      keys.push(PORTAL_VEICULOS_KEY);
+    }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
+    keys.forEach((key) => {
+      const list = loadCadastro(key) || [];
+      const i = list.findIndex((v) => portalNkPlate(v?.placa) === placaKey);
+      if (i < 0) return;
+      list[i] = {
+        ...list[i],
+        disponivelCategoria: "prontos",
+        categoriaDisponivel: "prontos",
+        curaProntosV1: marca,
+        updatedAt: Date.now(),
+      };
+      saveCadastro(key, list, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+    });
+    if (locacaoAjuste?.placaReserva) portalMoverReservaOperacaoParaPatio(locacaoAjuste.placaReserva);
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_para_disponivel",
+      placa: placaKey,
+      de: "oficina-propria",
+      para: "4-prontos",
+      motivo: "pronto para alugar",
+    });
+    try {
+      portalRefreshManutencaoPlacasGrid(true);
+      if (typeof portalRefreshManutencaoDisponiveisPlacas === "function") {
+        portalRefreshManutencaoDisponiveisPlacas();
+      }
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, placa: placaKey };
+  }
+
+  function portalAgendarCuraSow5b81() {
+    const run = () => {
+      try {
+        portalForcarPlacaProntaParaAlugar("SOW5B81");
+      } catch (e) {
+        console.warn("[DK portal] cura SOW5B81", e);
+      }
+    };
+    setTimeout(run, 1500);
+    setTimeout(run, 8000);
+    window.addEventListener("dk-cloud-snapshot-applied", run);
   }
 
   /** Grelha de placas (caixinhas) nas telas 6–10 de Em manutenção. */
@@ -9285,7 +9379,7 @@
         hint.textContent = temItemR
           ? "Ainda há item em R. Corrija (tudo em A) antes de enviar para 4 / 4.1. Pode encaminhar para 8, 9 ou 10 se precisar."
           : portalChecklistPlacaTemProtocoloAtivo()
-            ? "Formulário completo. Protocolo activo: use «4.1 — Ativo disponível» (mantém o contrato). Também pode ir para 8, 9 ou 10."
+            ? "Formulário completo. «4 — Pronto para alugar» encerra o contrato e deixa a placa disponível para locação. «4.1 — Ativo disponível» mantém o contrato."
             : "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
       } else if (portalChecklistIsEtapaExternaOficina()) {
         hint.textContent =
@@ -9326,7 +9420,6 @@
       const protocoloAtivo = portalChecklistPlacaTemProtocoloAtivo();
       let okDest = val.ok && formOk && (!destDisp || !temItemR);
       if (alvo === "ativo-disponivel") okDest = okDest && protocoloAtivo;
-      if (alvo === "prontos") okDest = okDest && !protocoloAtivo;
       btn.disabled = !okDest;
     });
     return formOk;
@@ -30380,5 +30473,7 @@
     },
     true
   );
+
+  portalAgendarCuraSow5b81();
 })();
 

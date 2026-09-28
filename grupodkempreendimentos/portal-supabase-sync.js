@@ -4853,6 +4853,11 @@
         }
       });
     }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-cloud-snapshot-applied"));
+    } catch {
+      /* ignore */
+    }
     return { ok: true, applied: true, source: data.source || "cloud" };
   }
 
