@@ -14212,21 +14212,63 @@
     return `${best.toLocaleString("pt-BR")} km`;
   }
 
-  function getPortalResumoVeiculoCardData(veiculo) {
+  /** Uma passagem só: a grelha da frota não pode reler locações e manutenções em cada cartão. */
+  function portalIndiceFrotaVeiculo() {
+    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    const manutByPlate = new Map();
+    if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      loadCadastro(CAD_MANUTENCOES_KEY).forEach((m) => {
+        if (!m || String(m.dataRealSaida || "").trim()) return;
+        const pl = portalNkPlate(m.placa);
+        if (!pl) return;
+        const score = Number(m.id || m.createdAt || 0);
+        const prev = manutByPlate.get(pl);
+        if (!prev || score >= prev.score) {
+          manutByPlate.set(pl, { score, cat: portalManutCategoriaEfetiva(m) || "triagem" });
+        }
+      });
+    }
+    const locByPlate = new Map();
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        if (!l || String(l.fim || "").trim()) return;
+        const pl =
+          typeof normalizePlate === "function"
+            ? normalizePlate(l.placa)
+            : String(l.placa || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        if (!pl) return;
+        const score = Number(l.createdAt || l.id || 0);
+        const prev = locByPlate.get(pl);
+        if (!prev || score >= prev.score) locByPlate.set(pl, { score, loc: l });
+      });
+    }
+    return { activeSet, manutByPlate, locByPlate };
+  }
+
+  function getPortalResumoVeiculoCardData(veiculo, indice) {
     const plateKey =
       typeof normalizePlate === "function"
         ? normalizePlate(veiculo?.placa)
         : String(veiculo?.placa || "")
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, "");
-    const activeSet =
-      typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
-    const manutencaoSet = getPortalPlacasEmManutencaoSet();
+    const activeSet = indice?.activeSet
+      ? indice.activeSet
+      : typeof getActivePlatesSet === "function"
+        ? getActivePlatesSet()
+        : new Set();
+    const manutencaoSet = indice?.manutByPlate
+      ? indice.manutByPlate
+      : getPortalPlacasEmManutencaoSet();
     const nk =
       typeof normalizeKey === "function" ? normalizeKey : (x) => String(x || "").trim().toUpperCase();
     const indisponivel = nk(veiculo?.status).includes("INDISPONIVEL");
     const locado = Boolean(plateKey && activeSet.has(plateKey));
-    const emManutencao = Boolean(plateKey && manutencaoSet.has(plateKey));
+    const emManutencao = Boolean(
+      plateKey && (indice?.manutByPlate ? indice.manutByPlate.has(plateKey) : manutencaoSet.has(plateKey))
+    );
 
     let cliente = "—";
     let statusText = "Disponível";
@@ -14235,11 +14277,15 @@
     /* Segregação: Em manutenção tem prioridade sobre Locados. */
     if (emManutencao) {
       cliente = "—";
-      const catManut = getPortalManutCategoriaPorPlaca(plateKey);
+      const catManut = indice?.manutByPlate
+        ? indice.manutByPlate.get(plateKey)?.cat || "triagem"
+        : getPortalManutCategoriaPorPlaca(plateKey);
       statusClass = portalFrotaStatusClassEmManutencao(catManut);
       statusText = portalStatusTextEmManutencao(catManut);
     } else if (locado) {
-      locAtiva = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
+      locAtiva = indice?.locByPlate
+        ? indice.locByPlate.get(plateKey)?.loc || null
+        : getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
       const cpf =
         typeof onlyDigits === "function"
           ? onlyDigits(String(locAtiva?.cpf || ""))
@@ -14277,7 +14323,6 @@
     return {
       codigo,
       placa: plateKey || "—",
-      ultimoKm: getPortalUltimoKmPorPlaca(plateKey),
       cliente,
       statusText,
       statusClass,
@@ -14359,11 +14404,18 @@
     if (!grid) return;
     refreshOperacaoVeiculoPlacasCache();
     const filtroRaw = String(document.getElementById("operacaoVeiculoFrotaFiltro")?.value || "").trim();
+    const indice = portalIndiceFrotaVeiculo();
     const veiculos = portalVeiculoPlacasCache
       .map((x) => x.record)
       .filter(Boolean)
-      .filter((v) => portalVeiculoMatchesFrotaFiltro(v, getPortalResumoVeiculoCardData(v), filtroRaw));
-    veiculos.sort(portalCompareVeiculoResumoFrota);
+      .map((v) => ({ v, d: getPortalResumoVeiculoCardData(v, indice) }))
+      .filter(({ v, d }) => portalVeiculoMatchesFrotaFiltro(v, d, filtroRaw));
+    veiculos.sort((a, b) => {
+      const locA = String(a.d.statusClass || "").startsWith("locado") ? 0 : 1;
+      const locB = String(b.d.statusClass || "").startsWith("locado") ? 0 : 1;
+      if (locA !== locB) return locA - locB;
+      return portalCompareVeiculoPorCodigo(a.v, b.v);
+    });
 
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     if (!veiculos.length) {
@@ -14374,8 +14426,7 @@
     }
 
     grid.innerHTML = veiculos
-      .map((v) => {
-        const d = getPortalResumoVeiculoCardData(v);
+      .map(({ v, d }) => {
         const tag = String(v?.tag || "").trim() || "—";
         const testeCls = portalRegistroEhTeste(v) ? " operacao-veiculo-resumo-card--teste" : "";
         return `<button type="button" class="operacao-veiculo-resumo-card operacao-veiculo-resumo-card--${eh(
