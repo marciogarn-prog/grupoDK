@@ -1099,6 +1099,37 @@
     return arr;
   }
 
+  function placaCadastroKeySync(v) {
+    const raw = String(v?.placa || "");
+    if (typeof normalizePlacaParaCadastro === "function") {
+      return normalizePlacaParaCadastro(raw) || raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+    if (typeof normalizePlate === "function") return normalizePlate(raw);
+    return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
+  /** Nuvem manda no que já existe. Placa nova deste PC, marcada pelo portal, não some num pull atrasado. */
+  function unirFrotaNuvemComVeiculosNovosLocais(cloudArr, localArr) {
+    const by = new Map();
+    for (const v of Array.isArray(cloudArr) ? cloudArr : []) {
+      const pl = placaCadastroKeySync(v);
+      if (pl) by.set(pl, v);
+    }
+    for (const v of Array.isArray(localArr) ? localArr : []) {
+      const pl = placaCadastroKeySync(v);
+      if (!pl || by.has(pl)) continue;
+      if (!v || v.origemPortal !== true) continue;
+      if (
+        typeof window.__DK_isVeiculoFantasmaCadastro === "function" &&
+        window.__DK_isVeiculoFantasmaCadastro(v)
+      ) {
+        continue;
+      }
+      by.set(pl, v);
+    }
+    return Array.from(by.values());
+  }
+
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
@@ -1175,7 +1206,7 @@
           }
           consolidateLocacoesPagamentosInPlace(arr, opts);
         } else if (oficialFrotaPlanilha && veiculoKeysReplace.has(k) && Array.isArray(arr)) {
-          /* Oficial: frota = exactamente a nuvem/planilha — não acumula fantasmas locais. */
+          arr = unirFrotaNuvemComVeiculosNovosLocais(arr, readLocalJsonArray(k));
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           arr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), arr);
         }
@@ -3712,9 +3743,13 @@
     if (cloudPayload.dk_oficial_frota_planilha_v1 === true && window.__DK_IS_DEMO_DEPLOY__ !== true) {
       out.dk_oficial_frota_planilha_v1 = true;
       for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
-        if (!Object.prototype.hasOwnProperty.call(cloudPayload, k)) continue;
-        /* Autoridade da planilha: nuvem ganha — sem reintroduzir fantasmas do browser. */
-        out[k] = Array.isArray(cloudPayload[k]) ? cloudPayload[k].slice() : [];
+        if (
+          !Object.prototype.hasOwnProperty.call(cloudPayload, k) &&
+          !Object.prototype.hasOwnProperty.call(localPayload, k)
+        ) {
+          continue;
+        }
+        out[k] = unirFrotaNuvemComVeiculosNovosLocais(cloudPayload[k], localPayload[k]);
       }
     }
     const oficialVirgin = cloudPayload.dk_oficial_sem_protocolos_v1 === true;

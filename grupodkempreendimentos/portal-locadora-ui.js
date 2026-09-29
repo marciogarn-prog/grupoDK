@@ -16323,6 +16323,95 @@
   }
   window.__DK_portalSincronizarClientesCadastroComNuvemOficial = portalSincronizarClientesCadastroComNuvemOficial;
 
+  function portalPlacaRelatorioKey(v) {
+    const raw = String(v?.placa || "");
+    if (typeof normalizePlacaParaCadastro === "function") {
+      return normalizePlacaParaCadastro(raw) || raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+    if (typeof normalizePlate === "function") return normalizePlate(raw);
+    return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
+  /**
+   * O relatório da frota lia só a cópia deste PC. A mensagem «na nuvem» já tinha
+   * conferido o Redis, mas este computador continuava com a lista antiga.
+   */
+  async function portalSincronizarVeiculosCadastroComNuvemOficial() {
+    try {
+      const headers =
+        typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+      const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+      const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+      const url = `/api/dk-cloud-snapshot${q || ""}${sep}nocache=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store", headers });
+      const data = await res.json().catch(() => ({}));
+      const cloud = data?.payload?.dk_veiculos_cadastro;
+      if (!Array.isArray(cloud) || !cloud.length) {
+        return { ok: false, reason: "sem_frota_nuvem", total: 0 };
+      }
+      const byPlaca = new Map();
+      cloud.forEach((v) => {
+        const pl = portalPlacaRelatorioKey(v);
+        if (!pl) return;
+        byPlaca.set(pl, v && v.origemPortal === true ? v : { ...v, origemPortal: true });
+      });
+      if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+        (loadCadastro(CAD_VEICULOS_KEY) || []).forEach((v) => {
+          const pl = portalPlacaRelatorioKey(v);
+          if (!pl || byPlaca.has(pl)) return;
+          if (!v || v.origemPortal !== true) return;
+          if (
+            typeof window.__DK_isVeiculoFantasmaCadastro === "function" &&
+            window.__DK_isVeiculoFantasmaCadastro(v)
+          ) {
+            return;
+          }
+          byPlaca.set(pl, v);
+        });
+      }
+      const unified = Array.from(byPlaca.values());
+      const prevSuppress = window.__DK_suppressPortalCadastroPush;
+      window.__DK_suppressPortalCadastroPush = true;
+      try {
+        if (typeof saveCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+          saveCadastro(CAD_VEICULOS_KEY, unified, { allowShrink: true, bypassImmutabilidadeCadastro: true });
+        }
+        if (typeof saveCadastro === "function" && typeof PORTAL_VEICULOS_KEY !== "undefined") {
+          saveCadastro(PORTAL_VEICULOS_KEY, unified, { allowShrink: true, bypassImmutabilidadeCadastro: true });
+        }
+        if (typeof window.__DK_invalidateCadastroParseCache === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+          window.__DK_invalidateCadastroParseCache(CAD_VEICULOS_KEY);
+          if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
+            window.__DK_invalidateCadastroParseCache(PORTAL_VEICULOS_KEY);
+          }
+        }
+      } finally {
+        window.__DK_suppressPortalCadastroPush = prevSuppress;
+      }
+      if (typeof renderOperacaoVeiculoResumoFrota === "function") renderOperacaoVeiculoResumoFrota();
+      return { ok: true, total: unified.length, fromCloud: cloud.length };
+    } catch (e) {
+      return { ok: false, reason: String(e?.message || e || "erro"), total: 0 };
+    }
+  }
+
+  async function portalAbrirRelatorioVeiculosOficial() {
+    const btn = document.getElementById("operacaoVeiculoGerarRelatorioBtn");
+    const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "A alinhar a frota com a nuvem oficial…";
+    const sync = await portalSincronizarVeiculosCadastroComNuvemOficial();
+    const ctx = getPortalRelatorioVeiculoContext();
+    openPortalRelatorioModal(ctx);
+    if (msg) {
+      msg.textContent = sync?.ok
+        ? `Frota alinhada à nuvem (${sync.fromCloud} na nuvem · ${ctx.rows.length} no relatório).`
+        : `Não foi possível alinhar à nuvem (${sync?.reason || "erro"}). Relatório com a cópia deste PC (${ctx.rows.length}).`;
+    }
+    if (btn) btn.disabled = false;
+    return ctx;
+  }
+
   async function portalAbrirRelatorioClientesOficial() {
     const btn = document.getElementById("operacaoClienteGerarRelatorioBtn");
     const msg = document.getElementById("operacaoClienteInlineMsg");
@@ -16347,7 +16436,7 @@
 
   document.getElementById("operacaoVeiculoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    openPortalRelatorioModal(getPortalRelatorioVeiculoContext());
+    void portalAbrirRelatorioVeiculosOficial();
   });
 
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {
