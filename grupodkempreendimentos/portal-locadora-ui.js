@@ -27241,6 +27241,20 @@
 
   window.addEventListener("dk-locacoes-synced", () => {
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    try {
+      invalidatePesquisaLinhasCache();
+    } catch {
+      /* ignore */
+    }
+    const lanc = document.getElementById("operacaoInlineLancamentoAluguel");
+    if (lanc && !lanc.classList.contains("hidden")) {
+      refreshOperacaoLancAluguelPesquisaDatalists({
+        source: "nome",
+        skipCpfLista: true,
+        skipProtoLista: true,
+        semAutopreencher: true,
+      });
+    }
   });
   refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();

@@ -455,6 +455,8 @@
   const DK_LOCAL_AUTHORITY_KEY = "dkLocalDataAuthorityUntil";
   const DK_LOCAL_AUTHORITY_MS = 45 * 60 * 1000;
   const DK_CLOUD_LAST_PUSH_AT_KEY = "dkCloudLastPushedAt";
+  /** Revisão da nuvem já gravada neste computador. Não usa a hora do upload: o servidor pode ter juntado o que outro PC gravou. */
+  const DK_CLOUD_LAST_PULL_AT_KEY = "dkCloudLastPullAppliedAt";
 
   function isClienteAppPage() {
     try {
@@ -539,9 +541,12 @@
     const force = Boolean(opts && opts.force);
     const localL = readLocalJsonArray("dk_locacoes_cadastro").length;
     if (!force && window.__DK_IS_DEMO_DEPLOY__ !== true && localL > 0) {
-      return { ok: true, skipped: true, reason: "oficial_local_ok" };
+      const rev = await fetchCloudSnapshotRevision();
+      if (rev && rev === readCloudPullAppliedTimestamp()) {
+        return { ok: true, skipped: true, reason: "oficial_ja_alinhado" };
+      }
     }
-    if (!force && !demoNeedsCloudCadastroBootstrap()) {
+    if (!force && window.__DK_IS_DEMO_DEPLOY__ === true && !demoNeedsCloudCadastroBootstrap()) {
       return { ok: true, skipped: true, reason: "cadastros_ok" };
     }
     const data = await fetchCloudSnapshotPayload();
@@ -566,6 +571,7 @@
     if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
       window.__DK_portalRefreshOperacaoLocal();
     }
+    noteCloudPullAppliedTimestamp(data.updated_at);
     const afterL = readLocalJsonArray("dk_locacoes_cadastro").length;
     return { ok: true, applied: true, locacoes: afterL, source: data.source || "cloud" };
   }
@@ -602,6 +608,24 @@
   function readCloudPushTimestamp() {
     try {
       return String(localStorage.getItem(DK_CLOUD_LAST_PUSH_AT_KEY) || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function noteCloudPullAppliedTimestamp(iso) {
+    const rev = String(iso || "").trim();
+    if (!rev) return;
+    try {
+      localStorage.setItem(DK_CLOUD_LAST_PULL_AT_KEY, rev);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function readCloudPullAppliedTimestamp() {
+    try {
+      return String(localStorage.getItem(DK_CLOUD_LAST_PULL_AT_KEY) || "").trim();
     } catch {
       return "";
     }
@@ -2214,6 +2238,27 @@
     }
   }
 
+  async function fetchCloudSnapshotRevision() {
+    if (cloudSyncIsHalted() || !hasUsableCloudToken()) return "";
+    const urls = resolveRedundantSnapshotApiUrls();
+    for (let i = 0; i < urls.length; i += 1) {
+      const join = urls[i].includes("?") ? "&" : "?";
+      try {
+        const res = await fetchWithCloudTimeout(
+          `${urls[i]}${join}meta=1&nocache=${Date.now()}`,
+          { method: "GET", cache: "no-store", headers: dkCloudFetchHeaders() },
+          8000
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) continue;
+        return String(data.updated_at || "").trim();
+      } catch {
+        /* tenta o próximo endereço */
+      }
+    }
+    return "";
+  }
+
   async function fetchRedundantSnapshotPayloadUncached() {
     if (cloudSyncIsHalted()) return null;
     if (!hasUsableCloudToken()) {
@@ -2668,14 +2713,14 @@
     if (cloudPushTimer) {
       clearTimeout(cloudPushTimer);
       cloudPushTimer = null;
-      const flushed = await withTimeout(runTrackedCloudPush(() => pushSnapshotQuiet({ force: true })), 4000);
+      const flushed = await withTimeout(runTrackedCloudPush(() => pushSnapshotQuiet({ force: true })), 20000);
       if (!flushed || flushed.ok === false) {
         return { ok: false, reason: flushed?.reason || "push_failed", result: flushed };
       }
       return { ok: true, reason: "flushed", result: flushed };
     }
     if (cloudPushInFlight) {
-      const r = await withTimeout(cloudPushInFlight, 4000);
+      const r = await withTimeout(cloudPushInFlight, 20000);
       if (!r || r.ok === false) {
         return { ok: false, reason: r?.reason || "push_failed", result: r };
       }
@@ -4452,6 +4497,7 @@
         }
       }
     }
+    noteCloudPullAppliedTimestamp(data.updated_at);
     void refreshLocacoesIntegrityAlert({ force: true });
     return { ok: true, applied: changed };
   }
@@ -4847,6 +4893,7 @@
       return { ok: true, skipped: true, reason: "cloud_not_newer" };
     }
     if (!mergeNeeded) {
+      noteCloudPullAppliedTimestamp(data.updated_at);
       return { ok: true, unchanged: true };
     }
     suppressCloudHook = true;
@@ -4876,12 +4923,11 @@
     if (!clientePage) {
       scheduleDepositoSyncAfterCloudPull("pull");
     }
-    if (clientePage) {
-      try {
-        window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
-      } catch {
-        /* ignore */
-      }
+    noteCloudPullAppliedTimestamp(data.updated_at);
+    try {
+      window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
+    } catch {
+      /* ignore */
     }
     if (
       !clientePage &&
@@ -4918,8 +4964,7 @@
   async function pullFromCloudOnScreenChangeCore() {
     const gate = await awaitAutoCloudPushConfirmed();
     if (!gate.ok) {
-      console.warn("[DK cloud] pull ao mudar ecrã adiado: upload não confirmado", gate.reason);
-      return { ok: true, skipped: true, reason: "await_push_failed", gate };
+      console.warn("[DK cloud] await_push_failed — o download da nuvem segue mesmo assim", gate.reason);
     }
     if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
       try {
@@ -5148,9 +5193,26 @@
 
   let lastBackupMetaCache = null;
 
+  async function refreshLiveCloudStamp() {
+    const el = document.getElementById("dk-cloud-oficial-agora");
+    if (!el) return;
+    try {
+      const rev = await fetchCloudSnapshotRevision();
+      if (!rev) {
+        el.textContent = "Nuvem oficial: sem hora de atualização.";
+        return;
+      }
+      el.textContent = `Nuvem oficial (Redis): atualizada em ${formatBackupBrDateTime(rev)}. O quadro acima é só o backup por e-mail.`;
+    } catch (e) {
+      console.warn("[DK cloud] hora oficial", e);
+      el.textContent = "Nuvem oficial: não foi possível consultar agora.";
+    }
+  }
+
   async function refreshLastBackupPanel() {
     const panel = document.getElementById("dk-backup-last-info");
     const textEl = document.getElementById("dk-backup-last-info-text");
+    void refreshLiveCloudStamp();
     if (!panel || !textEl) return;
     textEl.textContent = "A carregar…";
     panel.classList.remove("dk-backup-last-info--ok", "dk-backup-last-info--empty");
@@ -5485,6 +5547,7 @@
     } finally {
       suppressCloudHook = false;
     }
+    noteCloudPullAppliedTimestamp(data.updated_at);
     try {
       sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
     } catch {
@@ -5560,7 +5623,7 @@
       const rev = String(data.updated_at || "").trim();
       if (!rev || rev === lastSeenCloudRev) return;
       lastSeenCloudRev = rev;
-      if (rev === readCloudPushTimestamp()) return;
+      if (rev === readCloudPullAppliedTimestamp()) return;
       invalidateSnapshotGetCache();
       await pullCadastroOperacionalFromCloud();
     } catch (e) {
