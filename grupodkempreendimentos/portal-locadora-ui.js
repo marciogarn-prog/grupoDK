@@ -21840,7 +21840,41 @@
     }
   }
 
-  function loadOperacaoLocacaoByProtocoloNumero(rawNc) {
+  async function portalTrazerLocacaoDaNuvemPorProtocolo(nc) {
+    const fetchFn = window.__DK_fetchCloudSnapshotPayload;
+    if (typeof fetchFn !== "function" || !nc) return null;
+    let data = null;
+    try {
+      data = await fetchFn({ fresh: true });
+    } catch (e) {
+      console.warn("[DK portal] protocolo na nuvem", e);
+      return null;
+    }
+    const cloudArr = Array.isArray(data?.payload?.dk_locacoes_cadastro)
+      ? data.payload.dk_locacoes_cadastro
+      : [];
+    const hit = cloudArr.find((l) => normPortalNumeroContrato(l?.numeroContrato) === nc) || null;
+    if (!hit) return null;
+    if (typeof saveCadastro === "function" && typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      const local = loadCadastro(CAD_LOCACOES_KEY).slice();
+      const idx = local.findIndex((l) => normPortalNumeroContrato(l?.numeroContrato) === nc);
+      if (idx >= 0) local[idx] = { ...local[idx], ...hit, numeroContrato: hit.numeroContrato || nc };
+      else local.push({ ...hit, numeroContrato: hit.numeroContrato || nc });
+      try {
+        saveCadastro(CAD_LOCACOES_KEY, local, { bypassImmutabilidadeCadastro: true });
+      } catch (e) {
+        console.warn("[DK portal] gravar protocolo da nuvem", e);
+      }
+    }
+    try {
+      invalidatePesquisaLinhasCache();
+    } catch {
+      /* ignore */
+    }
+    return findPortalLocacaoByProtocolo(nc) || hit;
+  }
+
+  async function loadOperacaoLocacaoByProtocoloNumero(rawNc) {
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (!isPortalTitularAdministrador()) {
       if (msg) msg.textContent = "Apenas o administrador pode carregar e editar um protocolo pelo número.";
@@ -21860,9 +21894,13 @@
       const busca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
       if (busca) busca.value = nc;
     }
-    const loc = findPortalLocacaoByProtocolo(nc);
+    let loc = findPortalLocacaoByProtocolo(nc);
     if (!loc) {
-      if (msg) msg.textContent = `Protocolo ${nc} não encontrado na base.`;
+      if (msg) msg.textContent = `Protocolo ${nc} não está neste computador. A procurar na nuvem oficial…`;
+      loc = await portalTrazerLocacaoDaNuvemPorProtocolo(nc);
+    }
+    if (!loc) {
+      if (msg) msg.textContent = `Protocolo ${nc} não está neste computador nem na nuvem oficial.`;
       return { ok: false };
     }
     const dig =
@@ -26784,7 +26822,11 @@
     });
     document.getElementById("operacaoLocacaoProtocoloAdminCarregarBtn")?.addEventListener("click", () => {
       const raw = String(document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || "").trim();
-      loadOperacaoLocacaoByProtocoloNumero(raw);
+      void loadOperacaoLocacaoByProtocoloNumero(raw).catch((e) => {
+        console.warn("[DK portal] carregar protocolo", e);
+        const msg = document.getElementById("operacaoLocacaoInlineMsg");
+        if (msg) msg.textContent = "Não foi possível consultar a nuvem agora. Tente de novo.";
+      });
     });
     document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
@@ -26797,7 +26839,9 @@
         }
         ev.preventDefault();
         const raw = String(ev.target?.value || "").trim();
-        loadOperacaoLocacaoByProtocoloNumero(raw);
+        void loadOperacaoLocacaoByProtocoloNumero(raw).catch((e) => {
+          console.warn("[DK portal] carregar protocolo", e);
+        });
       }
     });
     document.getElementById("operacaoLocacaoProtocoloSalvarAlteracaoBtn")?.addEventListener("click", (ev) => {
