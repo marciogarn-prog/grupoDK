@@ -498,6 +498,11 @@
   let lastPushedFingerprint = "";
   let cloudPushDirty = false;
   let cloudBackoffUntil = 0;
+  /** 409 de placa: um aviso só, sem reenviar a mesma cópia em loop. */
+  let cloudPlateConflictHold = false;
+  let cloudPlateConflictAlerted = false;
+  let cloudPaymentConflictAlerted = false;
+  let cloudPlateConflictRecovery = null;
 
   let cloudPushTimer = null;
   /** Promise do upload automático em curso (ou a última cadeia ainda a concluir). */
@@ -2324,6 +2329,51 @@
     return fetchRedundantSnapshotPayload({ fresh: true });
   }
 
+  /**
+   * A nuvem recusou o envio porque a cópia deste PC pôs a mesma placa em dois
+   * protocolos ativos. A lista oficial não foi alterada. Repõe essa lista aqui
+   * e não volta a enviar a cópia rejeitada.
+   */
+  function recuperarLocacoesOficiaisAposConflito(data) {
+    cloudPushDirty = false;
+    cloudPlateConflictHold = true;
+    if (!cloudPlateConflictAlerted && data && data.message) {
+      cloudPlateConflictAlerted = true;
+      window.alert(String(data.message));
+    }
+    void refreshLocacoesIntegrityAlert({ force: true });
+    if (cloudPlateConflictRecovery) return cloudPlateConflictRecovery;
+    cloudPlateConflictRecovery = (async () => {
+      try {
+        const row = await fetchRedisSnapshotFresh();
+        const arr =
+          row && row.payload && Array.isArray(row.payload.dk_locacoes_cadastro)
+            ? row.payload.dk_locacoes_cadastro
+            : null;
+        if (!arr || !arr.length) return;
+        const next = normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })));
+        runWithoutCloudPush(() => {
+          if (typeof saveCadastro === "function") {
+            saveCadastro("dk_locacoes_cadastro", next, {
+              bypassImmutabilidadeCadastro: true,
+              allowShrink: true,
+            });
+          } else {
+            localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(next));
+          }
+        });
+        if (row.updated_at) noteCloudPullAppliedTimestamp(row.updated_at);
+      } catch (e) {
+        console.warn("[DK cloud] conflito de placa: locações oficiais não repostas", e);
+      } finally {
+        cloudPushDirty = false;
+        cloudPlateConflictHold = false;
+        cloudPlateConflictRecovery = null;
+      }
+    })();
+    return cloudPlateConflictRecovery;
+  }
+
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
     if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
     if (!hasUsableCloudToken()) {
@@ -2394,12 +2444,17 @@
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
           if (
-            (data?.reason === "active_plate_conflict" ||
-              data?.reason === "duplicate_payment_same_day_value") &&
-            data?.message
+            data?.reason === "duplicate_payment_same_day_value" &&
+            data?.message &&
+            !cloudPaymentConflictAlerted
           ) {
+            cloudPaymentConflictAlerted = true;
+            cloudPushDirty = false;
+            cloudPlateConflictHold = true;
             window.alert(String(data.message));
-            void refreshLocacoesIntegrityAlert({ force: true });
+          }
+          if (data?.reason === "active_plate_conflict") {
+            void recuperarLocacoesOficiaisAposConflito(data);
           }
         }
       } catch (e) {
@@ -2635,6 +2690,7 @@
       cloudAuthenticated: Boolean(window.DK_CLOUD_AUTHENTICATED),
     });
     if (cloudSyncIsHalted()) return;
+    if (cloudPlateConflictHold) return;
     if (!hasUsableCloudToken()) {
       markCloudLocalOnly();
       return;
@@ -2683,12 +2739,13 @@
       });
     cloudPushInFlight = p.finally(() => {
       if (cloudPushInFlight === p) cloudPushInFlight = null;
-      if (cloudSyncHalted || cloudSyncIsHalted()) {
+      if (cloudSyncHalted || cloudSyncIsHalted() || cloudPlateConflictHold) {
         cloudPushDirty = false;
         dkLoopTrace("tracked push finally halted", {
           origem: origem || "unspecified",
           cloudSyncHalted,
           cloudHaltKind,
+          cloudPlateConflictHold,
         });
         return;
       }
