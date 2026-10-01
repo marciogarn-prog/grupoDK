@@ -18616,10 +18616,32 @@
     setOperacaoFormPlaceholderVisible(false);
     showOperacaoLancAluguelSub(sub);
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
-    if (sub === "avulso" || sub === "comprovante") {
-      refreshOperacaoLancAluguelPesquisaDatalists();
+    const msgNuvem = document.getElementById("operacaoLancAluguelInlineMsg");
+    if ((sub === "avulso" || sub === "comprovante") && msgNuvem) {
+      msgNuvem.textContent = "A receber as locações da nuvem oficial...";
+    }
+    const pintarPesquisaLocacoes = (falhou) => {
+      if (falhou && msgNuvem) {
+        msgNuvem.textContent =
+          "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador.";
+      } else if (msgNuvem && String(msgNuvem.textContent || "").startsWith("A receber as locações")) {
+        msgNuvem.textContent = "";
+      }
+      if (sub === "avulso" || sub === "comprovante") {
+        refreshOperacaoLancAluguelPesquisaDatalists({ nuvemPronta: true });
+      } else {
+        hideOperacaoLancAluguelDetalhePanels();
+      }
+    };
+    if (
+      (sub === "avulso" || sub === "comprovante") &&
+      typeof window.__DK_reporLocacoesOficiaisAgora === "function"
+    ) {
+      void Promise.resolve(window.__DK_reporLocacoesOficiaisAgora()).then((r) => {
+        pintarPesquisaLocacoes(!(r && r.ok));
+      });
     } else {
-      hideOperacaoLancAluguelDetalhePanels();
+      pintarPesquisaLocacoes(false);
     }
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
@@ -24902,6 +24924,12 @@
    * @param {{ source?: 'cpf'|'nome'|'proto'|'placa', skipCpfLista?: boolean, openCpfLista?: boolean, skipProtoLista?: boolean, openProtoLista?: boolean }} opts
    */
   function refreshOperacaoLancAluguelPesquisaDatalists(opts = {}) {
+    if (opts.nuvemPronta !== true && window.__DK_reporLocacoesOficiaisFlight) {
+      void Promise.resolve(window.__DK_reporLocacoesOficiaisFlight).then(() => {
+        refreshOperacaoLancAluguelPesquisaDatalists({ ...opts, nuvemPronta: true });
+      });
+      return;
+    }
     const source = String(opts.source || "");
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
@@ -25224,6 +25252,17 @@
   }
 
   function confirmarOperacaoLancAluguelPesquisa() {
+    if (window.__DK_reporLocacoesOficiaisFlight) {
+      const espera = document.getElementById("operacaoLancAluguelInlineMsg");
+      if (espera) espera.textContent = "A receber as locações da nuvem oficial...";
+      void Promise.resolve(window.__DK_reporLocacoesOficiaisFlight).then(() => {
+        if (espera && String(espera.textContent || "").startsWith("A receber as locações")) {
+          espera.textContent = "";
+        }
+        confirmarOperacaoLancAluguelPesquisa();
+      });
+      return;
+    }
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     const hit = resolveOperacaoLancAluguelLocacaoFromPesquisa();
     if (!hit || hit.cpfDigits.length !== 11) {

@@ -2329,6 +2329,75 @@
     return fetchRedundantSnapshotPayload({ fresh: true });
   }
 
+  let reporLocacoesOficiaisFlight = null;
+
+  function gravarLocacoesOficiaisNoPc(arr) {
+    const next = normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })));
+    runWithoutCloudPush(() => {
+      if (typeof saveCadastro === "function") {
+        saveCadastro("dk_locacoes_cadastro", next, {
+          bypassImmutabilidadeCadastro: true,
+          allowShrink: true,
+        });
+      } else {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(next));
+      }
+    });
+    if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+      try {
+        window.__DK_invalidateCadastroParseCache("dk_locacoes_cadastro");
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+      try {
+        window.__DK_invalidatePesquisaLinhasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    return next.length;
+  }
+
+  /** Copia as locações da nuvem oficial para este PC e avisa a pesquisa. */
+  function reporLocacoesOficiaisAgora() {
+    if (reporLocacoesOficiaisFlight) return reporLocacoesOficiaisFlight;
+    reporLocacoesOficiaisFlight = (async () => {
+      const row = await fetchRedisSnapshotFresh();
+      const arr =
+        row && row.payload && Array.isArray(row.payload.dk_locacoes_cadastro)
+          ? row.payload.dk_locacoes_cadastro
+          : null;
+      if (!arr || !arr.length) return { ok: false, reason: "sem_locacoes" };
+      const n = gravarLocacoesOficiaisNoPc(arr);
+      if (row.updated_at) noteCloudPullAppliedTimestamp(row.updated_at);
+      try {
+        window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
+      } catch {
+        /* ignore */
+      }
+      if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+        try {
+          window.__DK_portalRefreshOperacaoLocal();
+        } catch {
+          /* ignore */
+        }
+      }
+      return { ok: true, locacoes: n };
+    })()
+      .catch((e) => {
+        console.warn("[DK cloud] repor locações oficiais", e);
+        return { ok: false, reason: "falha" };
+      })
+      .finally(() => {
+        reporLocacoesOficiaisFlight = null;
+        window.__DK_reporLocacoesOficiaisFlight = null;
+      });
+    window.__DK_reporLocacoesOficiaisFlight = reporLocacoesOficiaisFlight;
+    return reporLocacoesOficiaisFlight;
+  }
+
   /**
    * A nuvem recusou o envio porque a cópia deste PC pôs a mesma placa em dois
    * protocolos ativos. A lista oficial não foi alterada. Repõe essa lista aqui
@@ -4934,7 +5003,7 @@
     if (clientePage) {
       return pullClienteCloudSnapshotLight(opts);
     }
-    const data = await fetchCloudSnapshotPayload();
+    const data = await fetchCloudSnapshotPayload(force ? { fresh: true } : undefined);
     const consultaSync = data?.payload
       ? { ok: true, changed: syncConsultaKeysFromCloudPayload(data.payload), source: data.source || "cloud" }
       : { ok: false, skipped: true, reason: "no_cloud_snapshot" };
@@ -5160,6 +5229,7 @@
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
     window.__DK_fetchRedisSnapshotFresh = fetchRedisSnapshotFresh;
+    window.__DK_reporLocacoesOficiaisAgora = reporLocacoesOficiaisAgora;
     window.__DK_invalidateCloudSnapshotGetCache = invalidateSnapshotGetCache;
     window.__DK_collectPayloadFromLocalStorage = collectPayloadFromLocalStorage;
     window.__DK_applyPayloadToLocalStorage = applyPayloadToLocalStorage;
