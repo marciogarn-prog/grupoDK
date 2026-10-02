@@ -524,6 +524,7 @@
     if (ceoTotaisBloco.qtd < 0) ceoTotaisBloco.qtd = 0;
     if (ceoTotaisBloco.qtdAberto < 0) ceoTotaisBloco.qtdAberto = 0;
     pintarTotaisBlocoCeo();
+    recalcularSubtotaisUnidadeDaLista();
   }
 
   function aplicarBlocoNaTela(blocoUi) {
@@ -3747,10 +3748,29 @@
     return rows;
   }
 
+  function unidadeSubtotalChave(categoria) {
+    const s = String(categoria || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
+    if (s.includes("CONSTRUTORA")) return "construtora";
+    if (s.includes("CENTRO") || s.includes("OFICINA")) return "centro";
+    if (s.includes("LOCADORA")) return "locadora";
+    return "";
+  }
+
   function calcularTotaisEndividamentoLista(linhas) {
     let total = 0;
     let aberto = 0;
     let qtdAberto = 0;
+    let construtora = 0;
+    let centro = 0;
+    let locadora = 0;
+    let vencidos = 0;
+    let qtdConstrutora = 0;
+    let qtdCentro = 0;
+    let qtdLocadora = 0;
+    let qtdVencidos = 0;
     (linhas || []).forEach((r) => {
       const v = Number(r.valor) || 0;
       total += v;
@@ -3758,8 +3778,72 @@
         aberto += v;
         qtdAberto += 1;
       }
+      const chave = unidadeSubtotalChave(r.categoria);
+      if (chave === "construtora") {
+        construtora += v;
+        qtdConstrutora += 1;
+      } else if (chave === "centro") {
+        centro += v;
+        qtdCentro += 1;
+      } else if (chave === "locadora") {
+        locadora += v;
+        qtdLocadora += 1;
+      }
+      if (linhaDespesaVencidaNaoPaga(r)) {
+        vencidos += v;
+        qtdVencidos += 1;
+      }
     });
-    return { total, aberto, qtd: (linhas || []).length, qtdAberto };
+    return {
+      total,
+      aberto,
+      qtd: (linhas || []).length,
+      qtdAberto,
+      construtora,
+      centro,
+      locadora,
+      vencidos,
+      qtdConstrutora,
+      qtdCentro,
+      qtdLocadora,
+      qtdVencidos,
+    };
+  }
+
+  function textoSubtotalFiltro(qtd) {
+    return qtd === 1 ? "1 lançamento no filtro" : `${qtd} lançamentos no filtro`;
+  }
+
+  function pintarSubtotaisUnidade(totais) {
+    const itens = [
+      ["finCeoDespSubConstrutoraValor", "finCeoDespSubConstrutoraHint", totais?.construtora || 0, totais?.qtdConstrutora || 0],
+      ["finCeoDespSubCentroValor", "finCeoDespSubCentroHint", totais?.centro || 0, totais?.qtdCentro || 0],
+      ["finCeoDespSubLocadoraValor", "finCeoDespSubLocadoraHint", totais?.locadora || 0, totais?.qtdLocadora || 0],
+      ["finCeoDespSubVencidosValor", "finCeoDespSubVencidosHint", totais?.vencidos || 0, totais?.qtdVencidos || 0],
+    ];
+    itens.forEach(([valId, hintId, valor, qtd]) => {
+      const el = document.getElementById(valId);
+      const hint = document.getElementById(hintId);
+      if (el) el.textContent = brl(valor);
+      if (hint) hint.textContent = textoSubtotalFiltro(qtd);
+    });
+  }
+
+  function recalcularSubtotaisUnidadeDaLista() {
+    const base = coletarLinhasExcelListaDespesas();
+    const linhas = base.length ? aplicarCeoListaExcelFiltroSort(base) : [];
+    const totais = calcularTotaisEndividamentoLista(linhas);
+    if (ceoTotaisBloco) {
+      ceoTotaisBloco.construtora = totais.construtora;
+      ceoTotaisBloco.centro = totais.centro;
+      ceoTotaisBloco.locadora = totais.locadora;
+      ceoTotaisBloco.vencidos = totais.vencidos;
+      ceoTotaisBloco.qtdConstrutora = totais.qtdConstrutora;
+      ceoTotaisBloco.qtdCentro = totais.qtdCentro;
+      ceoTotaisBloco.qtdLocadora = totais.qtdLocadora;
+      ceoTotaisBloco.qtdVencidos = totais.qtdVencidos;
+    }
+    pintarSubtotaisUnidade(totais);
   }
 
   function listaDespesaTemFiltroColunaAtivo() {
@@ -3777,6 +3861,7 @@
     const filtradas = linhas || [];
     const totais = calcularTotaisEndividamentoLista(filtradas);
     ceoTotaisBloco = { ...totais };
+    pintarSubtotaisUnidade(totais);
 
     if (!base.length) {
       totEl.textContent = "—";

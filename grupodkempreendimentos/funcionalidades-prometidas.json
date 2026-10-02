@@ -1196,6 +1196,30 @@
       }
     },
     {
+      "id": "fin-ceo-lista-subtotais-unidades",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas: quatro caixas SUBTOTAL (cinza DK Construtora, azul DK Centro Automotivo, vermelha DK Locadora, amarela vencidos e não pagos) somam só as linhas que permanecem após o filtro ▾, como a função SUBTOTAL do Excel. Filtrar uma unidade zera as outras.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDespSubtotais",
+          "finCeoDespSubConstrutoraValor",
+          "finCeoDespSubCentroValor",
+          "finCeoDespSubLocadoraValor",
+          "finCeoDespSubVencidosValor"
+        ],
+        "portal-financeiro-ceo.js": [
+          "unidadeSubtotalChave",
+          "pintarSubtotaisUnidade",
+          "recalcularSubtotaisUnidadeDaLista"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-subtotal--construtora",
+          "fin-ceo-desp-subtotal--centro",
+          "fin-ceo-desp-subtotal--locadora",
+          "fin-ceo-desp-subtotal--vencidos"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-lista-situacao-pago",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): coluna Situação com botão A PAGAR (azul) ou PAGO; confirmação no modal antes de marcar pago; lista ordenada por vencimento em aberto (atrasadas primeiro, pagas no final).",
       "ficheiros": {

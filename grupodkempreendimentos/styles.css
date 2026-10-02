@@ -12597,6 +12597,79 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   min-width: 0;
 }
 
+.fin-ceo-desp-subtotais {
+  flex: 1 1 28rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  min-width: min(100%, 22rem);
+}
+
+.fin-ceo-desp-subtotal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  min-height: 5.2rem;
+  min-width: 0;
+}
+
+.fin-ceo-desp-subtotal strong {
+  font-size: 1.15rem;
+  line-height: 1.15;
+  margin-top: 0.1rem;
+  overflow-wrap: anywhere;
+}
+
+.fin-ceo-desp-subtotal--construtora {
+  border-color: #d1d5db;
+  background: #4b5563;
+  color: #f9fafb;
+}
+
+.fin-ceo-desp-subtotal--construtora strong {
+  color: #ffffff;
+}
+
+.fin-ceo-desp-subtotal--centro {
+  border-color: #93c5fd;
+  background: #1d4ed8;
+  color: #eff6ff;
+}
+
+.fin-ceo-desp-subtotal--centro strong {
+  color: #ffffff;
+}
+
+.fin-ceo-desp-subtotal--locadora {
+  border-color: #fca5a5;
+  background: #b91c1c;
+  color: #fef2f2;
+}
+
+.fin-ceo-desp-subtotal--locadora strong {
+  color: #ffffff;
+}
+
+.fin-ceo-desp-subtotal--vencidos {
+  grid-column: 1 / -1;
+  border-color: #854d0e;
+  background: #facc15;
+  color: #1c1917;
+}
+
+.fin-ceo-desp-subtotal--vencidos strong {
+  color: #1c1917;
+}
+
+@media (max-width: 720px) {
+  .fin-ceo-desp-subtotais {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fin-ceo-desp-endiv-kpis {
   flex: 0 1 13.5rem;
   display: flex;
