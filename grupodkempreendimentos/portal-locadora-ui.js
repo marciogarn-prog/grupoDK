@@ -18631,7 +18631,9 @@
     const pintarPesquisaLocacoes = (falhou) => {
       if (falhou && msgNuvem) {
         msgNuvem.textContent =
-          "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador.";
+          "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador. Nada deste PC entra na lista sem confirmação da nuvem.";
+        hideOperacaoLancAluguelDetalhePanels();
+        clearOperacaoLancAluguelPesquisaConfirmada();
       } else if (msgNuvem && String(msgNuvem.textContent || "").startsWith("A receber as locações")) {
         msgNuvem.textContent = "";
       }
@@ -24886,10 +24888,14 @@
       window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         ? window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         : null;
+    const nuvemOk = window.__DK_IS_DEMO_DEPLOY__ === true || window.__DK_locacoesNuvemOk === true;
+    const confirmados = window.__DK_locacoesNuvemProtocolos;
+    if (!nuvemOk) return [];
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       const proto = normPortalNumeroContrato(l.numeroContrato || "");
       if (!proto) return;
       if (allowPrs && !allowPrs.has(String(proto).replace(/\D/g, ""))) return;
+      if (confirmados instanceof Set && confirmados.size && !confirmados.has(String(proto).replace(/\D/g, ""))) return;
       const cpf = dig(String(l.cpf || ""));
       if (cpf.length !== 11) return;
       let nome = String(l.nome || l.cliente || "").trim();
@@ -25415,7 +25421,14 @@
     const nomeQ = normNome(String(inpNome?.value || ""));
     const placaWant = np(String(inpPlaca?.value || "").trim());
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
-    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normPortalNumeroContrato(l.numeroContrato));
+    const confirmados = window.__DK_locacoesNuvemProtocolos;
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+      const nc = normPortalNumeroContrato(l.numeroContrato);
+      if (!nc) return false;
+      if (window.__DK_IS_DEMO_DEPLOY__ === true) return true;
+      const digNc = String(nc).replace(/\D/g, "");
+      return confirmados instanceof Set && confirmados.has(digNc);
+    });
     if (placaWant.length >= 3) {
       const matches = locs.filter((l) => np(String(l.placa || "")).includes(placaWant));
       if (!matches.length) return null;
@@ -25513,6 +25526,15 @@
       return;
     }
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_locacoesNuvemOk !== true) {
+      hideOperacaoLancAluguelDetalhePanels();
+      clearOperacaoLancAluguelPesquisaConfirmada();
+      if (msg) {
+        msg.textContent =
+          "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador. Nada deste PC entra na lista sem confirmação da nuvem.";
+      }
+      return;
+    }
     const hit = resolveOperacaoLancAluguelLocacaoFromPesquisa();
     if (!hit || hit.cpfDigits.length !== 11) {
       hideOperacaoLancAluguelDetalhePanels();

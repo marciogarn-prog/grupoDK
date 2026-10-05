@@ -658,6 +658,9 @@
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
       Object.assign(payload, window.__DK_sanitizeOficialCloudPayload(payload) || payload);
     }
+    if (!isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_locacoesNuvemOk !== true) {
+      delete payload.dk_locacoes_cadastro;
+    }
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
         payload.dk_patrimonio_crlv_v1,
@@ -1725,6 +1728,14 @@
         /* ignore */
       }
     }
+    if (
+      !isClienteAppPage() &&
+      window.__DK_IS_DEMO_DEPLOY__ !== true &&
+      Array.isArray(payload?.dk_locacoes_cadastro) &&
+      payload.dk_locacoes_cadastro.length
+    ) {
+      marcarLocacoesConfirmadasNaNuvem(payload.dk_locacoes_cadastro);
+    }
     if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
       try {
         window.__DK_invalidatePesquisaLinhasCache();
@@ -2475,6 +2486,29 @@
     return next.length;
   }
 
+  function marcarLocacoesConfirmadasNaNuvem(arr) {
+    const set = new Set();
+    (Array.isArray(arr) ? arr : []).forEach((loc) => {
+      const nc = String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
+      if (nc) set.add(nc);
+    });
+    if (!set.size) return;
+    window.__DK_locacoesNuvemOk = true;
+    window.__DK_locacoesNuvemProtocolos = set;
+  }
+
+  function recusarLocacoesSemNuvem() {
+    window.__DK_locacoesNuvemOk = false;
+    window.__DK_locacoesNuvemProtocolos = new Set();
+    if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+      try {
+        window.__DK_invalidatePesquisaLinhasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   /** Copia as locações da nuvem oficial para este PC e avisa a pesquisa. */
   function reporLocacoesOficiaisAgora() {
     if (reporLocacoesOficiaisFlight) return reporLocacoesOficiaisFlight;
@@ -2486,7 +2520,11 @@
         row && row.payload && Array.isArray(row.payload.dk_locacoes_cadastro)
           ? row.payload.dk_locacoes_cadastro
           : null;
-      if (!arr || !arr.length) return { ok: false, reason: "sem_locacoes" };
+      if (!arr || !arr.length) {
+        recusarLocacoesSemNuvem();
+        return { ok: false, reason: "sem_locacoes" };
+      }
+      marcarLocacoesConfirmadasNaNuvem(arr);
       const n = gravarLocacoesOficiaisNoPc(arr);
       await mesclarFilaLancamentosNoPc();
       enviarPagamentosReanexadosSeHouver();
@@ -2507,6 +2545,7 @@
     })()
       .catch((e) => {
         console.warn("[DK cloud] repor locações oficiais", e);
+        recusarLocacoesSemNuvem();
         return { ok: false, reason: "falha" };
       })
       .finally(() => {

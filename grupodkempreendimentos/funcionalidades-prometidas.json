@@ -1363,6 +1363,21 @@
       }
     },
     {
+      "id": "lanc-aluguel-so-nuvem-confirmada",
+      "descricao": "No Lançamento de aluguel, a pesquisa só lista locação que a nuvem oficial confirmou nesta sessão. Se a nuvem não responder, a lista deste computador não aparece e este PC não envia o cadastro de locações.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "__DK_locacoesNuvemOk",
+          "Nada deste PC entra na lista sem confirmação da nuvem."
+        ],
+        "portal-supabase-sync.js": [
+          "marcarLocacoesConfirmadasNaNuvem",
+          "recusarLocacoesSemNuvem",
+          "__DK_locacoesNuvemOk"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-painel-resumo-periodo",
       "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e os mesmos dois gráficos do Painel executivo (Saldo mês a mês / dia a dia em barras verde/vermelho com linhas de receita e despesa; Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada) que atualizam com as datas.",
       "ficheiros": {
