@@ -1341,6 +1341,28 @@
       }
     },
     {
+      "id": "fin-ceo-painel-operacional",
+      "descricao": "No FINANCEIRO CEO, o botão Painel operacional fica acima do Painel executivo. Lista as pessoas cadastradas com marcar e desmarcar, um calendário e, ao marcar pessoa e data, o que cada uma fez naquele dia com hora, cliente, placa e protocolo.",
+      "ficheiros": {
+        "index.html": [
+          "btn-fin-ceo-operacional",
+          "Painel operacional",
+          "finCeoPaneOperacional",
+          "finCeoOpData"
+        ],
+        "portal-financeiro-ceo.js": [
+          "renderPainelOperacionalCeo",
+          "cadastrou um cliente",
+          "lançou um pagamento",
+          "finalizou uma locação"
+        ],
+        "styles.css": [
+          "fin-ceo-op-pessoas",
+          "fin-ceo-op-item__hora"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-painel-resumo-periodo",
       "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e os mesmos dois gráficos do Painel executivo (Saldo mês a mês / dia a dia em barras verde/vermelho com linhas de receita e despesa; Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada) que atualizam com as datas.",
       "ficheiros": {

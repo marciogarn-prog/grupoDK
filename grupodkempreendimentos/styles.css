@@ -12189,6 +12189,87 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0.35rem 0 0.65rem;
 }
 
+.fin-ceo-op__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0.65rem 0 0.35rem;
+}
+
+.fin-ceo-op__topo .portal-field {
+  min-width: 10rem;
+  flex: 0 1 12rem;
+}
+
+.fin-ceo-op__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding-bottom: 0.15rem;
+}
+
+.fin-ceo-op__hint {
+  margin: 0.35rem 0 0.55rem;
+}
+
+.fin-ceo-op-pessoas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.fin-ceo-op-pessoa {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.fin-ceo-op-pessoa input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #22c55e;
+}
+
+.fin-ceo-op-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.fin-ceo-op-item {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fin-ceo-op-item__acao {
+  margin: 0;
+}
+
+.fin-ceo-op-item__hora {
+  font-variant-numeric: tabular-nums;
+  color: #facc15;
+}
+
+.fin-ceo-op-item__det {
+  margin: 0.28rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .fin-ceo-periodo-kpis {
   margin: 0.35rem 0 0 !important;
 }

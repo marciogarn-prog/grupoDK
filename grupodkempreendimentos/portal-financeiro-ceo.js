@@ -6259,6 +6259,362 @@
     );
   }
 
+  const ceoOpCpfs = new Set();
+
+  function digCeoOp(v) {
+    return String(v ?? "").replace(/\D/g, "");
+  }
+
+  function msAcaoCeo(raw) {
+    if (raw == null || raw === "") return 0;
+    if (typeof raw === "number" && Number.isFinite(raw) && raw > 1e11) return raw;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 1e11) return n;
+    const p = Date.parse(String(raw));
+    return Number.isFinite(p) ? p : 0;
+  }
+
+  function ymdSaoPauloCeo(ms) {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ms));
+    } catch {
+      return "";
+    }
+  }
+
+  function horaSaoPauloCeo(ms) {
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date(ms));
+    } catch {
+      return "";
+    }
+  }
+
+  function hojeBrCeoOp() {
+    const iso = ymdSaoPauloCeo(Date.now());
+    const [y, m, d] = String(iso || "").split("-");
+    if (!y || !m || !d) return "";
+    return `${d}/${m}/${y}`;
+  }
+
+  function fmtCpfCeoOp(raw) {
+    const x = digCeoOp(raw).slice(0, 11);
+    if (x.length !== 11) return x;
+    return x.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  }
+
+  function lerListaLeveCeo(key) {
+    try {
+      if (typeof window.loadCadastro === "function") {
+        const arr = window.loadCadastro(key);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function pessoasPainelOperacionalCeo() {
+    const map = new Map();
+    const add = (cpf, nome, blocked) => {
+      const d = digCeoOp(cpf).slice(0, 11);
+      const n = String(nome || "").trim();
+      if (d.length !== 11) return;
+      const prev = map.get(d);
+      if (!prev) {
+        map.set(d, { cpf: d, nome: n || "Sem nome", blocked: Boolean(blocked) });
+        return;
+      }
+      if (n && (prev.nome === "Sem nome" || n.length > prev.nome.length)) prev.nome = n;
+      if (blocked) prev.blocked = true;
+    };
+    const funcs =
+      typeof funcionariosAccess !== "undefined" && Array.isArray(funcionariosAccess) ? funcionariosAccess : [];
+    funcs.forEach((f) => add(f?.cpf, f?.nome, f?.blocked));
+    add(TITULAR_CEO_CPF, "Márcio Santos", false);
+    return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+
+  function ymdCampoPainelOpCeo() {
+    const dt = parseBrDate(document.getElementById("finCeoOpData")?.value || "");
+    if (!dt || Number.isNaN(dt.getTime())) return "";
+    return ymd(dt);
+  }
+
+  function verboAcaoLancamentoCeo(p) {
+    const t = String(p?.tipoMovimento || "").toUpperCase();
+    if (t.includes("DEVOLU")) return "lançou uma devolução";
+    if (t.includes("CAUC")) return "lançou uma caução";
+    if (t.includes("CREDIT")) return "lançou um crédito de manutenção";
+    return "lançou um pagamento";
+  }
+
+  function detalheAcaoCeo(partes) {
+    return partes.filter((p) => p && String(p).trim()).join(" · ");
+  }
+
+  function pushAcaoCeo(out, seen, row) {
+    const id = [row.cpf, row.ms, row.verbo, row.chave].join("|");
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push(row);
+  }
+
+  function coletarAcoesPainelOperacionalCeo(dia, cpfs, nomePorCpf) {
+    const out = [];
+    const seen = new Set();
+    const cabe = (cpf, ms) => {
+      const d = digCeoOp(cpf).slice(0, 11);
+      if (d.length !== 11 || !cpfs.has(d) || !ms) return "";
+      if (ymdSaoPauloCeo(ms) !== dia) return "";
+      return d;
+    };
+    const nomeDe = (cpf, fallback) => nomePorCpf.get(cpf) || String(fallback || "").trim() || "Operador";
+
+    lerListaLeveCeo("dk_clientes_cadastro").forEach((c) => {
+      const ms = msAcaoCeo(c?.createdAt);
+      const cpf = cabe(c?.cadastradoPorCpf, ms);
+      if (!cpf) return;
+      pushAcaoCeo(out, seen, {
+        cpf,
+        ms,
+        verbo: "cadastrou um cliente",
+        chave: `cli:${c?.id || c?.cpf || ""}`,
+        nome: nomeDe(cpf, c?.cadastradoPorNome),
+        detalhe: detalheAcaoCeo([
+          `Hora ${horaSaoPauloCeo(ms)}`,
+          c?.nome ? `Cliente ${c.nome}` : "",
+          c?.cpf ? `CPF ${fmtCpfCeoOp(c.cpf)}` : "",
+          c?.codigo ? `Código ${c.codigo}` : "",
+        ]),
+      });
+    });
+
+    lerListaLeveCeo("dk_veiculos_cadastro").forEach((v) => {
+      const ms = msAcaoCeo(v?.createdAt);
+      const cpf = cabe(v?.cadastradoPorCpf, ms);
+      if (!cpf) return;
+      const modelo = [v?.marca, v?.modelo].filter(Boolean).join(" ");
+      pushAcaoCeo(out, seen, {
+        cpf,
+        ms,
+        verbo: "cadastrou um veículo",
+        chave: `vei:${v?.id || v?.placa || ""}`,
+        nome: nomeDe(cpf, v?.cadastradoPorNome),
+        detalhe: detalheAcaoCeo([
+          `Hora ${horaSaoPauloCeo(ms)}`,
+          v?.placa ? `Placa ${v.placa}` : "",
+          v?.tipo ? `Tipo ${v.tipo}` : "",
+          modelo ? `Modelo ${modelo}` : "",
+        ]),
+      });
+    });
+
+    lerListaLeveCeo("dk_locacoes_cadastro").forEach((loc) => {
+      const cliente = String(loc?.nome || "").trim();
+      const placa = String(loc?.placa || "").trim();
+      const protocolo = String(loc?.numeroContrato || "").trim();
+      const cpfCli = loc?.cpf ? `CPF ${fmtCpfCeoOp(loc.cpf)}` : "";
+      const base = [
+        cliente ? `Cliente ${cliente}` : "",
+        cpfCli,
+        placa ? `Placa ${placa}` : "",
+        protocolo ? `Protocolo ${protocolo}` : "",
+      ];
+
+      const msCad = msAcaoCeo(loc?.createdAt);
+      const cpfCad = cabe(loc?.cadastradoPorCpf, msCad);
+      if (cpfCad) {
+        pushAcaoCeo(out, seen, {
+          cpf: cpfCad,
+          ms: msCad,
+          verbo: "cadastrou uma locação",
+          chave: `loc:${protocolo}`,
+          nome: nomeDe(cpfCad, loc?.cadastradoPorNome),
+          detalhe: detalheAcaoCeo([
+            `Hora ${horaSaoPauloCeo(msCad)}`,
+            ...base,
+            loc?.plano ? `Plano ${loc.plano}` : "",
+            loc?.inicio ? `Início ${loc.inicio}` : "",
+          ]),
+        });
+      }
+
+      const msFim = msAcaoCeo(loc?.portalLocacaoFinalizadoEmMs);
+      const cpfFim = cabe(loc?.portalLocacaoFinalizadoPorCpf, msFim);
+      if (cpfFim) {
+        pushAcaoCeo(out, seen, {
+          cpf: cpfFim,
+          ms: msFim,
+          verbo: "finalizou uma locação",
+          chave: `fim:${protocolo}`,
+          nome: nomeDe(cpfFim, loc?.portalLocacaoFinalizadoPorNome),
+          detalhe: detalheAcaoCeo([
+            `Hora ${horaSaoPauloCeo(msFim)}`,
+            ...base,
+            loc?.fim ? `Fim ${loc.fim}` : "",
+          ]),
+        });
+      }
+
+      const msCan = msAcaoCeo(loc?.portalLocacaoCanceladoEmMs);
+      const cpfCan = cabe(loc?.portalLocacaoCanceladoPorCpf, msCan);
+      if (cpfCan) {
+        pushAcaoCeo(out, seen, {
+          cpf: cpfCan,
+          ms: msCan,
+          verbo: "cancelou uma locação",
+          chave: `can:${protocolo}`,
+          nome: nomeDe(cpfCan, loc?.portalLocacaoCanceladoPorNome),
+          detalhe: detalheAcaoCeo([`Hora ${horaSaoPauloCeo(msCan)}`, ...base]),
+        });
+      }
+
+      const listas = [
+        ["portalLancamentosAluguel", ""],
+        ["portalLancamentosCaucao", "lançou uma caução"],
+        ["portalMultasTransito", "lançou uma multa"],
+        ["portalManutencoesRegistro", "lançou uma manutenção"],
+      ];
+      listas.forEach(([campo, verboFixo]) => {
+        const arr = Array.isArray(loc?.[campo]) ? loc[campo] : [];
+        arr.forEach((p, idx) => {
+          const ms = msAcaoCeo(p?.createdAt);
+          const cpf = cabe(p?.registradoPorCpf, ms);
+          if (!cpf) return;
+          const verbo = verboFixo || verboAcaoLancamentoCeo(p);
+          const valor = Number(p?.valor ?? p?.valorMulta ?? p?.valorManutencao);
+          const dataMov = String(p?.data || p?.dataPagamento || p?.dataMulta || p?.dataManutencao || "").trim();
+          const protLanc = String(p?.protocoloLancamento || p?.protocolo || "").trim();
+          const cod = String(p?.cod || p?.codMulta || p?.codManutencao || "").trim();
+          pushAcaoCeo(out, seen, {
+            cpf,
+            ms,
+            verbo,
+            chave: `${campo}:${protLanc || idx}:${protocolo}`,
+            nome: nomeDe(cpf, p?.registradoPorNome),
+            detalhe: detalheAcaoCeo([
+              `Hora ${horaSaoPauloCeo(ms)}`,
+              ...base,
+              Number.isFinite(valor) && valor !== 0 ? `Valor ${brl(valor)}` : "",
+              dataMov ? `Data ${dataMov}` : "",
+              protLanc ? `Prot. lançamento ${protLanc}` : "",
+              cod ? `Código ${cod}` : "",
+              p?.descricao ? `Descrição ${p.descricao}` : "",
+            ]),
+          });
+        });
+      });
+    });
+
+    lerListaLeveCeo("dk_manutencoes_rapidas_v1").forEach((r) => {
+      const ms = msAcaoCeo(r?.criadoEm || r?.createdAt);
+      const cpf = cabe(r?.cadastradoPorCpf, ms);
+      if (!cpf) return;
+      const servicos = Array.isArray(r?.servicos)
+        ? r.servicos
+            .map((s) => (typeof s === "string" ? s : s?.nome || s?.label || ""))
+            .filter(Boolean)
+            .join(", ")
+        : "";
+      pushAcaoCeo(out, seen, {
+        cpf,
+        ms,
+        verbo: "registrou uma manutenção rápida",
+        chave: `mr:${r?.id || r?.os || ""}`,
+        nome: nomeDe(cpf, r?.cadastradoPorNome),
+        detalhe: detalheAcaoCeo([
+          `Hora ${horaSaoPauloCeo(ms)}`,
+          r?.placa ? `Placa ${r.placa}` : "",
+          r?.os ? `OS ${r.os}` : "",
+          Number(r?.valorPago) ? `Valor ${brl(r.valorPago)}` : "",
+          servicos ? `Serviços ${servicos}` : "",
+        ]),
+      });
+    });
+
+    out.sort((a, b) => a.ms - b.ms || a.nome.localeCompare(b.nome, "pt-BR"));
+    return out;
+  }
+
+  function renderPessoasPainelOperacionalCeo() {
+    const box = document.getElementById("finCeoOpPessoas");
+    if (!box) return;
+    const pessoas = pessoasPainelOperacionalCeo();
+    const vivos = new Set(pessoas.map((p) => p.cpf));
+    [...ceoOpCpfs].forEach((cpf) => {
+      if (!vivos.has(cpf)) ceoOpCpfs.delete(cpf);
+    });
+    if (!pessoas.length) {
+      box.innerHTML = `<p class="subtext">Nenhuma pessoa cadastrada.</p>`;
+      return;
+    }
+    box.innerHTML = pessoas
+      .map((p) => {
+        const on = ceoOpCpfs.has(p.cpf) ? " checked" : "";
+        const extra = p.blocked ? " (bloqueada)" : "";
+        return `<label class="fin-ceo-op-pessoa"><input type="checkbox" data-op-cpf="${esc(p.cpf)}"${on}><span>${esc(p.nome)}${esc(extra)}</span></label>`;
+      })
+      .join("");
+  }
+
+  function pintarAcoesPainelOperacionalCeo() {
+    const hint = document.getElementById("finCeoOpHint");
+    const lista = document.getElementById("finCeoOpLista");
+    if (!lista) return;
+    const dia = ymdCampoPainelOpCeo();
+    const pessoas = pessoasPainelOperacionalCeo();
+    const nomePorCpf = new Map(pessoas.map((p) => [p.cpf, p.nome]));
+    if (!ceoOpCpfs.size || !dia) {
+      if (hint) hint.textContent = "Marque pelo menos uma pessoa e escolha a data.";
+      lista.innerHTML = "";
+      return;
+    }
+    const acoes = coletarAcoesPainelOperacionalCeo(dia, ceoOpCpfs, nomePorCpf);
+    const [y, m, d] = dia.split("-");
+    const diaBr = d && m && y ? `${d}/${m}/${y}` : dia;
+    if (hint) {
+      hint.textContent = acoes.length
+        ? `${acoes.length === 1 ? "1 ação" : `${acoes.length} ações`} em ${diaBr}.`
+        : `Nenhuma ação com horário gravado em ${diaBr} para as pessoas marcadas.`;
+    }
+    lista.innerHTML = acoes
+      .map((a) => {
+        const hora = horaSaoPauloCeo(a.ms);
+        return `<article class="fin-ceo-op-item"><p class="fin-ceo-op-item__acao"><span class="fin-ceo-op-item__hora">${esc(hora)}</span> — ${esc(a.nome)} ${esc(a.verbo)}</p><p class="fin-ceo-op-item__det">${esc(a.detalhe)}</p></article>`;
+      })
+      .join("");
+  }
+
+  function renderPainelOperacionalCeo() {
+    const campo = document.getElementById("finCeoOpData");
+    if (campo && !String(campo.value || "").trim()) campo.value = hojeBrCeoOp();
+    bindCalendariosCeo(document.getElementById("finCeoPaneOperacional"));
+    renderPessoasPainelOperacionalCeo();
+    pintarAcoesPainelOperacionalCeo();
+  }
+
+  function marcarPessoasPainelOpCeo(ligar) {
+    pessoasPainelOperacionalCeo().forEach((p) => {
+      if (ligar) ceoOpCpfs.add(p.cpf);
+      else ceoOpCpfs.delete(p.cpf);
+    });
+    renderPessoasPainelOperacionalCeo();
+    pintarAcoesPainelOperacionalCeo();
+  }
+
   function abrirPane(id) {
     if (isAtalhoLocadora() && id && id !== "despesas") id = "despesas";
     paneAberto = id || "";
@@ -6271,6 +6627,9 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
+    if (id === "operacional") {
+      renderPainelOperacionalCeo();
+    }
     if (id === "dashboard") {
       bindMascarasCeo(document.getElementById("finCeoPaneDashboard"));
       renderDashboard();
@@ -6302,6 +6661,18 @@
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
     });
+    document.getElementById("finCeoOpPessoas")?.addEventListener("change", (ev) => {
+      const inp = ev.target?.closest?.("[data-op-cpf]");
+      if (!inp) return;
+      const cpf = String(inp.getAttribute("data-op-cpf") || "");
+      if (inp.checked) ceoOpCpfs.add(cpf);
+      else ceoOpCpfs.delete(cpf);
+      pintarAcoesPainelOperacionalCeo();
+    });
+    document.getElementById("finCeoOpData")?.addEventListener("input", pintarAcoesPainelOperacionalCeo);
+    document.getElementById("finCeoOpData")?.addEventListener("change", pintarAcoesPainelOperacionalCeo);
+    document.getElementById("finCeoOpMarcarTodas")?.addEventListener("click", () => marcarPessoasPainelOpCeo(true));
+    document.getElementById("finCeoOpDesmarcarTodas")?.addEventListener("click", () => marcarPessoasPainelOpCeo(false));
     document.getElementById("finCeoRotFinAtualizar")?.addEventListener("click", renderRotatividadeFinanceira);
     document.getElementById("finCeoRotFinMesInicio")?.addEventListener("change", renderRotatividadeFinanceira);
     document.getElementById("finCeoRotFinMesFim")?.addEventListener("change", renderRotatividadeFinanceira);

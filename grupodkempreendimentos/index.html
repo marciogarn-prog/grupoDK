@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261005filalanc">
+  <link rel="stylesheet" href="styles.css?v=20261005painelop">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -4152,6 +4152,10 @@
           <aside class="portal-operacao-layout__sidebar fin-pptx__rail" aria-label="módulos CEO">
             <p class="fin-pptx__brand" id="finCeoBrand">FINANCEIRO CEO</p>
             <div class="operacao-comandos" id="finCeoModulosNav">
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-operacional" data-ceo-mod="operacional" aria-expanded="false" aria-controls="finCeoPaneOperacional">
+                <span class="btn-operacao-cmd__title">Painel operacional</span>
+                <span class="btn-operacao-cmd__hint">O que cada pessoa fez no dia</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-dashboard" data-ceo-mod="dashboard" aria-expanded="false" aria-controls="finCeoPaneDashboard">
                 <span class="btn-operacao-cmd__title">Painel executivo</span>
                 <span class="btn-operacao-cmd__hint">Endividamento, receita e gráficos</span>
@@ -4185,6 +4189,26 @@
           <div class="portal-operacao-layout__main fin-pptx__slide" id="finCeoPainelDireito">
             <div id="finCeoFormPlaceholder" class="operacao-form-placeholder" role="status">
               <p class="operacao-form-placeholder__text">Escolha um módulo à esquerda.</p>
+            </div>
+
+            <div id="finCeoPaneOperacional" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="operacional" role="region">
+              <h3 class="operacao-inline-form__title">Painel operacional</h3>
+              <p class="subtext">Marque as pessoas e escolha o dia no calendário. A lista mostra o que cada uma fez nesse dia, com a hora da execução e o detalhe (cliente, placa, protocolo e o restante gravado no sistema).</p>
+              <div class="fin-ceo-op__topo">
+                <label class="portal-field">
+                  <span>Dia</span>
+                  <span class="dk-date-cal fin-date-cal">
+                    <input type="text" id="finCeoOpData" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Dia do painel operacional" title="Clique para abrir o calendário">
+                  </span>
+                </label>
+                <div class="fin-ceo-op__acoes">
+                  <button type="button" class="btn-secondary" id="finCeoOpMarcarTodas">Marcar todas</button>
+                  <button type="button" class="btn-secondary" id="finCeoOpDesmarcarTodas">Desmarcar todas</button>
+                </div>
+              </div>
+              <p id="finCeoOpHint" class="fin-ceo-op__hint subtext" role="status">Marque pelo menos uma pessoa e escolha a data.</p>
+              <div id="finCeoOpPessoas" class="fin-ceo-op-pessoas" role="group" aria-label="Pessoas cadastradas"></div>
+              <div id="finCeoOpLista" class="fin-ceo-op-lista" aria-live="polite"></div>
             </div>
 
             <div id="finCeoPaneDashboard" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="dashboard" role="region">
@@ -5740,7 +5764,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260925login3b"></script>
-  <script src="app.js?v=20261005filalanc" defer></script>
+  <script src="app.js?v=20261005painelop" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5751,11 +5775,11 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261005filalanc" defer></script>
+  <script src="portal-locadora-ui.js?v=20261005painelop" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20261005filalanc" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20261005painelop" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -5801,7 +5825,7 @@
   <script src="portal-manutencao-rapida.js?v=20260911os-sync" defer></script>
   <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-supabase-sync.js?v=20261005filalanc" defer></script>
+  <script src="portal-supabase-sync.js?v=20261005painelop" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>
