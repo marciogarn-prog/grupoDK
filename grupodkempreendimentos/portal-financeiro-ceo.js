@@ -1906,10 +1906,74 @@
     return (sem / 7) * diasNoMes(ano, mes);
   }
 
+  /** Janela em que o contrato gera previsão: do início ao fim, ou em aberto se ainda está ativo. */
+  function intervaloContratoReceitaCeo(loc) {
+    if (!loc || locacaoExcluidaReceitaCeo(loc)) return null;
+    const st = String(loc.statusLocacao || loc.status || "")
+      .trim()
+      .toUpperCase();
+    if (loc.contratoCancelado === true || st.includes("CANCEL")) return null;
+    const semanal = valorSemanalContrato(loc);
+    if (semanal <= 0) return null;
+    const fimRaw = String(loc.fim || loc.dataFim || "").trim();
+    const fim =
+      fimRaw && fimRaw !== "..." && fimRaw !== "—" && fimRaw !== "-" ? parseBrDate(fimRaw) : null;
+    if ((st.includes("FINALIZ") || st.includes("INATIV")) && !fim) return null;
+    const ini = parseBrDate(loc.inicio || loc.dataInicio);
+    return {
+      ini: ini ? startOfDay(ini) : null,
+      fim: fim ? startOfDay(fim) : null,
+      semanal,
+    };
+  }
+
+  function contratoGeraReceitaNoDiaCeo(iv, dia) {
+    if (!iv) return false;
+    const d = startOfDay(dia);
+    if (!d) return false;
+    if (iv.ini && d < iv.ini) return false;
+    if (iv.fim && d > iv.fim) return false;
+    return true;
+  }
+
+  function receitaPrevistaLocadoraNoDia(locs, dia, intervalos) {
+    const d = startOfDay(dia);
+    if (!d) return 0;
+    const lista = intervalos || (locs || []).map(intervaloContratoReceitaCeo).filter(Boolean);
+    let total = 0;
+    lista.forEach((iv) => {
+      if (!contratoGeraReceitaNoDiaCeo(iv, d)) return;
+      total += iv.semanal / 7;
+    });
+    return total;
+  }
+
+  function receitaPrevistaLocadoraEntre(locs, d0, d1, intervalos) {
+    const a0 = startOfDay(d0);
+    const b0 = startOfDay(d1);
+    if (!a0 || !b0 || a0 > b0) return 0;
+    const lista = intervalos || (locs || []).map(intervaloContratoReceitaCeo).filter(Boolean);
+    let total = 0;
+    lista.forEach((iv) => {
+      const a = iv.ini && iv.ini > a0 ? iv.ini : a0;
+      const b = iv.fim && iv.fim < b0 ? iv.fim : b0;
+      if (!a || !b || a > b) return;
+      const dias = Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
+      total += (iv.semanal / 7) * dias;
+    });
+    return total;
+  }
+
+  function receitaPrevistaLocadoraNoMes(locs, ano, mes, intervalos) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    return receitaPrevistaLocadoraEntre(locs, new Date(y, m, 1), new Date(y, m + 1, 0), intervalos);
+  }
+
   function receitaPrevistaLocadora(locs, ano, mes) {
     const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
     const m = Number.isFinite(mes) ? mes : new Date().getMonth();
-    return receitaSemanalParaMensal(receitaSemanalLocadora(locs), y, m);
+    return receitaPrevistaLocadoraNoMes(locs, y, m);
   }
 
   const CAD_MANUTENCOES_RAPIDAS_KEY = "dk_manutencoes_rapidas_v1";
@@ -2095,6 +2159,83 @@
       });
     });
     return total;
+  }
+
+  function mapaReceitaRealLocadoraPorDia(locs) {
+    const map = new Map();
+    const hoje = startOfDay(new Date());
+    const getLancs =
+      typeof window.__DK_getPortalLancamentosAluguelDoContrato === "function"
+        ? window.__DK_getPortalLancamentosAluguelDoContrato
+        : (loc) => (Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []);
+    (locs || []).forEach((loc) => {
+      if (locacaoExcluidaReceitaCeo(loc)) return;
+      (getLancs(loc) || []).forEach((lan) => {
+        if (lancamentoCeoEhDevolucao(lan)) return;
+        const v = parseValor(lan.valor);
+        if (v <= 0) return;
+        const dt = parseBrDate(lan.data);
+        const dia = dt ? startOfDay(dt) : null;
+        if (!dia || dia > hoje) return;
+        const k = chaveDiaCeo(dia);
+        if (!k) return;
+        map.set(k, (map.get(k) || 0) + v);
+      });
+    });
+    return map;
+  }
+
+  function mapaDespesaPagaPorDiaCeo(despesas, filtro) {
+    const map = new Map();
+    const hoje = startOfDay(new Date());
+    const sit = loadSituacaoPagamentosMap();
+    (despesas || []).forEach((d) => {
+      if (!d || d.deleted) return;
+      if (filtro && !unidadePermitidaCeo(filtro, chaveUnidadeDespesaCeo(d.categoria))) return;
+      expandirPagamentosDespesa(d, d.repeticoes).forEach((p) => {
+        const item = sit.get(chaveSituacaoPagamento(d.id, p.numero, p.data));
+        if (item?.situacao !== "PAGO") return;
+        const v = Number(p.valor) || 0;
+        if (v <= 0) return;
+        let dia = null;
+        if (item.pagoEm) {
+          const pago = new Date(item.pagoEm);
+          if (!Number.isNaN(pago.getTime())) dia = startOfDay(pago);
+        }
+        if (!dia) dia = p.data instanceof Date ? startOfDay(p.data) : parseBrDate(p.data);
+        if (!dia || dia > hoje) return;
+        const k = chaveDiaCeo(dia);
+        if (!k) return;
+        map.set(k, (map.get(k) || 0) + v);
+      });
+    });
+    return map;
+  }
+
+  function somaMapaDiasCeo(map, d0, d1) {
+    const a = startOfDay(d0);
+    const b = startOfDay(d1);
+    if (!map || !a || !b || a > b) return 0;
+    let total = 0;
+    for (let t = a.getTime(); t <= b.getTime(); t += 86400000) {
+      total += map.get(chaveDiaCeo(new Date(t))) || 0;
+    }
+    return total;
+  }
+
+  function valorFatoAteHojeCeo(map, date, modo) {
+    const hoje = startOfDay(new Date());
+    const dt = startOfDay(date);
+    if (!dt) return null;
+    if (modo === "dia") {
+      if (dt > hoje) return null;
+      return map?.get(chaveDiaCeo(dt)) || 0;
+    }
+    const ini = new Date(dt.getFullYear(), dt.getMonth(), 1);
+    if (startOfDay(ini) > hoje) return null;
+    const fimMes = new Date(dt.getFullYear(), dt.getMonth() + 1, 0);
+    const fim = startOfDay(fimMes) > hoje ? hoje : startOfDay(fimMes);
+    return somaMapaDiasCeo(map, ini, fim);
   }
 
   function obterPeriodoCeoDash(iniId, fimId) {
@@ -2306,7 +2447,9 @@
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
     const despesas = loadDespesasCeo().map(normalizeDespesa);
-    const recDiaLoc = unidadePermitidaCeo(filtro, "locadora") ? receitaSemanalLocadora(locs) / 7 : 0;
+    const intervalosLoc = unidadePermitidaCeo(filtro, "locadora")
+      ? locs.map(intervaloContratoReceitaCeo).filter(Boolean)
+      : [];
 
     const debPorDia = new Map();
     despesas.forEach((d) => {
@@ -2345,7 +2488,7 @@
           `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`
         );
         datas.push(new Date(dt));
-        receita.push(recDiaLoc + (recUniPorDia.get(k) || 0));
+        receita.push(receitaPrevistaLocadoraNoDia(null, dt, intervalosLoc) + (recUniPorDia.get(k) || 0));
         despesa.push(debPorDia.get(k) || 0);
       }
       return { labels, receita, despesa, datas, modo: "dia" };
@@ -2362,14 +2505,15 @@
       const mesFim = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
       const slice0 = startOfDay(new Date(Math.max(mesIni.getTime(), periodo.d0.getTime())));
       const slice1 = startOfDay(new Date(Math.min(mesFim.getTime(), periodo.d1.getTime())));
-      const dias = diasInclusiveEntre(slice0, slice1);
       const startMs = slice0.getTime();
       const endMs = new Date(slice1.getFullYear(), slice1.getMonth(), slice1.getDate(), 23, 59, 59, 999).getTime();
       let deb = 0;
       for (let t = slice0.getTime(); t <= slice1.getTime(); t += 86400000) {
         deb += debPorDia.get(chaveDiaCeo(startOfDay(new Date(t)))) || 0;
       }
-      const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs, filtro);
+      const rec =
+        receitaPrevistaLocadoraEntre(null, slice0, slice1, intervalosLoc) +
+        receitaUnidadesNoPeriodo(uniRows, startMs, endMs, filtro);
       labels.push(`${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`);
       datas.push(new Date(slice0));
       receita.push(rec);
@@ -2481,6 +2625,14 @@
       debPorMes,
       saldoMes,
       saldoAcc: acum.saldo,
+      modoFatos: merged.modo,
+      recRealPorDia: unidadePermitidaCeo(filtroUnidades || filtroUnidadesPeriodoCeoPadrao(), "locadora")
+        ? mapaReceitaRealLocadoraPorDia(carregarLocacoes())
+        : new Map(),
+      despPagaPorDia: mapaDespesaPagaPorDiaCeo(
+        loadDespesasCeo().map(normalizeDespesa),
+        filtroUnidades || filtroUnidadesPeriodoCeoPadrao()
+      ),
     };
   }
 
@@ -2505,7 +2657,7 @@
     if (tit) tit.textContent = "Saldo mês a mês";
     if (hint) {
       hint.textContent =
-        "Despesa na mesma escala da receita (positiva): a linha vermelha acima da verde mostra despesa maior que a receita. O saldo é barra: verde para cima quando positivo, vermelho para baixo quando negativo. O tom muda em cada ano. O gráfico acompanha o início e o fim do período seleccionados acima.";
+        "Despesa na mesma escala da receita (positiva): a linha vermelha acima da verde mostra despesa maior que a receita. O saldo é barra: verde para cima quando positivo, vermelho para baixo quando negativo. O tom muda em cada ano. A linha verde acompanha as locações de cada mês. A azul é a receita real do lançamento de aluguel e a amarela são os valores já pagos; as duas só existem até hoje. O gráfico acompanha o início e o fim do período seleccionados acima.";
     }
     if (!periodo.ok) {
       limpar("Informe início e fim do período para ver o gráfico.");
@@ -2522,7 +2674,8 @@
       limpar("Sem dados no período.");
       return;
     }
-    chart.innerHTML = svgSaldoMesChart(view.meses, view.recPorMes, view.debPorMes, view.saldoMes);
+    const fatosPeriodo = seriesFatosCeo(view.meses, view.modoFatos || view.modo, view.recRealPorDia, view.despPagaPorDia);
+    chart.innerHTML = svgSaldoMesChart(view.meses, view.recPorMes, view.debPorMes, view.saldoMes, fatosPeriodo);
     if (chartAcc) chartAcc.innerHTML = svgSaldoAccChart(view.meses, view.saldoAcc);
 
     const anos = [...new Set(view.meses.map((m) => m.date.getFullYear()))].sort();
@@ -2530,6 +2683,8 @@
       const itens = [
         { c: "#6ee7a0", t: "Receita prevista" },
         { c: "#ff6b6b", t: "Despesas (escala positiva)" },
+        { c: "#3b82f6", t: "Receita real (lançamento de aluguel)" },
+        { c: "#facc15", t: "Valores pagos" },
       ];
       anos.forEach((y) => {
         const t = CEO_ANO_SALDO_TONS[y] || CEO_ANO_SALDO_TONS[2026];
@@ -2985,6 +3140,17 @@
       capacidadeLivre,
       debitos,
       totalDespesasCadastradas: despesas.filter((d) => !d.deleted).length,
+      modoFatos: "mes",
+      recRealPorDia: mapaReceitaRealLocadoraPorDia(locs),
+      despPagaPorDia: mapaDespesaPagaPorDiaCeo(despesas),
+    };
+  }
+
+  function seriesFatosCeo(meses, modo, recRealPorDia, despPagaPorDia) {
+    const lista = meses || [];
+    return {
+      receitaReal: lista.map((m) => valorFatoAteHojeCeo(recRealPorDia, m.date, modo || "mes")),
+      despesaPaga: lista.map((m) => valorFatoAteHojeCeo(despPagaPorDia, m.date, modo || "mes")),
     };
   }
 
@@ -3123,7 +3289,7 @@
   }
 
   /** Despesa na mesma escala da receita (positiva); saldo em barras por ano. */
-  function svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes) {
+  function svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes, fatos) {
     const w = 1100;
     const h = 400;
     const padL = 72;
@@ -3136,7 +3302,16 @@
     const receita = meses.map((m) => recPorMes.get(m.key) || 0);
     const despesa = meses.map((m) => debPorMes.get(m.key) || 0);
     const saldo = saldoMes || meses.map((_, i) => receita[i] - despesa[i]);
-    const allVals = [...receita, ...despesa, ...saldo, 0];
+    const receitaReal = Array.isArray(fatos?.receitaReal) ? fatos.receitaReal : null;
+    const despesaPaga = Array.isArray(fatos?.despesaPaga) ? fatos.despesaPaga : null;
+    const fatosVals = [];
+    (receitaReal || []).forEach((v) => {
+      if (Number.isFinite(v)) fatosVals.push(v);
+    });
+    (despesaPaga || []).forEach((v) => {
+      if (Number.isFinite(v)) fatosVals.push(v);
+    });
+    const allVals = [...receita, ...despesa, ...saldo, ...fatosVals, 0];
     const rawMax = Math.max(1, ...allVals);
     const rawMin = Math.min(0, ...allVals);
     const span = Math.max(1, rawMax - rawMin);
@@ -3189,6 +3364,37 @@
     const lineDesp = despesa.length
       ? `<polyline fill="none" stroke="#ff6b6b" stroke-width="2.4" points="${linePts(despesa)}"/>`
       : "";
+    const linhaFato = (vals, color, nome) => {
+      if (!vals) return "";
+      let html = "";
+      let pts = [];
+      const flush = () => {
+        if (pts.length >= 2) {
+          html += `<polyline fill="none" stroke="${color}" stroke-width="2.4" points="${pts
+            .map((p) => `${p.x},${p.y}`)
+            .join(" ")}"/>`;
+        }
+        pts.forEach((p) => {
+          html += `<circle cx="${p.x}" cy="${p.y}" r="3.4" fill="${color}"><title>${esc(p.title)}</title></circle>`;
+        });
+        pts = [];
+      };
+      vals.forEach((v, i) => {
+        if (!Number.isFinite(v)) {
+          flush();
+          return;
+        }
+        pts.push({
+          x: xAt(i).toFixed(2),
+          y: yAt(v).toFixed(2),
+          title: `${nome} ${labels[i]} ${brl(v)}`,
+        });
+      });
+      flush();
+      return html;
+    };
+    const lineReal = linhaFato(receitaReal, "#3b82f6", "Receita real");
+    const linePaga = linhaFato(despesaPaga, "#facc15", "Valores pagos");
     const step = labels.length > 14 ? Math.ceil(labels.length / 8) : 1;
     const axis = labels
       .map((lb, i) => {
@@ -3196,7 +3402,7 @@
         return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lb)}</text>`;
       })
       .join("");
-    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo mês a mês">${grid}${zero}${yearMarks.join("")}${bars}${lineRec}${lineDesp}${axis}</svg>`;
+    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo mês a mês">${grid}${zero}${yearMarks.join("")}${bars}${lineRec}${lineDesp}${lineReal}${linePaga}${axis}</svg>`;
   }
 
   function filtrarProjecaoPorAnos(proj) {
@@ -3218,6 +3424,9 @@
       labels: meses.map((m) => m.label),
       debPorMes: proj.debPorMes,
       recPorMes: proj.recPorMes,
+      recRealPorDia: proj.recRealPorDia,
+      despPagaPorDia: proj.despPagaPorDia,
+      modoFatos: proj.modoFatos || "mes",
     };
   }
 
@@ -3233,13 +3442,14 @@
   function renderDashboardGraficos(proj) {
     const view = filtrarProjecaoPorAnos(proj);
     const { labels, meses, saldoMes, saldoAcc, debPorMes, recPorMes } = view;
+    const fatos = seriesFatosCeo(meses, view.modoFatos || "mes", view.recRealPorDia, view.despPagaPorDia);
 
     const chartSaldo = document.getElementById("finCeoChartSaldoMes");
     if (chartSaldo) {
       if (!meses.length) {
         chartSaldo.innerHTML = `<p class="subtext">Selecione pelo menos um ano nos botões acima.</p>`;
       } else {
-        chartSaldo.innerHTML = svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes);
+        chartSaldo.innerHTML = svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes, fatos);
       }
     }
 
@@ -3258,6 +3468,8 @@
       const itens = [
         { c: "#6ee7a0", t: "Receita prevista" },
         { c: "#ff6b6b", t: "Despesas (escala positiva)" },
+        { c: "#3b82f6", t: "Receita real (lançamento de aluguel)" },
+        { c: "#facc15", t: "Valores pagos" },
       ];
       CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).forEach((y) => {
         const t = CEO_ANO_SALDO_TONS[y];
@@ -3287,7 +3499,7 @@
 
     const tab = document.getElementById("finCeoTabelaProjecao");
     if (tab) {
-      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
+      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Receita real</th><th>Valores pagos</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
       if (!meses.length) {
         tab.innerHTML = `<p class="subtext">Nenhum mês nos anos seleccionados.</p>`;
       } else {
@@ -3295,9 +3507,12 @@
           .map((m, i) => {
             const deb = debPorMes.get(m.key) || 0;
             const rec = recPorMes.get(m.key) || 0;
+            const real = fatos.receitaReal[i];
+            const pago = fatos.despesaPaga[i];
             const taxa = calcTaxaEndividamento(deb, rec);
             const taxaTxt = rec <= 0 && deb > 0 ? "—" : fmtPct(taxa);
-            return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(saldoMes[i] || 0))}</td><td>${esc(brl(saldoAcc[i] || 0))}</td></tr>`;
+            const fatoTxt = (v) => (Number.isFinite(v) ? esc(brl(v)) : "—");
+            return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${fatoTxt(real)}</td><td>${fatoTxt(pago)}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(saldoMes[i] || 0))}</td><td>${esc(brl(saldoAcc[i] || 0))}</td></tr>`;
           })
           .join("");
         tab.innerHTML = `<table class="fin-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;

@@ -1321,6 +1321,26 @@
       }
     },
     {
+      "id": "fin-ceo-painel-linhas-receita-real",
+      "descricao": "No FINANCEIRO CEO → Painel executivo, o gráfico Saldo mês a mês: a linha verde (receita prevista) varia conforme as locações entram e saem em cada mês, no presente e no futuro. A linha azul é a receita real (soma dos valores pagos no lançamento de aluguel) e a linha amarela são os valores já pagos nas despesas. As duas só existem até o mês actual, porque são factos.",
+      "ficheiros": {
+        "index.html": [
+          "A linha azul é a receita real já lançada no aluguel",
+          "Receita real"
+        ],
+        "portal-financeiro-ceo.js": [
+          "intervaloContratoReceitaCeo",
+          "mapaReceitaRealLocadoraPorDia",
+          "mapaDespesaPagaPorDiaCeo",
+          "seriesFatosCeo",
+          "Receita real (lançamento de aluguel)",
+          "Valores pagos",
+          "#3b82f6",
+          "#facc15"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-painel-resumo-periodo",
       "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e os mesmos dois gráficos do Painel executivo (Saldo mês a mês / dia a dia em barras verde/vermelho com linhas de receita e despesa; Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada) que atualizam com as datas.",
       "ficheiros": {
