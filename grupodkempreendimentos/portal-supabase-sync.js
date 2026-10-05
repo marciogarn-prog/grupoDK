@@ -2383,6 +2383,67 @@
     });
   }
 
+  function juntarFilaNasLocacoes(arr, itens) {
+    const lista = Array.isArray(arr) ? arr : [];
+    const extras = Array.isArray(itens) ? itens : [];
+    if (!extras.length) return lista;
+    const porNc = new Map();
+    const ncDe = (v) => String(v || "").replace(/\D/g, "");
+    for (const item of extras) {
+      const nc = ncDe(item?.nc);
+      const pagamento = item?.pagamento;
+      if (!nc || !pagamento || typeof pagamento !== "object") continue;
+      if (!porNc.has(nc)) porNc.set(nc, []);
+      porNc.get(nc).push(pagamento);
+    }
+    if (!porNc.size) return lista;
+    return lista.map((loc) => {
+      if (!loc || typeof loc !== "object") return loc;
+      const extra = porNc.get(ncDe(loc.numeroContrato || loc.protocolo));
+      if (!extra) return loc;
+      const mergedPl = mergeLancamentosAluguelLocacaoPar([loc.portalLancamentosAluguel, extra]);
+      const row = { ...loc };
+      if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+        window.__DK_anexarLancamentosMergeNaLocacao(row, loc, { portalLancamentosAluguel: extra }, mergedPl);
+      } else {
+        row.portalLancamentosAluguel = mergedPl;
+      }
+      return row;
+    });
+  }
+
+  async function mesclarFilaLancamentosNoPc() {
+    if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) return 0;
+    if (!hasUsableCloudToken()) return 0;
+    let itens = [];
+    try {
+      const r = await fetch("/api/dk-lancamento-nuvem?nocache=" + Date.now(), {
+        cache: "no-store",
+        headers: dkCloudFetchHeaders(),
+      });
+      if (!r.ok) return 0;
+      const data = await r.json().catch(() => ({}));
+      itens = Array.isArray(data?.itens) ? data.itens : [];
+    } catch {
+      return 0;
+    }
+    if (!itens.length) return 0;
+    const local = readLocalJsonArray("dk_locacoes_cadastro");
+    const next = juntarFilaNasLocacoes(local, itens);
+    if (JSON.stringify(next) === JSON.stringify(local)) return 0;
+    runWithoutCloudPush(() => {
+      if (typeof saveCadastro === "function") {
+        saveCadastro("dk_locacoes_cadastro", next, {
+          bypassImmutabilidadeCadastro: true,
+          allowShrink: true,
+        });
+      } else {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(next));
+      }
+    });
+    return itens.length;
+  }
+
   function gravarLocacoesOficiaisNoPc(arr) {
     const next = fundirPagamentosLocaisAusentesNaNuvem(
       normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })))
@@ -2427,6 +2488,7 @@
           : null;
       if (!arr || !arr.length) return { ok: false, reason: "sem_locacoes" };
       const n = gravarLocacoesOficiaisNoPc(arr);
+      await mesclarFilaLancamentosNoPc();
       enviarPagamentosReanexadosSeHouver();
       if (row.updated_at) noteCloudPullAppliedTimestamp(row.updated_at);
       try {
@@ -4749,6 +4811,7 @@
       suppressCloudHook = false;
     }
     enviarPagamentosReanexadosSeHouver();
+    await mesclarFilaLancamentosNoPc();
     if (typeof window.__DK_refreshOperacaoClienteTotalCadastrados === "function") {
       try {
         window.__DK_refreshOperacaoClienteTotalCadastrados();
@@ -5183,6 +5246,7 @@
       suppressCloudHook = false;
     }
     enviarPagamentosReanexadosSeHouver();
+    await mesclarFilaLancamentosNoPc();
     if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
     }

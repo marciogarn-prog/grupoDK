@@ -19239,38 +19239,43 @@
     );
   }
 
-  async function portalEnviarLocacaoLancamentoNaNuvem(loc) {
+  async function portalEnviarLocacaoLancamentoNaNuvem(loc, protocolo) {
     const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
-    const enxuta = portalLocacaoEnxutaParaUpload(loc);
+    const want = String(protocolo || "").trim();
+    const pagamentos = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    const pagamento = want
+      ? pagamentos.find((p) => String(p?.protocoloLancamento || "").trim() === want)
+      : pagamentos[pagamentos.length - 1];
+    if (!pagamento) return { ok: false, status: 0, data: { reason: "sem_pagamento" } };
     let ultimo = { ok: false, status: 0, data: null };
     for (let tentativa = 0; tentativa < 2; tentativa += 1) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 30000);
+      const timer = setTimeout(() => ctrl.abort(), 8000);
       try {
-        const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+        const r = await fetch("/api/dk-lancamento-nuvem?nocache=" + Date.now(), {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify({
-            fastConfirm: true,
-            payload: { dk_locacoes_cadastro: [enxuta] },
-            updated_at: new Date().toISOString(),
+            numeroContrato: loc?.numeroContrato,
+            cpf: loc?.cpf,
+            placa: loc?.placa,
+            pagamento,
           }),
           signal: ctrl.signal,
         });
         const data = await r.json().catch(() => ({}));
         const redisOk = Boolean(r.ok && data && data.ok === true);
-        const supaOk = Boolean(data && data.supabase && data.supabase.ok);
-        ultimo = { ok: redisOk || supaOk, redisOk, supaOk, status: r.status, data };
+        ultimo = { ok: redisOk, redisOk, status: r.status, data };
         if (ultimo.ok) return ultimo;
-        if (String(data?.reason || "") === "locacoes_write_busy" && tentativa < 1) {
-          await new Promise((res) => setTimeout(res, 800));
+        if (tentativa < 1 && (r.status === 429 || r.status === 503)) {
+          await new Promise((res) => setTimeout(res, 700));
           continue;
         }
         return ultimo;
       } catch (error) {
         ultimo = { ok: false, status: 0, data: null, error };
         if (tentativa < 1) {
-          await new Promise((res) => setTimeout(res, 800));
+          await new Promise((res) => setTimeout(res, 700));
           continue;
         }
         return ultimo;
@@ -19322,7 +19327,7 @@
         portalNuvemSyncLockHide();
         return true;
       }
-      const res = await portalEnviarLocacaoLancamentoNaNuvem(loc);
+      const res = await portalEnviarLocacaoLancamentoNaNuvem(loc, want);
       const reason = String(res?.data?.reason || "");
       if (reason === "duplicate_payment_same_day_value" || reason === "active_plate_conflict") {
         window.__DK_lancUploadAdiarPushAte = 0;
