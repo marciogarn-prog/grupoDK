@@ -1244,6 +1244,9 @@
           (oficialFrotaPlanilha && veiculoKeysReplace.has(k)) ||
           (k === "dk_locacoes_cadastro" && !isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true)
         ) {
+          if (k === "dk_locacoes_cadastro" && !isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+            arr = fundirPagamentosLocaisAusentesNaNuvem(arr);
+          }
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
         } else {
           saveCadastro(k, arr);
@@ -1279,7 +1282,11 @@
         if (demoTenReplace) {
           localStorage.setItem(k, JSON.stringify(cloudArr));
         } else if (k === "dk_locacoes_cadastro") {
-          localStorage.setItem(k, JSON.stringify(cloudArr));
+          const gravar =
+            isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true
+              ? cloudArr
+              : fundirPagamentosLocaisAusentesNaNuvem(cloudArr);
+          localStorage.setItem(k, JSON.stringify(gravar));
         } else {
           const localArr = readLocalJsonArray(k);
           const mergedCli =
@@ -2330,9 +2337,56 @@
   }
 
   let reporLocacoesOficiaisFlight = null;
+  let pagamentosLocaisReanexados = 0;
+
+  /** A lista oficial manda no contrato. O pagamento lançado neste PC e ainda ausente na nuvem fica. */
+  function fundirPagamentosLocaisAusentesNaNuvem(cloudArr) {
+    const lista = Array.isArray(cloudArr) ? cloudArr : [];
+    if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) return lista;
+    const localArr = readLocalJsonArray("dk_locacoes_cadastro");
+    const porNc = new Map();
+    const ncDe = (v) => String(v || "").replace(/\D/g, "");
+    localArr.forEach((loc) => {
+      const nc = ncDe(loc?.numeroContrato || loc?.protocolo);
+      if (nc) porNc.set(nc, loc);
+    });
+    let extras = 0;
+    const next = lista.map((cloud) => {
+      if (!cloud || typeof cloud !== "object") return cloud;
+      const local = porNc.get(ncDe(cloud.numeroContrato || cloud.protocolo));
+      if (!local) return cloud;
+      const mergedPl = mergeLancamentosAluguelLocacaoPar([
+        cloud.portalLancamentosAluguel,
+        local.portalLancamentosAluguel,
+      ]);
+      const antes = JSON.stringify(cloud.portalLancamentosAluguel || []);
+      const row = { ...cloud };
+      if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+        window.__DK_anexarLancamentosMergeNaLocacao(row, cloud, local, mergedPl);
+      } else if (mergedPl.length) {
+        row.portalLancamentosAluguel = mergedPl;
+      }
+      const depois = JSON.stringify(row.portalLancamentosAluguel || []);
+      if (antes !== depois) extras += 1;
+      return row;
+    });
+    if (extras) pagamentosLocaisReanexados += extras;
+    return next;
+  }
+
+  function enviarPagamentosReanexadosSeHouver() {
+    if (!pagamentosLocaisReanexados) return;
+    pagamentosLocaisReanexados = 0;
+    scheduleCloudPushDebounced({
+      motivo: "pagamento_local_ausente_na_nuvem",
+      key: "dk_locacoes_cadastro",
+    });
+  }
 
   function gravarLocacoesOficiaisNoPc(arr) {
-    const next = normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })));
+    const next = fundirPagamentosLocaisAusentesNaNuvem(
+      normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })))
+    );
     runWithoutCloudPush(() => {
       if (typeof saveCadastro === "function") {
         saveCadastro("dk_locacoes_cadastro", next, {
@@ -2373,6 +2427,7 @@
           : null;
       if (!arr || !arr.length) return { ok: false, reason: "sem_locacoes" };
       const n = gravarLocacoesOficiaisNoPc(arr);
+      enviarPagamentosReanexadosSeHouver();
       if (row.updated_at) noteCloudPullAppliedTimestamp(row.updated_at);
       try {
         window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
@@ -4617,7 +4672,7 @@
           merged =
             window.__DK_IS_DEMO_DEPLOY__ === true
               ? mergeLocacoesCadastroBeforePush(localArr, cloudArr)
-              : normalizeLocacoesContratoAtivoList(cloudArr);
+              : fundirPagamentosLocaisAusentesNaNuvem(normalizeLocacoesContratoAtivoList(cloudArr));
         } else if (k === "dk_manutencoes_cadastro") {
           // União local+nuvem (placa activa / id); nuvem vazia não apaga manutenção local.
           merged =
@@ -4666,6 +4721,7 @@
     } finally {
       suppressCloudHook = false;
     }
+    enviarPagamentosReanexadosSeHouver();
     if (typeof window.__DK_refreshOperacaoClienteTotalCadastrados === "function") {
       try {
         window.__DK_refreshOperacaoClienteTotalCadastrados();
@@ -5099,6 +5155,7 @@
     } finally {
       suppressCloudHook = false;
     }
+    enviarPagamentosReanexadosSeHouver();
     if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
     }

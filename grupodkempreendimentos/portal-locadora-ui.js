@@ -18616,6 +18616,7 @@
     setOperacaoFormPlaceholderVisible(false);
     showOperacaoLancAluguelSub(sub);
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
+    void portalRetomarUploadLancamentoPendente();
     const msgNuvem = document.getElementById("operacaoLancAluguelInlineMsg");
     if ((sub === "avulso" || sub === "comprovante") && msgNuvem) {
       msgNuvem.textContent = "A receber as locações da nuvem oficial...";
@@ -19118,6 +19119,115 @@
       return true;
     };
     return run();
+  }
+
+  const PORTAL_LANC_UPLOAD_PENDENTE_KEY = "dk_lanc_upload_pendente";
+
+  function portalLancamentoProtocoloNaNuvem(payload, protocolo) {
+    const want = String(protocolo || "").trim();
+    if (!want || !payload) return false;
+    const locs = payload.dk_locacoes_cadastro;
+    if (!Array.isArray(locs)) return false;
+    return locs.some((loc) =>
+      (Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []).some(
+        (p) => String(p?.protocoloLancamento || "").trim() === want
+      )
+    );
+  }
+
+  function portalMarcarLancamentoUploadPendente(protocolo, nc) {
+    try {
+      sessionStorage.setItem(
+        PORTAL_LANC_UPLOAD_PENDENTE_KEY,
+        JSON.stringify({ protocolo: String(protocolo || "").trim(), nc: String(nc || "").trim() })
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalLimparLancamentoUploadPendente() {
+    try {
+      sessionStorage.removeItem(PORTAL_LANC_UPLOAD_PENDENTE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * Lançou = upload. O próximo lançamento só abre depois que a nuvem devolve o protocolo.
+   * Outro computador, ao entrar, faz o download e vê o mesmo lançamento.
+   */
+  async function portalLancamentoConfirmarUploadNaNuvem(protocolo) {
+    const want = String(protocolo || "").trim();
+    portalNuvemSyncLockShow(
+      "A enviar o lançamento para a nuvem. O próximo lançamento só abre quando a nuvem confirmar."
+    );
+    const push = await portalNuvemPushAwait();
+    if (!portalNuvemPushResultOk(push)) {
+      portalNuvemSyncLockShow(
+        "O lançamento ficou neste PC. A nuvem não confirmou. Tente de novo antes do próximo.",
+        {
+          retry: true,
+          onRetry: () => {
+            void portalLancamentoConfirmarUploadNaNuvem(want);
+          },
+        }
+      );
+      return false;
+    }
+    let naNuvem = !want;
+    const prazo = Date.now() + 60000;
+    while (!naNuvem && Date.now() < prazo) {
+      portalNuvemSyncLockShow(
+        "A confirmar o lançamento na nuvem. Os outros computadores passam a vê-lo ao entrar."
+      );
+      try {
+        const payload = await portalNuvemLerSnapshotPayload();
+        naNuvem = portalLancamentoProtocoloNaNuvem(payload, want);
+      } catch {
+        naNuvem = false;
+      }
+      if (naNuvem) break;
+      await new Promise((res) => setTimeout(res, 2500));
+    }
+    if (!naNuvem) {
+      portalNuvemSyncLockShow(
+        "A nuvem ainda não devolveu este lançamento. Não faça outro até confirmar.",
+        {
+          retry: true,
+          onRetry: () => {
+            void portalLancamentoConfirmarUploadNaNuvem(want);
+          },
+        }
+      );
+      return false;
+    }
+    portalLimparLancamentoUploadPendente();
+    portalNuvemSyncLockHide();
+    return true;
+  }
+
+  async function portalRetomarUploadLancamentoPendente() {
+    let pend = null;
+    try {
+      pend = JSON.parse(sessionStorage.getItem(PORTAL_LANC_UPLOAD_PENDENTE_KEY) || "null");
+    } catch {
+      pend = null;
+    }
+    const protocolo = String(pend?.protocolo || "").trim();
+    if (!protocolo) return;
+    if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
+    try {
+      const payload = await portalNuvemLerSnapshotPayload();
+      if (portalLancamentoProtocoloNaNuvem(payload, protocolo)) {
+        portalLimparLancamentoUploadPendente();
+        return;
+      }
+    } catch {
+      /* segue para o envio */
+    }
+    await portalLancamentoConfirmarUploadNaNuvem(protocolo);
   }
 
   function portalPushCloudSnapshotAfterPersist() {
@@ -25596,6 +25706,11 @@
     renderPortalLancPagamentosDoDia();
     renderOperacaoLancAluguelHistorico();
     destacarLancamentoHistorico(gravados[0]?.data, gravados[0]?.protocoloLancamento);
+    const ultimo = gravados[gravados.length - 1];
+    const protoUltimo = String(ultimo?.protocoloLancamento || "").trim();
+    portalMarcarLancamentoUploadPendente(protoUltimo, nc);
+    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoUltimo);
+    if (!confirmado) return { ok: false, nuvem: false, added: gravados.length };
     const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, gravados, new Set(), { ano });
     return { ok: true, notify, added: gravados.length };
   }
@@ -29438,6 +29553,7 @@
     const textoPadrao = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(textoPadrao, () => {
       void (async () => {
+        if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
         const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
           valorEspecie: valorNum,
           valorPix: 0,
@@ -29453,6 +29569,16 @@
               : res?.stripped
                 ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
                 : "Não foi possível guardar o pagamento.";
+          }
+          return;
+        }
+        const protoLanc = String(res.entry?.protocoloLancamento || "").trim();
+        portalMarcarLancamentoUploadPendente(protoLanc, proto);
+        const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc);
+        if (!confirmado) {
+          if (msg) {
+            msg.textContent =
+              "Lançamento gravado neste PC. A nuvem ainda não confirmou. O próximo só abre depois do envio.";
           }
           return;
         }

@@ -2433,6 +2433,23 @@
       }
     },
     {
+      "id": "lanc-aluguel-upload-antes-do-proximo",
+      "descricao": "No Lançamento de aluguel, gravar o pagamento envia para a nuvem e o próximo lançamento só abre depois que a nuvem devolve o protocolo. Atualizar a página não apaga um lançamento que ainda não subiu: o download oficial conserva esse pagamento e volta a enviá-lo. Outro computador, ao entrar, recebe o lançamento no download.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalLancamentoConfirmarUploadNaNuvem",
+          "portalRetomarUploadLancamentoPendente",
+          "dk_lanc_upload_pendente",
+          "O próximo lançamento só abre quando a nuvem confirmar"
+        ],
+        "portal-supabase-sync.js": [
+          "fundirPagamentosLocaisAusentesNaNuvem",
+          "enviarPagamentosReanexadosSeHouver",
+          "pagamento_local_ausente_na_nuvem"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-apagar-gemeos-ceo",
       "descricao": "Apagar pagamento pelo CEO remove o lançamento visível e as cópias gémeas (mesma data, mesmo valor, mesmo operador) para o merge da nuvem não devolver o valor. Tombstone usa chave de grupo g:data|valor|cpf. Relançar a mesma data/valor depois do apagar (createdAt posterior a removedAt) grava de novo.",
       "ficheiros": {
