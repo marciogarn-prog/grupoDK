@@ -18933,6 +18933,8 @@
     });
   }
 
+  let portalNuvemSyncLockRetryFn = null;
+
   function portalNuvemSyncLockEls() {
     return {
       box: document.getElementById("portalNuvemSyncLock"),
@@ -18941,14 +18943,35 @@
     };
   }
 
+  function portalNuvemSyncLockBindRetry() {
+    const { box, retry } = portalNuvemSyncLockEls();
+    if (!retry || retry.dataset.dkRetryBound === "1") return;
+    retry.dataset.dkRetryBound = "1";
+    const disparar = (ev) => {
+      const alvo = ev.target && ev.target.closest ? ev.target.closest("#portalNuvemSyncLockRetry") : null;
+      if (ev.currentTarget === retry || alvo) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const fn = portalNuvemSyncLockRetryFn;
+        if (typeof fn !== "function") return;
+        portalNuvemSyncLockRetryFn = null;
+        fn();
+      }
+    };
+    retry.addEventListener("click", disparar);
+    if (box) box.addEventListener("click", disparar);
+  }
+
   function portalNuvemSyncLockShow(texto, opts) {
     const { box, texto: tEl, retry } = portalNuvemSyncLockEls();
+    portalNuvemSyncLockBindRetry();
     if (tEl) tEl.textContent = texto || "A sincronizar com a nuvem…";
     const spin = box?.querySelector(".dk-offline-upload-spinner");
     if (spin) spin.classList.toggle("hidden", Boolean(opts?.retry));
+    portalNuvemSyncLockRetryFn = typeof opts?.onRetry === "function" ? opts.onRetry : null;
     if (retry) {
-      retry.classList.toggle("hidden", !opts?.retry);
-      retry.onclick = typeof opts?.onRetry === "function" ? opts.onRetry : null;
+      retry.classList.toggle("hidden", !portalNuvemSyncLockRetryFn);
+      retry.disabled = false;
     }
     if (box) {
       box.classList.remove("hidden");
@@ -18960,15 +18983,13 @@
 
   function portalNuvemSyncLockHide() {
     const { box, retry } = portalNuvemSyncLockEls();
+    portalNuvemSyncLockRetryFn = null;
     if (box) {
       box.classList.add("hidden");
       box.setAttribute("hidden", "");
       box.setAttribute("aria-hidden", "true");
     }
-    if (retry) {
-      retry.classList.add("hidden");
-      retry.onclick = null;
-    }
+    if (retry) retry.classList.add("hidden");
     document.body.classList.remove("portal-nuvem-sync-lock-on");
   }
 
@@ -19154,58 +19175,117 @@
     }
   }
 
-  /**
-   * Lançou = upload. O próximo lançamento só abre depois que a nuvem devolve o protocolo.
-   * Outro computador, ao entrar, faz o download e vê o mesmo lançamento.
-   */
-  async function portalLancamentoConfirmarUploadNaNuvem(protocolo) {
+  function portalLocacaoDoLancamentoPendente(protocolo) {
     const want = String(protocolo || "").trim();
-    portalNuvemSyncLockShow(
-      "A enviar o lançamento para a nuvem. O próximo lançamento só abre quando a nuvem confirmar."
-    );
-    const push = await portalNuvemPushAwait();
-    if (!portalNuvemPushResultOk(push)) {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    if (!Array.isArray(locs)) return null;
+    if (want) {
+      const pelaLinha = locs.find((loc) =>
+        (Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []).some(
+          (p) => String(p?.protocoloLancamento || "").trim() === want
+        )
+      );
+      if (pelaLinha) return pelaLinha;
+    }
+    let nc = "";
+    try {
+      const pend = JSON.parse(sessionStorage.getItem(PORTAL_LANC_UPLOAD_PENDENTE_KEY) || "null");
+      if (!want || String(pend?.protocolo || "").trim() === want) nc = String(pend?.nc || "").trim();
+    } catch {
+      nc = "";
+    }
+    if (!nc) return null;
+    const wantNc = portalNuvemNormProto(nc);
+    return locs.find((loc) => portalNuvemNormProto(loc?.numeroContrato) === wantNc) || null;
+  }
+
+  /**
+   * Uma locação só. Redis confirma o upload (os outros PCs baixam essa cópia).
+   * Se o espelho Supabase responder antes, também libera. Não espera o snapshot inteiro.
+   */
+  async function portalEnviarLocacaoLancamentoNaNuvem(loc) {
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    let ultimo = { ok: false, status: 0, data: null };
+    for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 12000);
+      try {
+        const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({
+            fastConfirm: true,
+            payload: { dk_locacoes_cadastro: [loc] },
+            updated_at: new Date().toISOString(),
+          }),
+          signal: ctrl.signal,
+        });
+        const data = await r.json().catch(() => ({}));
+        const redisOk = Boolean(r.ok && data && data.ok === true);
+        const supaOk = Boolean(data && data.supabase && data.supabase.ok);
+        ultimo = { ok: redisOk || supaOk, redisOk, supaOk, status: r.status, data };
+        if (ultimo.ok) return ultimo;
+        if (String(data?.reason || "") === "locacoes_write_busy" && tentativa < 3) {
+          await new Promise((res) => setTimeout(res, 600));
+          continue;
+        }
+        return ultimo;
+      } catch (error) {
+        ultimo = { ok: false, status: 0, data: null, error };
+        return ultimo;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    return ultimo;
+  }
+
+  /**
+   * Lançou = upload. O próximo lançamento só abre quando a nuvem confirmar.
+   * A primeira nuvem que gravar (Redis, a cópia que os outros PCs baixam) libera o seguinte.
+   */
+  async function portalLancamentoConfirmarUploadNaNuvem(protocolo, locInformada) {
+    const want = String(protocolo || "").trim();
+    const falha = () => {
       portalNuvemSyncLockShow(
         "O lançamento ficou neste PC. A nuvem não confirmou. Tente de novo antes do próximo.",
         {
           retry: true,
           onRetry: () => {
-            void portalLancamentoConfirmarUploadNaNuvem(want);
+            void tentar();
           },
         }
       );
       return false;
-    }
-    let naNuvem = !want;
-    const prazo = Date.now() + 60000;
-    while (!naNuvem && Date.now() < prazo) {
-      portalNuvemSyncLockShow(
-        "A confirmar o lançamento na nuvem. Os outros computadores passam a vê-lo ao entrar."
-      );
-      try {
-        const payload = await portalNuvemLerSnapshotPayload();
-        naNuvem = portalLancamentoProtocoloNaNuvem(payload, want);
-      } catch {
-        naNuvem = false;
+    };
+    const tentar = async () => {
+      if (typeof window.__DK_adiarPushSnapshotCheio === "function") {
+        window.__DK_adiarPushSnapshotCheio(15000);
+      } else {
+        window.__DK_lancUploadAdiarPushAte = Date.now() + 15000;
       }
-      if (naNuvem) break;
-      await new Promise((res) => setTimeout(res, 2500));
-    }
-    if (!naNuvem) {
       portalNuvemSyncLockShow(
-        "A nuvem ainda não devolveu este lançamento. Não faça outro até confirmar.",
-        {
-          retry: true,
-          onRetry: () => {
-            void portalLancamentoConfirmarUploadNaNuvem(want);
-          },
-        }
+        "A enviar o lançamento para a nuvem. O próximo lançamento só abre quando a nuvem confirmar."
       );
-      return false;
-    }
-    portalLimparLancamentoUploadPendente();
-    portalNuvemSyncLockHide();
-    return true;
+      const loc = locInformada || portalLocacaoDoLancamentoPendente(want);
+      if (!loc) return falha();
+      const res = await portalEnviarLocacaoLancamentoNaNuvem(loc);
+      const reason = String(res?.data?.reason || "");
+      if (reason === "duplicate_payment_same_day_value" || reason === "active_plate_conflict") {
+        portalNuvemSyncLockHide();
+        portalLimparLancamentoUploadPendente();
+        window.alert(String(res.data.message || "A nuvem recusou este lançamento."));
+        return false;
+      }
+      if (res?.ok) {
+        portalLimparLancamentoUploadPendente();
+        portalNuvemSyncLockHide();
+        return true;
+      }
+      return falha();
+    };
+    return tentar();
   }
 
   async function portalRetomarUploadLancamentoPendente() {
@@ -19218,15 +19298,6 @@
     const protocolo = String(pend?.protocolo || "").trim();
     if (!protocolo) return;
     if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-    try {
-      const payload = await portalNuvemLerSnapshotPayload();
-      if (portalLancamentoProtocoloNaNuvem(payload, protocolo)) {
-        portalLimparLancamentoUploadPendente();
-        return;
-      }
-    } catch {
-      /* segue para o envio */
-    }
     await portalLancamentoConfirmarUploadNaNuvem(protocolo);
   }
 
@@ -25685,7 +25756,7 @@
     if (!novos.length) {
       return { ok: true, notify: { ok: true, skipped: true, count: 0 }, added: 0 };
     }
-    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, { adiarNuvem: true });
     if (!ok) return { ok: false, added: 0 };
     const gravados = novos.filter((entry) => portalLancamentoAindaGravado(loc, entry));
     if (!gravados.length) {
@@ -25709,7 +25780,7 @@
     const ultimo = gravados[gravados.length - 1];
     const protoUltimo = String(ultimo?.protocoloLancamento || "").trim();
     portalMarcarLancamentoUploadPendente(protoUltimo, nc);
-    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoUltimo);
+    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoUltimo, loc);
     if (!confirmado) return { ok: false, nuvem: false, added: gravados.length };
     const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, gravados, new Set(), { ano });
     return { ok: true, notify, added: gravados.length };
@@ -25898,7 +25969,7 @@
     }
   }
 
-  function finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, ncNorm) {
+  function finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, ncNorm, opts) {
     if (typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
       window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
     }
@@ -25960,7 +26031,7 @@
       console.error(err);
       return false;
     }
-    portalPushCloudSnapshotAfterPersist();
+    if (!opts?.adiarNuvem) portalPushCloudSnapshotAfterPersist();
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLocacaoLancamentosHistorico(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
@@ -26264,7 +26335,7 @@
             ? "Caução"
             : "",
     });
-    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, { adiarNuvem: true });
     if (!ok) return { ok: false };
     if (!portalLancamentoAindaGravado(loc, entry)) {
       return { ok: false, stripped: true };
@@ -29574,7 +29645,7 @@
         }
         const protoLanc = String(res.entry?.protocoloLancamento || "").trim();
         portalMarcarLancamentoUploadPendente(protoLanc, proto);
-        const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc);
+        const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc, res.loc);
         if (!confirmado) {
           if (msg) {
             msg.textContent =

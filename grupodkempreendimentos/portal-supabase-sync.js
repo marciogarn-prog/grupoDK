@@ -2634,6 +2634,9 @@
           cloudPushDirty = true;
           break;
         }
+        if (data?.reason === "locacoes_write_busy") {
+          cloudPushDirty = true;
+        }
         if (res.ok && data?.ok) {
           anyOk = true;
           invalidateSnapshotGetCache();
@@ -2901,7 +2904,13 @@
       cloudPushDirty = true;
       return;
     }
-    const wait = Math.max(CLOUD_PUSH_DEBOUNCE_MS, cloudBackoffUntil > Date.now() ? cloudBackoffUntil - Date.now() : 0);
+    const adiarAte = Number(window.__DK_lancUploadAdiarPushAte || 0);
+    const adiarMs = adiarAte > Date.now() ? adiarAte - Date.now() : 0;
+    const wait = Math.max(
+      CLOUD_PUSH_DEBOUNCE_MS,
+      adiarMs,
+      cloudBackoffUntil > Date.now() ? cloudBackoffUntil - Date.now() : 0
+    );
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
@@ -2911,6 +2920,21 @@
       });
     }, wait);
   }
+
+  /** Empurra o snapshot completo para depois do upload curto do lançamento. */
+  function adiarPushSnapshotCheio(ms) {
+    const extra = Math.max(1000, Number(ms) || 15000);
+    window.__DK_lancUploadAdiarPushAte = Date.now() + extra;
+    if (!cloudPushTimer) return;
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(() => {
+      cloudPushTimer = null;
+      runTrackedCloudPush(() => pushSnapshotQuiet(), "debounce").catch((e) => {
+        console.error(e);
+      });
+    }, extra);
+  }
+  window.__DK_adiarPushSnapshotCheio = adiarPushSnapshotCheio;
 
   /**
    * Encadeia uploads para o pull ao trocar de tela poder esperar a confirmação.

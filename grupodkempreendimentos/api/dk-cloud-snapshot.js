@@ -1179,18 +1179,30 @@ async function handler(req, res) {
       const stored = { label: LABEL, payload, updated_at: storedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       await redis.set(`${REDIS_KEY}:rev`, storedAt);
-      const supabase = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(
-            upsertSnapshotByLabel(LABEL, payload, storedAt),
-            20000,
-            "supabase_timeout"
-          )
-        : { ok: false, reason: "doorman_key_missing" };
+      const supabasePromise = isSupabaseDoormanConfigured()
+        ? withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 20000, "supabase_timeout")
+        : Promise.resolve({ ok: false, reason: "doorman_key_missing" });
+      supabasePromise.then(() => {}, () => {});
+      /* Lançamento: Redis já gravou (é o que os outros PCs baixam). Não segura o
+         operador nos 20s do espelho. O espelho segue em paralelo. */
+      const fastConfirm = body.fastConfirm === true;
+      let supabase = { ok: false, reason: "supabase_deferred" };
+      try {
+        supabase = fastConfirm
+          ? await Promise.race([
+              supabasePromise,
+              new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "supabase_deferred" }), 800)),
+            ])
+          : await supabasePromise;
+      } catch (err) {
+        if (!fastConfirm) throw err;
+        supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
+      }
       return res.status(200).json({
         ok: true,
         label: LABEL,
         updated_at: storedAt,
-        source: "redis",
+        source: supabase && supabase.ok ? "both" : "redis",
         persistencia: supabase && supabase.ok ? "supabase+redis" : "redis",
         supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
         replace,

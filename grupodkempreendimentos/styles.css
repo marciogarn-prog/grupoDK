@@ -13141,7 +13141,8 @@ body.portal-nuvem-sync-lock-on {
   pointer-events: none;
 }
 
-body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock {
+body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock,
+body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock * {
   pointer-events: auto;
 }
 
@@ -13186,6 +13187,10 @@ body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock {
 
 .portal-nuvem-sync-lock #portalNuvemSyncLockRetry {
   margin-top: 1rem;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 /* Offline opera??o (PWA Windows) */
@@ -13195,7 +13200,8 @@ body.portal-nuvem-sync-lock-on {
   pointer-events: none;
 }
 
-body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock {
+body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock,
+body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock * {
   pointer-events: auto;
 }
 
@@ -13240,6 +13246,10 @@ body.portal-nuvem-sync-lock-on .portal-nuvem-sync-lock {
 
 .portal-nuvem-sync-lock #portalNuvemSyncLockRetry {
   margin-top: 1rem;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 body.dk-offline-blocked {
