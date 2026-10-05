@@ -2364,6 +2364,8 @@
   function reporLocacoesOficiaisAgora() {
     if (reporLocacoesOficiaisFlight) return reporLocacoesOficiaisFlight;
     reporLocacoesOficiaisFlight = (async () => {
+      const gate = await awaitAutoCloudPushConfirmed();
+      if (!gate.ok) return { ok: false, reason: gate.reason || "push_failed" };
       const row = await fetchRedisSnapshotFresh();
       const arr =
         row && row.payload && Array.isArray(row.payload.dk_locacoes_cadastro)
@@ -2443,6 +2445,76 @@
     return cloudPlateConflictRecovery;
   }
 
+  function dataPagamentoChaveNuvem(raw) {
+    const s = String(raw || "").trim();
+    const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (br) return `${String(Number(br[1])).padStart(2, "0")}/${String(Number(br[2])).padStart(2, "0")}/${br[3]}`;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    return s;
+  }
+
+  /**
+   * O 409 de pagamento repetido recusava o snapshot inteiro. Retira só o
+   * lançamento repetido (fica o mais antigo) para o resto poder subir.
+   */
+  function retirarPagamentosDuplicadosLocais(duplicates) {
+    const grupos = Array.isArray(duplicates) ? duplicates : [];
+    if (!grupos.length) return 0;
+    const locs = readLocalJsonArray("dk_locacoes_cadastro").map((loc) =>
+      loc && typeof loc === "object" ? { ...loc } : loc
+    );
+    let retirados = 0;
+    const ncDe = (v) => String(v || "").replace(/\D/g, "");
+    const ehAluguel = (p) => {
+      const tipo = String(p?.tipoMovimento || "")
+        .trim()
+        .toUpperCase();
+      return (
+        tipo !== "DEVOLUCAO_INVESTIMENTO" &&
+        tipo !== "CREDITO_MANUTENCAO" &&
+        tipo !== "CREDITO_DE_MANUTENCAO" &&
+        tipo !== "CAUCAO" &&
+        tipo !== "CAUÇÃO" &&
+        tipo !== "CAUÇAO"
+      );
+    };
+    grupos.forEach((grupo) => {
+      const nc = ncDe(grupo?.protocoloContrato);
+      const data = dataPagamentoChaveNuvem(grupo?.data);
+      const cents = Math.round(Number(grupo?.valor) * 100);
+      if (!nc || !data || !Number.isFinite(cents)) return;
+      const loc = locs.find((item) => ncDe(item?.numeroContrato || item?.protocolo) === nc);
+      if (!loc || !Array.isArray(loc.portalLancamentosAluguel)) return;
+      const hits = loc.portalLancamentosAluguel
+        .map((p, index) => ({ p, index }))
+        .filter(
+          ({ p }) =>
+            p &&
+            ehAluguel(p) &&
+            dataPagamentoChaveNuvem(p.data || p.dataPagamento) === data &&
+            Math.round(Number(p.valor) * 100) === cents
+        )
+        .sort((a, b) => Number(a.p.createdAt || 0) - Number(b.p.createdAt || 0));
+      if (!hits.length) return;
+      const drop = new Set((hits.length > 1 ? hits.slice(1) : hits).map((h) => h.index));
+      loc.portalLancamentosAluguel = loc.portalLancamentosAluguel.filter((_, index) => !drop.has(index));
+      retirados += drop.size;
+    });
+    if (!retirados) return 0;
+    runWithoutCloudPush(() => {
+      if (typeof saveCadastro === "function") {
+        saveCadastro("dk_locacoes_cadastro", locs, {
+          bypassImmutabilidadeCadastro: true,
+          allowShrink: true,
+        });
+      } else {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(locs));
+      }
+    });
+    return retirados;
+  }
+
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
     if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
     if (!hasUsableCloudToken()) {
@@ -2504,6 +2576,7 @@
         if (res.status === 429) {
           noteCloudRateLimit(res, data);
           lastErr = "rate_limited";
+          cloudPushDirty = true;
           break;
         }
         if (res.ok && data?.ok) {
@@ -2512,15 +2585,13 @@
           if (data.supabase && typeof data.supabase === "object") lastSupabase = data.supabase;
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
-          if (
-            data?.reason === "duplicate_payment_same_day_value" &&
-            data?.message &&
-            !cloudPaymentConflictAlerted
-          ) {
-            cloudPaymentConflictAlerted = true;
-            cloudPushDirty = false;
-            cloudPlateConflictHold = true;
-            window.alert(String(data.message));
+          if (data?.reason === "duplicate_payment_same_day_value") {
+            const retirados = retirarPagamentosDuplicadosLocais(data.duplicates);
+            if (data.message && !cloudPaymentConflictAlerted) {
+              cloudPaymentConflictAlerted = true;
+              window.alert(String(data.message));
+            }
+            if (retirados > 0) cloudPushDirty = true;
           }
           if (data?.reason === "active_plate_conflict") {
             void recuperarLocacoesOficiaisAposConflito(data);
@@ -5090,7 +5161,8 @@
   async function pullFromCloudOnScreenChangeCore() {
     const gate = await awaitAutoCloudPushConfirmed();
     if (!gate.ok) {
-      console.warn("[DK cloud] await_push_failed — o download da nuvem segue mesmo assim", gate.reason);
+      console.warn("[DK cloud] await_push_failed — o download da nuvem não substitui o lançamento local", gate.reason);
+      return { ok: false, reason: "await_push_failed", skipped: true };
     }
     if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
       try {
