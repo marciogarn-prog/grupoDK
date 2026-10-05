@@ -7,7 +7,8 @@
   "trailingSlash": false,
   "functions": {
     "api/openai-comprovante.js": { "maxDuration": 60 },
-    "api/openai-extrato.js": { "maxDuration": 60 }
+    "api/openai-extrato.js": { "maxDuration": 60 },
+    "api/dk-cloud-snapshot.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },

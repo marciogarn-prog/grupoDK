@@ -1042,7 +1042,7 @@ async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const locacoesLockToken = await acquireLocacoesWriteLock(redis);
+      const locacoesLockToken = await acquireLocacoesWriteLock(redis, { attempts: 80, waitMs: 100 });
       if (!locacoesLockToken) {
         return res.status(409).json({
           ok: false,
@@ -1179,6 +1179,7 @@ async function handler(req, res) {
       const stored = { label: LABEL, payload, updated_at: storedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       await redis.set(`${REDIS_KEY}:rev`, storedAt);
+      await releaseLocacoesWriteLock(redis, locacoesLockToken);
       const supabasePromise = isSupabaseDoormanConfigured()
         ? withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 20000, "supabase_timeout")
         : Promise.resolve({ ok: false, reason: "doorman_key_missing" });

@@ -2981,6 +2981,9 @@
    * força o envio e só continua após confirmação de sucesso.
    */
   async function awaitAutoCloudPushConfirmed() {
+    if (Number(window.__DK_lancUploadAdiarPushAte || 0) > Date.now()) {
+      return { ok: false, reason: "lancamento_em_envio" };
+    }
     const withTimeout = (p, ms) =>
       Promise.race([
         Promise.resolve(p),
