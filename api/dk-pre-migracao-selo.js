@@ -99,6 +99,26 @@ async function listarDocblobs() {
   return saida;
 }
 
+function registrosAfetados(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return null;
+  function idDe(row, i) {
+    if (row && row.id != null && String(row.id)) return "id:" + String(row.id);
+    return "idx:" + i;
+  }
+  const mb = new Map(b.map((row, i) => [idDe(row, i), canon(row)]));
+  const vistos = new Set();
+  let diferentes = 0;
+  a.forEach((row, i) => {
+    const id = idDe(row, i);
+    vistos.add(id);
+    if (!mb.has(id) || mb.get(id) !== canon(row)) diferentes++;
+  });
+  b.forEach((row, i) => {
+    if (!vistos.has(idDe(row, i))) diferentes++;
+  });
+  return diferentes;
+}
+
 function medir(valor) {
   if (Array.isArray(valor)) return valor.length;
   if (valor && typeof valor === "object") return Object.keys(valor).length;
@@ -121,6 +141,7 @@ function diferencas(redisPayload, sbPayload) {
       no_supabase: temB,
       registros_redis: temA ? medir(a) : 0,
       registros_supabase: temB ? medir(b) : 0,
+      registros_diferentes: registrosAfetados(a, b),
     });
   }
   return chaves;
