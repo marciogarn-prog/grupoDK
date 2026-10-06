@@ -107,6 +107,23 @@ if (fs.existsSync(srcLib)) {
     fs.copyFileSync(path.join(srcLib, name), path.join(outLib, name));
   }
 }
+/* A função /api/cadastro-financeiro-ceo exige este módulo em /var/task/lib. */
+const linhaCeoNome = "dk-financeiro-ceo-linha.cjs";
+const linhaCeoSrc = path.join(portalLibDir, linhaCeoNome);
+const linhaCeoOut = path.join(outDir, "lib", linhaCeoNome);
+const linhaCeoRepo = path.join(repoLibDir, linhaCeoNome);
+if (!fs.existsSync(linhaCeoSrc)) {
+  console.error("copy-portal-for-vercel: módulo ausente:", linhaCeoSrc);
+  process.exit(1);
+}
+fs.mkdirSync(path.dirname(linhaCeoOut), { recursive: true });
+fs.mkdirSync(path.dirname(linhaCeoRepo), { recursive: true });
+fs.copyFileSync(linhaCeoSrc, linhaCeoOut);
+fs.copyFileSync(linhaCeoSrc, linhaCeoRepo);
+if (!fs.existsSync(linhaCeoOut)) {
+  console.error("copy-portal-for-vercel: módulo não entrou no artefato:", linhaCeoOut);
+  process.exit(1);
+}
 
 /* Injeta credenciais Supabase nas meta tags (variáveis na Vercel: SUPABASE_URL, SUPABASE_ANON_KEY). */
 const indexHtml = path.join(outDir, "index.html");
