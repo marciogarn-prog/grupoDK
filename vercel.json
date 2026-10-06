@@ -5,6 +5,9 @@
   "installCommand": "npm install",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "api/dk-pre-migracao-selo.js": { "maxDuration": 60 }
+  },
   "env": {
     "DK_BACKUP_EMAIL_TO": "marciogarn@gmail.com",
     "DK_BACKUP_EMAIL_FROM": "Grupo DK Backup <marciogarn@gmail.com>",
