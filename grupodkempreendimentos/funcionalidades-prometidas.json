@@ -2471,7 +2471,7 @@
     },
     {
       "id": "lanc-aluguel-upload-antes-do-proximo",
-      "descricao": "No Lançamento de aluguel, gravar o pagamento envia para a nuvem e o próximo lançamento só abre depois que a nuvem devolve o protocolo. Atualizar a página não apaga um lançamento que ainda não subiu: o download oficial conserva esse pagamento e volta a enviá-lo. Outro computador, ao entrar, recebe o lançamento no download.",
+      "descricao": "No Lançamento de aluguel, o pagamento só fica concluído depois que a API confirma a gravação no servidor. Se o servidor não confirmar, o lançamento não fica salvo neste PC nem numa fila para enviar depois. O próximo lançamento só abre quando a nuvem confirmar.",
       "ficheiros": {
         "portal-locadora-ui.js": [
           "portalLancamentoConfirmarUploadNaNuvem",

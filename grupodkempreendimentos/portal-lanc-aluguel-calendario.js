@@ -297,9 +297,11 @@
     const res = await fn(ctx.cpfDigits, ctx.proto, ano, celulas);
     if (!res?.ok) {
       if (msg) {
-        msg.textContent = res?.stripped
-          ? "Essas datas não ficaram gravadas (já tinham sido apagadas neste valor). Confirme de novo após actualizar a página."
-          : "Não foi possível guardar.";
+        msg.textContent = res?.msg
+          ? res.msg
+          : res?.stripped
+            ? "Essas datas não ficaram gravadas (já tinham sido apagadas neste valor). Confirme de novo após actualizar a página."
+            : "Não foi possível salvar no servidor. O lançamento não foi concluído. Tente de novo.";
       }
       if (btn) btn.disabled = false;
       return;

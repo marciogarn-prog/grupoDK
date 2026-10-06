@@ -2390,48 +2390,14 @@
   let reporLocacoesOficiaisFlight = null;
   let pagamentosLocaisReanexados = 0;
 
-  /** A lista oficial manda no contrato. O pagamento lançado neste PC e ainda ausente na nuvem fica. */
+  /** A lista oficial manda. Pagamento que só existe neste PC não entra na nuvem. */
   function fundirPagamentosLocaisAusentesNaNuvem(cloudArr) {
-    const lista = Array.isArray(cloudArr) ? cloudArr : [];
-    if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) return lista;
-    const localArr = readLocalJsonArray("dk_locacoes_cadastro");
-    const porNc = new Map();
-    const ncDe = (v) => String(v || "").replace(/\D/g, "");
-    localArr.forEach((loc) => {
-      const nc = ncDe(loc?.numeroContrato || loc?.protocolo);
-      if (nc) porNc.set(nc, loc);
-    });
-    let extras = 0;
-    const next = lista.map((cloud) => {
-      if (!cloud || typeof cloud !== "object") return cloud;
-      const local = porNc.get(ncDe(cloud.numeroContrato || cloud.protocolo));
-      if (!local) return cloud;
-      const mergedPl = mergeLancamentosAluguelLocacaoPar([
-        cloud.portalLancamentosAluguel,
-        local.portalLancamentosAluguel,
-      ]);
-      const antes = JSON.stringify(cloud.portalLancamentosAluguel || []);
-      const row = { ...cloud };
-      if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
-        window.__DK_anexarLancamentosMergeNaLocacao(row, cloud, local, mergedPl);
-      } else if (mergedPl.length) {
-        row.portalLancamentosAluguel = mergedPl;
-      }
-      const depois = JSON.stringify(row.portalLancamentosAluguel || []);
-      if (antes !== depois) extras += 1;
-      return row;
-    });
-    if (extras) pagamentosLocaisReanexados += extras;
-    return next;
+    return Array.isArray(cloudArr) ? cloudArr : [];
   }
 
   function enviarPagamentosReanexadosSeHouver() {
-    if (!pagamentosLocaisReanexados) return;
     pagamentosLocaisReanexados = 0;
-    scheduleCloudPushDebounced({
-      motivo: "pagamento_local_ausente_na_nuvem",
-      key: "dk_locacoes_cadastro",
-    });
+    /* pagamento_local_ausente_na_nuvem não é mais fila de sincronização. */
   }
 
   function juntarFilaNasLocacoes(arr, itens) {

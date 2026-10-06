@@ -18609,14 +18609,6 @@
   function openOperacaoLancamentoAluguel(subRaw) {
     const pedido = subRaw || operacaoLancAluguelSubAtivo || "avulso";
     const sub = operacaoLancAluguelSubPermitido(pedido) ? pedido : "avulso";
-    try {
-      const pend = JSON.parse(sessionStorage.getItem("dk_lanc_upload_pendente") || "null");
-      if (pend && String(pend.protocolo || "").trim()) {
-        window.__DK_lancUploadAdiarPushAte = Date.now() + 20000;
-      }
-    } catch {
-      /* ignore */
-    }
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     syncOperacaoLancAluguelSubnavVisible(true);
@@ -19122,14 +19114,12 @@
       if (msgEl && t) msgEl.textContent = t;
     };
     const textoEnviar =
-      opts?.textoEnviar ||
-      "A enviar os dados para a nuvem. Só pode trabalhar quando a nuvem confirmar.";
+      opts?.textoEnviar || "A enviar os dados para o servidor. Aguarde a confirmação.";
     const run = async () => {
       portalNuvemSyncLockShow(textoEnviar);
       const push = await portalNuvemPushAwait();
       if (!portalNuvemPushResultOk(push)) {
-        const falha =
-          "Ficou só neste PC. A nuvem não confirmou. Não continue noutro computador — tente de novo.";
+        const falha = "Não foi possível salvar no servidor. Nada foi confirmado. Tente de novo.";
         setMsg(falha);
         portalNuvemSyncLockShow(falha, {
           retry: true,
@@ -19205,6 +19195,70 @@
   function portalLimparLancamentoUploadPendente() {
     try {
       sessionStorage.removeItem(PORTAL_LANC_UPLOAD_PENDENTE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const MSG_LANC_SERVIDOR_NAO_CONFIRMOU =
+    "Não foi possível salvar no servidor. O lançamento não foi concluído. Tente de novo.";
+
+  function portalRetirarLinhaDiaNaoConfirmada(nc, entry) {
+    try {
+      const state = loadPortalLancPagamentosDoDia();
+      const data = String(entry?.data || "").trim();
+      const valor = Number(entry?.valor) || 0;
+      const protocolo = String(nc || "").trim();
+      const antes = state.itens.length;
+      state.itens = state.itens.filter((it) => {
+        if (it?.apagado) return true;
+        const mesmo =
+          String(it?.protocolo || "").trim() === protocolo &&
+          String(it?.dataPagamento || "").trim() === data &&
+          Number(it?.valor) === valor;
+        return !mesmo;
+      });
+      if (state.itens.length !== antes) {
+        localStorage.setItem(PORTAL_LANC_PAG_DIA_KEY, JSON.stringify(state));
+        renderPortalLancPagamentosDoDia();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalDesfazerLancamentoLocalNaoConfirmado(loc, entry) {
+    const proto = String(entry?.protocoloLancamento || "").trim();
+    portalLimparLancamentoUploadPendente();
+    window.__DK_lancUploadAdiarPushAte = 0;
+    if (!loc || !proto) return;
+    const nc = normPortalNumeroContrato(loc.numeroContrato || loc.protocolo);
+    const dig = (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(loc.cpf);
+    const tirar = (alvo) => {
+      if (!alvo || !Array.isArray(alvo.portalLancamentosAluguel)) return;
+      alvo.portalLancamentosAluguel = alvo.portalLancamentosAluguel.filter(
+        (p) => String(p?.protocoloLancamento || "").trim() !== proto
+      );
+    };
+    tirar(loc);
+    try {
+      if (typeof loadCadastro === "function" && typeof saveCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+        const locs = loadCadastro(CAD_LOCACOES_KEY);
+        const idx = Array.isArray(locs)
+          ? locs.findIndex((l) => dig(l?.cpf) === cpf && normPortalNumeroContrato(l?.numeroContrato) === nc)
+          : -1;
+        if (idx >= 0) {
+          tirar(locs[idx]);
+          saveCadastro(CAD_LOCACOES_KEY, locs);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    portalRetirarLinhaDiaNaoConfirmada(nc, entry);
+    try {
+      renderOperacaoLancAluguelHistorico();
     } catch {
       /* ignore */
     }
@@ -19314,21 +19368,15 @@
   }
 
   /**
-   * Lançou = upload. O próximo lançamento só abre quando a nuvem confirmar.
-   * A primeira nuvem que gravar (Redis, a cópia que os outros PCs baixam) libera o seguinte.
+   * O lançamento só fica concluído depois que a API confirma a gravação no servidor.
+   * O próximo lançamento só abre quando a nuvem confirmar.
    */
   async function portalLancamentoConfirmarUploadNaNuvem(protocolo, locInformada) {
     const want = String(protocolo || "").trim();
     const falha = () => {
-      portalNuvemSyncLockShow(
-        "O lançamento ficou neste PC. A nuvem não confirmou. Tente de novo antes do próximo.",
-        {
-          retry: true,
-          onRetry: () => {
-            void tentar();
-          },
-        }
-      );
+      window.__DK_lancUploadAdiarPushAte = 0;
+      portalLimparLancamentoUploadPendente();
+      portalNuvemSyncLockHide();
       return false;
     };
     const tentar = async () => {
@@ -19375,25 +19423,20 @@
   }
 
   async function portalRetomarUploadLancamentoPendente() {
-    let pend = null;
-    try {
-      pend = JSON.parse(sessionStorage.getItem(PORTAL_LANC_UPLOAD_PENDENTE_KEY) || "null");
-    } catch {
-      pend = null;
+    window.__DK_lancUploadAdiarPushAte = 0;
+    portalLimparLancamentoUploadPendente();
+    portalNuvemSyncLockHide();
+  }
+
+  async function portalExigirConfirmacaoServidorDoLancamento(res) {
+    if (!res?.ok || !res.entry) return false;
+    const protoLanc = String(res.entry.protocoloLancamento || "").trim();
+    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc, res.loc);
+    if (!confirmado) {
+      portalDesfazerLancamentoLocalNaoConfirmado(res.loc, res.entry);
+      return false;
     }
-    const protocolo = String(pend?.protocolo || "").trim();
-    if (!protocolo) {
-      portalNuvemSyncLockHide();
-      return;
-    }
-    if (!portalLancamentoPendenteAindaNoPc(protocolo)) {
-      window.__DK_lancUploadAdiarPushAte = 0;
-      portalLimparLancamentoUploadPendente();
-      portalNuvemSyncLockHide();
-      return;
-    }
-    if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-    await portalLancamentoConfirmarUploadNaNuvem(protocolo);
+    return true;
   }
 
   function portalPushCloudSnapshotAfterPersist() {
@@ -25940,9 +25983,16 @@
     destacarLancamentoHistorico(gravados[0]?.data, gravados[0]?.protocoloLancamento);
     const ultimo = gravados[gravados.length - 1];
     const protoUltimo = String(ultimo?.protocoloLancamento || "").trim();
-    portalMarcarLancamentoUploadPendente(protoUltimo, nc);
     const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoUltimo, loc);
-    if (!confirmado) return { ok: false, nuvem: false, added: gravados.length };
+    if (!confirmado) {
+      for (const entry of gravados) portalDesfazerLancamentoLocalNaoConfirmado(loc, entry);
+      return {
+        ok: false,
+        nuvem: false,
+        added: 0,
+        msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU,
+      };
+    }
     const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, gravados, new Set(), { ano });
     return { ok: true, notify, added: gravados.length };
   }
@@ -29804,14 +29854,9 @@
           }
           return;
         }
-        const protoLanc = String(res.entry?.protocoloLancamento || "").trim();
-        portalMarcarLancamentoUploadPendente(protoLanc, proto);
-        const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc, res.loc);
+        const confirmado = await portalExigirConfirmacaoServidorDoLancamento(res);
         if (!confirmado) {
-          if (msg) {
-            msg.textContent =
-              "Lançamento gravado neste PC. A nuvem ainda não confirmou. O próximo só abre depois do envio.";
-          }
+          if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
           return;
         }
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -29926,6 +29971,8 @@
     const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
     const texto = `Devolução de investimento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
+      void (async () => {
+      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelDevolucao(digits, proto, valorAbs, dataStr, {
         comentarioPagamento: comentario,
       });
@@ -29937,6 +29984,10 @@
         }
         return;
       }
+      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
+        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
+        return;
+      }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
         (l) => normPortalNumeroContrato(l.numeroContrato) === proto
       );
@@ -29946,6 +29997,7 @@
       renderOperacaoLancAluguelHistorico();
       if (inpComentario) inpComentario.value = "";
       if (msg) msg.textContent = "Devolução de investimento registada. Totais atualizados.";
+      })();
     });
   });
 
@@ -30004,6 +30056,8 @@
     const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
     const texto = `Crédito de manutenção de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor soma no TOTAL PAGO do cliente e não entra na receita da empresa.`;
     openPortalLancAluguelConfirmModal(texto, () => {
+      void (async () => {
+      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelCreditoManutencao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
@@ -30017,6 +30071,10 @@
                 ? `O crédito de ${dataStr} não ficou gravado. Confirme de novo.`
                 : "Não foi possível guardar o crédito de manutenção.";
         }
+        return;
+      }
+      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
+        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         return;
       }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -30033,6 +30091,7 @@
         msg.textContent =
           "Crédito de manutenção registado. Soma no TOTAL PAGO do cliente; não entra na receita real da empresa.";
       }
+      })();
     });
   });
 
@@ -30092,6 +30151,8 @@
     const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
     const texto = `Caução de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor entra na receita da empresa e não contabiliza no aluguel do cliente.`;
     openPortalLancAluguelConfirmModal(texto, () => {
+      void (async () => {
+      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelCaucao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
@@ -30105,6 +30166,10 @@
                 ? `A caução de ${dataStr} não ficou gravada. Confirme de novo.`
                 : "Não foi possível guardar a caução.";
         }
+        return;
+      }
+      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
+        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         return;
       }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -30131,6 +30196,7 @@
         protocolo: proto,
         comentario,
       });
+      })();
     });
   });
 
