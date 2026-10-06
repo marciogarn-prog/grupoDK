@@ -17,8 +17,9 @@
 </head>
 <body>
   <h1>Auditoria local do Sistema DK</h1>
-  <p class="aviso">Somente leitura. Esta página não grava localStorage, sessionStorage, IndexedDB, OPFS nem Cache Storage. Não chama a API, não envia dados ao Redis nem ao Supabase e não altera o cadastro.</p>
-  <p>Abra no mesmo navegador e no mesmo perfil em que o Sistema DK é usado neste computador. Feche as outras abas do portal antes de gerar o pacote, para a leitura não disputar o banco com a tela de operação.</p>
+  <p class="aviso">Somente leitura. Esta página não grava localStorage, sessionStorage, IndexedDB, OPFS nem Cache Storage. Não chama a API, não envia dados ao Redis nem ao Supabase e não altera o cadastro. Credenciais encontradas saem do pacote; o manifesto só guarda [REDACTED].</p>
+  <p>Abra no mesmo navegador e no mesmo perfil em que o Sistema DK é usado. Deixe a aba do portal aberta. Não a feche: a sessão daquela aba não é visível aqui e fechá-la apagaria a sessão sem inventário. localStorage, IndexedDB, OPFS e Cache Storage são do perfil e serão lidos.</p>
+  <p>O service worker já instalado pelo portal pode guardar o HTML desta página no cache ao abri-la. Esta ferramenta não apaga nem desregistra esse service worker. Essa entrada, se aparecer, é a página de auditoria, não dado de negócio.</p>
   <p>
     <label for="pc">Computador</label><br />
     <select id="pc" required>
@@ -32,257 +33,34 @@
   </p>
   <p><button id="gerar" type="button">Gerar pacote de auditoria</button></p>
   <div id="log">Aguardando.</div>
+  <script src="dk-auditoria-local-nucleo.js?v=20261006a"></script>
   <script>
 (function auditoriaLocalSomenteLeitura() {
   "use strict";
-
-  var CHAVES_SNAPSHOT_OFICIAL = [
-    "dk_clientes_cadastro",
-    "dk_clientes_validacao_pendente",
-    "dk_veiculos_cadastro",
-    "dk_portal_clientes_cadastro",
-    "dk_portal_veiculos_cadastro",
-    "dk_veiculos_frota_planilha",
-    "dk_locacoes_cadastro",
-    "dk_locacoes_quadro_geral",
-    "dk_manutencoes_cadastro",
-    "dk_manutencoes_rapidas_v1",
-    "dk_manutencao_rapida_sugestao_oleo_v1",
-    "dk_portal_checklist_historico_v1",
-    "dk_portal_checklist_movimentacoes_v1",
-    "dk_portal_setor_movimentacoes_v1",
-    "dk_cliente_docs_v1",
-    "dk_lancamentos_aluguel",
-    "dk_quadro_receita_overrides",
-    "dk_comprovantes_banco",
-    "dk_comprovantes_cliente_pendentes",
-    "dk_cliente_notificacoes",
-    "dk_financeiro_extratos_v1",
-    "dk_financeiro_despesas_v1",
-    "dk_financeiro_ceo_despesas_v1",
-    "dk_financeiro_ceo_fontes_v1",
-    "dk_financeiro_ceo_cartoes_v1",
-    "dk_financeiro_ceo_situacao_pag_v1",
-    "dk_unidade_financeiro_v1",
-    "dk_documentos_deposito_v1",
-    "dk_audit_log",
-    "dk_funcionarios_access",
-    "dk_locacao_documentos_v1",
-    "dk_pagamentos_auditoria_v1",
-    "dk_comunicacao_operacao_v1",
-    "dk_protocolo_nc_remap_v1"
-  ];
-  var SNAPSHOT = {};
-  CHAVES_SNAPSHOT_OFICIAL.forEach(function (k) { SNAPSHOT[k] = true; });
-
-  var CHAVES_OFFLINE = [
-    "dk_operacao_offline_pending",
-    "dk_operacao_offline_mode"
-  ];
-
+  var nucleo = window.DK_AUDITORIA_NUCLEO;
   var logEl = document.getElementById("log");
   function log(line) {
-    logEl.textContent += (logEl.textContent === "Aguardando." ? "" : "\n") + line;
-    if (logEl.textContent === "Aguardando.\n" + line) logEl.textContent = line;
-  }
-
-  function enc(text) {
-    return new TextEncoder().encode(text);
-  }
-
-  function bytesOf(value) {
-    if (value instanceof Uint8Array) return value;
-    if (value instanceof ArrayBuffer) return new Uint8Array(value);
-    return enc(typeof value === "string" ? value : String(value));
-  }
-
-  async function sha256Hex(data) {
-    var buf = data instanceof Uint8Array ? data : bytesOf(data);
-    var copy = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    var digest = await crypto.subtle.digest("SHA-256", copy);
-    return Array.from(new Uint8Array(digest)).map(function (b) {
-      return b.toString(16).padStart(2, "0");
-    }).join("");
-  }
-
-  function crc32(bytes) {
-    if (!crc32.table) {
-      var table = new Uint32Array(256);
-      for (var n = 0; n < 256; n++) {
-        var c = n;
-        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
-        table[n] = c >>> 0;
-      }
-      crc32.table = table;
-    }
-    var crc = 0xffffffff;
-    for (var i = 0; i < bytes.length; i++) crc = crc32.table[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
-    return (crc ^ 0xffffffff) >>> 0;
-  }
-
-  function u16(n) {
-    var b = new Uint8Array(2);
-    new DataView(b.buffer).setUint16(0, n, true);
-    return b;
-  }
-  function u32(n) {
-    var b = new Uint8Array(4);
-    new DataView(b.buffer).setUint32(0, n >>> 0, true);
-    return b;
-  }
-
-  function zipStore(entries) {
-    var parts = [];
-    var central = [];
-    var offset = 0;
-    entries.forEach(function (entry) {
-      var name = enc(entry.name);
-      var data = entry.data;
-      var crc = crc32(data);
-      var local = [
-        u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
-        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0),
-        name, data
-      ];
-      var localSize = 30 + name.length + data.length;
-      parts.push.apply(parts, local);
-      central.push(
-        u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
-        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0),
-        u16(0), u16(0), u32(0), u32(offset), name
-      );
-      offset += localSize;
-    });
-    var centralBytes = 0;
-    central.forEach(function (piece) {
-      parts.push(piece);
-      centralBytes += piece.length || piece.byteLength;
-    });
-    parts.push(u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(centralBytes), u32(offset), u16(0));
-    return new Blob(parts, { type: "application/zip" });
-  }
-
-  function chaveRelacionada(nome) {
-    return /dk/i.test(String(nome || ""));
-  }
-
-  function safeName(nome) {
-    return String(nome || "sem-nome").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
-  }
-
-  function tipoConteudo(texto) {
-    var t = String(texto || "").trim();
-    if (!t) return "vazio";
-    if (t === "[]") return "array";
-    if (t === "{}") return "object";
-    if (t[0] === "[" || t[0] === "{") {
-      try {
-        var data = JSON.parse(t);
-        if (Array.isArray(data)) return "array";
-        if (data && typeof data === "object") return "object";
-      } catch (e) {
-        return "json-invalido";
-      }
-    }
-    return "escalar";
-  }
-
-  function resumirJson(data) {
-    var ids = [];
-    var datas = [];
-    var vistos = {};
-    function pushId(v) {
-      var s = String(v == null ? "" : v).trim();
-      if (!s || s.length > 80 || ids.length > 4000) return;
-      if (vistos[s]) return;
-      vistos[s] = true;
-      ids.push(s);
-    }
-    function walk(v, depth) {
-      if (v == null || depth > 5) return;
-      if (Array.isArray(v)) {
-        for (var i = 0; i < v.length; i++) walk(v[i], depth + 1);
-        return;
-      }
-      if (typeof v !== "object") return;
-      Object.keys(v).forEach(function (k) {
-        var val = v[k];
-        if (/^(id|key|chave|numeroContrato|protocolo|cpf|placa|codigo|codigoCliente)$/i.test(k) && (typeof val === "string" || typeof val === "number")) {
-          pushId(val);
-        }
-        if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) datas.push(val);
-        else if (typeof val === "number" && /(?:em|at|time|stamp)$/i.test(k) && val > 1000000000000) {
-          try { datas.push(new Date(val).toISOString()); } catch (e) { /* ignore */ }
-        } else {
-          walk(val, depth + 1);
-        }
-      });
-    }
-    var qtd = null;
-    var tipo = typeof data;
-    if (Array.isArray(data)) {
-      tipo = "array";
-      qtd = data.length;
-      walk(data, 0);
-    } else if (data && typeof data === "object") {
-      tipo = "object";
-      var arrKey = ["itens", "items", "cadastro", "entradas", "saidas", "crlv", "contrato", "multa", "documentos", "fotos", "fila", "pendentes"].find(function (k) {
-        return Array.isArray(data[k]);
-      });
-      qtd = arrKey ? data[arrKey].length : Object.keys(data).length;
-      if (arrKey) tipo = "object." + arrKey;
-      walk(data, 0);
-    } else {
-      qtd = data == null || data === "" ? 0 : 1;
-    }
-    datas.sort();
-    return {
-      tipo: tipo,
-      quantidade: qtd,
-      ids: ids,
-      idsTruncados: ids.length >= 4000,
-      dataMaisAntiga: datas[0] || null,
-      dataMaisRecente: datas.length ? datas[datas.length - 1] : null,
-      quantidadeDatas: datas.length
-    };
+    logEl.textContent = logEl.textContent === "Aguardando." ? line : logEl.textContent + "\n" + line;
   }
 
   function lerLocalStorage() {
     var chaves = [];
-    var arquivos = [];
     for (var i = 0; i < localStorage.length; i++) {
       var nome = localStorage.key(i);
-      if (!chaveRelacionada(nome)) continue;
-      var valor = localStorage.getItem(nome);
-      chaves.push({ nome: nome, valor: valor == null ? "" : String(valor) });
+      chaves.push({ nome: nome, valor: localStorage.getItem(nome) });
     }
-    return chaves;
-  }
-
-  function lerSessionStorage() {
-    var chaves = [];
-    try {
-      for (var i = 0; i < sessionStorage.length; i++) {
-        var nome = sessionStorage.key(i);
-        if (!chaveRelacionada(nome)) continue;
-        var valor = sessionStorage.getItem(nome);
-        chaves.push({ nome: nome, valor: valor == null ? "" : String(valor) });
-      }
-    } catch (e) {
-      chaves.push({ nome: "(erro)", valor: String(e && e.message || e) });
-    }
-    CHAVES_OFFLINE.forEach(function (nome) {
-      if (chaves.some(function (c) { return c.nome === nome; })) return;
-      var valor = "";
-      try { valor = sessionStorage.getItem(nome) || ""; } catch (e) { valor = ""; }
-      chaves.push({ nome: nome, valor: valor, ausente: !valor });
-    });
     return chaves;
   }
 
   function abrirIdbExistente(nome) {
     return new Promise(function (resolve, reject) {
+      var done = false;
       var req = indexedDB.open(nome);
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error("timeout ao abrir " + nome));
+      }, 8000);
       req.onupgradeneeded = function () {
         try { req.transaction.abort(); } catch (e) { /* não criar banco */ }
         if (!done) {
@@ -291,15 +69,9 @@
           reject(new Error("abertura cancelada para não criar o banco " + nome));
         }
       };
-      var done = false;
-      var timer = setTimeout(function () {
-        if (done) return;
-        done = true;
-        reject(new Error("timeout ao abrir " + nome));
-      }, 8000);
       req.onsuccess = function () {
         if (done) {
-          try { req.result.close(); } catch (e) { /* ignore */ }
+          try { req.result.close(); } catch (e2) { /* ignore */ }
           return;
         }
         done = true;
@@ -315,132 +87,73 @@
     });
   }
 
-  function listarBancos() {
-    if (!indexedDB.databases) return Promise.resolve(null);
-    return indexedDB.databases().then(function (lista) {
-      return (lista || []).map(function (d) { return d && d.name; }).filter(Boolean);
-    });
-  }
-
   function lerStore(db, storeName) {
     return new Promise(function (resolve, reject) {
       var tx = db.transaction(storeName, "readonly");
-      var store = tx.objectStore(storeName);
-      var req = store.getAll();
+      var req = tx.objectStore(storeName).getAll();
       req.onsuccess = function () { resolve(req.result || []); };
       req.onerror = function () { reject(req.error || new Error("leitura " + storeName)); };
     });
   }
 
-  async function blobParaBytes(blob) {
-    var buf = await blob.arrayBuffer();
-    return new Uint8Array(buf);
-  }
-
-  async function exportarRegistroIdb(dbNome, storeNome, registro, indice, arquivos) {
-    var copia = {};
-    var extras = [];
-    var chaves = registro && typeof registro === "object" ? Object.keys(registro) : [];
+  async function registroPlano(registro) {
+    if (typeof Blob !== "undefined" && registro instanceof Blob) {
+      return { arquivo: { __blob: true, mime: registro.type || "", bytes: new Uint8Array(await registro.arrayBuffer()) } };
+    }
+    if (!registro || typeof registro !== "object") return { valor: registro };
+    var out = {};
+    var chaves = Object.keys(registro);
     for (var i = 0; i < chaves.length; i++) {
       var k = chaves[i];
       var val = registro[k];
-      if (val instanceof Blob) {
-        var bytes = await blobParaBytes(val);
-        var hash = await sha256Hex(bytes);
-        var caminho = "bruto/indexeddb/" + safeName(dbNome) + "/" + safeName(storeNome) + "/" + indice + "-" + safeName(k) + ".bin";
-        arquivos.push({ name: caminho, data: bytes });
-        copia[k] = { arquivoBinario: caminho, bytes: bytes.length, mime: val.type || "", sha256: hash };
-        extras.push(copia[k]);
+      if (typeof Blob !== "undefined" && val instanceof Blob) {
+        out[k] = { __blob: true, mime: val.type || "", bytes: new Uint8Array(await val.arrayBuffer()) };
       } else {
-        copia[k] = val;
+        out[k] = val;
       }
     }
-    var json = JSON.stringify(copia);
-    var jsonBytes = enc(json);
-    var jsonHash = await sha256Hex(jsonBytes);
-    var jsonPath = "bruto/indexeddb/" + safeName(dbNome) + "/" + safeName(storeNome) + "/" + indice + ".json";
-    arquivos.push({ name: jsonPath, data: jsonBytes });
-    var resumo = resumirJson(copia);
-    return {
-      indice: indice,
-      arquivo: jsonPath,
-      bytes: jsonBytes.length,
-      sha256: jsonHash,
-      ids: resumo.ids.slice(0, 20),
-      dataMaisAntiga: resumo.dataMaisAntiga,
-      dataMaisRecente: resumo.dataMaisRecente,
-      binarios: extras
-    };
+    return out;
   }
 
-  async function lerIndexedDB(arquivos) {
+  async function lerIndexedDB() {
+    if (!indexedDB.databases) {
+      return { listagemDisponivel: false, aviso: "Este navegador não lista IndexedDB sem abrir o banco. A abertura foi evitada para não criar banco vazio.", bancos: [] };
+    }
+    var nomes = await indexedDB.databases();
     var bancos = [];
-    var nomes = [];
-    try {
-      nomes = await listarBancos();
-    } catch (e) {
-      return { erro: String(e && e.message || e), bancosDk: [] };
-    }
-    if (nomes == null) {
-      return { listagemDisponivel: false, bancosDk: [], aviso: "Este navegador não lista IndexedDB sem abrir o banco. A abertura foi evitada para não criar banco vazio." };
-    }
-    var relacionados = nomes.filter(chaveRelacionada);
-    for (var i = 0; i < relacionados.length; i++) {
-      var nome = relacionados[i];
-      log("IndexedDB " + nome);
+    for (var i = 0; i < (nomes || []).length; i++) {
+      var nome = nomes[i] && nomes[i].name;
+      if (!nome) continue;
       var db;
-      try {
-        db = await abrirIdbExistente(nome);
-      } catch (e) {
-        bancos.push({ banco: nome, erro: String(e && e.message || e) });
-        continue;
-      }
-      var info = { banco: nome, versao: db.version, objectStores: [] };
+      try { db = await abrirIdbExistente(nome); }
+      catch (e) { bancos.push({ banco: nome, erro: String(e && e.message || e) }); continue; }
+      var info = { banco: nome, versao: db.version, stores: [] };
       try {
         var stores = Array.from(db.objectStoreNames);
         for (var s = 0; s < stores.length; s++) {
-          var storeNome = stores[s];
-          var registros;
           try {
-            registros = await lerStore(db, storeNome);
-          } catch (e) {
-            info.objectStores.push({ store: storeNome, erro: String(e && e.message || e) });
-            continue;
+            var brutos = await lerStore(db, stores[s]);
+            var planos = [];
+            for (var r = 0; r < brutos.length; r++) planos.push(await registroPlano(brutos[r]));
+            info.stores.push({ store: stores[s], registros: planos });
+          } catch (e2) {
+            info.stores.push({ store: stores[s], erro: String(e2 && e2.message || e2), registros: [] });
           }
-          var itens = [];
-          var bytes = 0;
-          for (var r = 0; r < registros.length; r++) {
-            var item = await exportarRegistroIdb(nome, storeNome, registros[r], r + 1, arquivos);
-            bytes += item.bytes;
-            (item.binarios || []).forEach(function (b) { bytes += b.bytes || 0; });
-            itens.push(item);
-          }
-          info.objectStores.push({
-            store: storeNome,
-            quantidade: registros.length,
-            bytes: bytes,
-            registros: itens
-          });
         }
       } finally {
-        try { db.close(); } catch (e) { /* ignore */ }
+        try { db.close(); } catch (e3) { /* ignore */ }
       }
       bancos.push(info);
     }
-    return { listagemDisponivel: true, bancosExistentesNoPerfil: nomes.length, bancosDk: bancos };
+    return { listagemDisponivel: true, bancos: bancos };
   }
 
-  async function lerOpfs(arquivos) {
-    if (!navigator.storage || !navigator.storage.getDirectory) {
-      return { disponivel: false, arquivos: [] };
-    }
+  async function lerOpfs() {
+    if (!navigator.storage || !navigator.storage.getDirectory) return { disponivel: false, itens: [] };
     var root;
-    try {
-      root = await navigator.storage.getDirectory();
-    } catch (e) {
-      return { disponivel: true, erro: String(e && e.message || e), arquivos: [] };
-    }
-    var lista = [];
+    try { root = await navigator.storage.getDirectory(); }
+    catch (e) { return { disponivel: true, erro: String(e && e.message || e), itens: [] }; }
+    var itens = [];
     async function walk(dir, prefix) {
       var it = dir.entries();
       while (true) {
@@ -450,207 +163,51 @@
         var handle = step.value[1];
         var caminho = prefix ? prefix + "/" + nome : nome;
         if (handle.kind === "directory") {
-          lista.push({ caminho: caminho, tipo: "diretorio" });
+          itens.push({ caminho: caminho, tipo: "diretorio" });
           await walk(handle, caminho);
         } else {
           try {
             var file = await handle.getFile();
-            var bytes = new Uint8Array(await file.arrayBuffer());
-            var hash = await sha256Hex(bytes);
-            var zipPath = "bruto/opfs/" + caminho.split("/").map(safeName).join("/");
-            arquivos.push({ name: zipPath, data: bytes });
-            lista.push({
+            itens.push({
               caminho: caminho,
               tipo: "arquivo",
               nome: nome,
-              bytes: bytes.length,
-              ultimaModificacao: file.lastModified ? new Date(file.lastModified).toISOString() : null,
-              sha256: hash,
-              arquivo: zipPath
+              bytes: new Uint8Array(await file.arrayBuffer()),
+              ultimaModificacao: file.lastModified ? new Date(file.lastModified).toISOString() : null
             });
-          } catch (e) {
-            lista.push({ caminho: caminho, tipo: "arquivo", erro: String(e && e.message || e) });
+          } catch (e2) {
+            itens.push({ caminho: caminho, tipo: "arquivo", erro: String(e2 && e2.message || e2) });
           }
         }
       }
     }
     await walk(root, "");
-    return { disponivel: true, itens: lista };
+    return { disponivel: true, itens: itens };
   }
 
-  function cacheEhNegocio(url, contentType) {
-    var u = String(url || "");
-    var ct = String(contentType || "");
-    if (/\/api\//i.test(u)) return true;
-    if (/json/i.test(ct) && /dk|snapshot|cadastro/i.test(u)) return true;
-    return false;
-  }
-
-  async function lerCache(arquivos) {
+  async function lerCache() {
     if (!window.caches || !caches.keys) return { disponivel: false, caches: [] };
     var nomes;
-    try { nomes = await caches.keys(); } catch (e) {
-      return { disponivel: true, erro: String(e && e.message || e), caches: [] };
-    }
+    try { nomes = await caches.keys(); }
+    catch (e) { return { disponivel: true, erro: String(e && e.message || e), caches: [] }; }
     var saida = [];
     for (var i = 0; i < nomes.length; i++) {
-      var nome = nomes[i];
-      var cache = await caches.open(nome);
+      var cache = await caches.open(nomes[i]);
       var reqs = await cache.keys();
       var itens = [];
-      var negocio = 0;
-      var assets = 0;
       for (var r = 0; r < reqs.length; r++) {
-        var req = reqs[r];
-        var res = await cache.match(req);
+        var res = await cache.match(reqs[r]);
         if (!res) continue;
-        var buf = new Uint8Array(await res.clone().arrayBuffer());
-        var hash = await sha256Hex(buf);
-        var ct = res.headers.get("content-type") || "";
-        var classe = cacheEhNegocio(req.url, ct) ? "negocio" : "codigo-ou-asset";
-        if (classe === "negocio") negocio++; else assets++;
-        var item = {
-          url: req.url,
+        itens.push({
+          url: reqs[r].url,
           status: res.status,
-          contentType: ct,
-          bytes: buf.length,
-          sha256: hash,
-          classe: classe
-        };
-        if (classe === "negocio") {
-          var zipPath = "bruto/cache/" + safeName(nome) + "/" + (r + 1) + ".bin";
-          arquivos.push({ name: zipPath, data: buf });
-          item.arquivo = zipPath;
-        }
-        itens.push(item);
+          contentType: res.headers.get("content-type") || "",
+          body: new Uint8Array(await res.clone().arrayBuffer())
+        });
       }
-      saida.push({
-        cache: nome,
-        quantidade: itens.length,
-        codigoOuAssets: assets,
-        dadosDeNegocio: negocio,
-        itens: itens
-      });
+      saida.push({ cache: nomes[i], itens: itens });
     }
     return { disponivel: true, caches: saida };
-  }
-
-  async function descreverChave(origem, nome, valor, arquivos, pasta) {
-    var texto = valor == null ? "" : String(valor);
-    var bytes = enc(texto);
-    var hash = await sha256Hex(bytes);
-    var tipo = tipoConteudo(texto);
-    var resumo = { tipo: tipo, quantidade: tipo === "vazio" ? 0 : 1, ids: [], dataMaisAntiga: null, dataMaisRecente: null, quantidadeDatas: 0 };
-    if (tipo === "array" || tipo === "object" || String(tipo).indexOf("object.") === 0) {
-      try { resumo = resumirJson(JSON.parse(texto)); } catch (e) { resumo.tipo = "json-invalido"; }
-    }
-    var caminho = pasta + "/" + safeName(nome) + ".txt";
-    arquivos.push({ name: caminho, data: bytes });
-    return {
-      nome: nome,
-      origem: origem,
-      bytes: bytes.length,
-      tipo: resumo.tipo,
-      quantidade: resumo.quantidade,
-      ids: resumo.ids,
-      idsTruncados: Boolean(resumo.idsTruncados),
-      dataMaisAntiga: resumo.dataMaisAntiga,
-      dataMaisRecente: resumo.dataMaisRecente,
-      quantidadeDatas: resumo.quantidadeDatas,
-      sha256: hash,
-      noSnapshotOficial: Boolean(SNAPSHOT[nome]),
-      exclusivaDesteArmazenamento: !SNAPSHOT[nome],
-      arquivo: caminho
-    };
-  }
-
-  function marcarDuplicadas(lista) {
-    var porHash = {};
-    lista.forEach(function (item) {
-      if (!item.sha256) return;
-      if (!porHash[item.sha256]) porHash[item.sha256] = [];
-      porHash[item.sha256].push(item.nome);
-    });
-    lista.forEach(function (item) {
-      var grupo = porHash[item.sha256] || [];
-      item.duplicada = grupo.length > 1;
-      item.duplicadaDe = item.duplicada ? grupo.filter(function (n) { return n !== item.nome; }) : [];
-    });
-  }
-
-  function mdEsc(s) {
-    return String(s == null ? "" : s).replace(/\|/g, "/");
-  }
-
-  function relatorioMarkdown(man) {
-    var linhas = [];
-    linhas.push("# Auditoria local DK — " + man.computador);
-    linhas.push("");
-    linhas.push("Gerado em " + man.geradoEm + " na origem " + man.origem + ".");
-    linhas.push("Somente leitura. Nenhum dado foi enviado à nuvem por esta ferramenta.");
-    linhas.push("");
-    linhas.push("## localStorage");
-    linhas.push("");
-    linhas.push("Chaves DK: " + man.localStorage.quantidade + ". Bytes: " + man.localStorage.bytes + ".");
-    linhas.push("");
-    linhas.push("| Chave | Bytes | Tipo | Qtd | Snapshot oficial | Exclusiva local | Duplicada |");
-    linhas.push("|---|---:|---|---:|---|---|---|");
-    man.localStorage.chaves.forEach(function (c) {
-      linhas.push("| " + mdEsc(c.nome) + " | " + c.bytes + " | " + mdEsc(c.tipo) + " | " + c.quantidade + " | " + (c.noSnapshotOficial ? "sim" : "não") + " | " + (c.exclusivaDesteArmazenamento ? "sim" : "não") + " | " + (c.duplicada ? "sim" : "não") + " |");
-    });
-    linhas.push("");
-    linhas.push("## Estoque e outros dados fora do snapshot");
-    linhas.push("");
-    var fora = man.localStorage.chaves.filter(function (c) { return c.exclusivaDesteArmazenamento && c.bytes > 2; });
-    if (!fora.length) linhas.push("Nenhuma chave DK fora do snapshot oficial com conteúdo relevante.");
-    else fora.forEach(function (c) {
-      linhas.push("- " + c.nome + ": " + c.tipo + ", quantidade " + c.quantidade + ", " + c.bytes + " bytes.");
-    });
-    linhas.push("");
-    linhas.push("## Session storage e fila offline");
-    linhas.push("");
-    man.sessionStorage.chaves.forEach(function (c) {
-      linhas.push("- " + c.nome + ": " + (c.ausente || !c.bytes ? "ausente ou vazio" : c.bytes + " bytes") + ".");
-    });
-    linhas.push("");
-    linhas.push("## IndexedDB");
-    linhas.push("");
-    if (man.indexedDB.listagemDisponivel === false) linhas.push(man.indexedDB.aviso);
-    else if (!man.indexedDB.bancosDk.length) linhas.push("Nenhum banco IndexedDB com nome DK neste perfil.");
-    man.indexedDB.bancosDk.forEach(function (b) {
-      if (b.erro) {
-        linhas.push("- " + b.banco + ": não lido (" + b.erro + ").");
-        return;
-      }
-      linhas.push("- " + b.banco + " versão " + b.versao + ".");
-      (b.objectStores || []).forEach(function (s) {
-        linhas.push("  - store " + s.store + ": " + (s.erro ? s.erro : s.quantidade + " registros, " + s.bytes + " bytes") + ".");
-      });
-    });
-    linhas.push("");
-    linhas.push("## OPFS");
-    linhas.push("");
-    if (!man.opfs.disponivel) linhas.push("OPFS indisponível neste navegador.");
-    else if (man.opfs.erro) linhas.push("OPFS não lido: " + man.opfs.erro);
-    else if (!(man.opfs.itens || []).length) linhas.push("Nenhum arquivo OPFS neste perfil.");
-    else (man.opfs.itens || []).forEach(function (f) {
-      if (f.tipo === "diretorio") linhas.push("- diretório " + f.caminho);
-      else linhas.push("- " + f.caminho + " — " + (f.erro || (f.bytes + " bytes, " + (f.ultimaModificacao || "sem data"))));
-    });
-    linhas.push("");
-    linhas.push("## Cache Storage");
-    linhas.push("");
-    linhas.push("O cache abaixo é inventário. Corpo de código/asset não entra no pacote bruto. Entrada classificada como dado de negócio entra.");
-    if (!man.cache.disponivel) linhas.push("Cache Storage indisponível.");
-    (man.cache.caches || []).forEach(function (c) {
-      linhas.push("- " + c.cache + ": " + c.quantidade + " entradas (" + c.codigoOuAssets + " código/asset, " + c.dadosDeNegocio + " possível negócio).");
-    });
-    linhas.push("");
-    linhas.push("## Conferência");
-    linhas.push("");
-    linhas.push("O arquivo hashes.sha256 lista o SHA-256 de cada arquivo do pacote, inclusive este relatório e o manifesto.");
-    linhas.push("Compare de novo o hash depois de copiar o zip. Se mudar, a cópia foi alterada.");
-    return linhas.join("\n") + "\n";
   }
 
   async function gerar() {
@@ -659,86 +216,56 @@
       log("Escolha o computador DK-PC-01 a DK-PC-05.");
       return;
     }
+    if (!nucleo) {
+      log("Núcleo da auditoria não carregou.");
+      return;
+    }
     document.getElementById("gerar").disabled = true;
     logEl.textContent = "Lendo. Nada será gravado no sistema.";
-    var arquivos = [];
     try {
       log("localStorage");
-      var lsRaw = lerLocalStorage();
-      var ls = [];
-      for (var i = 0; i < lsRaw.length; i++) {
-        ls.push(await descreverChave("localStorage", lsRaw[i].nome, lsRaw[i].valor, arquivos, "bruto/localStorage"));
-      }
-      marcarDuplicadas(ls);
-      var lsBytes = ls.reduce(function (s, c) { return s + c.bytes; }, 0);
-
-      log("sessionStorage");
-      var ssRaw = lerSessionStorage();
-      var ss = [];
-      for (var j = 0; j < ssRaw.length; j++) {
-        var item = await descreverChave("sessionStorage", ssRaw[j].nome, ssRaw[j].valor, arquivos, "bruto/sessionStorage");
-        item.ausente = Boolean(ssRaw[j].ausente);
-        ss.push(item);
-      }
-
+      var local = lerLocalStorage();
       log("IndexedDB");
-      var idb = await lerIndexedDB(arquivos);
+      var idb = await lerIndexedDB();
       log("OPFS");
-      var opfs = await lerOpfs(arquivos);
+      var opfs = await lerOpfs();
       log("Cache Storage");
-      var cache = await lerCache(arquivos);
-
+      var cache = await lerCache();
       var agora = new Date();
-      var selo = agora.toISOString().replace(/[:.]/g, "-");
-      var pasta = "dk-audit-" + pc + "-" + selo;
-      var manifesto = {
-        ferramenta: "dk-auditoria-local",
-        somenteLeitura: true,
+      var pacote = await nucleo.montarPacote({
         computador: pc,
         geradoEm: agora.toISOString(),
         origem: location.origin,
         navegador: navigator.userAgent,
-        localStorage: { quantidade: ls.length, bytes: lsBytes, chaves: ls },
-        sessionStorage: { chaves: ss },
+        localStorage: local,
         indexedDB: idb,
         opfs: opfs,
-        cache: cache,
-        offline: {
-          chavesProcuradas: CHAVES_OFFLINE,
-          encontradas: ss.filter(function (c) { return CHAVES_OFFLINE.indexOf(c.nome) >= 0 && c.bytes > 0 && !c.ausente; }).map(function (c) { return c.nome; })
-        }
-      };
-      var md = relatorioMarkdown(manifesto);
-      var mdBytes = enc(md);
-      var manBytes = enc(JSON.stringify(manifesto, null, 2));
-      var nomesFinais = arquivos.map(function (a) { return pasta + "/" + a.name; });
-      var dadosFinais = arquivos.map(function (a) { return a.data; });
-      dadosFinais.push(mdBytes);
-      nomesFinais.push(pasta + "/RELATORIO.md");
-      dadosFinais.push(manBytes);
-      nomesFinais.push(pasta + "/manifesto.json");
-
-      var linhasHash = [];
-      for (var h = 0; h < nomesFinais.length; h++) {
-        var hex = await sha256Hex(dadosFinais[h]);
-        linhasHash.push(hex + "  " + nomesFinais[h].slice(pasta.length + 1));
-      }
-      linhasHash.sort();
-      var hashTexto = linhasHash.join("\n") + "\n";
-      var hashBytes = enc(hashTexto);
-      nomesFinais.push(pasta + "/hashes.sha256");
-      dadosFinais.push(hashBytes);
-
-      var zipEntries = nomesFinais.map(function (nome, idx) {
-        return { name: nome, data: dadosFinais[idx] };
+        caches: cache
       });
-      var blob = zipStore(zipEntries);
+      var pasta = "dk-audit-" + pc + "-" + agora.toISOString().replace(/[:.]/g, "-");
+      var mdBytes = new TextEncoder().encode(pacote.relatorio);
+      var manBytes = new TextEncoder().encode(JSON.stringify(pacote.manifesto, null, 2));
+      var nomes = pacote.arquivos.map(function (a) { return pasta + "/" + a.name; });
+      var dados = pacote.arquivos.map(function (a) { return a.data; });
+      nomes.push(pasta + "/RELATORIO.md");
+      dados.push(mdBytes);
+      nomes.push(pasta + "/manifesto.json");
+      dados.push(manBytes);
+      var linhas = [];
+      for (var h = 0; h < nomes.length; h++) {
+        linhas.push((await nucleo.sha256Hex(dados[h])) + "  " + nomes[h].slice(pasta.length + 1));
+      }
+      linhas.sort();
+      var hashBytes = new TextEncoder().encode(linhas.join("\n") + "\n");
+      nomes.push(pasta + "/hashes.sha256");
+      dados.push(hashBytes);
+      var blob = nucleo.zipStore(nomes.map(function (nome, idx) { return { name: nome, data: dados[idx] }; }));
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = pasta + ".zip";
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
-      log("Pacote gerado: " + pasta + ".zip (" + blob.size + " bytes). Guarde o arquivo. Ele não foi enviado.");
+      log("Pacote gerado: " + pasta + ".zip (" + blob.size + " bytes). Guarde o arquivo neste computador. Ele não foi enviado.");
     } catch (e) {
       log("Falhou sem gravar: " + (e && e.message ? e.message : e));
     } finally {
@@ -746,9 +273,7 @@
     }
   }
 
-  document.getElementById("gerar").addEventListener("click", function () {
-    gerar();
-  });
+  document.getElementById("gerar").addEventListener("click", function () { gerar(); });
 })();
   </script>
 </body>
