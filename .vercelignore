@@ -10,4 +10,7 @@ docs/
 *.csv
 Backblaze-B2-orientacoes-Grupo-DK.docx
 DK-FINANCEIRO*
+!dk-financeiro-ceo-linha.cjs
+!lib/dk-financeiro-ceo-linha.cjs
+!grupodkempreendimentos/lib/dk-financeiro-ceo-linha.cjs
 registro-perguntas.txt
