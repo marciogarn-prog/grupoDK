@@ -8,8 +8,10 @@
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { handleClientePush } = require("../lib/dk-cliente-push-handler.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
+const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
+const SNAPSHOT_FIELD = "dk_cliente_geo_v1";
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CLIENTES = 800;
 
@@ -70,6 +72,90 @@ function applyCors(res) {
   applyApiCors(res);
 }
 
+function aplicarClienteGeo(payload, entrada) {
+  const store = parseStore(payload[SNAPSHOT_FIELD]);
+  const prev = store.byCpf[entrada.cpf] || {};
+  store.byCpf[entrada.cpf] = {
+    cpf: entrada.cpf,
+    nome: String(entrada.nome || prev.nome || "").trim(),
+    placa: normPlaca(entrada.placa || prev.placa || ""),
+    protocolo: String(entrada.protocolo || prev.protocolo || "").trim(),
+    lat: entrada.lat,
+    lng: entrada.lng,
+    accuracy: Number.isFinite(Number(entrada.accuracy)) ? Number(entrada.accuracy) : null,
+    heading: Number.isFinite(Number(entrada.heading)) ? Number(entrada.heading) : null,
+    speed: Number.isFinite(Number(entrada.speed)) ? Number(entrada.speed) : null,
+    ts: entrada.ts,
+    updatedAt: entrada.ts,
+  };
+  payload[SNAPSHOT_FIELD] = pruneStore(store);
+  return payload;
+}
+
+function clientesDoStore(store) {
+  return Object.values(store.byCpf || {}).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
+}
+
+async function lerClienteGeoComIo(io) {
+  const atual = await io.ler();
+  if (!atual || atual.indisponivel) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        success: false,
+        reason: (atual && atual.reason) || "supabase_indisponivel",
+      },
+    };
+  }
+  const store = pruneStore(parseStore(atual.payload && atual.payload[SNAPSHOT_FIELD]));
+  const clientes = clientesDoStore(store);
+  return {
+    status: 200,
+    store,
+    body: {
+      ok: true,
+      success: true,
+      source: "supabase",
+      revision: atual.updatedAt || null,
+      updated_at: atual.updatedAt || null,
+      updatedAt: store.updatedAt || Date.now(),
+      total: clientes.length,
+      clientes,
+    },
+  };
+}
+
+async function gravarClienteGeoComIo(io, entrada, cache) {
+  const atual = await io.ler();
+  if (!atual || atual.indisponivel) {
+    return {
+      status: 503,
+      body: {
+        ok: false,
+        success: false,
+        reason: (atual && atual.reason) || "supabase_indisponivel",
+      },
+    };
+  }
+  const informado = String(entrada.baseRevision || "");
+  return executarGravacaoCentral({
+    ler: io.ler,
+    gravar: io.gravar,
+    cache,
+    baseRevision: informado || atual.updatedAt || "",
+    mutar(payload) {
+      aplicarClienteGeo(payload, entrada);
+    },
+  });
+}
+
+async function cacheGeoRedis(store) {
+  if (!isRedisKvConfigured()) throw new Error("redis_indisponivel");
+  const redis = createRedisClient();
+  await redis.set(REDIS_KEY, JSON.stringify(store));
+}
+
 module.exports = async function handler(req, res) {
   if (String(req.query?.push || "") === "1") {
     return handleClientePush(req, res);
@@ -98,29 +184,19 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  if (!isRedisKvConfigured()) {
-    return res.status(503).json({
-      ok: false,
-      msg: "Serviço de localização temporariamente indisponível.",
-      reason: "kv_not_configured",
-    });
-  }
-
   try {
-    const redis = createRedisClient();
+    const io = ioSnapshotOficial("default");
 
     if (req.method === "GET") {
-      const raw = await redis.get(REDIS_KEY);
-      const store = pruneStore(parseStore(raw));
-      const clientes = Object.values(store.byCpf || {}).sort(
-        (a, b) => Number(b.ts || 0) - Number(a.ts || 0)
-      );
-      return res.status(200).json({
-        ok: true,
-        updatedAt: store.updatedAt || Date.now(),
-        total: clientes.length,
-        clientes,
-      });
+      const lido = await lerClienteGeoComIo(io);
+      if (lido.status === 200) {
+        try {
+          await cacheGeoRedis(lido.store);
+        } catch (err) {
+          console.error("[DK geo] cache redis apos leitura", err && err.message ? err.message : err);
+        }
+      }
+      return res.status(lido.status).json(lido.body);
     }
 
     if (req.method !== "POST") {
@@ -148,30 +224,37 @@ module.exports = async function handler(req, res) {
     }
 
     const ts = Number(body.ts) || Date.now();
-    const raw = await redis.get(REDIS_KEY);
-    const store = parseStore(raw);
-    store.byCpf[cpf] = {
-      cpf,
-      nome: String(body.nome || store.byCpf[cpf]?.nome || "").trim(),
-      placa: normPlaca(body.placa || store.byCpf[cpf]?.placa || ""),
-      protocolo: String(body.protocolo || store.byCpf[cpf]?.protocolo || "").trim(),
-      lat,
-      lng,
-      accuracy: Number.isFinite(Number(body.accuracy)) ? Number(body.accuracy) : null,
-      heading: Number.isFinite(Number(body.heading)) ? Number(body.heading) : null,
-      speed: Number.isFinite(Number(body.speed)) ? Number(body.speed) : null,
-      ts,
-      updatedAt: ts,
-    };
-    const pruned = pruneStore(store);
-    await redis.set(REDIS_KEY, JSON.stringify(pruned));
-
-    return res.status(200).json({ ok: true, cpf, ts });
+    const central = await gravarClienteGeoComIo(
+      io,
+      {
+        cpf,
+        nome: body.nome,
+        placa: body.placa,
+        protocolo: body.protocolo,
+        lat,
+        lng,
+        accuracy: body.accuracy,
+        heading: body.heading,
+        speed: body.speed,
+        ts,
+        baseRevision: body.base_revision || body.revision || "",
+      },
+      async (payload) => {
+        await cacheGeoRedis(payload[SNAPSHOT_FIELD]);
+      }
+    );
+    if (central.status !== 200) return res.status(central.status).json(central.body);
+    return res.status(200).json({ ...central.body, cpf, ts });
   } catch (e) {
     return res.status(500).json({
       ok: false,
+      success: false,
       msg: "Erro ao processar localização.",
       error: String(e && e.message ? e.message : e),
     });
   }
 };
+
+module.exports.aplicarClienteGeo = aplicarClienteGeo;
+module.exports.lerClienteGeoComIo = lerClienteGeoComIo;
+module.exports.gravarClienteGeoComIo = gravarClienteGeoComIo;
