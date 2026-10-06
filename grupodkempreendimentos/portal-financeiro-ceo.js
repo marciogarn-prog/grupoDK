@@ -12,6 +12,7 @@
   let finCeoNuvemWaitWatchdog = 0;
   /** Uma operação financeira explícita = um id + um resultado terminal. */
   let finCeoOpAtual = null;
+  let finCeoPostAtivo = null;
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
@@ -280,7 +281,7 @@
           return;
         }
         concluirResultadoCeo(opIdWatch, "erro", MSG_NUVEM_ERRO);
-      }, 11000);
+      }, 50000);
     }
     if (kind !== "wait") btn?.focus();
   }
@@ -458,28 +459,76 @@
     else aplicar();
   }
 
+  function idsDespesaDoBloco(bloco) {
+    const despesas = bloco && Array.isArray(bloco.despesas) ? bloco.despesas : [];
+    return despesas.map((d) => String(d && d.id != null ? d.id : "").trim()).filter(Boolean);
+  }
+
+  async function confirmarLinhaGravadaCeo(bloco, operationId) {
+    const ids = idsDespesaDoBloco(bloco);
+    if (!ids.length) return { ok: false, found: null, reason: "sem_id" };
+    const registros = [];
+    for (const id of ids) {
+      let r;
+      try {
+        r = await fetchFinanceiroCeoComTimeout(
+          `/api/cadastro-financeiro-ceo?id=${encodeURIComponent(id)}`,
+          { headers: headersFinanceiroCeoApi(), cache: "no-store" },
+          15000
+        );
+      } catch {
+        return { ok: false, found: null, reason: "confirmacao_indisponivel" };
+      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok !== true) return { ok: false, found: null, reason: j.reason || "confirmacao_indisponivel" };
+      if (j.found !== true) return { ok: false, found: false, id };
+      if (String(j.operation_id || "") !== String(operationId || "")) {
+        return { ok: false, found: true, reason: "operation_divergente" };
+      }
+      registros.push({
+        tipo: "despesa",
+        id: j.id,
+        revision: j.revision,
+        updated_at: j.updated_at,
+      });
+    }
+    return {
+      ok: true,
+      found: true,
+      operation_id: operationId || "",
+      revision: registros[0] ? registros[0].revision : null,
+      r: { success: true, fonte: "supabase", registros, confirmacao: "linha" },
+    };
+  }
+
   async function pushFinanceiroCeoParaNuvem(bloco, operationId) {
     const patch = montarPayloadBlocoCeo(bloco);
     if (!patch) return { ok: false, reason: "bloco_vazio" };
     /* ESPELHO SUPABASE INDISPONÍVEL do snapshot default não cancela este lançamento. */
-    const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
-      method: "POST",
-      headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patch: true,
-        bloco: true,
-        data: patch,
-        operationId: operationId || "",
-      }),
-      cache: "no-store",
-    }, 25000);
-    const j = await r.json().catch(() => ({}));
-    if (r.status === 429) {
-      const ra = Number(r.headers.get("Retry-After") || j.retryAfter) || 8;
-      return { ok: false, reason: "rate_limited", status: 429, retryAfter: ra, r: j };
+    try {
+      const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
+        method: "POST",
+        headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patch: true,
+          bloco: true,
+          data: patch,
+          operationId: operationId || "",
+        }),
+        cache: "no-store",
+      }, 45000);
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 429) {
+        const ra = Number(r.headers.get("Retry-After") || j.retryAfter) || 8;
+        return { ok: false, reason: "rate_limited", status: 429, retryAfter: ra, r: j };
+      }
+      if (!r.ok || j.success !== true) return { ok: false, reason: j.reason || "erro", status: r.status, r: j };
+      return { ok: true, r: j };
+    } catch (err) {
+      const nome = err && err.name;
+      if (nome === "AbortError" || nome === "TimeoutError") return { ok: false, reason: "timeout" };
+      return { ok: false, reason: "timeout" };
     }
-    if (!r.ok || j.success !== true) return { ok: false, r: j, status: r.status };
-    return { ok: true, r: j };
   }
 
   async function enviarFinanceiroCeoNuvem(feedbackEl, mensagemOk, opts) {
@@ -514,32 +563,43 @@
   }
 
   async function enviarFinanceiroCeoNuvemIdempotente(bloco, operationId) {
-    const maxAttempts = 3;
-    let last = { ok: false, reason: "timeout" };
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      if (finCeoOpAtual && finCeoOpAtual.id === operationId && finCeoOpAtual.status === "ok") {
-        return { ok: true, replay: true };
-      }
-      const raced = await Promise.race([
-        pushFinanceiroCeoParaNuvem(bloco, operationId),
-        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "timeout" }), 10000)),
-      ]);
-      last = raced || last;
-      if (nuvemPushResultOk(raced)) return raced;
-      if (raced && (raced.reason === "cloud_budget" || raced.status === 503)) {
-        return raced;
-      }
-      if (raced && (raced.status === 429 || raced.reason === "rate_limited")) {
-        const ra = Number(raced.retryAfter) || 8;
-        await new Promise((res) => setTimeout(res, Math.min(20000, Math.max(2000, ra * 1000))));
-        continue;
-      }
-      if (raced && raced.reason === "timeout") {
-        continue;
-      }
-      if (attempt === maxAttempts - 1) return raced || last;
+    if (finCeoPostAtivo && finCeoPostAtivo.operationId === operationId) {
+      return finCeoPostAtivo.promise;
     }
-    return last;
+    const promise = (async () => {
+      let ativo = 0;
+      async function umPost() {
+        if (ativo) return { ok: false, reason: "post_sobreposto" };
+        ativo += 1;
+        try {
+          return await pushFinanceiroCeoParaNuvem(bloco, operationId);
+        } finally {
+          ativo -= 1;
+        }
+      }
+      const primeira = await umPost();
+      if (nuvemPushResultOk(primeira)) return primeira;
+      if (primeira && (primeira.reason === "cloud_budget" || primeira.status === 503)) return primeira;
+      if (!primeira || primeira.reason !== "timeout") return primeira || { ok: false, reason: "erro" };
+      const conf = await confirmarLinhaGravadaCeo(bloco, operationId);
+      if (conf.found === true && String(conf.operation_id || "") === String(operationId || "")) return conf;
+      if (conf.found === false) {
+        const segunda = await umPost();
+        if (nuvemPushResultOk(segunda)) return segunda;
+        if (segunda && segunda.reason === "timeout") {
+          const conf2 = await confirmarLinhaGravadaCeo(bloco, operationId);
+          if (conf2.found === true && String(conf2.operation_id || "") === String(operationId || "")) return conf2;
+        }
+        return segunda || { ok: false, reason: "nao_gravado" };
+      }
+      return { ok: false, reason: conf.reason || "nao_gravado" };
+    })();
+    finCeoPostAtivo = { operationId, promise };
+    try {
+      return await promise;
+    } finally {
+      if (finCeoPostAtivo && finCeoPostAtivo.promise === promise) finCeoPostAtivo = null;
+    }
   }
 
   function atualizarTelasAposDespesaGravada() {

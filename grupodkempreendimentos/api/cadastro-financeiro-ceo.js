@@ -14,6 +14,7 @@ const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess 
 const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget, allowRedisAttempt } = require("../lib/dk-cloud-budget.cjs");
 const {
   gravarLancamentosFinanceiroCeo,
+  lerConfirmacaoDespesaCeo,
   lerLinhasFinanceiroCeo,
   unirHistoricoComLinhas,
   criarIoSupabaseLinhas,
@@ -26,6 +27,21 @@ const HASH_FONT = "dk:portal:financeiro_ceo:fontes:h";
 const HASH_CART = "dk:portal:financeiro_ceo:cartoes:h";
 const HASH_DESP_UNI = "dk:portal:financeiro_despesas:h";
 const OP_KEY_PREFIX = "dk:portal:fin_ceo_op:";
+
+function idConsultaCeo(req) {
+  const bruto = req && req.query && req.query.id != null ? req.query.id : "";
+  let id = Array.isArray(bruto) ? bruto[0] : bruto;
+  if (!id && req && req.url) {
+    try {
+      id = new URL(req.url, "https://grupodkempreendimentos.com.br").searchParams.get("id") || "";
+    } catch {
+      id = "";
+    }
+  }
+  id = String(id || "").trim();
+  if (!id || id.length > 80) return "";
+  return id;
+}
 
 function operationRedisKey(id) {
   const s = String(id || "")
@@ -185,6 +201,25 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      const idLeve = idConsultaCeo(req);
+      if (idLeve) {
+        const confirmacao = await lerConfirmacaoDespesaCeo(criarIoSupabaseLinhas(), idLeve);
+        if (!confirmacao.ok) {
+          return res.status(confirmacao.status || 503).json({
+            ok: false,
+            found: false,
+            reason: confirmacao.reason || "supabase_indisponivel",
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          found: confirmacao.found === true,
+          id: confirmacao.id,
+          revision: confirmacao.revision,
+          updated_at: confirmacao.updated_at,
+          operation_id: confirmacao.operation_id || "",
+        });
+      }
       const io = criarIoSupabaseLinhas();
       const pequenas = await lerLinhasFinanceiroCeo(io);
       if (!pequenas.ok) {
