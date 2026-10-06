@@ -90,10 +90,11 @@ async function rejectIfRedisBurst(redis) {
 }
 
 function allowSupabaseDoorman() {
+  /* O corte de cota real continua aqui e no gatilho SQL.
+     A gravação central lê e confirma no Supabase no mesmo pedido.
+     Um intervalo curto entre essas duas chamadas não pode recusar a confirmação. */
   if (isCloudBudgetTripped()) return false;
-  const now = Date.now();
-  if (now - lastDoormanAt < DOORMAN_MIN_GAP_MS) return false;
-  lastDoormanAt = now;
+  lastDoormanAt = Date.now();
   return true;
 }
 
