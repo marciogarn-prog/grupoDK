@@ -18,8 +18,12 @@
 <body>
   <h1>Auditoria local do Sistema DK</h1>
   <p class="aviso">Somente leitura. Esta página não grava localStorage, sessionStorage, IndexedDB, OPFS nem Cache Storage. Não chama a API, não envia dados ao Redis nem ao Supabase e não altera o cadastro. Credenciais encontradas saem do pacote; o manifesto só guarda [REDACTED].</p>
-  <p>Abra no mesmo navegador e no mesmo perfil em que o Sistema DK é usado. Deixe a aba do portal aberta. Não a feche: a sessão daquela aba não é visível aqui e fechá-la apagaria a sessão sem inventário. localStorage, IndexedDB, OPFS e Cache Storage são do perfil e serão lidos.</p>
-  <p>O service worker já instalado pelo portal pode guardar o HTML desta página no cache ao abri-la. Esta ferramenta não apaga nem desregistra esse service worker. Essa entrada, se aparecer, é a página de auditoria, não dado de negócio.</p>
+  <p class="aviso">Antes de continuar, confirme que não existe formulário em edição, cadastro ainda não salvo ou operação em andamento nesta tela.</p>
+  <p>Para capturar o sessionStorage, abra este endereço na mesma aba em que o Sistema DK estava aberto. Troque o endereço dessa aba. Não feche a aba. Esta página não abre outra janela, não apaga a sessão depois da leitura e não volta sozinha para o portal. Uma aba nova não enxerga a sessão da aba operacional.</p>
+  <p>localStorage, IndexedDB, OPFS e Cache Storage são do perfil e serão lidos junto com a sessão desta aba. O service worker já instalado pelo portal pode guardar o HTML desta página no cache ao abri-la. Esta ferramenta não apaga nem desregistra esse service worker. Essa entrada, se aparecer, é a página de auditoria, não dado de negócio.</p>
+  <p>
+    <label><input id="sem-edicao" type="checkbox" /> Confirmo que não há formulário em edição, cadastro ainda não salvo ou operação em andamento nesta aba.</label>
+  </p>
   <p>
     <label for="pc">Computador</label><br />
     <select id="pc" required>
@@ -33,7 +37,7 @@
   </p>
   <p><button id="gerar" type="button">Gerar pacote de auditoria</button></p>
   <div id="log">Aguardando.</div>
-  <script src="dk-auditoria-local-nucleo.js?v=20261006a"></script>
+  <script src="dk-auditoria-local-nucleo.js?v=20261006b"></script>
   <script>
 (function auditoriaLocalSomenteLeitura() {
   "use strict";
@@ -43,11 +47,11 @@
     logEl.textContent = logEl.textContent === "Aguardando." ? line : logEl.textContent + "\n" + line;
   }
 
-  function lerLocalStorage() {
+  function lerArmazenamento(storage) {
     var chaves = [];
-    for (var i = 0; i < localStorage.length; i++) {
-      var nome = localStorage.key(i);
-      chaves.push({ nome: nome, valor: localStorage.getItem(nome) });
+    for (var i = 0; i < storage.length; i++) {
+      var nome = storage.key(i);
+      chaves.push({ nome: nome, valor: storage.getItem(nome) });
     }
     return chaves;
   }
@@ -212,6 +216,10 @@
 
   async function gerar() {
     var pc = String(document.getElementById("pc").value || "");
+    if (!document.getElementById("sem-edicao").checked) {
+      log("Confirme que não há formulário em edição, cadastro ainda não salvo ou operação em andamento nesta aba. Nada foi lido.");
+      return;
+    }
     if (!/^DK-PC-0[1-5]$/.test(pc)) {
       log("Escolha o computador DK-PC-01 a DK-PC-05.");
       return;
@@ -223,8 +231,10 @@
     document.getElementById("gerar").disabled = true;
     logEl.textContent = "Lendo. Nada será gravado no sistema.";
     try {
+      log("sessionStorage desta aba");
+      var sessao = lerArmazenamento(sessionStorage);
       log("localStorage");
-      var local = lerLocalStorage();
+      var local = lerArmazenamento(localStorage);
       log("IndexedDB");
       var idb = await lerIndexedDB();
       log("OPFS");
@@ -238,6 +248,7 @@
         origem: location.origin,
         navegador: navigator.userAgent,
         localStorage: local,
+        sessionStorage: sessao,
         indexedDB: idb,
         opfs: opfs,
         caches: cache

@@ -36,7 +36,11 @@ const proibidos = [
   ["WebSocket", "WebSocket"],
   ["sendBeacon", "sendBeacon"],
   ["localStorage.setItem", "localStorage.setItem"],
-  ["sessionStorage", "sessionStorage"],
+  ["sessionStorage.setItem", "gravação de sessionStorage"],
+  ["sessionStorage.removeItem", "remoção de sessionStorage"],
+  ["sessionStorage.clear", "limpeza de sessionStorage"],
+  ["postMessage", "cópia entre abas"],
+  ["window.open", "nova janela"],
   ["readwrite", "transação de escrita"],
   ["create: true", "OPFS create"],
   ["create:true", "OPFS create"],
@@ -52,9 +56,13 @@ proibidos.forEach(function (par) {
 ["fetch(", "new XMLHttpRequest", "new WebSocket", "sendBeacon(", "localStorage.setItem", ".readwrite", "createWritable(", "deleteDatabase(", "caches.delete("].forEach(function (trecho) {
   if (js.indexOf(trecho) >= 0) falha("o núcleo contém " + trecho);
 });
-if (js.indexOf("sessionStorage.getItem") >= 0 || js.indexOf("sessionStorage.key") >= 0) {
-  falha("o núcleo lê sessionStorage");
+if (js.indexOf("sessionStorage.getItem") >= 0 || js.indexOf("sessionStorage.key") >= 0 || js.indexOf("sessionStorage.setItem") >= 0) {
+  falha("o núcleo acessa sessionStorage; a leitura fica só na página");
 }
+if (scripts.indexOf("sessionStorage.getItem") < 0 && scripts.indexOf(".getItem") < 0) {
+  falha("a página não lê o sessionStorage da aba atual");
+}
+if (scripts.indexOf("sessionStorage") < 0) falha("a página não enumera o sessionStorage");
 if (scripts.indexOf("indexedDB.open") < 0 || scripts.indexOf("onupgradeneeded") < 0 || scripts.indexOf("transaction.abort") < 0) {
   falha("a abertura do IndexedDB não cancela criação de banco");
 }
@@ -90,6 +98,19 @@ const coleta = {
     { nome: "jwt_ficticio", valor: JWT },
     { nome: "senha_avulsa_ficticia", valor: SENHA },
     { nome: "preferencia_tema_ficticia", valor: NAO_DK }
+  ],
+  sessionStorage: [
+    {
+      nome: "dk_operacao_offline_pending",
+      valor: JSON.stringify([{ protocolo: PROTOCOLO, pendente: true, nome: CLIENTE }])
+    },
+    { nome: "dk_operacao_offline_mode", valor: "modo-ficticio-offline" },
+    { nome: "teste_sessao_dk", valor: "SESSAO-FICTICIA-VISIVEL" },
+    { nome: "teste_access_token", valor: ACCESS },
+    { nome: "teste_refresh_token", valor: REFRESH },
+    { nome: "teste_senha_ficticia", valor: SENHA },
+    { nome: "teste_jwt_ficticio", valor: JWT },
+    { nome: "preferencia_aba_ficticia", valor: "COR-SESSAO-NAO-DK" }
   ],
   indexedDB: {
     listagemDisponivel: true,
@@ -162,7 +183,22 @@ if (!bancoFila || bancoFila.classificacao !== "relacionada") falha("IndexedDB se
 if (!bancoUi || bancoUi.classificacao !== "nao relacionada") falha("IndexedDB não relacionado foi classificado como DK");
 if (JSON.stringify(bancoUi).indexOf(UI) >= 0) falha("conteúdo não relacionado do IndexedDB entrou no manifesto");
 
-if (pacote.manifesto.sessionStorage.status !== "nao_capturado") falha("sessionStorage não está marcado como não capturado");
+const sessao = pacote.manifesto.sessionStorage;
+if (!sessao || sessao.status !== "capturado" || sessao.contexto !== "mesma_aba_mesma_origem" || sessao.quantidade_chaves !== 8) {
+  falha("sessionStorage não foi capturado no formato esperado: " + JSON.stringify(sessao && { status: sessao.status, contexto: sessao.contexto, quantidade_chaves: sessao.quantidade_chaves }));
+}
+const sessaoVisivel = sessao.chaves.find(function (c) { return c.nome === "teste_sessao_dk"; });
+if (!sessaoVisivel || sessaoVisivel.classificacao !== "relacionada" || !sessaoVisivel.arquivo) {
+  falha("dado normal de sessionStorage não entrou no pacote");
+}
+const sessaoToken = sessao.chaves.find(function (c) { return c.nome === "teste_access_token"; });
+if (!sessaoToken || !sessaoToken.credencial_detectada || sessaoToken.arquivo) {
+  falha("access token de sessionStorage foi exportado");
+}
+const sessaoFora = sessao.chaves.find(function (c) { return c.nome === "preferencia_aba_ficticia"; });
+if (!sessaoFora || sessaoFora.classificacao !== "nao relacionada" || sessaoFora.arquivo) {
+  falha("chave de sessão não relacionada entrou no bruto");
+}
 
 const cache = pacote.manifesto.cache.caches[0];
 if (!cache || cache.quantidade !== 3) falha("cache não listou as três entradas");
@@ -205,7 +241,10 @@ if (textoZip.indexOf(CLIENTE) < 0) falha("cliente fictício não entrou no pacot
 if (textoZip.indexOf(PROTOCOLO) < 0) falha("locação fictícia não entrou no pacote");
 if (textoZip.indexOf("fila-ficticia-1") < 0) falha("fila offline fictícia não entrou no pacote");
 if (textoZip.indexOf("[REDACTED]") < 0) falha("redação ausente");
-if (textoZip.indexOf("nao_capturado") < 0) falha("status do sessionStorage ausente");
+if (textoZip.indexOf("capturado") < 0 || textoZip.indexOf("mesma_aba_mesma_origem") < 0) falha("status do sessionStorage ausente");
+if (textoZip.indexOf("SESSAO-FICTICIA-VISIVEL") < 0) falha("sessão normal não entrou no ZIP");
+if (textoZip.indexOf("modo-ficticio-offline") < 0) falha("modo offline fictício não entrou no ZIP");
+if (textoZip.indexOf("COR-SESSAO-NAO-DK") >= 0) falha("conteúdo de sessão não relacionado entrou no ZIP");
 if (textoZip.indexOf("operacao_clientes_ficticios") < 0) falha("chave sem dk ausente do inventário");
 
 if (process.exitCode) {

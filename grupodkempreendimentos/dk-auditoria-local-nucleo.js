@@ -318,59 +318,70 @@
   async function montarPacote(coleta) {
     var arquivos = [];
     var credenciais = [];
-    var chavesLs = [];
-    var lsBytesExportados = 0;
-    for (var i = 0; i < (coleta.localStorage || []).length; i++) {
-      var item = coleta.localStorage[i];
-      var nome = String(item.nome);
-      var valor = item.valor == null ? "" : String(item.valor);
-      var classe = classificarChave(nome, valor);
-      var base = {
-        nome: nome,
-        bytes: enc(valor).length,
-        classificacao: classe,
-        noSnapshotOficial: Boolean(CHAVES_SNAPSHOT[nome])
-      };
-      var limpo = sanitizarTexto(nome, valor, "localStorage/" + nome);
-      credenciais = credenciais.concat(limpo.credenciais);
-      if (limpo.redacaoTotal) {
-        chavesLs.push(Object.assign(base, { tipo: "credencial", quantidade: 0, credencial_detectada: true, arquivo: null }));
-        continue;
+
+    async function exportarChaves(lista, pasta) {
+      var chaves = [];
+      var bytesExportados = 0;
+      var origemNome = pasta.replace(/^bruto\//, "");
+      for (var i = 0; i < (lista || []).length; i++) {
+        var item = lista[i];
+        var nome = String(item.nome);
+        var valor = item.valor == null ? "" : String(item.valor);
+        var classe = classificarChave(nome, valor);
+        var base = {
+          nome: nome,
+          bytes: enc(valor).length,
+          classificacao: classe,
+          noSnapshotOficial: Boolean(CHAVES_SNAPSHOT[nome])
+        };
+        var limpo = sanitizarTexto(nome, valor, origemNome + "/" + nome);
+        credenciais = credenciais.concat(limpo.credenciais);
+        if (limpo.redacaoTotal) {
+          chaves.push(Object.assign(base, { tipo: "credencial", quantidade: 0, credencial_detectada: true, arquivo: null }));
+          continue;
+        }
+        if (classe === "nao relacionada") {
+          chaves.push(base);
+          continue;
+        }
+        var bytes = enc(limpo.texto);
+        var hash = await sha256Hex(bytes);
+        var caminho = pasta + "/" + safeName(nome) + ".txt";
+        arquivos.push({ name: caminho, data: bytes });
+        var resumo = resumirJson(limpo.texto);
+        bytesExportados += bytes.length;
+        chaves.push(Object.assign(base, {
+          tipo: resumo.tipo,
+          quantidade: resumo.quantidade,
+          ids: resumo.ids,
+          dataMaisAntiga: resumo.dataMaisAntiga,
+          dataMaisRecente: resumo.dataMaisRecente,
+          quantidadeDatas: resumo.quantidadeDatas,
+          sha256: hash,
+          exclusivaDesteArmazenamento: !CHAVES_SNAPSHOT[nome],
+          arquivo: caminho,
+          credencial_detectada: limpo.credenciais.length > 0
+        }));
       }
-      if (classe === "nao relacionada") {
-        chavesLs.push(base);
-        continue;
-      }
-      var bytes = enc(limpo.texto);
-      var hash = await sha256Hex(bytes);
-      var caminho = "bruto/localStorage/" + safeName(nome) + ".txt";
-      arquivos.push({ name: caminho, data: bytes });
-      var resumo = resumirJson(limpo.texto);
-      lsBytesExportados += bytes.length;
-      chavesLs.push(Object.assign(base, {
-        tipo: resumo.tipo,
-        quantidade: resumo.quantidade,
-        ids: resumo.ids,
-        dataMaisAntiga: resumo.dataMaisAntiga,
-        dataMaisRecente: resumo.dataMaisRecente,
-        quantidadeDatas: resumo.quantidadeDatas,
-        sha256: hash,
-        exclusivaDesteArmazenamento: !CHAVES_SNAPSHOT[nome],
-        arquivo: caminho,
-        credencial_detectada: limpo.credenciais.length > 0
-      }));
+      var porHash = {};
+      chaves.forEach(function (c) {
+        if (!c.sha256) return;
+        if (!porHash[c.sha256]) porHash[c.sha256] = [];
+        porHash[c.sha256].push(c.nome);
+      });
+      chaves.forEach(function (c) {
+        var grupo = porHash[c.sha256] || [];
+        c.duplicada = grupo.length > 1;
+        c.duplicadaDe = c.duplicada ? grupo.filter(function (n) { return n !== c.nome; }) : [];
+      });
+      return { chaves: chaves, bytesExportados: bytesExportados };
     }
-    var porHash = {};
-    chavesLs.forEach(function (c) {
-      if (!c.sha256) return;
-      if (!porHash[c.sha256]) porHash[c.sha256] = [];
-      porHash[c.sha256].push(c.nome);
-    });
-    chavesLs.forEach(function (c) {
-      var grupo = porHash[c.sha256] || [];
-      c.duplicada = grupo.length > 1;
-      c.duplicadaDe = c.duplicada ? grupo.filter(function (n) { return n !== c.nome; }) : [];
-    });
+
+    var localExp = await exportarChaves(coleta.localStorage || [], "bruto/localStorage");
+    var chavesLs = localExp.chaves;
+    var lsBytesExportados = localExp.bytesExportados;
+    var sessExp = await exportarChaves(coleta.sessionStorage || [], "bruto/sessionStorage");
+    var chavesSs = sessExp.chaves;
 
     var bancos = [];
     var idb = coleta.indexedDB || { listagemDisponivel: true, bancos: [] };
@@ -525,17 +536,13 @@
         chaves: chavesLs
       },
       sessionStorage: {
-        status: "nao_capturado",
-        motivo: "sessionStorage pertence à aba que o criou. Abrir /dk-auditoria-local em outra aba não enxerga dk_operacao_offline_pending, dk_operacao_offline_mode, dk_lanc_upload_pendente nem o restante da sessão do portal. A aba operacional não foi fechada e nada foi copiado entre abas. IndexedDB dk_operacao_offline_v1 e o OPFS, quando existem, são do perfil e entram no pacote.",
-        chavesDeSessaoConhecidasNoCodigo: [
-          "dk_operacao_offline_pending",
-          "dk_operacao_offline_mode",
-          "dk_lanc_upload_pendente",
-          "dk_portal_sessao_viva_v1",
-          "dk_portal_area_ativa",
-          "dk_cliente_app_gate",
-          "dk_cliente_app_gate_v1"
-        ]
+        status: "capturado",
+        contexto: "mesma_aba_mesma_origem",
+        quantidade_chaves: chavesSs.length,
+        quantidadeExportada: chavesSs.filter(function (c) { return c.arquivo; }).length,
+        bytesExportados: sessExp.bytesExportados,
+        leitura: "Leitura da sessão desta aba, depois de navegar na mesma aba e na mesma origem. A ferramenta não grava, não apaga e não copia a sessão. Outra aba não entra nesta leitura.",
+        chaves: chavesSs
       },
       indexedDB: {
         listagemDisponivel: idb.listagemDisponivel !== false,
@@ -556,7 +563,7 @@
       },
       credenciais: credenciais,
       offline: {
-        sessionStorage: "nao_capturado",
+        sessionStorage: "capturado",
         indexedDBCompartilhado: bancos.filter(function (b) { return /offline|pendente|fila/i.test(b.banco) || b.classificacao !== "nao relacionada"; }).map(function (b) { return b.banco; })
       }
     };
@@ -570,7 +577,14 @@
     linhas.push("");
     linhas.push("## sessionStorage");
     linhas.push("");
-    linhas.push(manifesto.sessionStorage.motivo);
+    linhas.push("Status: " + manifesto.sessionStorage.status + ". Contexto: " + manifesto.sessionStorage.contexto + ". Chaves: " + manifesto.sessionStorage.quantidade_chaves + ".");
+    linhas.push(manifesto.sessionStorage.leitura);
+    linhas.push("");
+    linhas.push("| Chave | Classe | Bytes | Exportada |");
+    linhas.push("|---|---|---:|---|");
+    chavesSs.forEach(function (c) {
+      linhas.push("| " + mdEsc(c.nome) + " | " + c.classificacao + " | " + c.bytes + " | " + (c.arquivo ? "sim" : "não") + " |");
+    });
     linhas.push("");
     linhas.push("## localStorage");
     linhas.push("");
