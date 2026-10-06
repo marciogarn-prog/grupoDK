@@ -3667,6 +3667,20 @@
           "persistPortalLocacaoFinalizar"
         ]
       }
+    },
+    {
+      "id": "protocolo-remap-nao-perde",
+      "descricao": "A troca de protocolo do administrador fica no mapa da nuvem e o contrato passa a usar o número novo. Um download posterior não devolve o número antigo, e um computador sem confirmação da nuvem não reenvia a lista inteira de locações.",
+      "ficheiros": {
+        "portal-supabase-sync.js": [
+          "aplicarRemapProtocoloLocacoes",
+          "lerMapaRemapProtocoloLocal",
+          "protocoloAnterior"
+        ],
+        "lib/dk-append-only-merge.cjs": [
+          "aplicarRemapProtocoloLocacoes"
+        ]
+      }
     }
   ]
 }

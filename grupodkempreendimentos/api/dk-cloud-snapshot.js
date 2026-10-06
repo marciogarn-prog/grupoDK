@@ -908,6 +908,17 @@ function mergePayloads(existing, incoming) {
       incoming.dk_patrimonio_fotos_excluidas_v1
     );
   }
+  const remapEx = existing.dk_protocolo_nc_remap_v1;
+  const remapIn = incoming.dk_protocolo_nc_remap_v1;
+  if (
+    (remapEx && typeof remapEx === "object" && !Array.isArray(remapEx)) ||
+    (remapIn && typeof remapIn === "object" && !Array.isArray(remapIn))
+  ) {
+    out.dk_protocolo_nc_remap_v1 = {
+      ...(remapEx && typeof remapEx === "object" && !Array.isArray(remapEx) ? remapEx : {}),
+      ...(remapIn && typeof remapIn === "object" && !Array.isArray(remapIn) ? remapIn : {}),
+    };
+  }
   return stripInternalPayloadKeys(neverLoseCadastroPayload(existing, out));
 }
 

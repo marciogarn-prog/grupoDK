@@ -658,8 +658,23 @@
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
       Object.assign(payload, window.__DK_sanitizeOficialCloudPayload(payload) || payload);
     }
-    if (!isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_locacoesNuvemOk !== true) {
-      delete payload.dk_locacoes_cadastro;
+    if (Array.isArray(payload.dk_locacoes_cadastro)) {
+      const remapNuvem =
+        payload.dk_protocolo_nc_remap_v1 && typeof payload.dk_protocolo_nc_remap_v1 === "object"
+          ? payload.dk_protocolo_nc_remap_v1
+          : {};
+      const remap = { ...remapNuvem, ...lerMapaRemapProtocoloLocal() };
+      payload.dk_locacoes_cadastro = aplicarRemapProtocoloLocacoes(payload.dk_locacoes_cadastro, remap);
+      if (!isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_locacoesNuvemOk !== true) {
+        const dig = (v) => String(v || "").replace(/\D/g, "");
+        const renomeadas = payload.dk_locacoes_cadastro.filter((l) => {
+          const nc = dig(l?.numeroContrato);
+          const ant = dig(l?.protocoloAnterior);
+          return Boolean(ant && nc && ant !== nc && dig(remap[ant]) === nc);
+        });
+        if (renomeadas.length) payload.dk_locacoes_cadastro = renomeadas;
+        else delete payload.dk_locacoes_cadastro;
+      }
     }
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
@@ -1248,6 +1263,11 @@
           (k === "dk_locacoes_cadastro" && !isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true)
         ) {
           if (k === "dk_locacoes_cadastro" && !isClienteAppPage() && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+            const remapNuvem =
+              payload.dk_protocolo_nc_remap_v1 && typeof payload.dk_protocolo_nc_remap_v1 === "object"
+                ? payload.dk_protocolo_nc_remap_v1
+                : {};
+            arr = aplicarRemapProtocoloLocacoes(arr, { ...remapNuvem, ...lerMapaRemapProtocoloLocal() });
             arr = fundirPagamentosLocaisAusentesNaNuvem(arr);
           }
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
@@ -2455,9 +2475,67 @@
     return itens.length;
   }
 
+  function lerMapaRemapProtocoloLocal() {
+    try {
+      const raw = localStorage.getItem("dk_protocolo_nc_remap_v1");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function aplicarRemapProtocoloLocacoes(list, remap) {
+    const arr = Array.isArray(list) ? list.map((l) => (l && typeof l === "object" ? { ...l } : l)) : [];
+    const map = remap && typeof remap === "object" && !Array.isArray(remap) ? remap : {};
+    const ncOf = (l) => String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
+    const cpfOf = (l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11);
+    const plOf = (l) => String(l?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const byNc = new Map();
+    const noNc = [];
+    for (const l of arr) {
+      if (!l || typeof l !== "object") continue;
+      const nc = ncOf(l);
+      if (!nc) {
+        noNc.push(l);
+        continue;
+      }
+      if (!byNc.has(nc)) byNc.set(nc, l);
+    }
+    for (const [deRaw, paraRaw] of Object.entries(map)) {
+      const de = String(deRaw || "").replace(/\D/g, "");
+      const para = String(paraRaw || "").replace(/\D/g, "");
+      if (!de || !para || de === para) continue;
+      const from = byNc.get(de);
+      if (!from) continue;
+      const to = byNc.get(para);
+      if (to) {
+        const mesmo =
+          cpfOf(from).length === 11 &&
+          cpfOf(from) === cpfOf(to) &&
+          (!plOf(from) || !plOf(to) || plOf(from) === plOf(to));
+        if (!mesmo) continue;
+        const score = (l) => Number(l?.updatedAt || l?.createdAt || 0);
+        const keep = score(to) >= score(from) ? { ...from, ...to } : { ...to, ...from };
+        keep.numeroContrato = para;
+        keep.protocoloAnterior = keep.protocoloAnterior || de;
+        byNc.set(para, keep);
+        byNc.delete(de);
+        continue;
+      }
+      byNc.set(para, { ...from, numeroContrato: para, protocoloAnterior: from.protocoloAnterior || de });
+      byNc.delete(de);
+    }
+    const out = [...byNc.values(), ...noNc];
+    return typeof window.__DK_dropLocacoesProtocoloSubstituido === "function"
+      ? window.__DK_dropLocacoesProtocoloSubstituido(out)
+      : out;
+  }
+
   function gravarLocacoesOficiaisNoPc(arr) {
+    const remapeadas = aplicarRemapProtocoloLocacoes(arr, lerMapaRemapProtocoloLocal());
     const next = fundirPagamentosLocaisAusentesNaNuvem(
-      normalizeLocacoesContratoAtivoList(arr.map((loc) => ({ ...loc })))
+      normalizeLocacoesContratoAtivoList(remapeadas.map((loc) => ({ ...loc })))
     );
     runWithoutCloudPush(() => {
       if (typeof saveCadastro === "function") {
