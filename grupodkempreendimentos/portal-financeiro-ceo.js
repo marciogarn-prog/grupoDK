@@ -404,9 +404,64 @@
     return Object.keys(data).length ? data : null;
   }
 
+  function carimbarRevisoesLinhaCeo(json) {
+    const regs = json && Array.isArray(json.registros) ? json.registros : [];
+    if (!regs.length) return;
+    const desp = new Map(regs.filter((r) => r && r.tipo === "despesa" && r.id != null).map((r) => [String(r.id), r]));
+    const sit = new Map(
+      regs.filter((r) => r && r.tipo === "situacao" && (r.chave || r.id)).map((r) => [String(r.chave || r.id), r])
+    );
+    const aplicar = () => {
+      if (desp.size) {
+        const list = loadDespesasCeo();
+        let mudou = false;
+        for (let i = 0; i < list.length; i += 1) {
+          const hit = desp.get(String(list[i] && list[i].id));
+          if (!hit) continue;
+          list[i] = {
+            ...list[i],
+            revision: hit.revision,
+            created_at: hit.created_at || list[i].created_at,
+            updated_at: hit.updated_at,
+            deleted: hit.deleted === true ? true : list[i].deleted,
+            deleted_at: hit.deleted_at || list[i].deleted_at || null,
+          };
+          mudou = true;
+        }
+        if (mudou) saveDespesasCeo(list);
+      }
+      if (sit.size && typeof window.saveCadastro === "function") {
+        const lista = lerCadastroArrayCru(SITUACAO_PAG_CEO_KEY);
+        let mudouSit = false;
+        for (let i = 0; i < lista.length; i += 1) {
+          const chave = String((lista[i] && (lista[i].chave || lista[i].id)) || "");
+          const hit = sit.get(chave);
+          if (!hit) continue;
+          lista[i] = {
+            ...lista[i],
+            revision: hit.revision,
+            created_at: hit.created_at || lista[i].created_at,
+            updated_at: hit.updated_at,
+          };
+          mudouSit = true;
+        }
+        if (mudouSit) {
+          try {
+            window.saveCadastro(SITUACAO_PAG_CEO_KEY, lista, { allowShrink: true });
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    };
+    if (typeof window.__DK_runWithoutCloudPush === "function") window.__DK_runWithoutCloudPush(aplicar);
+    else aplicar();
+  }
+
   async function pushFinanceiroCeoParaNuvem(bloco, operationId) {
     const patch = montarPayloadBlocoCeo(bloco);
     if (!patch) return { ok: false, reason: "bloco_vazio" };
+    /* ESPELHO SUPABASE INDISPONÍVEL do snapshot default não cancela este lançamento. */
     const r = await fetchFinanceiroCeoComTimeout("/api/cadastro-financeiro-ceo", {
       method: "POST",
       headers: { ...headersFinanceiroCeoApi(), "Content-Type": "application/json" },
@@ -415,7 +470,6 @@
         bloco: true,
         data: patch,
         operationId: operationId || "",
-        base_revision: window.__DK_CLOUD_REVISION || "",
       }),
       cache: "no-store",
     }, 25000);
@@ -637,6 +691,7 @@
         return { ok: false, r, operationId: opId };
       }
       concluirResultadoCeo(opId, "ok", MSG_NUVEM_OK);
+      carimbarRevisoesLinhaCeo(r && r.r);
       if (fb) fb.textContent = MSG_NUVEM_OK;
       if (typeof aposSucesso === "function") {
         window.setTimeout(() => {
@@ -1492,6 +1547,10 @@
       cadastradoEm: cadastradoEmDespesa(raw, id),
       pagamentosExcluidos,
       deleted: raw?.deleted === true,
+      deleted_at: raw?.deleted_at || null,
+      revision: raw?.revision == null || raw?.revision === "" ? undefined : Number(raw.revision),
+      created_at: raw?.created_at || undefined,
+      updated_at: raw?.updated_at || undefined,
       updatedAt: Number(raw?.updatedAt || 0) || 0,
       updatedByCpf: String(raw?.updatedByCpf || "").replace(/\D/g, "").slice(0, 11),
       ceoAutoridade: raw?.ceoAutoridade === true,
@@ -3645,6 +3704,7 @@
   }
 
   function novoIdDespesa() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
     return `ceo-desp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   }
 
@@ -3665,6 +3725,10 @@
       parcelas: n.parcelas,
       pagamentosExcluidos: n.pagamentosExcluidos,
       deleted: n.deleted,
+      deleted_at: n.deleted_at || null,
+      revision: n.revision,
+      created_at: n.created_at,
+      updated_at: n.updated_at,
     });
   }
 

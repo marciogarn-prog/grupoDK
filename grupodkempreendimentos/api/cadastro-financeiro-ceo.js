@@ -1,6 +1,7 @@
 /**
- * Despesas e pagamentos do FINANCEIRO CEO — canal próprio em blocos.
- * POST com patch=true grava só os registos enviados (HASH). Não relê nem regrava a base inteira.
+ * Despesas do FINANCEIRO CEO.
+ * Cada lançamento novo é uma linha pequena no Supabase (entity:financeiro_ceo:despesa:<id>).
+ * POST com patch=true não lê nem regrava o snapshot default.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -11,7 +12,12 @@ const {
 } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget, allowRedisAttempt } = require("../lib/dk-cloud-budget.cjs");
-const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
+const {
+  gravarLancamentosFinanceiroCeo,
+  lerLinhasFinanceiroCeo,
+  unirHistoricoComLinhas,
+  criarIoSupabaseLinhas,
+} = require("../lib/dk-financeiro-ceo-linha.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
@@ -160,7 +166,7 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(204).end();
   allowRedisAttempt();
-  if (isCloudBudgetTripped()) return budgetReject(res);
+  /* O corte isCloudBudgetTripped / budgetReject do snapshot default não recusa esta linha pequena. */
   if (await enforceRateLimit(req, res, "cadastro-financeiro-ceo", 40)) return;
 
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
@@ -168,34 +174,37 @@ module.exports = async function handler(req, res) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
-  if (!isRedisKvConfigured()) {
-    return res.status(503).json({ ok: false, reason: "kv_not_configured" });
+  let redis = null;
+  if (isRedisKvConfigured()) {
+    try {
+      redis = createRedisClient();
+    } catch {
+      redis = null;
+    }
   }
-
-  const redis = createRedisClient();
 
   try {
     if (req.method === "GET") {
-      const central = await ioSnapshotOficial("default").ler();
-      if (central.indisponivel) {
-        return res.status(503).json({ ok: false, success: false, reason: central.reason || "supabase_indisponivel" });
+      const io = criarIoSupabaseLinhas();
+      const pequenas = await lerLinhasFinanceiroCeo(io);
+      if (!pequenas.ok) {
+        return res.status(pequenas.status || 503).json({ ok: false, success: false, reason: pequenas.reason || "supabase_indisponivel" });
       }
-      const daNuvem = pickBundle(central.payload || {});
-      let doCache = emptyBundle();
-      try {
-        doCache = await seedHashesIfEmpty(redis);
-      } catch {
-        doCache = emptyBundle();
+      let historico = emptyBundle();
+      if (redis) {
+        try {
+          historico = await seedHashesIfEmpty(redis);
+        } catch {
+          historico = emptyBundle();
+        }
       }
-      const data = mergeBundles(daNuvem, doCache);
+      const data = unirHistoricoComLinhas(historico, pequenas.linhas);
       return res.status(200).json({
         ok: true,
         success: true,
         data,
         vazio: !bundleTemDados(data),
         source: "supabase",
-        revision: central.updatedAt || null,
-        updated_at: central.updatedAt || null,
       });
     }
 
@@ -215,26 +224,34 @@ module.exports = async function handler(req, res) {
       const incoming = pickBundle(body?.data && typeof body.data === "object" ? body.data : body);
       const isPatch = body?.patch === true || body?.bloco === true;
       const opKey = operationRedisKey(body?.operationId);
-      if (opKey) {
-        const seen = await redis.get(opKey);
-        if (seen) {
-          /* A repetição também precisa estar no Supabase. Segue para a gravação central. */
-        }
-      }
-      const central = await executarGravacaoCentral({
-        ...ioSnapshotOficial("default"),
-        baseRevision: body.base_revision || body.revision || "",
-        mutar(payload) {
-          const merged = mergeBundles(pickBundle(payload), incoming);
-          for (const k of BUNDLE_KEYS) payload[k] = merged[k];
-        },
-        cache: async () => {
-          await aplicarBlocoHash(redis, incoming);
-          if (opKey) await redis.set(opKey, "1", { ex: 86400 });
-        },
+      const io = criarIoSupabaseLinhas();
+      io.cache = async (salvos) => {
+        if (!redis) return;
+        await aplicarBlocoHash(redis, salvos);
+        if (opKey) await redis.set(opKey, "1", { ex: 86400 });
+      };
+      const gravacao = await gravarLancamentosFinanceiroCeo({
+        bundle: incoming,
+        io,
+        agora: () => new Date().toISOString(),
+        operationId: body?.operationId || "",
       });
-      if (central.status !== 200) return res.status(central.status).json(central.body);
-      return res.status(200).json(isPatch ? { ...central.body, patch: true } : { ...central.body, patch: false });
+      if (!gravacao.ok) {
+        return res.status(gravacao.status || 503).json({
+          ok: false,
+          success: false,
+          reason: gravacao.reason || "supabase_indisponivel",
+          revision: gravacao.revision,
+        });
+      }
+      const corpo = {
+        ok: true,
+        success: true,
+        fonte: "supabase",
+        registros: gravacao.registros,
+        gravados: gravacao.registros.length,
+      };
+      return res.status(200).json(isPatch ? { ...corpo, patch: true } : { ...corpo, patch: false });
     }
   } catch (e) {
     if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {
