@@ -19202,6 +19202,12 @@
 
   const MSG_LANC_SERVIDOR_NAO_CONFIRMOU =
     "Não foi possível salvar no servidor. O lançamento não foi concluído. Tente de novo.";
+  let portalLancConfirmEmCurso = false;
+
+  function portalAvisarLancamentoNoFormulario(texto) {
+    const aviso = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (aviso && texto) aviso.textContent = texto;
+  }
 
   function portalRetirarLinhaDiaNaoConfirmada(nc, entry) {
     try {
@@ -19385,9 +19391,8 @@
       } else {
         window.__DK_lancUploadAdiarPushAte = Date.now() + 15000;
       }
-      portalNuvemSyncLockShow(
-        "A enviar o lançamento para a nuvem. O próximo lançamento só abre quando a nuvem confirmar."
-      );
+      portalNuvemSyncLockHide();
+      portalAvisarLancamentoNoFormulario("A guardar o lançamento no servidor…");
       const loc = locInformada || portalLocacaoDoLancamentoPendente(want);
       if (!loc) {
         if (locInformada) return falha();
@@ -19419,7 +19424,14 @@
       }
       return falha();
     };
-    return tentar();
+    if (portalLancConfirmEmCurso) return false;
+    portalLancConfirmEmCurso = true;
+    try {
+      return await tentar();
+    } finally {
+      portalLancConfirmEmCurso = false;
+      portalNuvemSyncLockHide();
+    }
   }
 
   async function portalRetomarUploadLancamentoPendente() {
@@ -29835,7 +29847,7 @@
     const textoPadrao = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(textoPadrao, () => {
       void (async () => {
-        if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
+        if (portalLancConfirmEmCurso || document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
         const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
           valorEspecie: valorNum,
           valorPix: 0,
@@ -29972,7 +29984,7 @@
     const texto = `Devolução de investimento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
+      if (portalLancConfirmEmCurso || document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelDevolucao(digits, proto, valorAbs, dataStr, {
         comentarioPagamento: comentario,
       });
@@ -30057,7 +30069,7 @@
     const texto = `Crédito de manutenção de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor soma no TOTAL PAGO do cliente e não entra na receita da empresa.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
+      if (portalLancConfirmEmCurso || document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelCreditoManutencao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
@@ -30152,7 +30164,7 @@
     const texto = `Caução de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor entra na receita da empresa e não contabiliza no aluguel do cliente.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
+      if (portalLancConfirmEmCurso || document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
       const res = persistPortalLancamentoAluguelCaucao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
