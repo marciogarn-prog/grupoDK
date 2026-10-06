@@ -5,6 +5,7 @@
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeVeiculosCadastro } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 
 const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
 
@@ -62,11 +63,22 @@ module.exports = async function handler(req, res) {
         }
       }
       const incoming = Array.isArray(body?.data) ? body.data : [];
-      const existingRaw = await redis.get(STORAGE_KEY);
-      const existing = parseRedisArray(existingRaw);
-      const merged = mergeVeiculosCadastro(existing, incoming);
-      await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, count: merged.length });
+      let merged = incoming;
+      const central = await executarGravacaoCentral({
+        ...ioSnapshotOficial("default"),
+        baseRevision: body.base_revision || body.revision || "",
+        mutar(payload) {
+          const base = Array.isArray(payload.dk_veiculos_cadastro) ? payload.dk_veiculos_cadastro : [];
+          merged = mergeVeiculosCadastro(base, incoming);
+          payload.dk_veiculos_cadastro = merged;
+          payload.dk_portal_veiculos_cadastro = merged;
+        },
+        cache: async () => {
+          await redis.set(STORAGE_KEY, JSON.stringify(merged));
+        },
+      });
+      if (central.status !== 200) return res.status(central.status).json(central.body);
+      return res.status(200).json({ ...central.body, count: merged.length });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

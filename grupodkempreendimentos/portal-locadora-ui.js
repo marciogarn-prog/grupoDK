@@ -19276,7 +19276,7 @@
     let ultimo = { ok: false, status: 0, data: null };
     for (let tentativa = 0; tentativa < 2; tentativa += 1) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const timer = setTimeout(() => ctrl.abort(), 25000);
       try {
         const r = await fetch("/api/dk-lancamento-nuvem?nocache=" + Date.now(), {
           method: "POST",
@@ -19286,12 +19286,13 @@
             cpf: loc?.cpf,
             placa: loc?.placa,
             pagamento,
+            base_revision: window.__DK_CLOUD_REVISION || "",
           }),
           signal: ctrl.signal,
         });
         const data = await r.json().catch(() => ({}));
-        const redisOk = Boolean(r.ok && data && data.ok === true);
-        ultimo = { ok: redisOk, redisOk, status: r.status, data };
+        const centralOk = Boolean(r.ok && data && data.success === true);
+        ultimo = { ok: centralOk, success: centralOk, status: r.status, data };
         if (ultimo.ok) return ultimo;
         if (tentativa < 1 && (r.status === 429 || r.status === 503)) {
           await new Promise((res) => setTimeout(res, 700));

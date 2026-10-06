@@ -11,6 +11,7 @@ const {
 } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
 const { isCloudBudgetTripped, budgetReject, isQuotaError, tripCloudBudget, allowRedisAttempt } = require("../lib/dk-cloud-budget.cjs");
+const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 
 const STORAGE_KEY = "dk:portal:financeiro_ceo:v1";
 const HASH_DESP = "dk:portal:financeiro_ceo:despesas:h";
@@ -175,8 +176,27 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const data = await seedHashesIfEmpty(redis);
-      return res.status(200).json({ ok: true, data, vazio: !bundleTemDados(data) });
+      const central = await ioSnapshotOficial("default").ler();
+      if (central.indisponivel) {
+        return res.status(503).json({ ok: false, success: false, reason: central.reason || "supabase_indisponivel" });
+      }
+      const daNuvem = pickBundle(central.payload || {});
+      let doCache = emptyBundle();
+      try {
+        doCache = await seedHashesIfEmpty(redis);
+      } catch {
+        doCache = emptyBundle();
+      }
+      const data = mergeBundles(daNuvem, doCache);
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        data,
+        vazio: !bundleTemDados(data),
+        source: "supabase",
+        revision: central.updatedAt || null,
+        updated_at: central.updatedAt || null,
+      });
     }
 
     if (req.method === "POST") {
@@ -198,34 +218,23 @@ module.exports = async function handler(req, res) {
       if (opKey) {
         const seen = await redis.get(opKey);
         if (seen) {
-          return res.status(200).json({
-            ok: true,
-            patch: isPatch,
-            replay: true,
-            operationId: String(body.operationId || ""),
-          });
+          /* A repetição também precisa estar no Supabase. Segue para a gravação central. */
         }
       }
-      if (isPatch) {
-        const gravados = await aplicarBlocoHash(redis, incoming);
-        if (opKey) {
-          try {
-            await redis.set(opKey, "1", { ex: 86400 });
-          } catch {
-            /* merge do bloco já é idempotente */
-          }
-        }
-        return res.status(200).json({ ok: true, patch: true, gravados });
-      }
-      const gravados = await aplicarBlocoHash(redis, incoming);
-      if (opKey) {
-        try {
-          await redis.set(opKey, "1", { ex: 86400 });
-        } catch {
-          /* merge do bloco já é idempotente */
-        }
-      }
-      return res.status(200).json({ ok: true, patch: false, gravados });
+      const central = await executarGravacaoCentral({
+        ...ioSnapshotOficial("default"),
+        baseRevision: body.base_revision || body.revision || "",
+        mutar(payload) {
+          const merged = mergeBundles(pickBundle(payload), incoming);
+          for (const k of BUNDLE_KEYS) payload[k] = merged[k];
+        },
+        cache: async () => {
+          await aplicarBlocoHash(redis, incoming);
+          if (opKey) await redis.set(opKey, "1", { ex: 86400 });
+        },
+      });
+      if (central.status !== 200) return res.status(central.status).json(central.body);
+      return res.status(200).json(isPatch ? { ...central.body, patch: true } : { ...central.body, patch: false });
     }
   } catch (e) {
     if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {

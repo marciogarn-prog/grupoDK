@@ -1,12 +1,9 @@
 /**
- * Snapshot completo DK (localStorage) — cópia redundante em Upstash Redis.
- * Quando Supabase falhar, o portal usa GET/POST nesta API.
+ * Snapshot DK. Supabase é a fonte que confirma a gravação.
+ * Redis só recebe a cópia depois dessa confirmação e não decide o sucesso.
  *
- * Variáveis Vercel: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
- * SUPABASE_SERVICE_ROLE_KEY (porteiro — espelho no Supabase; nunca no browser)
- *
- * GET  /api/dk-cloud-snapshot → { ok, payload, updated_at, source: "redis" }
- * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
+ * GET  /api/dk-cloud-snapshot → { success, payload, revision, updated_at, source: "supabase" }
+ * POST /api/dk-cloud-snapshot → body { payload, updated_at?, base_revision? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -24,6 +21,7 @@ const {
   upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("../lib/dk-supabase-doorman.cjs");
+const { revisaoConflita } = require("../lib/dk-persistencia-central.cjs");
 const {
   applyApiCors,
   enforceRateLimit,
@@ -990,65 +988,56 @@ async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
+      const oficial = isSupabaseDoormanConfigured()
+        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+        : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      if (!oficial || oficial.reason === "supabase_timeout" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: (oficial && oficial.reason) || "supabase_indisponivel",
+          source: "supabase",
+        });
+      }
+      const revisao = oficial.updatedAt || null;
       if (metaOnly) {
-        const rev = await redis.get(`${REDIS_KEY}:rev`);
         return res.status(200).json({
           ok: true,
+          success: true,
           meta: true,
           label: LABEL,
-          updated_at: rev == null || rev === "" ? null : String(rev),
-          source: "redis",
+          revision: revisao,
+          updated_at: revisao,
+          source: "supabase",
         });
       }
-      const raw = await redis.get(REDIS_KEY);
-      if (!raw) {
-        const mirror = isSupabaseDoormanConfigured()
-          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
-          : { ok: false, payload: null, updatedAt: null };
-        if (mirror && mirror.payload && typeof mirror.payload === "object") {
-          const safeFallback =
-            channel === "default"
-              ? sanitizePayloadForOficial(
-                  mirror.payload,
-                  oficialTodayYmd(),
-                  cadastroKeepSetsFromPayload(mirror.payload)
-                )
-              : mirror.payload;
-          return res.status(200).json({
-            ok: true,
-            label: LABEL,
-            payload: stripSecretsFromPayload(safeFallback),
-            updated_at: mirror.updatedAt || null,
-            source: "supabase",
-          });
-        }
+      if (!oficial.payload || typeof oficial.payload !== "object") {
         return res.status(200).json({
           ok: true,
+          success: true,
           label: LABEL,
           payload: null,
-          updated_at: null,
-          source: "redis",
+          revision: revisao,
+          updated_at: revisao,
+          source: "supabase",
         });
       }
-      let row = raw;
-      if (typeof raw === "string") {
-        try {
-          row = JSON.parse(raw);
-        } catch {
-          return res.status(500).json({ ok: false, reason: "invalid_stored_json" });
-        }
-      }
-      const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
       const safePayload =
-        channel === "default" && payload
-          ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
-          : payload;
+        channel === "default"
+          ? sanitizePayloadForOficial(
+              oficial.payload,
+              oficialTodayYmd(),
+              cadastroKeepSetsFromPayload(oficial.payload)
+            )
+          : oficial.payload;
       return res.status(200).json({
         ok: true,
+        success: true,
         label: LABEL,
         payload: stripSecretsFromPayload(safePayload),
-        updated_at: row?.updated_at || null,
-        source: "redis",
+        revision: revisao,
+        updated_at: revisao,
+        source: "supabase",
       });
     }
 
@@ -1068,20 +1057,34 @@ async function handler(req, res) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
       }
       const updatedAt = String(body.updated_at || new Date().toISOString());
-      const existingRaw = await redis.get(REDIS_KEY);
-      let existingPayload = null;
-      let existingUpdatedAt = null;
-      if (existingRaw) {
-        let row = existingRaw;
-        if (typeof existingRaw === "string") {
-          try {
-            row = JSON.parse(existingRaw);
-          } catch {
-            row = null;
-          }
-        }
-        if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
-        if (row?.updated_at) existingUpdatedAt = String(row.updated_at);
+      const baseRevision = String(body.base_revision || body.revision || "");
+      const oficialAtual = isSupabaseDoormanConfigured()
+        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+        : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      if (
+        !oficialAtual ||
+        oficialAtual.reason === "supabase_timeout" ||
+        oficialAtual.reason === "doorman_key_missing" ||
+        oficialAtual.reason === "cloud_budget" ||
+        (oficialAtual.reason && String(oficialAtual.reason).startsWith("supabase_http"))
+      ) {
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel",
+        });
+      }
+      let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
+      let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
+      if (revisaoConflita(baseRevision, existingUpdatedAt)) {
+        return res.status(409).json({
+          ok: false,
+          success: false,
+          reason: "revisao_conflito",
+          revision: existingUpdatedAt,
+          updated_at: existingUpdatedAt,
+          message: "A nuvem tem uma versão mais nova. Recarregue antes de gravar.",
+        });
       }
       if (channel === "default") {
         incoming = sanitizePayloadForOficial(
@@ -1184,39 +1187,41 @@ async function handler(req, res) {
         });
       }
       payload.dk_dados_seguros_v1 = true;
-      const incomingTs = Date.parse(updatedAt) || 0;
-      const existingTs = Date.parse(existingUpdatedAt || "") || 0;
-      const storedAt = existingTs > incomingTs ? existingUpdatedAt : updatedAt;
-      const stored = { label: LABEL, payload, updated_at: storedAt };
-      await redis.set(REDIS_KEY, JSON.stringify(stored));
-      await redis.set(`${REDIS_KEY}:rev`, storedAt);
-      await releaseLocacoesWriteLock(redis, locacoesLockToken);
-      const supabasePromise = isSupabaseDoormanConfigured()
-        ? withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 20000, "supabase_timeout")
-        : Promise.resolve({ ok: false, reason: "doorman_key_missing" });
-      supabasePromise.then(() => {}, () => {});
-      /* Lançamento: Redis já gravou (é o que os outros PCs baixam). Não segura o
-         operador nos 20s do espelho. O espelho segue em paralelo. */
-      const fastConfirm = body.fastConfirm === true;
-      let supabase = { ok: false, reason: "supabase_deferred" };
+      const storedAt = new Date().toISOString();
+      let supabase;
       try {
-        supabase = fastConfirm
-          ? await Promise.race([
-              supabasePromise,
-              new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "supabase_deferred" }), 800)),
-            ])
-          : await supabasePromise;
+        supabase = await withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 20000, "supabase_timeout");
       } catch (err) {
-        if (!fastConfirm) throw err;
         supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
+      }
+      if (!supabase || supabase.ok !== true) {
+        return res.status(502).json({
+          ok: false,
+          success: false,
+          reason: (supabase && supabase.reason) || "supabase_falhou",
+          supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
+        });
+      }
+      let redisOk = true;
+      let redisErr = "";
+      try {
+        await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+        await redis.set(`${REDIS_KEY}:rev`, storedAt);
+      } catch (err) {
+        redisOk = false;
+        redisErr = String(err && err.message ? err.message : err);
+        console.error("[DK cloud] cache redis apos supabase", redisErr);
       }
       return res.status(200).json({
         ok: true,
+        success: true,
         label: LABEL,
+        revision: storedAt,
         updated_at: storedAt,
-        source: supabase && supabase.ok ? "both" : "redis",
-        persistencia: supabase && supabase.ok ? "supabase+redis" : "redis",
-        supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
+        source: "supabase",
+        persistencia: redisOk ? "supabase+redis" : "supabase",
+        supabase: { ok: true },
+        redis: { ok: redisOk, reason: redisErr },
         replace,
         keys: Object.keys(payload).length,
       });

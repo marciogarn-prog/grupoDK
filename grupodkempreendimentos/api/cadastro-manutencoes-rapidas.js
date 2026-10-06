@@ -5,6 +5,7 @@
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeManutencoesRapidas } = require("../lib/dk-append-only-merge.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
+const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 
 const STORAGE_KEY = "dk:portal:manutencoes_rapidas:v1";
 const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
@@ -60,8 +61,28 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const data = await loadUniao(redis);
-      return res.status(200).json({ ok: true, data });
+      const central = await ioSnapshotOficial("default").ler();
+      if (central.indisponivel) {
+        return res.status(503).json({ ok: false, success: false, reason: central.reason || "supabase_indisponivel" });
+      }
+      const daNuvem = Array.isArray(central.payload?.dk_manutencoes_rapidas_v1)
+        ? central.payload.dk_manutencoes_rapidas_v1
+        : [];
+      let dedicada = [];
+      try {
+        dedicada = parseRedisArray(await redis.get(STORAGE_KEY));
+      } catch {
+        dedicada = [];
+      }
+      const data = mergeManutencoesRapidas(daNuvem, dedicada);
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        data,
+        source: "supabase",
+        revision: central.updatedAt || null,
+        updated_at: central.updatedAt || null,
+      });
     }
 
     if (req.method === "POST") {
@@ -79,10 +100,21 @@ module.exports = async function handler(req, res) {
         }
       }
       const incoming = Array.isArray(body?.data) ? body.data : [];
-      const existing = await loadUniao(redis);
-      const merged = mergeManutencoesRapidas(existing, incoming);
-      await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, count: merged.length, data: merged });
+      let merged = incoming;
+      const central = await executarGravacaoCentral({
+        ...ioSnapshotOficial("default"),
+        baseRevision: body.base_revision || body.revision || "",
+        mutar(payload) {
+          const base = Array.isArray(payload.dk_manutencoes_rapidas_v1) ? payload.dk_manutencoes_rapidas_v1 : [];
+          merged = mergeManutencoesRapidas(base, incoming);
+          payload.dk_manutencoes_rapidas_v1 = merged;
+        },
+        cache: async () => {
+          await redis.set(STORAGE_KEY, JSON.stringify(merged));
+        },
+      });
+      if (central.status !== 200) return res.status(central.status).json(central.body);
+      return res.status(200).json({ ...central.body, count: merged.length, data: merged });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

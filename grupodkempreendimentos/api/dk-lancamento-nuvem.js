@@ -6,6 +6,7 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
+const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 
 const FILA_KEY = "dk:portal:lancamentos_fila:v1";
 
@@ -92,10 +93,7 @@ module.exports = async function handler(req, res) {
       }
       const atuais = listaDeMapa(await redis.hgetall(FILA_KEY));
       const ja = atuais.find((item) => String(item?.pagamento?.protocoloLancamento || "").trim() === protocolo);
-      if (ja) {
-        return res.status(200).json({ ok: true, source: "redis", protocolo, already: true });
-      }
-      const repetido = atuais.find(
+      const repetido = !ja && atuais.find(
         (item) => onlyDigits(item?.nc) === nc && mesmaCobranca(item?.pagamento, pagamento)
       );
       if (repetido) {
@@ -115,10 +113,22 @@ module.exports = async function handler(req, res) {
         pagamento,
         at: new Date().toISOString(),
       };
-      await redis.hset(FILA_KEY, { [protocolo]: JSON.stringify(item) });
+      const central = await executarGravacaoCentral({
+        ...ioSnapshotOficial("default"),
+        baseRevision: body.base_revision || body.revision || "",
+        mutar(payload) {
+          const fila = Array.isArray(payload.dk_lancamentos_fila_v1) ? payload.dk_lancamentos_fila_v1 : [];
+          payload.dk_lancamentos_fila_v1 = fila
+            .filter((row) => String(row?.pagamento?.protocoloLancamento || "") !== protocolo)
+            .concat([item]);
+        },
+        cache: async () => {
+          await redis.hset(FILA_KEY, { [protocolo]: JSON.stringify(item) });
+        },
+      });
+      if (central.status !== 200) return res.status(central.status).json(central.body);
       return res.status(200).json({
-        ok: true,
-        source: "redis",
+        ...central.body,
         protocolo,
       });
     }

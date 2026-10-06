@@ -631,11 +631,14 @@
       const r = await fetch("/api/cadastro-manutencoes-rapidas", {
         method: "POST",
         headers: { ...apiHeadersManut(), "Content-Type": "application/json" },
-        body: JSON.stringify({ data: Array.isArray(list) ? list : loadArr(STORAGE_KEY) }),
+        body: JSON.stringify({
+          data: Array.isArray(list) ? list : loadArr(STORAGE_KEY),
+          base_revision: window.__DK_CLOUD_REVISION || "",
+        }),
         cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || !j.ok || !Array.isArray(j.data)) return false;
+      if (!r.ok || j.success !== true || !Array.isArray(j.data)) return false;
       const local = loadArr(STORAGE_KEY);
       const merged =
         typeof mergeCadastroHistoricoImutavel === "function"

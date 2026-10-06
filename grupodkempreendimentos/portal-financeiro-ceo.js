@@ -415,15 +415,16 @@
         bloco: true,
         data: patch,
         operationId: operationId || "",
+        base_revision: window.__DK_CLOUD_REVISION || "",
       }),
       cache: "no-store",
-    }, 8000);
+    }, 25000);
     const j = await r.json().catch(() => ({}));
     if (r.status === 429) {
       const ra = Number(r.headers.get("Retry-After") || j.retryAfter) || 8;
       return { ok: false, reason: "rate_limited", status: 429, retryAfter: ra, r: j };
     }
-    if (!r.ok || !j.ok) return { ok: false, r: j, status: r.status };
+    if (!r.ok || j.success !== true) return { ok: false, r: j, status: r.status };
     return { ok: true, r: j };
   }
 
