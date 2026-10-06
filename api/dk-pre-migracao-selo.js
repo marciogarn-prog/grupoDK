@@ -2,6 +2,7 @@
  * Selo pré-migração. Só o servidor, com a credencial já usada pelo porteiro.
  * Não grava dk:portal:cloud_snapshot:v1 nem a label default.
  * A rota exige o segredo DK_PRE_MIGRACAO_SELO e será retirada depois do selo.
+ * gravar-duplo só escreve com o segundo header BACKUP_DIVERGENTE, em cópias novas.
  */
 const crypto = require("crypto");
 const { createRedisClient } = require("../lib/dk-redis-env.cjs");
@@ -236,6 +237,395 @@ function associar(docblobs, payload) {
   });
 }
 
+const CHAVE_OFICIAL = "dk:portal:cloud_snapshot:v1";
+const LABEL_OFICIAL = "default";
+
+function stampUtc(date) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function segredoConfere(esperado, recebido) {
+  const a = String(esperado || "");
+  const b = String(recebido || "");
+  if (!a || !b || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+function podeGravarDuplo(headers, segredoEsperado) {
+  const h = headers || {};
+  const modo = String(h["x-dk-pre-migracao-modo"] || "");
+  const confirma = String(h["x-dk-pre-migracao-confirma"] || "") === "BACKUP_DIVERGENTE";
+  return modo === "gravar-duplo" && confirma && segredoConfere(segredoEsperado, h["x-dk-pre-migracao"]);
+}
+
+function decidirEscrita(headers, segredoEsperado, identicos) {
+  const modo = String((headers && headers["x-dk-pre-migracao-modo"]) || "");
+  if (modo === "gravar-duplo") return podeGravarDuplo(headers, segredoEsperado) ? "gravar-duplo" : "recusado";
+  if (modo === "gravar" && identicos) return "gravar";
+  return "leitura";
+}
+
+function chaveParalelaPermitida(nome) {
+  const n = String(nome || "");
+  if (!CHAVES_PARALELAS.includes(n)) return false;
+  if (/demo|presenca|presença|sessao|sessão|session|cache|rate|budget|burst/i.test(n)) return false;
+  return true;
+}
+
+function separarDocblobs(lista) {
+  const oficiais = [];
+  let demoIgnorados = 0;
+  for (const item of lista || []) {
+    const label = String(item && item.label || "");
+    if (label.startsWith("docblob:default")) oficiais.push(item);
+    else if (label.startsWith("docblob:demo")) demoIgnorados += 1;
+  }
+  return { oficiais, demoIgnorados };
+}
+
+function destinosBackupDuplo(stamp, docblobs) {
+  const { oficiais } = separarDocblobs(docblobs);
+  const labelsDocblob = oficiais.map((item, i) => {
+    const meio = oficiais.length === 1 ? "" : "-" + String(i + 1);
+    return "backup-pre-migracao-docblob-default" + meio + "-" + stamp;
+  });
+  const dest = {
+    stamp,
+    redisChaveRedis: "dk:portal:backup_pre_migracao:redis:" + stamp,
+    redisChaveSupabase: "dk:portal:backup_pre_migracao:supabase:" + stamp,
+    labelRedis: "backup-pre-migracao-redis-" + stamp,
+    labelSupabase: "backup-pre-migracao-supabase-" + stamp,
+    labelsDocblob,
+  };
+  const chaves = [dest.redisChaveRedis, dest.redisChaveSupabase];
+  const labels = [dest.labelRedis, dest.labelSupabase].concat(labelsDocblob);
+  const chaveRuim = chaves.some((nome) => nome === CHAVE_OFICIAL || !nome.startsWith("dk:portal:backup_pre_migracao:"));
+  const labelRuim = labels.some((nome) => nome === LABEL_OFICIAL || nome === "demo" || nome.startsWith("docblob:"));
+  if (chaveRuim || labelRuim) {
+    const erro = new Error("destino_proibido");
+    throw erro;
+  }
+  return dest;
+}
+
+function medirCanon(payload) {
+  const texto = canon(payload == null ? null : payload);
+  return { sha256: sha256(texto), bytes: bytesDe(texto), chaves: payload && typeof payload === "object" ? Object.keys(payload).length : 0 };
+}
+
+function pacoteDaFonteRedis(fontes, med) {
+  const paralelas = {};
+  for (const chave of Object.keys(fontes.paralelas || {})) {
+    if (!chaveParalelaPermitida(chave)) continue;
+    paralelas[chave] = fontes.paralelas[chave];
+  }
+  return {
+    tipo: "backup-pre-migracao-redis",
+    backup_em: fontes.backup_em,
+    origem: "redis:" + CHAVE_OFICIAL,
+    updated_at_original: fontes.redis.updated_at,
+    revisao_redis: fontes.redis.revisao,
+    sha256_canonico: med.sha256,
+    bytes: med.bytes,
+    payload: fontes.redis.payload,
+    chaves_paralelas: paralelas,
+  };
+}
+
+function pacoteDaFonteSupabase(fontes, med) {
+  return {
+    tipo: "backup-pre-migracao-supabase",
+    backup_em: fontes.backup_em,
+    origem: "supabase:public.dk_cloud_snapshots:" + LABEL_OFICIAL,
+    id_original: fontes.supabase.id,
+    updated_at_original: fontes.supabase.updated_at,
+    sha256_canonico: med.sha256,
+    bytes: med.bytes,
+    payload: fontes.supabase.payload,
+  };
+}
+
+function pacoteDocblob(item, med, backupEm) {
+  return {
+    tipo: "backup-pre-migracao-docblob",
+    backup_em: backupEm,
+    origem: item.label,
+    updated_at_original: item.updated_at,
+    sha256_canonico: med.sha256,
+    bytes: med.bytes,
+    payload: item.payload,
+  };
+}
+
+function lerJson(bruto) {
+  if (bruto == null) return null;
+  if (typeof bruto === "string") return JSON.parse(bruto);
+  return bruto;
+}
+
+function payloadOficialRedis(bruto) {
+  const envelope = lerJson(bruto);
+  return envelope && envelope.payload ? envelope.payload : null;
+}
+
+function resumirCopia(item) {
+  return {
+    nome: item.nome,
+    armazenamento: item.armazenamento,
+    fonte: item.fonte,
+    sha256: item.sha256 || null,
+    bytes: item.bytes || 0,
+    updated_at: item.updated_at || null,
+    verificacao: item.verificacao,
+  };
+}
+
+function respostaBackup(info) {
+  return {
+    ok: info.ok === true,
+    backup_criado: info.backup_criado === true,
+    BACKUP_PARCIAL: info.BACKUP_PARCIAL === true,
+    reason: info.reason || "",
+    identicos: info.identicos === true,
+    stamp: info.stamp || null,
+    copias: (info.copias || []).map(resumirCopia),
+    criados: info.criados || [],
+    nao_criados: info.nao_criados || [],
+    origem_inalterada: {
+      redis: Boolean(info.origem_inalterada && info.origem_inalterada.redis),
+      supabase: Boolean(info.origem_inalterada && info.origem_inalterada.supabase),
+    },
+    quantidades: info.quantidades || {},
+  };
+}
+
+async function executarBackupDuplo(io, fontes, agora) {
+  const momento = agora instanceof Date ? agora : new Date();
+  const backupEm = momento.toISOString();
+  const separado = separarDocblobs(fontes.docblobs);
+  const dest = destinosBackupDuplo(stampUtc(momento), fontes.docblobs);
+  const medR = medirCanon(fontes.redis.payload);
+  const medS = medirCanon(fontes.supabase.payload);
+  const medDocs = separado.oficiais.map((item) => medirCanon(item.payload));
+  const planejados = [dest.redisChaveRedis, dest.redisChaveSupabase, dest.labelRedis, dest.labelSupabase].concat(dest.labelsDocblob);
+  for (const chave of [dest.redisChaveRedis, dest.redisChaveSupabase]) {
+    if (await io.redisGet(chave)) {
+      return respostaBackup({
+        ok: false,
+        reason: "destino_ja_existe",
+        stamp: dest.stamp,
+        criados: [],
+        nao_criados: planejados.map((nome) => ({ nome, motivo: "destino_ja_existe" })),
+        identicos: medR.sha256 === medS.sha256,
+      });
+    }
+  }
+  for (const label of [dest.labelRedis, dest.labelSupabase].concat(dest.labelsDocblob)) {
+    if (await io.sbGet(label)) {
+      return respostaBackup({
+        ok: false,
+        reason: "destino_ja_existe",
+        stamp: dest.stamp,
+        criados: [],
+        nao_criados: planejados.map((nome) => ({ nome, motivo: "destino_ja_existe" })),
+        identicos: medR.sha256 === medS.sha256,
+      });
+    }
+  }
+  const fontesComHora = Object.assign({}, fontes, { backup_em: backupEm });
+  const pacoteR = pacoteDaFonteRedis(fontesComHora, medR);
+  const pacoteS = pacoteDaFonteSupabase(fontesComHora, medS);
+  const passos = [
+    {
+      nome: dest.redisChaveRedis,
+      armazenamento: "redis",
+      fonte: "redis",
+      bytes: medR.bytes,
+      updated_at: fontes.redis.updated_at,
+      esperado: medR.sha256,
+      run: async () => {
+        if (dest.redisChaveRedis === CHAVE_OFICIAL) throw new Error("destino_proibido");
+        await io.redisSet(dest.redisChaveRedis, JSON.stringify(pacoteR));
+      },
+    },
+    {
+      nome: dest.redisChaveSupabase,
+      armazenamento: "redis",
+      fonte: "supabase",
+      bytes: medS.bytes,
+      updated_at: fontes.supabase.updated_at,
+      esperado: medS.sha256,
+      run: async () => {
+        if (dest.redisChaveSupabase === CHAVE_OFICIAL) throw new Error("destino_proibido");
+        await io.redisSet(dest.redisChaveSupabase, JSON.stringify(pacoteS));
+      },
+    },
+    {
+      nome: dest.labelRedis,
+      armazenamento: "supabase",
+      fonte: "redis",
+      bytes: medR.bytes,
+      updated_at: fontes.redis.updated_at,
+      esperado: medR.sha256,
+      run: async () => {
+        if (dest.labelRedis === LABEL_OFICIAL) throw new Error("destino_proibido");
+        await io.sbInsert({ label: dest.labelRedis, payload: pacoteR, updated_at: fontes.redis.updated_at });
+      },
+    },
+    {
+      nome: dest.labelSupabase,
+      armazenamento: "supabase",
+      fonte: "supabase",
+      bytes: medS.bytes,
+      updated_at: fontes.supabase.updated_at,
+      esperado: medS.sha256,
+      run: async () => {
+        if (dest.labelSupabase === LABEL_OFICIAL) throw new Error("destino_proibido");
+        await io.sbInsert({ label: dest.labelSupabase, payload: pacoteS, updated_at: fontes.supabase.updated_at });
+      },
+    },
+  ];
+  separado.oficiais.forEach((item, i) => {
+    const med = medDocs[i];
+    passos.push({
+      nome: dest.labelsDocblob[i],
+      armazenamento: "supabase",
+      fonte: "docblob-default",
+      bytes: med.bytes,
+      updated_at: item.updated_at,
+      esperado: med.sha256,
+      run: async () => {
+        if (dest.labelsDocblob[i] === LABEL_OFICIAL || String(dest.labelsDocblob[i]).startsWith("docblob:")) {
+          throw new Error("destino_proibido");
+        }
+        await io.sbInsert({
+          label: dest.labelsDocblob[i],
+          payload: pacoteDocblob(item, med, backupEm),
+          updated_at: item.updated_at,
+        });
+      },
+    });
+  });
+  const criados = [];
+  const naoCriados = [];
+  let falhou = false;
+  for (const passo of passos) {
+    if (falhou) {
+      naoCriados.push({ nome: passo.nome, motivo: "nao_executado" });
+      continue;
+    }
+    try {
+      await passo.run();
+      criados.push(passo.nome);
+    } catch (e) {
+      falhou = true;
+      naoCriados.push({ nome: passo.nome, motivo: String(e && e.message ? e.message : e).slice(0, 80) });
+    }
+  }
+  const copias = [];
+  let hashesOk = true;
+  for (const passo of passos) {
+    if (!criados.includes(passo.nome)) {
+      copias.push({ nome: passo.nome, armazenamento: passo.armazenamento, fonte: passo.fonte, bytes: passo.bytes, updated_at: passo.updated_at, verificacao: "nao_criado" });
+      continue;
+    }
+    let obtido = null;
+    try {
+      if (passo.armazenamento === "redis") obtido = medirCanon(lerJson(await io.redisGet(passo.nome)).payload).sha256;
+      else obtido = medirCanon((await io.sbGet(passo.nome)).payload.payload).sha256;
+    } catch (e) {
+      obtido = null;
+    }
+    const okHash = obtido === passo.esperado;
+    if (!okHash) hashesOk = false;
+    copias.push({
+      nome: passo.nome,
+      armazenamento: passo.armazenamento,
+      fonte: passo.fonte,
+      sha256: obtido,
+      bytes: passo.bytes,
+      updated_at: passo.updated_at,
+      verificacao: okHash ? "integro" : "divergente",
+    });
+  }
+  const oficialRedisDepois = medirCanon(payloadOficialRedis(await io.redisGet(CHAVE_OFICIAL))).sha256;
+  const linhaDefault = await io.sbGet(LABEL_OFICIAL);
+  const oficialSbDepois = medirCanon(linhaDefault && linhaDefault.payload).sha256;
+  const origemInalterada = {
+    redis: oficialRedisDepois === medR.sha256,
+    supabase: oficialSbDepois === medS.sha256,
+  };
+  const parcial = falhou || !hashesOk || !origemInalterada.redis || !origemInalterada.supabase;
+  return respostaBackup({
+    ok: !parcial,
+    backup_criado: !parcial,
+    BACKUP_PARCIAL: parcial,
+    reason: parcial ? "backup_parcial" : "",
+    identicos: medR.sha256 === medS.sha256,
+    stamp: dest.stamp,
+    copias,
+    criados,
+    nao_criados: naoCriados,
+    origem_inalterada: origemInalterada,
+    quantidades: {
+      chaves_payload_redis: medR.chaves,
+      chaves_payload_supabase: medS.chaves,
+      bytes_redis: medR.bytes,
+      bytes_supabase: medS.bytes,
+      docblobs_oficiais: separado.oficiais.length,
+      docblobs_demo_ignorados: separado.demoIgnorados,
+      paralelas: Object.keys(pacoteR.chaves_paralelas).length,
+    },
+  });
+}
+
+async function listarDocblobsComPayload() {
+  const saida = [];
+  let offset = 0;
+  for (let pagina = 0; pagina < 20; pagina++) {
+    const url = SB_URL + "/rest/v1/dk_cloud_snapshots?label=like." + encodeURIComponent("docblob:*") + "&select=label,payload,updated_at&order=label.asc";
+    const res = await fetch(url, {
+      headers: { ...sbHeaders(), Range: offset + "-" + (offset + 49), Prefer: "count=exact" },
+    });
+    if (!res.ok) throw new Error("docblob_" + res.status);
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) break;
+    for (const row of rows) {
+      if (!row || !String(row.label || "").startsWith("docblob:")) continue;
+      saida.push({ label: row.label, payload: row.payload, updated_at: row.updated_at || null });
+    }
+    if (rows.length < 50) break;
+    offset += 50;
+  }
+  return saida;
+}
+
+async function inserirLinhaNova(row) {
+  if (!row || row.label === LABEL_OFICIAL || row.label === "demo" || String(row.label).startsWith("docblob:")) {
+    throw new Error("destino_proibido");
+  }
+  const res = await fetch(SB_URL + "/rest/v1/dk_cloud_snapshots", {
+    method: "POST",
+    headers: { ...sbHeaders(), "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ label: row.label, payload: row.payload, updated_at: row.updated_at }),
+  });
+  if (!res.ok) throw new Error("supabase_http_" + res.status);
+}
+
+function ioNuvem(redis) {
+  return {
+    redisGet: (chave) => redis.get(chave),
+    redisSet: (chave, valor) => {
+      if (chave === CHAVE_OFICIAL || !String(chave).startsWith("dk:portal:backup_pre_migracao:")) {
+        return Promise.reject(new Error("destino_proibido"));
+      }
+      return redis.set(chave, valor);
+    },
+    sbGet: (label) => lerLinha(label),
+    sbInsert: (row) => inserirLinhaNova(row),
+  };
+}
+
 function resumoDocblobs(lista) {
   return {
     quantidade: lista.length,
@@ -259,7 +649,6 @@ module.exports = async function handler(req, res) {
   if (!String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim()) {
     return res.status(503).json({ ok: false, reason: "service_role_ausente" });
   }
-  const gravar = String(req.headers["x-dk-pre-migracao-modo"] || "") === "gravar";
   try {
     const redis = createRedisClient();
     const bruto = await redis.get("dk:portal:cloud_snapshot:v1");
@@ -312,7 +701,36 @@ module.exports = async function handler(req, res) {
       },
       backup_criado: false,
     };
-    if (!gravar || !identicos) return res.status(200).json(base);
+    const decisao = decidirEscrita(req.headers, process.env.DK_PRE_MIGRACAO_SELO, identicos);
+    if (decisao === "recusado") {
+      return res.status(403).json({
+        ok: false,
+        reason: "confirmacao_ausente",
+        backup_criado: false,
+        BACKUP_PARCIAL: false,
+      });
+    }
+    if (decisao === "gravar-duplo") {
+      const docblobs = await listarDocblobsComPayload();
+      const paralelas = {};
+      for (const chave of CHAVES_PARALELAS) paralelas[chave] = await lerParalela(redis, chave);
+      const resultado = await executarBackupDuplo(ioNuvem(redis), {
+        redis: {
+          payload: payloadRedis,
+          updated_at: envelope.updated_at || null,
+          revisao: revisao == null ? null : String(revisao),
+        },
+        supabase: {
+          id: linha.id,
+          payload: linha.payload,
+          updated_at: linha.updated_at || null,
+        },
+        docblobs,
+        paralelas,
+      }, new Date());
+      return res.status(resultado.BACKUP_PARCIAL ? 500 : 200).json(resultado);
+    }
+    if (decisao !== "gravar") return res.status(200).json(base);
 
     const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
     const chaveBackup = "dk:portal:backup_pre_migracao:" + stamp;
@@ -391,3 +809,10 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ ok: false, reason: "falha", detalhe: String(e && e.message ? e.message : e).slice(0, 180) });
   }
 };
+
+module.exports.decidirEscrita = decidirEscrita;
+module.exports.podeGravarDuplo = podeGravarDuplo;
+module.exports.destinosBackupDuplo = destinosBackupDuplo;
+module.exports.executarBackupDuplo = executarBackupDuplo;
+module.exports.chaveParalelaPermitida = chaveParalelaPermitida;
+module.exports.separarDocblobs = separarDocblobs;
