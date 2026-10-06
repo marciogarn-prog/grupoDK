@@ -2573,11 +2573,17 @@
     if (!set.size) return;
     window.__DK_locacoesNuvemOk = true;
     window.__DK_locacoesNuvemProtocolos = set;
+    if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
+      window.__DK_contratoLocacaoRefreshBotao();
+    }
   }
 
   function recusarLocacoesSemNuvem() {
     window.__DK_locacoesNuvemOk = false;
     window.__DK_locacoesNuvemProtocolos = new Set();
+    if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
+      window.__DK_contratoLocacaoRefreshBotao();
+    }
     if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
       try {
         window.__DK_invalidatePesquisaLinhasCache();

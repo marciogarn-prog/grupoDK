@@ -1521,14 +1521,23 @@ ${scriptPreviewInline(dados)}
     const proto = normProtocolo(hid?.value);
     const dados = resolverDadosFromForm();
     const can = Boolean(proto) && !validarDados(dados);
-    /* Sempre clicável: se faltar dado, o clique explica. Botão disabled engolia o clique. */
+    const naNuvem =
+      typeof window.__DK_locacaoPodeGerarContrato === "function" &&
+      window.__DK_locacaoPodeGerarContrato(proto);
+    /* Sempre clicável quando a nuvem já confirmou: se faltar dado, o clique explica. Botão disabled engolia o clique. */
     btn.disabled = false;
-    btn.removeAttribute("disabled");
+    if (!naNuvem) {
+      btn.disabled = true;
+      btn.title =
+        "Clique em Cadastrar locação e aguarde a nuvem confirmar o protocolo com data, cliente e placa.";
+    } else {
+      btn.removeAttribute("disabled");
+      btn.title = can
+        ? `Abrir o contrato formatado (10 páginas) do protocolo ${proto} para imprimir.`
+        : "Preencha protocolo, CPF, cliente e placa para gerar o contrato.";
+    }
     btn.textContent = "Gerar contrato";
     btn.dataset.dkModo = "gerar";
-    btn.title = can
-      ? `Abrir o contrato formatado (10 páginas) do protocolo ${proto} para imprimir.`
-      : "Preencha protocolo, CPF, cliente e placa para gerar o contrato.";
   }
 
   function hidratarCamposClienteParaContrato(cpfDigits) {
@@ -1594,6 +1603,18 @@ ${scriptPreviewInline(dados)}
         typeof window.refreshOperacaoLocacaoProtocoloPicker === "function"
       ) {
         window.refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      }
+      const protoClique = normProtocolo(document.getElementById("operacaoLocacaoProtocolo")?.value);
+      if (
+        typeof window.__DK_locacaoPodeGerarContrato !== "function" ||
+        !window.__DK_locacaoPodeGerarContrato(protoClique)
+      ) {
+        if (msgEl) {
+          msgEl.textContent =
+            "Clique em Cadastrar locação e aguarde a nuvem confirmar o protocolo com data, cliente e placa.";
+        }
+        atualizarBotaoContratoLocacao();
+        return;
       }
       const cpfDigits = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
       hidratarCamposClienteParaContrato(cpfDigits);

@@ -3681,6 +3681,24 @@
           "aplicarRemapProtocoloLocacoes"
         ]
       }
+    },
+    {
+      "id": "gerar-contrato-so-apos-nuvem",
+      "descricao": "No Cadastro de locação, Gerar contrato só fica funcional depois que Cadastrar locação grava na nuvem um protocolo com data de início, cliente e placa. Em NOVO o botão fica desligado.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalLocacaoPodeGerarContrato",
+          "portalLocacaoRegistroTemVinculo",
+          "Gerar contrato só abre quando a nuvem confirmar"
+        ],
+        "portal-contrato-locacao.js": [
+          "Clique em Cadastrar locação e aguarde a nuvem confirmar o protocolo com data, cliente e placa.",
+          "btn.disabled = false"
+        ],
+        "index.html": [
+          "operacaoLocacaoVisualizarContratoBtn"
+        ]
+      }
     }
   ]
 }

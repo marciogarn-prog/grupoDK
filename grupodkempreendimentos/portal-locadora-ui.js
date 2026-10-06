@@ -19021,6 +19021,28 @@
     return String(v || "").replace(/\D/g, "");
   }
 
+  /** Protocolo na nuvem só conta se liga data de início, cliente e placa. */
+  function portalLocacaoRegistroTemVinculo(loc) {
+    if (!loc || typeof loc !== "object") return false;
+    const inicio = String(loc.inicio || loc.dataInicio || "").trim();
+    const cpf = String(loc.cpf || "").replace(/\D/g, "");
+    const nome = String(loc.nome || loc.cliente || "").trim();
+    const placa = portalNuvemNormPlaca(loc.placa);
+    return Boolean(inicio && cpf.length === 11 && nome && placa && placa.length >= 7);
+  }
+
+  function portalMarcarLocacaoConfirmadaNaNuvem(ncRaw) {
+    const nc = portalNuvemNormProto(ncRaw);
+    if (!nc) return;
+    if (!(window.__DK_locacaoNuvemConfirmadaSet instanceof Set)) {
+      window.__DK_locacaoNuvemConfirmadaSet = new Set();
+    }
+    window.__DK_locacaoNuvemConfirmadaSet.add(nc);
+    if (window.__DK_locacoesNuvemProtocolos instanceof Set) {
+      window.__DK_locacoesNuvemProtocolos.add(nc);
+    }
+  }
+
   function portalNuvemPushResultOk(push) {
     if (!push || push.ok === false) return false;
     if (push.skipped && push.reason === "android_somente_leitura") return true;
@@ -19087,7 +19109,9 @@
       const want = portalNuvemNormProto(value);
       const arr = payload.dk_locacoes_cadastro;
       if (!Array.isArray(arr) || !want) return false;
-      return arr.some((l) => portalNuvemNormProto(l?.numeroContrato) === want);
+      return arr.some(
+        (l) => portalNuvemNormProto(l?.numeroContrato) === want && portalLocacaoRegistroTemVinculo(l)
+      );
     }
     return false;
   }
@@ -20619,12 +20643,26 @@
     }
   }
 
+  /** Gerar contrato só abre com protocolo já confirmado na nuvem (data + cliente + placa). */
+  function portalLocacaoPodeGerarContrato(ncRaw) {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel || String(sel.value || "") === PORTAL_PROTO_NOVO) return false;
+    const nc = normPortalNumeroContrato(ncRaw);
+    if (!nc) return false;
+    const loc = findPortalLocacaoByProtocolo(nc);
+    if (!portalLocacaoRegistroTemVinculo(loc)) return false;
+    const dig = String(nc).replace(/\D/g, "");
+    const tem = (set) => set instanceof Set && (set.has(nc) || (dig && set.has(dig)));
+    return tem(window.__DK_locacoesNuvemProtocolos) || tem(window.__DK_locacaoNuvemConfirmadaSet);
+  }
+
   /** «Gerar contrato» ou «Visualizar contrato» conforme existência no depósito (chave = protocolo). */
   function refreshOperacaoLocacaoVisualizarContratoBtn() {
     if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
       window.__DK_contratoLocacaoRefreshBotao();
     }
   }
+  window.__DK_locacaoPodeGerarContrato = portalLocacaoPodeGerarContrato;
 
   function portalCaucaoModalEl() {
     return document.getElementById("portalCaucaoModal");
@@ -21567,6 +21605,7 @@
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoApagarProtocoloBtn();
       refreshOperacaoLocacaoAlterarProtocoloUi();
+      refreshOperacaoLocacaoVisualizarContratoBtn();
       syncOperacaoLocacaoModalidadeBolas({ infer: true });
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
       if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
@@ -22206,6 +22245,23 @@
     refreshOperacaoLocacaoFinalizarBtn();
     refreshOperacaoLocacaoApagarProtocoloBtn();
     if (msg) msg.textContent = `Protocolo ${nc} carregado. Pode corrigir os dados e clicar em «Atualizar locação».`;
+    const jaNaNuvem =
+      (window.__DK_locacoesNuvemProtocolos instanceof Set &&
+        (window.__DK_locacoesNuvemProtocolos.has(nc) ||
+          window.__DK_locacoesNuvemProtocolos.has(String(nc).replace(/\D/g, "")))) ||
+      (window.__DK_locacaoNuvemConfirmadaSet instanceof Set &&
+        window.__DK_locacaoNuvemConfirmadaSet.has(nc));
+    if (!jaNaNuvem && portalLocacaoRegistroTemVinculo(loc)) {
+      void portalNuvemVerificarNoSnapshot("locacao", nc).then((ok) => {
+        if (ok) {
+          portalMarcarLocacaoConfirmadaNaNuvem(nc);
+          if (msg && document.getElementById("operacaoLocacaoProtocolo")?.value === nc) {
+            msg.textContent = `Protocolo ${nc} confirmado na nuvem (data, cliente e placa). Pode gerar o contrato.`;
+          }
+        }
+        refreshOperacaoLocacaoVisualizarContratoBtn();
+      });
+    }
     return { ok: true, loc };
   }
 
@@ -23434,7 +23490,11 @@
           /* ignore */
         }
       }
-      portalLocacaoFeedback(prev ? "Locação atualizada." : "Locação cadastrada.");
+      portalLocacaoFeedback(
+        prev
+          ? "Locação atualizada neste PC. A confirmar na nuvem…"
+          : "Locação cadastrada neste PC. A confirmar na nuvem…"
+      );
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
       const saved = locs.find(
@@ -23448,6 +23508,16 @@
       if (saved && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
         void window.__DK_contratoLocacaoSincronizarPasta(nc, saved.statusLocacao, { fim: fimBr, silent: true });
       }
+      void portalNuvemGarantirNaNuvem({
+        verifyKind: "locacao",
+        verifyValue: nc,
+        msgEl: msg,
+        textoEnviar: `A enviar o protocolo ${nc} para a nuvem. Gerar contrato só abre quando a nuvem confirmar data, cliente e placa.`,
+        textoOk: `Protocolo ${nc} confirmado na nuvem (data, cliente e placa). Pode gerar o contrato.`,
+      }).then((ok) => {
+        if (ok) portalMarcarLocacaoConfirmadaNaNuvem(nc);
+        refreshOperacaoLocacaoVisualizarContratoBtn();
+      });
     };
 
     openPortalLocacaoConfirmModal(

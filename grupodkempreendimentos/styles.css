@@ -2765,6 +2765,11 @@ body.portal-body--admin-ceo {
   margin-top: 0.35rem;
 }
 
+#operacaoLocacaoVisualizarContratoBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .operacao-veiculo-resumo-frota {
   margin-top: 1.25rem;
   padding-top: 1rem;
