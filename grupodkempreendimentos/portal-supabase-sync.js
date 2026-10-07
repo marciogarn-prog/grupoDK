@@ -2771,7 +2771,11 @@
     let lastSupabase = { ok: false, reason: "" };
     let lastRedisOk = false;
     let confirmed;
+    let revisaoTentativas = 0;
     for (let i = 0; i < urls.length; i += 1) {
+      let repetirRevisao = true;
+      while (repetirRevisao) {
+        repetirRevisao = false;
       try {
         const started = Date.now();
         dkLoopTrace("snapshot POST start", {
@@ -2813,6 +2817,18 @@
           cloudPushDirty = true;
         }
         if (res.status === 409 && data?.reason === "revisao_conflito") {
+          const rev = String(data.revision || data.updated_at || "").trim();
+          if (rev && revisaoTentativas < 2) {
+            revisaoTentativas += 1;
+            cloudBaseRevision = rev;
+            try {
+              window.__DK_CLOUD_REVISION = rev;
+            } catch {
+              /* ignore */
+            }
+            repetirRevisao = true;
+            continue;
+          }
           lastErr = data.message || "revisao_conflito";
           cloudPushDirty = true;
           break;
@@ -2849,6 +2865,7 @@
       } catch (e) {
         lastErr = e;
         if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot POST", e);
+      }
       }
     }
     return { ok: anyOk, success: anyOk, error: lastErr, supabase: lastSupabase, redisOk: lastRedisOk, confirmed };

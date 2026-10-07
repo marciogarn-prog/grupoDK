@@ -19133,7 +19133,19 @@
             : undefined,
       });
       if (!portalNuvemPushResultOk(push)) {
-        const falha = "Não foi possível salvar no servidor. Nada foi confirmado. Tente de novo.";
+        const detalheBruto =
+          push && typeof push.error === "string"
+            ? push.error
+            : push && push.error && push.error.message
+              ? String(push.error.message)
+              : "";
+        const detalhe = String(detalheBruto || "").trim();
+        const falha =
+          detalhe &&
+          detalhe.length < 280 &&
+          !/revisao_conflito|supabase_falhou|unauthorized|aborted|failed to fetch|networkerror/i.test(detalhe)
+            ? detalhe
+            : "Não foi possível salvar no servidor. Nada foi confirmado. Tente de novo.";
         setMsg(falha);
         portalNuvemSyncLockShow(falha, {
           retry: true,
@@ -19145,18 +19157,16 @@
       }
       if (opts?.verifyKind && opts?.verifyValue && push?.confirmed !== true) {
         let naNuvem = false;
-        if (push?.confirmed !== false) {
-          const prazo = Date.now() + 8000;
-          portalNuvemSyncLockShow("A confirmar o cadastro na nuvem…");
-          while (Date.now() < prazo) {
-            try {
-              naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
-            } catch {
-              naNuvem = false;
-            }
-            if (naNuvem) break;
-            await new Promise((res) => setTimeout(res, 700));
+        const prazo = Date.now() + 8000;
+        portalNuvemSyncLockShow("A confirmar o cadastro na nuvem…");
+        while (Date.now() < prazo) {
+          try {
+            naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
+          } catch {
+            naNuvem = false;
           }
+          if (naNuvem) break;
+          await new Promise((res) => setTimeout(res, 700));
         }
         if (!naNuvem) {
           const falha =
