@@ -393,6 +393,21 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        (k === "dk_manutencoes_cadastro" || k === "dk_manutencoes_rapidas_v1") &&
+        r &&
+        typeof r === "object"
+      ) {
+        const placaManut = placaNormKey(r);
+        const ativaManut = !String(r.dataRealSaida || "").trim();
+        if (
+          placaManut &&
+          !OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaManut) &&
+          (ativaManut || r.origemPortalChecklist === true)
+        ) {
+          return true;
+        }
+      }
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         isLoc &&
@@ -1399,9 +1414,7 @@ async function handler(req, res) {
         acessos = f && String(f.role || "").trim() === "owner"
           ? ownerWriteAccess()
           : normalizeOperacaoAccess(f?.acessos, f?.role || "operacao");
-        if (body.operador === true) {
-          acessos = { ...acessos, manutencao: true, lancamentoManutencao: true };
-        }
+        acessos = { ...acessos, manutencao: true, lancamentoManutencao: true };
       }
       incoming = restoreCredentialFields(existingPayload, incoming);
       incoming = filterIncomingByModules(existingPayload, incoming, acessos, {

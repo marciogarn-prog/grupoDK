@@ -3069,7 +3069,7 @@
     }
     if (!supaOk && redisOk) {
       return {
-        text: "Dados deste computador guardados no Redis oficial. No outro computador clique em Carregar da nuvem.",
+        text: "Enviado para a nuvem. No outro computador clique em Carregar da nuvem.",
         tone: "ok",
       };
     }
@@ -5186,7 +5186,7 @@
     if (!supaOk) supaErr = String(red.error || (red.supabase && red.supabase.reason) || "supabase_falhou");
     if (supaOk && !redisOk) redisErr = "cache_indisponivel";
 
-    updateSupabaseStatusBanner(supaOk, supaErr);
+    updateSupabaseStatusBanner(supaOk || redisOk, redisOk ? "" : supaErr);
 
     if (!supaOk && !redisOk) {
       const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
@@ -5223,7 +5223,7 @@
       return r;
     }
     if (r.redisOk && !r.supaOk) {
-      setMsg("Dados guardados no Redis oficial. No outro computador clique em Carregar da nuvem.", "muted");
+      setMsg("Enviado para a nuvem. No outro computador clique em Carregar da nuvem.", "ok");
       return r;
     }
     return { ...r, ok: false, success: false };
@@ -5613,15 +5613,10 @@
     if (recusarOpcaoNuvemSeNaoAdmin()) return;
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    setMsg("A guardar na nuvem (Redis + cópia Supabase)…", "muted");
+    setMsg("A enviar para a nuvem…", "muted");
     const r = await runTrackedCloudPush(() => upsertSnapshotRow(true));
     if (!r || !r.ok) return;
-    if (r.supaOk && r.redisOk) {
-    setMsg(
-        "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
-      "ok"
-    );
-    }
+    setMsg("Enviado para a nuvem. No outro computador clique em Carregar da nuvem.", "ok");
   }
 
   function readBackupSendSecret() {

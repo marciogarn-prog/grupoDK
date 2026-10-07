@@ -301,6 +301,21 @@
     }
     if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
     if (record && typeof record === "object" && record.origemPortal === true) return true;
+    if (
+      (String(key) === "dk_manutencoes_cadastro" || String(key) === "dk_manutencoes_rapidas_v1") &&
+      record &&
+      typeof record === "object"
+    ) {
+      const placaManut = normalizePlateLocal(record.placa);
+      const ativaManut = !String(record.dataRealSaida || "").trim();
+      if (
+        placaManut &&
+        !OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaManut) &&
+        (ativaManut || record.origemPortalChecklist === true)
+      ) {
+        return true;
+      }
+    }
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     if (
       cadastroKeyFamily(key) === "locacao" &&
