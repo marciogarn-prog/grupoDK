@@ -2335,7 +2335,8 @@
           noteCloudRateLimit(res, data);
           return null;
         }
-        if (!res.ok || data?.success !== true || data?.source !== "supabase") continue;
+        const fonte = data?.source === "redis" || data?.source === "supabase" ? data.source : "";
+        if (!res.ok || data?.success !== true || !fonte) continue;
         const rev = String(data.revision || data.updated_at || "").trim();
         if (rev) {
           cloudBaseRevision = rev;
@@ -2350,7 +2351,7 @@
           payload: data.payload,
           updated_at: data.updated_at || null,
           revision: rev || null,
-          source: "supabase",
+          source: fonte,
         };
       } catch (e) {
         if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot GET", e);
@@ -2949,12 +2950,12 @@
 
   async function fetchCloudSnapshotPayloadClienteApp() {
     const row = await fetchRedundantSnapshotPayload();
-    if (!row?.payload || row.source !== "supabase") return null;
+    if (!row?.payload || (row.source !== "supabase" && row.source !== "redis")) return null;
     const data = {
       payload: row.payload,
       updated_at: row.updated_at || null,
       revision: row.revision || row.updated_at || null,
-      source: "supabase",
+      source: row.source,
     };
     clienteSnapshotCache = { at: Date.now(), data };
     return data;
@@ -2965,7 +2966,7 @@
       return fetchCloudSnapshotPayloadClienteApp();
     }
     const row = await fetchRedundantSnapshotPayload(opts);
-    if (!row?.payload || row.source !== "supabase") return null;
+    if (!row?.payload || (row.source !== "supabase" && row.source !== "redis")) return null;
     if (row.revision || row.updated_at) {
       cloudBaseRevision = String(row.revision || row.updated_at);
       try {
@@ -2978,7 +2979,7 @@
       payload: row.payload,
       updated_at: row.updated_at || null,
       revision: row.revision || row.updated_at || null,
-      source: "supabase",
+      source: row.source,
     };
   }
 

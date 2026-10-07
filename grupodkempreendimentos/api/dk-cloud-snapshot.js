@@ -432,6 +432,29 @@ function redisKeyForChannel() {
   return REDIS_KEYS.default;
 }
 
+function lerLinhaSnapshotRedis(raw) {
+  if (!raw) return null;
+  let row = raw;
+  if (typeof raw === "string") {
+    try {
+      row = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!row || typeof row !== "object" || !row.payload || typeof row.payload !== "object") return null;
+  return { payload: row.payload, updated_at: row.updated_at || null };
+}
+
+async function lerSnapshotRedisOficial(redis, key) {
+  try {
+    return lerLinhaSnapshotRedis(await redis.get(key));
+  } catch (err) {
+    console.error("[dk-snapshot] leitura redis", err && err.message ? err.message : err);
+    return null;
+  }
+}
+
 function labelForChannel() {
   return "default";
 }
@@ -1056,10 +1079,44 @@ async function handler(req, res) {
     if (req.method === "GET") {
       const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
       const oficial = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
         : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
       if (!oficial || oficial.reason === "supabase_timeout" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
-        console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason, oficial && oficial.detail);
+        console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
+        const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+        if (cached && cached.payload) {
+          const revisaoRedis = cached.updated_at || null;
+          if (metaOnly) {
+            return res.status(200).json({
+              ok: true,
+              success: true,
+              meta: true,
+              label: LABEL,
+              revision: revisaoRedis,
+              updated_at: revisaoRedis,
+              source: "redis",
+              supabasePendente: true,
+            });
+          }
+          const safeRedis =
+            channel === "default"
+              ? sanitizePayloadForOficial(
+                  cached.payload,
+                  oficialTodayYmd(),
+                  cadastroKeepSetsFromPayload(cached.payload)
+                )
+              : cached.payload;
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            label: LABEL,
+            payload: stripSecretsFromPayload(safeRedis),
+            revision: revisaoRedis,
+            updated_at: revisaoRedis,
+            source: "redis",
+            supabasePendente: true,
+          });
+        }
         return res.status(503).json({
           ok: false,
           success: false,

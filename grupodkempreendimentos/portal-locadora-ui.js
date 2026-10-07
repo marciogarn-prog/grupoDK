@@ -4264,16 +4264,40 @@
     return cat === alvo;
   }
 
-  /** Categoria efetiva: entrada nova = Triagem; legado sem categoria = Triagem. */
+  /** Categoria gravada no cadastro. Sem categoria = Triagem. */
   function portalManutCategoriaEfetiva(m) {
     const cat = portalNormManutCategoria(m?.categoriaManutencao || m?.categoria || "");
-    if (!cat) return "triagem";
-    /* Oficina própria só se já foi encaminhada após Triagem (ou move explícito pós-feature). */
-    if (cat === "oficina-propria" && !m?.encaminhadoDeTriagem) return "triagem";
-    return cat;
+    return cat || "triagem";
   }
 
-  /** Persiste placas que ainda estão na Oficina própria pelo fluxo antigo → Triagem. */
+  /** Último setor 6–10 registado para a placa no relatório de movimentação. */
+  function portalUltimoSetorManutencaoDaPlaca(placaKey) {
+    const nk = portalNkPlate(placaKey);
+    if (!nk) return "";
+    let list = [];
+    try {
+      const raw = localStorage.getItem("dk_portal_setor_movimentacoes_v1");
+      const parsed = raw ? JSON.parse(raw) : [];
+      list = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return "";
+    }
+    let best = null;
+    for (const row of list) {
+      if (portalNkPlate(row?.placa) !== nk) continue;
+      const para = portalNormManutCategoria(row?.para);
+      if (!para) continue;
+      const t = Number(row?.createdAt || 0);
+      if (!best || t >= best.t) best = { t, para };
+    }
+    return best ? best.para : "";
+  }
+
+  /**
+   * Entrada sem categoria fica em Triagem.
+   * Não rebaixa Oficina própria. Se a movimentação diz 7, 8, 9 ou 10
+   * e o registo foi parar em Triagem, devolve a placa ao setor registado.
+   */
   function portalMigrateManutencaoEntradaParaTriagem() {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return false;
@@ -4284,14 +4308,32 @@
       const m = manutencoes[i];
       if (String(m?.dataRealSaida || "").trim()) continue;
       const cat = portalNormManutCategoria(m?.categoriaManutencao || m?.categoria || "");
-      if (!cat || (cat === "oficina-propria" && !m?.encaminhadoDeTriagem)) {
+      if (!cat) {
         manutencoes[i] = { ...m, categoriaManutencao: "triagem" };
         changed = true;
+        continue;
       }
+      if (cat !== "triagem") continue;
+      const legado = portalNormManutCategoria(m?.categoria);
+      const handoff = portalNormManutCategoria(
+        m?.checklistHandoffSnapshot?.to || m?.checklistHandoffSnapshot?.destino
+      );
+      const ultimo = portalUltimoSetorManutencaoDaPlaca(m.placa);
+      const destino =
+        (ultimo && ultimo !== "triagem" && ultimo) ||
+        (handoff && handoff !== "triagem" && handoff) ||
+        (legado && legado !== "triagem" && legado) ||
+        "";
+      if (!destino) continue;
+      manutencoes[i] = {
+        ...m,
+        categoriaManutencao: destino,
+        encaminhadoDeTriagem: true,
+      };
+      changed = true;
     }
     if (!changed) return false;
-    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
-    portalSyncFluxoVeiculoNuvem({ acao: "migrar_triagem", motivo: "legado→triagem" });
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes, { bypassImmutabilidadeCadastro: true, allowShrink: true });
     return true;
   }
 
@@ -8645,6 +8687,16 @@
     setTimeout(run, 1500);
     setTimeout(run, 8000);
     window.addEventListener("dk-cloud-snapshot-applied", run);
+    window.addEventListener("dk-cloud-snapshot-applied", () => {
+      try {
+        const painel = document.getElementById("manutencaoInlineEmManutencao");
+        if (!painel || painel.classList.contains("hidden")) return;
+        portalMigrateManutencaoEntradaParaTriagem();
+        portalRefreshManutencaoPlacasGrid(true);
+      } catch (e) {
+        console.warn("[DK portal] manutencao apos nuvem", e);
+      }
+    });
   }
 
   /** Grelha de placas (caixinhas) nas telas 6–10 de Em manutenção. */

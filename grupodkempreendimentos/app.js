@@ -3258,7 +3258,26 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
           byPlacaAtiva.set(pl, { ...r });
           return;
         }
-        const newer = scoreManut(r) >= scoreManut(ex) ? { ...ex, ...r } : { ...r, ...ex };
+        const normCat = (x) =>
+          String(x?.categoriaManutencao || x?.categoria || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "-");
+        const etapaConcreta = (c) =>
+          c === "oficina-propria" ||
+          c === "oficina-terceiros" ||
+          c === "enviado-seguro" ||
+          c === "sinistrado-roubo";
+        const catR = normCat(r);
+        const catEx = normCat(ex);
+        const newer =
+          etapaConcreta(catR) && (catEx === "triagem" || !catEx)
+            ? { ...ex, ...r }
+            : etapaConcreta(catEx) && (catR === "triagem" || !catR)
+              ? { ...r, ...ex }
+              : scoreManut(r) >= scoreManut(ex)
+                ? { ...ex, ...r }
+                : { ...r, ...ex };
         const snapEx = ex.checklistRascunhoEm || 0;
         const snapR = r.checklistRascunhoEm || 0;
         if (snapR > snapEx && r.checklistRascunhoSnapshot) {
