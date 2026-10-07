@@ -211,11 +211,6 @@
     if (!portalTemSessaoEquipaAtiva()) return;
     portalIdleLogoutOnce = false;
     portalIdleWatchStart();
-    if (!portalPresencaEquipaTimer) {
-      portalPresencaEquipaTimer = setInterval(() => {
-        void portalPresencaEquipaTick();
-      }, 45000);
-    }
     void portalPresencaEquipaTick();
   }
 
@@ -469,6 +464,16 @@
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     let timer = 0;
     try {
+      if (typeof window.__DK_fetchCloudSnapshotPayload === "function") {
+        const row = await window.__DK_fetchCloudSnapshotPayload();
+        const locs = row?.payload?.dk_locacoes_cadastro;
+        if (!Array.isArray(locs) || !locs.length) return portalAdminPreviewTemLocacoesParaCores();
+        const local = loadCadastro(CAD_LOCACOES_KEY);
+        if (!local.length || locs.length > local.length) {
+          saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+        }
+        return portalAdminPreviewTemLocacoesParaCores();
+      }
       if (ctrl) timer = window.setTimeout(() => ctrl.abort(), ms);
       const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
       const headers =
@@ -2599,15 +2604,17 @@
       openLocadoraEmpresa();
       return;
     }
-    finalizarLoginEquipaPortal(func);
-    hideAllPanels();
-    panelFinanceiro?.classList.remove("hidden");
-    showView("financeiro");
-    setPortalHash("locadora/financeiro");
-    if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
-    portalPersistirAreaAtiva("financeiro");
-    portalAtualizarBannerAdmin();
-    portalAndroidSyncNavegacao();
+    portalAbrirSeAreaLivre("financeiro", () => {
+      finalizarLoginEquipaPortal(func);
+      hideAllPanels();
+      panelFinanceiro?.classList.remove("hidden");
+      showView("financeiro");
+      setPortalHash("locadora/financeiro");
+      if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
+      portalPersistirAreaAtiva("financeiro");
+      portalAtualizarBannerAdmin();
+      portalAndroidSyncNavegacao();
+    });
   }
 
   function openLocadoraFinanceiroDespesasLocadora() {
@@ -2617,17 +2624,19 @@
       openLocadoraEmpresa();
       return;
     }
-    finalizarLoginEquipaPortal(func);
-    hideAllPanels();
-    panelFinanceiroCeo?.classList.remove("hidden");
-    showView("financeiroCeo");
-    setPortalHash("locadora/financeiro/despesas");
-    if (typeof window.__DK_financeiroCeoAbrirAtalhoLocadora === "function") {
-      window.__DK_financeiroCeoAbrirAtalhoLocadora();
-    }
-    portalPersistirAreaAtiva("financeiro-despesas");
-    portalAtualizarBannerAdmin();
-    portalAndroidSyncNavegacao();
+    portalAbrirSeAreaLivre("financeiro-ceo", () => {
+      finalizarLoginEquipaPortal(func);
+      hideAllPanels();
+      panelFinanceiroCeo?.classList.remove("hidden");
+      showView("financeiroCeo");
+      setPortalHash("locadora/financeiro/despesas");
+      if (typeof window.__DK_financeiroCeoAbrirAtalhoLocadora === "function") {
+        window.__DK_financeiroCeoAbrirAtalhoLocadora();
+      }
+      portalPersistirAreaAtiva("financeiro-despesas");
+      portalAtualizarBannerAdmin();
+      portalAndroidSyncNavegacao();
+    });
   }
 
   function openLocadoraFinanceiroCeo() {
@@ -2644,15 +2653,17 @@
       openLocadoraEmpresa();
       return;
     }
-    finalizarLoginEquipaPortal(func);
-    hideAllPanels();
-    panelFinanceiroCeo?.classList.remove("hidden");
-    showView("financeiroCeo");
-    setPortalHash("locadora/financeiro-ceo");
-    if (typeof window.__DK_financeiroCeoOnShow === "function") window.__DK_financeiroCeoOnShow();
-    portalPersistirAreaAtiva("financeiro-ceo");
-    portalAtualizarBannerAdmin();
-    portalAndroidSyncNavegacao();
+    portalAbrirSeAreaLivre("financeiro-ceo", () => {
+      finalizarLoginEquipaPortal(func);
+      hideAllPanels();
+      panelFinanceiroCeo?.classList.remove("hidden");
+      showView("financeiroCeo");
+      setPortalHash("locadora/financeiro-ceo");
+      if (typeof window.__DK_financeiroCeoOnShow === "function") window.__DK_financeiroCeoOnShow();
+      portalPersistirAreaAtiva("financeiro-ceo");
+      portalAtualizarBannerAdmin();
+      portalAndroidSyncNavegacao();
+    });
   }
 
   function hideAllPanels() {
@@ -2975,6 +2986,7 @@
 
   /** Da Operação/Manutenção/Localização/Documentos/Financeiro → Área da equipa. */
   function portalVoltarEquipaLocadora() {
+    portalSairAreaExclusiva();
     hideInlineForms();
     hideManutencaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
@@ -3005,6 +3017,7 @@
 
   /** Área da equipa (logado) → hub (admin) ou ecrã de login (colaborador). */
   function portalVoltarLoginDaEquipa() {
+    portalSairAreaExclusiva();
     if (isPortalAdministradorLogado()) {
       portalVoltarLocadoraHub();
       return;
@@ -3036,6 +3049,129 @@
     clearPortalUnitDadosAtualizados();
     portalAtualizarBannerAdmin();
   }
+
+  const PORTAL_AREA_LOCK_NOME = {
+    operacao: "Operação",
+    manutencao: "Manutenção",
+    estoque: "Controle de Estoque",
+    localizacao: "Localização de clientes",
+    documentos: "Documentos",
+    financeiro: "Financeiro",
+    "financeiro-ceo": "Financeiro CEO",
+  };
+  let portalAreaLockIdAtual = "";
+  let portalAreaLockMarca = 0;
+  let portalAreaLockTimer = 0;
+
+  function portalAreaLockId(area) {
+    const id = area === "financeiro-despesas" ? "financeiro-ceo" : String(area || "");
+    return Object.prototype.hasOwnProperty.call(PORTAL_AREA_LOCK_NOME, id) ? id : "";
+  }
+
+  function portalNomeSessaoArea() {
+    try {
+      const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "{}");
+      return String(s.nome || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function portalPararRenovacaoArea() {
+    if (portalAreaLockTimer) {
+      clearInterval(portalAreaLockTimer);
+      portalAreaLockTimer = 0;
+    }
+  }
+
+  async function portalAreaTrabalhoPedido(area, acao, marca) {
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    const res = await fetch("/api/dk-area-trabalho", {
+      method: "POST",
+      cache: "no-store",
+      keepalive: acao === "sair",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        area,
+        acao,
+        nome: portalNomeSessaoArea(),
+        marca: marca || portalAreaLockMarca || Date.now(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  }
+
+  function portalAvisarAreaOcupada(area, nome) {
+    const titulo = PORTAL_AREA_LOCK_NOME[area] || "Esta área";
+    const quem = String(nome || "").trim() || "outra pessoa";
+    window.alert(
+      `${titulo} já está aberta no computador de ${quem}. Duas pessoas não podem usar a mesma área ao mesmo tempo.`
+    );
+  }
+
+  function portalIniciarRenovacaoArea(area, marca) {
+    portalPararRenovacaoArea();
+    portalAreaLockIdAtual = area;
+    portalAreaLockMarca = Number(marca) || Date.now();
+    portalAreaLockTimer = window.setInterval(() => {
+      if (!portalAreaLockIdAtual) return;
+      void portalAreaTrabalhoPedido(portalAreaLockIdAtual, "renovar")
+        .then(({ res, data }) => {
+          if (res.status === 409 || data?.ocupada) {
+            const perdida = portalAreaLockIdAtual;
+            portalPararRenovacaoArea();
+            portalAreaLockIdAtual = "";
+            portalVoltarEquipaLocadora();
+            portalAvisarAreaOcupada(perdida, data?.nome);
+          }
+        })
+        .catch(() => {});
+    }, 40000);
+  }
+
+  async function portalEntrarAreaExclusiva(area) {
+    const id = portalAreaLockId(area);
+    if (!id) return true;
+    if (portalAreaLockIdAtual === id) return true;
+    try {
+      const marca = Date.now();
+      const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
+      if (res.status === 409 || data?.ocupada) {
+        portalAvisarAreaOcupada(id, data?.nome);
+        return false;
+      }
+      if (!res.ok) {
+        window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
+        return false;
+      }
+      portalIniciarRenovacaoArea(id, data?.marca || marca);
+      return true;
+    } catch {
+      window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
+      return false;
+    }
+  }
+
+  function portalSairAreaExclusiva() {
+    const id = portalAreaLockIdAtual;
+    const marca = portalAreaLockMarca;
+    portalPararRenovacaoArea();
+    portalAreaLockIdAtual = "";
+    portalAreaLockMarca = 0;
+    if (!id) return;
+    void portalAreaTrabalhoPedido(id, "sair", marca).catch(() => {});
+  }
+
+  function portalAbrirSeAreaLivre(area, abrir) {
+    void portalEntrarAreaExclusiva(area).then((livre) => {
+      if (livre) abrir();
+    });
+  }
+
+  window.addEventListener("pagehide", () => {
+    portalSairAreaExclusiva();
+  });
 
   function portalPersistirAreaAtiva(area) {
     try {
@@ -3077,8 +3213,31 @@
     }
   }
 
-  /** Após recarga da página (ex.: câmera nativa no telemóvel), reabre património/operação sem novo login. */
+  let portalRestauracaoAreaEmCurso = null;
+
   function portalRestaurarAreaLogadaAposRecarga() {
+    if (portalRestauracaoAreaEmCurso) return;
+    const area = sessionStorage.getItem(PORTAL_AREA_ATIVA_KEY);
+    const id = area && area !== "equipa" ? portalAreaLockId(area) : "";
+    if (!id) {
+      portalAplicarAreaRestaurada();
+      return;
+    }
+    portalRestauracaoAreaEmCurso = portalEntrarAreaExclusiva(id)
+      .then((livre) => {
+        if (!livre) {
+          portalLimparAreaAtiva();
+          return;
+        }
+        portalAplicarAreaRestaurada();
+      })
+      .finally(() => {
+        portalRestauracaoAreaEmCurso = null;
+      });
+  }
+
+  /** Após recarga da página (ex.: câmera nativa no telemóvel), reabre património/operação sem novo login. */
+  function portalAplicarAreaRestaurada() {
     const area = sessionStorage.getItem(PORTAL_AREA_ATIVA_KEY);
     if (!area || area === "equipa") return;
     const h = (window.location.hash || "").toLowerCase();
@@ -3870,17 +4029,19 @@
   });
 
   btnOperacao?.addEventListener("click", () => {
-    portalOperacaoOnScreenChange();
-    portalScheduleBackgroundCloudPullOnce();
-    hideOperacaoInlineFormsCore();
-    setOperacaoFormPlaceholderVisible(true);
-    syncOperacaoCadastroButtons(null);
-    hideAllPanels();
-    panelOperacao?.classList.remove("hidden");
-    refreshPortalOperacaoNavPorAcessos();
-    refreshOperacaoClienteCodigoEditavel();
-    portalOperacaoAutoAbrirSeUnicoPermitido();
-    portalPersistirAreaAtiva("operacao");
+    portalAbrirSeAreaLivre("operacao", () => {
+      portalOperacaoOnScreenChange();
+      portalScheduleBackgroundCloudPullOnce();
+      hideOperacaoInlineFormsCore();
+      setOperacaoFormPlaceholderVisible(true);
+      syncOperacaoCadastroButtons(null);
+      hideAllPanels();
+      panelOperacao?.classList.remove("hidden");
+      refreshPortalOperacaoNavPorAcessos();
+      refreshOperacaoClienteCodigoEditavel();
+      portalOperacaoAutoAbrirSeUnicoPermitido();
+      portalPersistirAreaAtiva("operacao");
+    });
   });
 
   function hideManutencaoInlineFormsCore() {
@@ -4939,14 +5100,16 @@
   }
 
   btnManutencao?.addEventListener("click", () => {
-    portalRefreshOperacaoLocal();
-    hideManutencaoInlineFormsCore();
-    setManutencaoFormPlaceholderVisible(true);
-    syncManutencaoSidebarButtons(null);
-    hideAllPanels();
-    panelManutencao?.classList.remove("hidden");
-    refreshPortalOperacaoNavPorAcessos();
-    portalPersistirAreaAtiva("manutencao");
+    portalAbrirSeAreaLivre("manutencao", () => {
+      portalRefreshOperacaoLocal();
+      hideManutencaoInlineFormsCore();
+      setManutencaoFormPlaceholderVisible(true);
+      syncManutencaoSidebarButtons(null);
+      hideAllPanels();
+      panelManutencao?.classList.remove("hidden");
+      refreshPortalOperacaoNavPorAcessos();
+      portalPersistirAreaAtiva("manutencao");
+    });
   });
 
   btnVoltarManutencao?.addEventListener("click", () => {
@@ -4955,10 +5118,12 @@
 
   btnDocumentos?.addEventListener("click", () => {
     if (!isPortalDocumentosAcesso()) return;
-    hideAllPanels();
-    if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
-    panelDocumentos?.classList.remove("hidden");
-    portalPersistirAreaAtiva("documentos");
+    portalAbrirSeAreaLivre("documentos", () => {
+      hideAllPanels();
+      if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
+      panelDocumentos?.classList.remove("hidden");
+      portalPersistirAreaAtiva("documentos");
+    });
   });
 
   btnFinanceiro?.addEventListener("click", () => {
@@ -5013,11 +5178,13 @@
 
   function abrirPortalControleEstoque() {
     if (!portalPodeAcessarEstoque()) return;
-    hideAllPanels();
-    panelEstoque?.classList.remove("hidden");
-    if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
-    showPortalEstoqueSub("cadastro");
-    portalPersistirAreaAtiva("estoque");
+    portalAbrirSeAreaLivre("estoque", () => {
+      hideAllPanels();
+      panelEstoque?.classList.remove("hidden");
+      if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
+      showPortalEstoqueSub("cadastro");
+      portalPersistirAreaAtiva("estoque");
+    });
   }
 
   btnEstoque?.addEventListener("click", () => {
@@ -5060,10 +5227,12 @@
   });
 
   btnLocalizacao?.addEventListener("click", () => {
-    hideAllPanels();
-    panelLocalizacao?.classList.remove("hidden");
-    if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
-    portalPersistirAreaAtiva("localizacao");
+    portalAbrirSeAreaLivre("localizacao", () => {
+      hideAllPanels();
+      panelLocalizacao?.classList.remove("hidden");
+      if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
+      portalPersistirAreaAtiva("localizacao");
+    });
   });
 
   btnVoltarDocumentos?.addEventListener("click", () => {
@@ -11062,6 +11231,7 @@
   });
 
   btnSair?.addEventListener("click", () => {
+    portalSairAreaExclusiva();
     portalColaboradorSenhaPendente = null;
     portalLoginPendentePlataforma = null;
     portalLimparPlataformaUi();
@@ -12002,13 +12172,7 @@
         () => {
           const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
           if (!ok) return;
-          void portalNuvemGarantirNaNuvem({
-            verifyKind: "cliente",
-            verifyValue: digits,
-            msgEl: msg,
-            textoEnviar: "A enviar o cadastro do cliente para a nuvem. Só pode continuar quando a nuvem confirmar.",
-            textoOk: "Cliente na nuvem. Pode continuar o trabalho.",
-          });
+          if (msg) msg.textContent = "Cliente guardado neste computador. Envie com Guardar na nuvem ou Enviar para nuvem.";
         }
       );
     }
@@ -19150,6 +19314,7 @@
     try {
       return await window.__DK_pushCloudSnapshotNow({
         force: true,
+        manual: true,
         confirm: opts?.confirm || undefined,
       });
     } catch (err) {
@@ -19543,11 +19708,7 @@
   }
 
   function portalPushCloudSnapshotAfterPersist() {
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow({ force: true });
-      return;
-    }
-    void portalNuvemGarantirNaNuvem();
+    return;
   }
 
   /**
@@ -22038,9 +22199,6 @@
     saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true, allowShrink: true });
     if (opts?.push !== false) {
       portalPushCloudSnapshotAfterPersist?.();
-      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        void window.__DK_pushCloudSnapshotNow({ force: true });
-      }
     }
     return locs.length - next.length;
   }
@@ -22183,9 +22341,6 @@
       });
     }
     portalPushCloudSnapshotAfterPersist?.();
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow({ force: true });
-    }
     pinOperacaoLocacaoProtocoloCarregado(para);
     loadOperacaoLocacaoByProtocoloNumero(para);
     const novoEl = document.getElementById("operacaoLocacaoProtocoloNovo");
@@ -23153,18 +23308,9 @@
       }
       if (msg) {
         msg.textContent = existenteVeiculo
-          ? "Veículo atualizado neste PC. A confirmar na nuvem…"
-          : "Veículo cadastrado neste PC. A confirmar na nuvem…";
+          ? "Veículo atualizado neste computador. Envie com Guardar na nuvem."
+          : "Veículo cadastrado neste computador. Envie com Guardar na nuvem.";
       }
-      void portalNuvemGarantirNaNuvem({
-        verifyKind: "veiculo",
-        verifyValue: plate,
-        msgEl: msg,
-        textoEnviar: "A enviar o veículo para a nuvem. Só pode trabalhar quando a nuvem confirmar.",
-        textoOk: existenteVeiculo
-          ? "Veículo na nuvem. Pode continuar o trabalho."
-          : "Veículo cadastrado e na nuvem. Pode continuar o trabalho.",
-      });
       portalApplyAmbienteVisualForm("Veiculo", novo);
       refreshOperacaoVeiculoApagarBtn(plate);
       setOperacaoVeiculoCadastradoPorDisplay(novo);
@@ -23648,8 +23794,8 @@
       }
       portalLocacaoFeedback(
         prev
-          ? "Locação atualizada neste PC. A confirmar na nuvem…"
-          : "Locação cadastrada neste PC. A confirmar na nuvem…"
+          ? "Locação atualizada neste computador. Envie com Guardar na nuvem ou Enviar para nuvem."
+          : "Locação cadastrada neste computador. Envie com Guardar na nuvem ou Enviar para nuvem."
       );
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
@@ -23664,16 +23810,7 @@
       if (saved && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
         void window.__DK_contratoLocacaoSincronizarPasta(nc, saved.statusLocacao, { fim: fimBr, silent: true });
       }
-      void portalNuvemGarantirNaNuvem({
-        verifyKind: "locacao",
-        verifyValue: nc,
-        msgEl: msg,
-        textoEnviar: `A enviar o protocolo ${nc} para a nuvem. Gerar contrato só abre quando a nuvem confirmar data, cliente e placa.`,
-        textoOk: `Protocolo ${nc} confirmado na nuvem (data, cliente e placa). Pode gerar o contrato.`,
-      }).then((ok) => {
-        if (ok) portalMarcarLocacaoConfirmadaNaNuvem(nc);
-        refreshOperacaoLocacaoVisualizarContratoBtn();
-      });
+      refreshOperacaoLocacaoVisualizarContratoBtn();
     };
 
     openPortalLocacaoConfirmModal(
@@ -28161,8 +28298,8 @@
         verifyKind: "locacao",
         verifyValue: nc,
         msgEl: msg,
-        textoEnviar: `Enviando o protocolo ${nc} para a nuvem. Aguarde a confirmação.`,
-        textoOk: `Protocolo ${nc} confirmado na nuvem. O operador já pode continuar.`,
+        textoEnviar: `A enviar o protocolo ${nc} para a nuvem. Gerar contrato só abre quando a nuvem confirmar data, cliente e placa.`,
+        textoOk: `Protocolo ${nc} confirmado na nuvem (data, cliente e placa). Pode gerar o contrato.`,
       });
     } finally {
       btn.disabled = false;
@@ -30964,7 +31101,7 @@
       // A antiga rota cadastro-locacoes permanece somente como leitura compatível.
       if (apiTasks.length) await Promise.all(apiTasks);
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        await window.__DK_pushCloudSnapshotNow();
+        await window.__DK_pushCloudSnapshotNow({ manual: true });
       }
     }
 
@@ -30981,26 +31118,11 @@
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list, opts) {
       origSave(key, list, opts);
       if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush || window.__DK_suppressPortalCadastroPush === true) return;
-      if (
-        key === CAD_CLIENTES_KEY ||
-        key === PORTAL_CLIENTES_KEY ||
-        key === CAD_VEICULOS_KEY ||
-        key === PORTAL_VEICULOS_KEY ||
-        key === CAD_LOCACOES_KEY
-      ) {
-        dkPortalScheduleFullCadastroSnapshotPush();
-      }
-      if (typeof window.__DK_pushToCloudAfterSave === "function") {
-        window.__DK_pushToCloudAfterSave();
-      }
+      void key;
     };
     if (origSaveFuncionarios) {
       window.saveFuncionariosAccess = function dkPortalSaveFuncionariosAccessWrapped() {
         origSaveFuncionarios();
-        if (dkPortalCadastroSyncSuppressPush) return;
-        if (typeof window.__DK_pushToCloudAfterSave === "function") {
-          window.__DK_pushToCloudAfterSave();
-        }
       };
     }
 
@@ -31030,7 +31152,6 @@
           if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
           const local = loadCadastro(storageKey);
           if (!j.data.length && Array.isArray(local) && local.length) {
-            dkPortalScheduleFullCadastroSnapshotPush();
             return;
           }
           const merged = mergeFn(local, j.data);
@@ -31039,14 +31160,6 @@
             dkPortalCadastroSyncSuppressPush = true;
             origSave(storageKey, merged);
             dkPortalCadastroSyncSuppressPush = false;
-          }
-          /* Se este PC tem clientes a mais, envia a união — senão o outro PC fica com menos. */
-          const precisaEnviarUniao =
-            storageKey === CAD_CLIENTES_KEY
-              ? dkPortalCountCpfUnicos(merged) > dkPortalCountCpfUnicos(j.data)
-              : Array.isArray(merged) && merged.length > (j.data || []).length;
-          if (!localSame || precisaEnviarUniao) {
-            dkPortalScheduleFullCadastroSnapshotPush();
           }
           return;
         } catch (e) {

@@ -3346,7 +3346,7 @@
         ],
         "portal-supabase-sync.js": [
           "haltCloudSyncIdleOrStale",
-          "SCREEN_PULL_MIN_INTERVAL_MS = 20000"
+          "SCREEN_PULL_MIN_INTERVAL_MS = 60000"
         ],
         "portal-locadora-ui.js": [
           "PORTAL_IDLE_LIMIT_MS",

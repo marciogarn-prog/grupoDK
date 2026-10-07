@@ -405,13 +405,6 @@
     });
     window.addEventListener("dk-comunicacao-operacao-changed", () => refreshInboxes({ localOnly: true }));
     window.addEventListener("dk-comprovantes-synced", () => refreshInboxes({ localOnly: true }));
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") refreshInboxes({ forcePull: true });
-    });
-    window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      refreshInboxes({ forcePull: true });
-    }, 90_000);
   }
 
   window.__DK_portalComunicacaoRefresh = refreshInboxes;

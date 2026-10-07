@@ -105,6 +105,9 @@
     }
     hideSessionRevokedBanner();
     dkLoopTrace("cloud resume after remote login", { cloudSyncHalted, cloudHaltKind });
+    pullCloudSnapshotSilentMerge({ force: true }).catch((e) => {
+      console.warn("[DK cloud] pull no login", e);
+    });
   }
 
   function haltCloudSyncUnauthorized() {
@@ -482,11 +485,11 @@
     return keys.reduce((n, k) => n + (Array.isArray(p[k]) ? p[k].length : 0), 0);
   }
 
-  const CLOUD_PUSH_DEBOUNCE_MS = 2500;
+  const CLOUD_PUSH_DEBOUNCE_MS = 60000;
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
-  /** Sem intervalo mínimo gerava loop na nuvem; 20s corta o loop e mantém o pull ao trocar de tela. */
-  const SCREEN_PULL_MIN_INTERVAL_MS = 20000;
-  const SNAPSHOT_GET_CACHE_MS = 30000;
+  /** Sem intervalo mínimo gerava loop na nuvem; o automático espera 60s. */
+  const SCREEN_PULL_MIN_INTERVAL_MS = 60000;
+  const SNAPSHOT_GET_CACHE_MS = 60000;
 
   let backgroundPullLastAt = 0;
   let backgroundPullInFlight = null;
@@ -495,6 +498,10 @@
   let snapshotGetInFlight = null;
   let snapshotGetCache = { at: 0, data: null };
   let snapshotGetGen = 0;
+  let lastGoodSnapshot = null;
+  let lastSnapshotEtag = "";
+  let snapshotFailStreak = 0;
+  let snapshotAutoBlockedUntil = 0;
   let lastPushedFingerprint = "";
   let cloudBaseRevision = "";
   let cloudPushDirty = false;
@@ -2274,10 +2281,65 @@
   }
 
   function noteCloudRateLimit(res, data) {
+    const reason = String((data && data.reason) || "");
     const ra = Number(res && res.headers && res.headers.get && res.headers.get("Retry-After")) ||
       Number(data && data.retryAfter) ||
       8;
-    cloudBackoffUntil = Date.now() + Math.min(60000, Math.max(2000, ra * 1000));
+    const orcamento = reason === "cloud_budget" || (res && res.status === 429);
+    const tetoMs = orcamento ? 3600000 : 120000;
+    const pisoMs = orcamento ? 60000 : 10000;
+    const ate = Date.now() + Math.min(tetoMs, Math.max(pisoMs, ra * 1000));
+    cloudBackoffUntil = Math.max(cloudBackoffUntil || 0, ate);
+    snapshotAutoBlockedUntil = Math.max(snapshotAutoBlockedUntil || 0, ate);
+  }
+
+  function esperaBackoffSnapshot(streak) {
+    if (streak <= 1) return 10000;
+    if (streak === 2) return 30000;
+    if (streak === 3) return 60000;
+    return 120000;
+  }
+
+  function registrarSnapshotOk() {
+    snapshotFailStreak = 0;
+    snapshotAutoBlockedUntil = 0;
+  }
+
+  function registrarSnapshotFalha(res, data) {
+    const reason = String((data && data.reason) || "");
+    if (reason === "cloud_budget" || (res && res.status === 429)) {
+      noteCloudRateLimit(res, data);
+      return;
+    }
+    snapshotFailStreak += 1;
+    const ra = Number(res && res.headers && res.headers.get && res.headers.get("Retry-After")) || 0;
+    const wait = Math.max(esperaBackoffSnapshot(snapshotFailStreak), ra > 0 ? ra * 1000 : 0);
+    snapshotAutoBlockedUntil = Date.now() + wait;
+    cloudBackoffUntil = Math.max(cloudBackoffUntil || 0, snapshotAutoBlockedUntil);
+  }
+
+  function snapshotAutomaticoPausado() {
+    if (typeof document !== "undefined" && document.hidden) return true;
+    return Date.now() < snapshotAutoBlockedUntil;
+  }
+
+  function dkCloudGetHeaders() {
+    const headers = dkCloudFetchHeaders();
+    if (lastSnapshotEtag) headers["If-None-Match"] = lastSnapshotEtag;
+    return headers;
+  }
+
+  function guardarEtagResposta(res) {
+    try {
+      const etag = res && res.headers && res.headers.get && res.headers.get("etag");
+      if (etag) lastSnapshotEtag = etag;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function snapshotHttpInstavel(status) {
+    return status === 500 || status === 502 || status === 503 || status === 504;
   }
 
   function fingerprintCloudPayload(payload) {
@@ -2293,16 +2355,26 @@
 
   async function fetchCloudSnapshotRevision() {
     if (cloudSyncIsHalted() || !hasUsableCloudToken()) return "";
+    if (snapshotAutomaticoPausado() && cloudBaseRevision) return cloudBaseRevision;
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       const join = urls[i].includes("?") ? "&" : "?";
       try {
         const res = await fetchWithCloudTimeout(
           `${urls[i]}${join}meta=1&nocache=${Date.now()}`,
-          { method: "GET", cache: "no-store", headers: dkCloudFetchHeaders() },
+          { method: "GET", cache: "no-store", headers: dkCloudGetHeaders() },
           8000
         );
+        guardarEtagResposta(res);
+        if (res.status === 304) {
+          registrarSnapshotOk();
+          return cloudBaseRevision || "";
+        }
         const data = await res.json().catch(() => ({}));
+        if (snapshotHttpInstavel(res.status)) {
+          registrarSnapshotFalha(res, data);
+          return cloudBaseRevision || "";
+        }
         if (!res.ok || data?.success !== true) continue;
         const rev = String(data.revision || data.updated_at || "").trim();
         if (rev) {
@@ -2313,9 +2385,11 @@
             /* ignore */
           }
         }
+        registrarSnapshotOk();
         return rev;
       } catch {
-        /* tenta o próximo endereço */
+        registrarSnapshotFalha(null, null);
+        return cloudBaseRevision || "";
       }
     }
     return "";
@@ -2334,15 +2408,24 @@
           urls[i],
           {
             method: "GET",
-            headers: dkCloudFetchHeaders(),
+            headers: dkCloudGetHeaders(),
           },
           15000
         );
+        guardarEtagResposta(res);
+        if (res.status === 304) {
+          registrarSnapshotOk();
+          return lastGoodSnapshot || snapshotGetCache.data || null;
+        }
         const data = await res.json().catch(() => ({}));
         if (noteCloudAuthFailure(res, data)) return null;
         if (res.status === 429) {
           noteCloudRateLimit(res, data);
-          return null;
+          return lastGoodSnapshot || snapshotGetCache.data || null;
+        }
+        if (snapshotHttpInstavel(res.status)) {
+          registrarSnapshotFalha(res, data);
+          return lastGoodSnapshot || snapshotGetCache.data || null;
         }
         const fonte = data?.source === "redis" || data?.source === "supabase" ? data.source : "";
         if (!res.ok || data?.success !== true || !fonte) continue;
@@ -2356,13 +2439,18 @@
           }
         }
         if (!data.payload || typeof data.payload !== "object") return null;
-        return {
+        registrarSnapshotOk();
+        const row = {
           payload: data.payload,
           updated_at: data.updated_at || null,
           revision: rev || null,
           source: fonte,
         };
+        lastGoodSnapshot = row;
+        return row;
       } catch (e) {
+        registrarSnapshotFalha(null, null);
+        if (lastGoodSnapshot) return lastGoodSnapshot;
         if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot GET", e);
       }
     }
@@ -2375,17 +2463,19 @@
   }
 
   async function fetchRedundantSnapshotPayload(opts) {
-    const fresh = Boolean(opts && opts.fresh);
-    if (!fresh && snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
+    const userAction = Boolean(opts && (opts.userAction || opts.fresh));
+    if (!userAction && snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
       return snapshotGetCache.data;
     }
-    if (!fresh && snapshotGetInFlight) return snapshotGetInFlight;
+    if (!userAction && snapshotAutomaticoPausado() && (snapshotGetCache.data || lastGoodSnapshot)) {
+      return snapshotGetCache.data || lastGoodSnapshot;
+    }
+    if (snapshotGetInFlight) return snapshotGetInFlight;
     const gen = snapshotGetGen;
     const flight = fetchRedundantSnapshotPayloadUncached().then((row) => {
       if (row && row.payload && gen === snapshotGetGen) snapshotGetCache = { at: Date.now(), data: row };
       return row;
     });
-    if (fresh) return flight;
     snapshotGetInFlight = flight.finally(() => {
       if (snapshotGetInFlight === flight) snapshotGetInFlight = null;
     });
@@ -3088,6 +3178,12 @@
   }
 
   function scheduleCloudPushDebounced(meta) {
+    cloudPushDirty = false;
+    if (cloudPushTimer) {
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = null;
+    }
+    return;
     const motivo = meta && meta.motivo ? String(meta.motivo) : "unspecified";
     const chave = meta && meta.key ? String(meta.key) : "";
     dkLoopTrace("scheduleCloudPushDebounced", {
@@ -3110,6 +3206,10 @@
       if (typeof window.__DK_offlineOnLocalChange === "function") {
         window.__DK_offlineOnLocalChange();
       }
+      return;
+    }
+    if (typeof document !== "undefined" && document.hidden) {
+      cloudPushDirty = true;
       return;
     }
     if (cloudPushInFlight) {
@@ -4951,11 +5051,6 @@
       ];
       if (countClientesCpfUnicos(unified) > countClientesCpfUnicos(cloudCli)) {
         changed = true;
-        if (typeof window.__DK_portalPushCadastroToCloud === "function") {
-          void window.__DK_portalPushCadastroToCloud();
-        } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-          void window.__DK_pushCloudSnapshotNow();
-        }
       }
     } finally {
       suppressCloudHook = false;
@@ -5231,6 +5326,9 @@
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
   async function pushCloudSnapshotNow(opts) {
+    if (!(opts && opts.manual)) {
+      return { ok: true, skipped: true, reason: "manual_only" };
+    }
     if (cloudSyncIsHalted()) return { ok: false, skipped: true, reason: "cloud_halted" };
     if (!hasUsableCloudToken()) {
       markCloudLocalOnly();
@@ -5471,7 +5569,11 @@
   }
 
   function pullFromCloudOnScreenChange() {
+    return Promise.resolve({ ok: true, skipped: true, reason: "manual_only" });
     if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
+    if (snapshotAutomaticoPausado()) {
+      return Promise.resolve({ ok: true, skipped: true, reason: "pausado" });
+    }
     const now = Date.now();
     if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
       return screenPullInFlight || Promise.resolve({ ok: true, skipped: true, reason: "throttled" });
@@ -5491,10 +5593,12 @@
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
   async function scheduleBackgroundCloudPullIfStale() {
+    return { ok: true, skipped: true, reason: "manual_only" };
     if (cloudSyncIsHalted()) return { ok: false, reason: "session_revoked" };
     if (isLocalDataAuthorityActive() && !isClienteAppPage()) {
       return pullAppendOnlyKeysFromCloud();
     }
+    if (snapshotAutomaticoPausado()) return { ok: true, skipped: true, reason: "pausado" };
     const forceDemoBootstrap = demoNeedsCloudCadastroBootstrap();
     const now = Date.now();
     if (!forceDemoBootstrap && now - backgroundPullLastAt < BACKGROUND_PULL_MIN_INTERVAL_MS) {
@@ -5514,13 +5618,7 @@
   }
 
   function pushToCloudAfterSave() {
-    if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
-      return Promise.resolve();
-    }
-    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return Promise.resolve();
-    return window.__DK_pushCloudSnapshotNow({ force: true }).catch((e) => {
-      console.warn("[DK cloud] push após guardar", e);
-    });
+    return Promise.resolve({ ok: true, skipped: true, reason: "manual_only" });
   }
 
   async function pushLocalSnapshotAfterImport() {
@@ -5532,7 +5630,7 @@
       }
     }
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      await window.__DK_pushCloudSnapshotNow();
+      await window.__DK_pushCloudSnapshotNow({ manual: true });
     }
   }
 
@@ -6098,17 +6196,31 @@
   }
 
   let lastSeenCloudRev = "";
-  /** Outros PCs logados: a cada 20s, se a nuvem mudou, trazem cliente, veículo e locação. */
-  async function watchCadastroOutrosComputadores() {
+  /** Outros PCs logados: no máximo a cada 60s, se a nuvem mudou, trazem cliente, veículo e locação. */
+  async function watchCadastroOutrosComputadores(opts) {
+    const imediato = Boolean(opts && opts.imediato);
     if (isClienteAppPage() || cloudSyncIsHalted() || !hasUsableCloudToken()) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    if (!imediato && Date.now() < snapshotAutoBlockedUntil) return;
+    if (snapshotGetInFlight) return;
     try {
-      const res = await fetch("/api/dk-cloud-snapshot?meta=1&nocache=" + Date.now(), {
-        method: "GET",
-        cache: "no-store",
-        headers: dkCloudFetchHeaders(),
-      });
+      const res = await fetchWithCloudTimeout(
+        "/api/dk-cloud-snapshot?meta=1&nocache=" + Date.now(),
+        { method: "GET", cache: "no-store", headers: dkCloudGetHeaders() },
+        8000
+      );
+      guardarEtagResposta(res);
+      if (res.status === 304) {
+        registrarSnapshotOk();
+        return;
+      }
       const data = await res.json().catch(() => ({}));
+      if (snapshotHttpInstavel(res.status)) {
+        registrarSnapshotFalha(res, data);
+        return;
+      }
       if (!res.ok || !data?.ok) return;
+      registrarSnapshotOk();
       const rev = String(data.updated_at || "").trim();
       if (!rev || rev === lastSeenCloudRev) return;
       lastSeenCloudRev = rev;
@@ -6116,6 +6228,7 @@
       invalidateSnapshotGetCache();
       await pullCadastroOperacionalFromCloud();
     } catch (e) {
+      registrarSnapshotFalha(null, null);
       console.warn("[DK cloud] acompanhamento do cadastro", e);
     }
   }
@@ -6198,20 +6311,15 @@
       refreshCloudBarVisibility();
       void refreshLocacoesIntegrityAlert({ force: true });
     });
-    window.addEventListener("dk-locacoes-synced", () => {
-      void refreshLocacoesIntegrityAlert({ force: true });
-    });
     window.addEventListener("storage", (ev) => {
       if (!ev.key || ev.key === "dk_sessao_cliente") {
         refreshCloudBarVisibility();
-        void refreshLocacoesIntegrityAlert({ force: true });
       }
     });
     const panelLogado = document.getElementById("panel-logado");
     if (panelLogado) {
       new MutationObserver(() => {
         refreshCloudBarVisibility();
-        void refreshLocacoesIntegrityAlert();
       }).observe(panelLogado, {
         attributes: true,
         attributeFilter: ["class"],
@@ -6219,10 +6327,6 @@
     }
     setTimeout(refreshCloudBarVisibility, 800);
     setTimeout(() => void refreshLocacoesIntegrityAlert({ force: true }), 1800);
-    window.setInterval(() => void refreshLocacoesIntegrityAlert(), 5 * 60 * 1000);
-    if (!isClienteAppPage()) {
-      window.setInterval(() => void watchCadastroOutrosComputadores(), 20000);
-    }
 
     runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
   }

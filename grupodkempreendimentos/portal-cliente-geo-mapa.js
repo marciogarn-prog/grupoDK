@@ -283,8 +283,10 @@
       ensureMap();
       wireToolbar();
       await fetchGeo();
-      if (refreshTimer) clearInterval(refreshTimer);
-      refreshTimer = setInterval(() => fetchGeo({ preserveView: true }), REFRESH_MS);
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
       window.setTimeout(() => map?.invalidateSize(), 200);
     } catch (e) {
       const msg = $("dkGeoMapMsg");

@@ -347,7 +347,7 @@
     try {
       await mirrorLocalBank({ skipPending: true });
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        const push = await window.__DK_pushCloudSnapshotNow({ force: true });
+        const push = await window.__DK_pushCloudSnapshotNow({ force: true, manual: true });
         if (!push || push.ok === false) {
           throw new Error("Falha ao enviar dados para a nuvem.");
         }

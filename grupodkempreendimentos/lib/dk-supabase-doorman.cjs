@@ -35,6 +35,30 @@ function doormanHeaders() {
   };
 }
 
+async function fetchSnapshotRevisionByLabel(label) {
+  const { allowSupabaseDoorman } = require("./dk-cloud-budget.cjs");
+  if (!allowSupabaseDoorman()) {
+    return { ok: false, reason: "cloud_budget", payload: null, updatedAt: null };
+  }
+  if (!isSupabaseDoormanConfigured()) {
+    return { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+  }
+  const safe = normalizeLabel(label);
+  const url = `${supabaseUrl()}/rest/v1/dk_cloud_snapshots?label=eq.${encodeURIComponent(safe)}&select=updated_at`;
+  const res = await fetch(url, { headers: doormanHeaders() });
+  if (!res.ok) {
+    return {
+      ok: false,
+      reason: `supabase_http_${res.status}`,
+      payload: null,
+      updatedAt: null,
+    };
+  }
+  const rows = await res.json().catch(() => null);
+  const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+  return { ok: true, payload: null, updatedAt: row?.updated_at || null };
+}
+
 async function fetchSnapshotByLabel(label) {
   const { allowSupabaseDoorman } = require("./dk-cloud-budget.cjs");
   if (!allowSupabaseDoorman()) {
@@ -136,6 +160,7 @@ function withDoormanTimeout(promise, ms, reason) {
 
 module.exports = {
   isSupabaseDoormanConfigured,
+  fetchSnapshotRevisionByLabel,
   fetchSnapshotByLabel,
   upsertSnapshotByLabel,
   withDoormanTimeout,

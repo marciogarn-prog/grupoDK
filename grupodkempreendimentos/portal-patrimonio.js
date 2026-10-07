@@ -5940,19 +5940,6 @@ ${contador}
 
   window.__DK_patrimonioColetarAuditoria = patrimonioColetarAuditoriaArquivos;
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
-    void patrimonioRetomarFilaIa({ silencioso: true });
-  });
-
-  if (!window.__dkPatrimonioFilaPollBound) {
-    window.__dkPatrimonioFilaPollBound = true;
-    window.setInterval(() => {
-      if (document.visibilityState === "hidden") return;
-      void patrimonioRetomarFilaIa({ silencioso: true });
-    }, PATRIMONIO_FILA_POLL_MS);
-  }
-
   window.addEventListener("dk-comprovantes-synced", () => {
     void patrimonioRetomarFilaIa({ silencioso: true });
   });

@@ -339,10 +339,9 @@
 
   function bootComunicacaoUi() {
     bindUi();
-    bindAtualizacaoPeriodicaBotoes();
     refreshComunicacaoUi();
     initContagemBaseline();
-    iniciarAtualizacaoPeriodicaBotoes();
+    void atualizarBotoesPeriodicamente();
   }
 
   if (document.readyState === "loading") {

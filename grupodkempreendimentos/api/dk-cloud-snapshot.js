@@ -17,6 +17,7 @@ const {
 } = require("../lib/dk-cloud-budget.cjs");
 const {
   isSupabaseDoormanConfigured,
+  fetchSnapshotRevisionByLabel,
   fetchSnapshotByLabel,
   upsertSnapshotByLabel,
   withDoormanTimeout,
@@ -1086,6 +1087,122 @@ function montarPayloadComLocacaoUnica(existingPayload, locacao) {
   return payload;
 }
 
+const DK_SNAPSHOT_WARN_BYTES = 524288;
+const DK_SNAPSHOT_CRITICAL_BYTES = 2097152;
+const supabaseBreaker = { fails: 0, openUntil: 0 };
+
+function supabaseBreakerAberto() {
+  return Date.now() < supabaseBreaker.openUntil;
+}
+
+function falhaSupabaseComunicacao(result) {
+  const reason = String((result && result.reason) || "");
+  if (reason === "supabase_timeout") return true;
+  return /^supabase_http_5\d\d$/.test(reason);
+}
+
+function notarSupabase(result) {
+  if (!result || result.reason === "supabase_circuit_open") return;
+  if (result.ok) {
+    supabaseBreaker.fails = 0;
+    supabaseBreaker.openUntil = 0;
+    return;
+  }
+  if (!falhaSupabaseComunicacao(result)) return;
+  supabaseBreaker.fails += 1;
+  if (supabaseBreaker.fails >= 3) {
+    supabaseBreaker.openUntil = Date.now() + 60000;
+    supabaseBreaker.fails = 0;
+  }
+}
+
+async function consultarSupabase(fn) {
+  if (supabaseBreakerAberto()) {
+    return { ok: false, reason: "supabase_circuit_open", payload: null, updatedAt: null };
+  }
+  const result = await withDoormanTimeout(fn(), 8000, "supabase_timeout");
+  notarSupabase(result);
+  return result;
+}
+
+function etagDeRevisao(rev) {
+  const raw = String(rev || "").trim();
+  if (!raw) return "";
+  return `"${raw.replace(/"/g, "")}"`;
+}
+
+function etagNormalizado(valor) {
+  return String(valor || "").trim();
+}
+
+function contarRegistrosPayload(payload) {
+  if (!payload || typeof payload !== "object") return 0;
+  let n = 0;
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value)) n += value.length;
+  }
+  return n;
+}
+
+function instalarTelemetriaSnapshot(res) {
+  if (res.__dkSnapTel) return;
+  res.__dkSnapTel = true;
+  res.__dkSnapT0 = Date.now();
+  res.json = (body) => {
+    let json = "{}";
+    try {
+      json = JSON.stringify(body);
+    } catch {
+      json = "{}";
+    }
+    const bytes = Buffer.byteLength(json);
+    const status = res.statusCode || 200;
+    const rev = body && (body.revision || body.updated_at);
+    const etag = etagDeRevisao(rev);
+    if (etag) res.setHeader("ETag", etag);
+    res.setHeader("Cache-Control", "private, no-store");
+    const ms = Date.now() - res.__dkSnapT0;
+    if (bytes >= DK_SNAPSHOT_WARN_BYTES) {
+      console.warn(
+        JSON.stringify({
+          route: "/api/dk-cloud-snapshot",
+          aviso: bytes >= DK_SNAPSHOT_CRITICAL_BYTES ? "resposta_critica" : "resposta_grande",
+          bytes,
+          ms,
+        })
+      );
+    }
+    console.log(
+      JSON.stringify({
+        route: "/api/dk-cloud-snapshot",
+        ms,
+        status,
+        bytes,
+        modo: body && body.meta ? "meta" : "completo",
+        registros: contarRegistrosPayload(body && body.payload),
+      })
+    );
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(status).send(json);
+  };
+}
+
+function responderSnapshot304(res, etag) {
+  res.setHeader("ETag", etag);
+  res.setHeader("Cache-Control", "private, no-store");
+  console.log(
+    JSON.stringify({
+      route: "/api/dk-cloud-snapshot",
+      ms: Date.now() - (res.__dkSnapT0 || Date.now()),
+      status: 304,
+      bytes: 0,
+      modo: "304",
+      registros: 0,
+    })
+  );
+  return res.status(304).end();
+}
+
 async function handler(req, res) {
   applyCors(res);
   res.setHeader("Content-Type", "application/json");
@@ -1093,6 +1210,8 @@ async function handler(req, res) {
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
+
+  instalarTelemetriaSnapshot(res);
 
   allowRedisAttempt();
   if (isCloudBudgetTripped()) return budgetReject(res);
@@ -1126,6 +1245,16 @@ async function handler(req, res) {
     });
   }
 
+  if (supabaseBreakerAberto()) {
+    res.setHeader("Retry-After", "60");
+    return res.status(503).json({
+      ok: false,
+      success: false,
+      reason: "supabase_circuit_open",
+      retryAfter: 60,
+    });
+  }
+
   if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
@@ -1154,14 +1283,49 @@ async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
-      const oficial = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
-        : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      const etagPedido = etagNormalizado(req.headers["if-none-match"]);
+      let oficial = null;
+      if ((metaOnly || etagPedido) && isSupabaseDoormanConfigured()) {
+        const leve = await consultarSupabase(() => fetchSnapshotRevisionByLabel(LABEL));
+        if (leve && leve.ok) {
+          const etag = etagDeRevisao(leve.updatedAt);
+          if (etag && etagPedido && etagPedido === etag) return responderSnapshot304(res, etag);
+          if (metaOnly) {
+            return res.status(200).json({
+              ok: true,
+              success: true,
+              meta: true,
+              label: LABEL,
+              revision: leve.updatedAt || null,
+              updated_at: leve.updatedAt || null,
+              source: "supabase",
+            });
+          }
+          oficial = await consultarSupabase(() => fetchSnapshotByLabel(LABEL));
+        } else {
+          oficial = leve || { ok: false, reason: "supabase_timeout", payload: null, updatedAt: null };
+        }
+      } else {
+        oficial = isSupabaseDoormanConfigured()
+          ? await consultarSupabase(() => fetchSnapshotByLabel(LABEL))
+          : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      }
+      if (oficial && oficial.reason === "supabase_circuit_open") {
+        res.setHeader("Retry-After", "60");
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: "supabase_circuit_open",
+          retryAfter: 60,
+        });
+      }
       if (!oficial || oficial.reason === "supabase_timeout" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
         console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
         const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
         if (cached && cached.payload) {
           const revisaoRedis = cached.updated_at || null;
+          const etagRedis = etagDeRevisao(revisaoRedis);
+          if (etagRedis && etagPedido && etagPedido === etagRedis) return responderSnapshot304(res, etagRedis);
           if (metaOnly) {
             return res.status(200).json({
               ok: true,
@@ -1268,7 +1432,7 @@ async function handler(req, res) {
           return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
         }
         const oficialAtualLoc = isSupabaseDoormanConfigured()
-          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
+          ? await consultarSupabase(() => fetchSnapshotByLabel(LABEL))
           : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
         if (
           !oficialAtualLoc ||
@@ -1356,7 +1520,7 @@ async function handler(req, res) {
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const baseRevision = String(body.base_revision || body.revision || "");
       const oficialAtual = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
+        ? await consultarSupabase(() => fetchSnapshotByLabel(LABEL))
         : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
       let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
       let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
@@ -1522,7 +1686,7 @@ async function handler(req, res) {
       }
       let supabase;
       try {
-        supabase = await withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 8000, "supabase_timeout");
+        supabase = await consultarSupabase(() => upsertSnapshotByLabel(LABEL, payload, storedAt));
       } catch (err) {
         supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
       }

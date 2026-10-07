@@ -26,7 +26,7 @@ rec("versão antiga vira client_stale", auth.includes('reason: "client_stale"') 
 rec("inatividade 30 min no Redis", auth.includes("SESSAO_ATIVA_TTL_SEC = 30 * 60") && auth.includes("dk:portal:sessao_ativa:v1:"), "");
 rec("login acende sessão ativa", login.includes("touchSessaoAtiva"), "");
 rec("header de protocolo e atividade", apiJs.includes("X-DK-Client-Protocol") && apiJs.includes("X-DK-User-Active"), "");
-rec("loop de troca de tela limitado", sync.includes("SCREEN_PULL_MIN_INTERVAL_MS = 20000"), "");
+rec("loop de troca de tela limitado", sync.includes("SCREEN_PULL_MIN_INTERVAL_MS = 60000"), "");
 rec("frontend encerra idle/stale", sync.includes("haltCloudSyncIdleOrStale") && ui.includes("PORTAL_IDLE_LIMIT_MS"), "");
 rec("HTML e Vercel publicam o protocolo", html.includes('name="dk-client-protocol"') && vercel.includes("X-DK-Client-Protocol"), "");
 rec("login único por CPF", login.includes("session_em_uso") && auth.includes("session_replaced"), "");
