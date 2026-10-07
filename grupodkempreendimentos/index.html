@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261005gerarcontrato">
+  <link rel="stylesheet" href="styles.css?v=20261007desconto">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -1296,6 +1296,21 @@
                 </fieldset>
               </div>
             </div>
+            <label class="portal-field portal-field--desconto-prazo">
+              <span>DESCONTO POR CUMPRIR O PRAZO</span>
+              <input
+                type="text"
+                id="operacaoLocacaoDescontoPrazo"
+                name="descontoPrazo"
+                maxlength="32"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="R$ 30,00"
+                value="R$ 30,00"
+                aria-label="DESCONTO POR CUMPRIR O PRAZO"
+                title="Desconto se o pagamento cair no mesmo dia da semana do início do contrato. Depois desse dia, cobra o valor cheio."
+              >
+            </label>
             <!-- Campos calculados movidos para «Lançamento de aluguel» (situação após pagamento). Mantidos ocultos para os cálculos/exports internos. -->
             <div class="hidden" aria-hidden="true">
               <input type="text" id="operacaoLocacaoValorDevidoPlano" name="valorDevidoPlano" readonly tabindex="-1">
@@ -1680,7 +1695,7 @@
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento" data-lanc-layout-box="pagamento">
                       <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
                       <p id="operacaoLancAluguelCeoApagarAviso" class="portal-lanc-ceo-apagar-aviso">O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS</p>
-                      <div class="portal-lanc-dual-col__grid">
+                      <div class="portal-lanc-dual-col__grid portal-lanc-pagto-linha">
                         <label class="portal-field portal-lanc-field--data">
                           <span>DATA DO PAGAMENTO</span>
                           <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
@@ -1688,6 +1703,10 @@
                         <label class="portal-field portal-lanc-field--valor">
                           <span>VALOR (R$)</span>
                           <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
+                        </label>
+                        <label class="portal-field portal-lanc-field--desconto">
+                          <span>DESCONTO</span>
+                          <input type="text" id="operacaoLancAluguelDescontoPrazo" name="descontoPrazo" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="DESCONTO POR CUMPRIR O PRAZO" title="Sugestão: desconto do contrato se a data cair no dia da semana do início. Depois desse dia, a sugestão fica R$ 0,00.">
                         </label>
                       </div>
                       <label class="portal-field portal-lanc-comentario-pagamento">
@@ -5775,7 +5794,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261007locacao2" defer></script>
+  <script src="portal-locadora-ui.js?v=20261007desconto" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
@@ -5811,10 +5830,10 @@
   <script src="portal-lanc-aluguel-calendario.js?v=20261006sempc" defer></script>
   <script src="portal-documentos.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-locacao-texto.js?v=20260901requerimento-padrao" defer></script>
-  <script src="data/dk-contrato-pacote-textos.js?v=20260901cnh-pares" defer></script>
+  <script src="data/dk-contrato-pacote-textos.js?v=20261007desconto" defer></script>
   <script src="data/dk-modelos-veiculo.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-contrato-locacao.js?v=20261005gerarcontrato" defer></script>
-  <script src="portal-contrato-pacote.js?v=20260916promessalayout" defer></script>
+  <script src="portal-contrato-pacote.js?v=20261007desconto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="dk-parse-autuacao-transito.js?v=20260904placa-ocr" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260916multas-sintaxe" defer></script>

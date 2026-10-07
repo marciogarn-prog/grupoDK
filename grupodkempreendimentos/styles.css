@@ -10040,6 +10040,18 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   }
 }
 
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col--pagamento .portal-lanc-pagto-linha,
+.portal-lanc-dual-col--pagamento .portal-lanc-pagto-linha {
+  grid-template-columns: minmax(6.4rem, 0.82fr) minmax(6rem, 0.78fr) minmax(6.2rem, 0.84fr) !important;
+}
+
+@container lanc-card (min-width: 28rem) {
+  #panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col--pagamento .portal-lanc-pagto-linha,
+  .portal-lanc-dual-col--pagamento .portal-lanc-pagto-linha {
+    grid-template-columns: minmax(6.4rem, 0.82fr) minmax(6rem, 0.78fr) minmax(6.2rem, 0.84fr) !important;
+  }
+}
+
 .portal-lanc-dual-col__grid > .portal-field {
   width: 100%;
   min-width: 0;

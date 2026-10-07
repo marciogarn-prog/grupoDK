@@ -3699,6 +3699,34 @@
           "operacaoLocacaoVisualizarContratoBtn"
         ]
       }
+    },
+    {
+      "id": "desconto-cumprir-prazo",
+      "descricao": "Desconto por cumprir o prazo: no cadastro de locação a caixa DESCONTO POR CUMPRIR O PRAZO sugere R$ 30,00. No lançamento, data e valor ficam menores e a terceira caixa DESCONTO sugere esse valor quando a data do pagamento cai no mesmo dia da semana do início do contrato; depois desse dia a sugestão é R$ 0,00 e o valor fica cheio. O termo traz Desconto por assiduidade e a observação de pago em dia versus valor cheio.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoDescontoPrazo",
+          "DESCONTO POR CUMPRIR O PRAZO",
+          "operacaoLancAluguelDescontoPrazo",
+          "portal-lanc-pagto-linha"
+        ],
+        "portal-locadora-ui.js": [
+          "portalAplicarSugestaoDescontoPagamento",
+          "portalPagamentoCaiNoDiaDoContrato",
+          "descontoPrazo"
+        ],
+        "data/dk-contrato-pacote-textos.js": [
+          "Desconto por assiduidade",
+          "TEXTO_DESCONTO_PRAZO"
+        ],
+        "portal-contrato-pacote.js": [
+          "textoDescontoAssiduidade",
+          "descontoAssiduidadeNum"
+        ],
+        "styles.css": [
+          "portal-lanc-pagto-linha"
+        ]
+      }
     }
   ]
 }

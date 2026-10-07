@@ -21445,6 +21445,12 @@
     };
     if (valLocEl) valLocEl.value = fmtValor(portalValorAluguelNumFromLoc(loc));
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
+    const descPrazoEl = document.getElementById("operacaoLocacaoDescontoPrazo");
+    if (descPrazoEl) {
+      const bruto = loc?.descontoPrazo;
+      descPrazoEl.value =
+        bruto != null && String(bruto).trim() !== "" ? fmtValor(bruto) : portalFmtReaisCampo(30);
+    }
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
     syncOperacaoLocacaoFromDataInicio();
     if (isPortalLocacaoCancelada(loc)) {
@@ -21490,6 +21496,8 @@
     const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
     if (tp) tp.value = formatOperacaoLocacaoValorNumDisplay(0);
     if (tp2025) tp2025.value = formatOperacaoLocacaoValorNumDisplay(0);
+    const descNovo = document.getElementById("operacaoLocacaoDescontoPrazo");
+    if (descNovo) descNovo.value = portalFmtReaisCampo(30);
     updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
@@ -23281,6 +23289,9 @@
       }
       return;
     }
+    const descontoInformado = String(document.getElementById("operacaoLocacaoDescontoPrazo")?.value || "").trim();
+    const descontoPrazoNum = descontoInformado === "" ? 30 : Math.max(0, portalParseReaisCampo(descontoInformado));
+    const descontoPrazo = portalFmtReaisCampo(descontoPrazoNum);
     const valorSemanalNum = valorLocNum + valorInvNum;
     const cb =
       typeof currencyBRL === "function"
@@ -23480,6 +23491,7 @@
       valorLocacao: cb(valorLocNum),
       valorInvestimento: cb(valorInvNum),
       valorSemanal,
+      descontoPrazo,
       numeroContrato: nc,
       statusLocacao,
       diaPagto,
@@ -23628,6 +23640,7 @@
           { label: "Diárias", value: String(tempoN) },
           { label: "Tipo de plano", value: planoNome || "—" },
           { label: "Valor da locação", value: cb(valorLocNum) },
+          { label: "Desconto por cumprir o prazo", value: descontoPrazo },
         ],
       },
       doSaveLocacao
@@ -23775,6 +23788,10 @@
     if (x.confirmadoViaAppCliente) out.confirmadoViaAppCliente = true;
     const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) out.comentarioPagamento = comentarioPagamento;
+    if (!ehDevolucao && !ehCreditoManut && !ehCaucao) {
+      const descontoPrazo = Number(parsePortalLancamentoValorRaw(x.descontoPrazo ?? 0));
+      if (Number.isFinite(descontoPrazo) && descontoPrazo > 0) out.descontoPrazo = descontoPrazo;
+    }
     return out;
   }
 
@@ -24770,6 +24787,66 @@
     refreshOperacaoLancAluguelDataLimiteDevolucao(target);
   }
 
+  function portalFmtReaisCampo(n) {
+    const v = Number(n) || 0;
+    if (typeof currencyBRL === "function") return currencyBRL(v);
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function portalParseReaisCampo(v) {
+    if (typeof parseCurrencyBR === "function") {
+      const n = Number(parseCurrencyBR(String(v ?? "")));
+      return Number.isFinite(n) ? n : 0;
+    }
+    const cleaned = String(v ?? "")
+      .replace(/[R$\s]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function portalDescontoPrazoCadastroNum(loc) {
+    if (loc && loc.descontoPrazo != null && String(loc.descontoPrazo).trim() !== "") {
+      const n = portalParseReaisCampo(loc.descontoPrazo);
+      return n >= 0 ? n : 30;
+    }
+    const campo = String(document.getElementById("operacaoLocacaoDescontoPrazo")?.value || "").trim();
+    if (!campo) return 30;
+    const n = portalParseReaisCampo(campo);
+    return n >= 0 ? n : 30;
+  }
+
+  function portalPagamentoCaiNoDiaDoContrato(loc, dataBr) {
+    const inicioRaw = String(loc?.inicio || loc?.dataInicio || "").trim();
+    const inicio = typeof parseBrDate === "function" ? parseBrDate(inicioRaw) : null;
+    const pag = typeof parseBrDate === "function" ? parseBrDate(String(dataBr || "").trim()) : null;
+    if (!inicio || !pag || Number.isNaN(inicio.getTime()) || Number.isNaN(pag.getTime())) return false;
+    return inicio.getDay() === pag.getDay();
+  }
+
+  function portalAplicarSugestaoDescontoPagamento() {
+    const loc = typeof resolveLocOperacaoLancAluguelAtual === "function" ? resolveLocOperacaoLancAluguelAtual() : null;
+    const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
+    const valEl = document.getElementById("operacaoLancAluguelValorSimples");
+    const descEl = document.getElementById("operacaoLancAluguelDescontoPrazo");
+    if (!descEl) return;
+    const cheio = portalParseReaisCampo(portalValorPlanoPagamentoSugeridoFmt(loc));
+    const descontoCad = portalDescontoPrazoCadastroNum(loc);
+    const emDia = portalPagamentoCaiNoDiaDoContrato(loc, dataEl?.value);
+    const desconto = emDia ? descontoCad : 0;
+    descEl.value = portalFmtReaisCampo(desconto);
+    if (valEl && cheio > 0) valEl.value = portalFmtReaisCampo(Math.max(0, cheio - desconto));
+  }
+
+  function portalRecalcularValorPeloDescontoDigitado() {
+    const loc = typeof resolveLocOperacaoLancAluguelAtual === "function" ? resolveLocOperacaoLancAluguelAtual() : null;
+    const cheio = portalParseReaisCampo(portalValorPlanoPagamentoSugeridoFmt(loc));
+    const desconto = Math.max(0, portalParseReaisCampo(document.getElementById("operacaoLancAluguelDescontoPrazo")?.value));
+    const valEl = document.getElementById("operacaoLancAluguelValorSimples");
+    if (valEl && cheio > 0) valEl.value = portalFmtReaisCampo(Math.max(0, cheio - desconto));
+  }
+
   function portalValorPlanoPagamentoSugeridoFmt(loc) {
     if (loc) {
       const resumo = computePortalProtocoloResumoFromLoc(loc);
@@ -24790,7 +24867,6 @@
 
   function preencherLancAluguelFormSimples() {
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
-    const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const comEl = document.getElementById("operacaoLancAluguelComentarioPagamento");
     const dataDevEl = document.getElementById("operacaoLancAluguelDataDevolucao");
     const comDevEl = document.getElementById("operacaoLancAluguelComentarioDevolucao");
@@ -24811,9 +24887,8 @@
     if (comCauEl) comCauEl.value = "";
     if (valCredEl) valCredEl.value = "";
     if (valCauEl) valCauEl.value = "";
+    portalAplicarSugestaoDescontoPagamento();
     const loc = resolveLocOperacaoLancAluguelAtual();
-    const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
-    if (valSimples && valPlano) valSimples.value = valPlano;
     refreshOperacaoLancAluguelSugestaoDevolucao(loc);
     if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
   }
@@ -26192,21 +26267,26 @@
       if (v.ficticio) base.ficticio = true;
       const comentarioPagamento = String(v.comentarioPagamento || v.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) base.comentarioPagamento = comentarioPagamento;
+      const descontoPrazo = Number(parsePortalLancamentoValorRaw(v.descontoPrazo ?? 0));
+      if (Number.isFinite(descontoPrazo) && descontoPrazo > 0) base.descontoPrazo = descontoPrazo;
       if (portalLancamentoEhDevolucaoInvestimento(v)) {
         base.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
         delete base.valorEspecie;
         delete base.valorPix;
         delete base.valorCartao;
+        delete base.descontoPrazo;
       } else if (portalLancamentoEhCreditoManutencao(v)) {
         base.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
         delete base.valorEspecie;
         delete base.valorPix;
         delete base.valorCartao;
+        delete base.descontoPrazo;
       } else if (portalLancamentoEhCaucao(v)) {
         base.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
         delete base.valorEspecie;
         delete base.valorPix;
         delete base.valorCartao;
+        delete base.descontoPrazo;
       }
       return base;
     });
@@ -26624,6 +26704,8 @@
       entry.valorEspecie = Number.isFinite(ve) && ve >= 0 ? ve : 0;
       entry.valorPix = Number.isFinite(vp) && vp >= 0 ? vp : 0;
       entry.valorCartao = Number.isFinite(vc) && vc >= 0 ? vc : 0;
+      const descontoPrazo = Number(parsePortalLancamentoValorRaw(meios?.descontoPrazo ?? 0));
+      if (Number.isFinite(descontoPrazo) && descontoPrazo > 0) entry.descontoPrazo = descontoPrazo;
     }
     const comentarioPagamento = String(meios?.comentarioPagamento || meios?.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) entry.comentarioPagamento = comentarioPagamento;
@@ -27964,6 +28046,8 @@
       codEl.setAttribute("title", "Código do cliente");
     }
     resetOperacaoLocacaoRelatorioPanel();
+    const descLimpo = document.getElementById("operacaoLocacaoDescontoPrazo");
+    if (descLimpo) descLimpo.value = portalFmtReaisCampo(30);
     syncOperacaoLocacaoValorPlano();
     syncOperacaoLocacaoFromDataInicio();
     portalLocacaoProtocoloPickerCpf = "";
@@ -29873,11 +29957,23 @@
     } else if (msg) msg.textContent = "Não foi possível apagar o pagamento.";
   });
 
+  document.getElementById("operacaoLancAluguelDataPagamento")?.addEventListener("input", () => {
+    const v = String(document.getElementById("operacaoLancAluguelDataPagamento")?.value || "");
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) portalAplicarSugestaoDescontoPagamento();
+  });
+  document.getElementById("operacaoLancAluguelDataPagamento")?.addEventListener("change", () => {
+    portalAplicarSugestaoDescontoPagamento();
+  });
+  document.getElementById("operacaoLancAluguelDescontoPrazo")?.addEventListener("change", () => {
+    portalRecalcularValorPeloDescontoDigitado();
+  });
+
   document.getElementById("operacaoLancAluguelConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
     const inpValorSimples = document.getElementById("operacaoLancAluguelValorSimples");
+    const inpDesconto = document.getElementById("operacaoLancAluguelDescontoPrazo");
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
     const inpComentario = document.getElementById("operacaoLancAluguelComentarioPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -29949,6 +30045,7 @@
           valorPix: 0,
           valorCartao: 0,
           comentarioPagamento: comentario,
+          descontoPrazo: Number(parseVal(String(inpDesconto?.value || ""))),
         });
         if (!res?.ok) {
           if (msg) {

@@ -267,6 +267,32 @@
     return null;
   }
 
+  function diaSemanaContratoExtenso(dt) {
+    const dias = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+    if (!dt || Number.isNaN(dt.getTime())) return "segunda-feira";
+    return dias[dt.getDay()] || "segunda-feira";
+  }
+
+  function descontoAssiduidadeNum(loc) {
+    const campo = String(document.getElementById("operacaoLocacaoDescontoPrazo")?.value || "").trim();
+    const raw = campo || pick(loc, ["descontoPrazo"]);
+    if (raw == null || String(raw).trim() === "") return 30;
+    const n = parseReaisNum(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 30;
+  }
+
+  function textoDescontoAssiduidade(loc, semanalNum, inicioDt) {
+    const desconto = descontoAssiduidadeNum(loc);
+    const cheio = formatReaisBr(semanalNum);
+    const cheioExt = reaisPorExtenso(semanalNum);
+    if (!(desconto > 0)) {
+      return `Não há desconto por assiduidade. Será cobrado o valor cheio de ${cheio} (${cheioExt}).`;
+    }
+    const dia = diaSemanaContratoExtenso(inicioDt);
+    const com = Math.max(0, semanalNum - desconto);
+    return `Se pago em dia (${dia}), ocorre o desconto de ${formatReaisBr(desconto)} (${reaisPorExtenso(desconto)}) e a parcela fica em ${formatReaisBr(com)} (${reaisPorExtenso(com)}). Caso contrário, será cobrado o valor cheio de ${cheio} (${cheioExt}).`;
+  }
+
   /** Enriquece dados do contrato com frota/cliente/valores da ficha de locação. */
   function enriquecerDadosPacote(dados) {
     const base = { ...(dados || {}) };
@@ -385,6 +411,12 @@
       valorAluguelExtenso: reaisPorExtenso(aluguelNum),
       valorInvestimentoExtenso: reaisPorExtenso(invNum),
       valorSemanalExtenso: reaisPorExtenso(semanalNum),
+      descontoPrazo: formatReaisBr(descontoAssiduidadeNum(loc, semanalNum)),
+      descontoPrazoExtenso: reaisPorExtenso(descontoAssiduidadeNum(loc, semanalNum)),
+      valorComDesconto: formatReaisBr(Math.max(0, semanalNum - descontoAssiduidadeNum(loc, semanalNum))),
+      valorComDescontoExtenso: reaisPorExtenso(Math.max(0, semanalNum - descontoAssiduidadeNum(loc, semanalNum))),
+      diaDesconto: diaSemanaContratoExtenso(inicioDt),
+      textoDescontoPrazo: textoDescontoAssiduidade(loc, semanalNum, inicioDt),
       valorCompra: "R$ 20,00",
       valorCompraExtenso: "vinte reais",
       periodoSemanas: String(periodo),
@@ -445,6 +477,12 @@
       "{{VALOR_INVESTIMENTO_EXTENSO}}": d.valorInvestimentoExtenso,
       "{{VALOR_SEMANAL}}": d.valorSemanal,
       "{{VALOR_SEMANAL_EXTENSO}}": d.valorSemanalExtenso,
+      "{{DESCONTO_PRAZO}}": d.descontoPrazo,
+      "{{DESCONTO_PRAZO_EXTENSO}}": d.descontoPrazoExtenso,
+      "{{VALOR_COM_DESCONTO}}": d.valorComDesconto,
+      "{{VALOR_COM_DESCONTO_EXTENSO}}": d.valorComDescontoExtenso,
+      "{{DIA_DESCONTO}}": d.diaDesconto,
+      "{{TEXTO_DESCONTO_PRAZO}}": d.textoDescontoPrazo,
       "{{VALOR_COMPRA}}": d.valorCompra,
       "{{VALOR_COMPRA_EXTENSO}}": d.valorCompraExtenso,
       "{{DIA_PAGAMENTO}}": d.diaPagamento,

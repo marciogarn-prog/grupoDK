@@ -71,6 +71,7 @@
     <li><span class="opcao-chev">Valor da Locação (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}})</span></li>
     <li><span class="opcao-chev">Valor do Investimento (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}})</span></li>
     <li><span class="opcao-chev">Totalizando (Valor Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}})</span></li>
+    <li><span class="opcao-chev">Desconto por assiduidade &gt;&gt;</span> <span class="opcao-val">{{DESCONTO_PRAZO}} ({{DESCONTO_PRAZO_EXTENSO}})</span></li>
   </ul>
   <p class="opcao-garantia">…referente à garantia de compra pelo valor de {{VALOR_COMPRA}} ({{VALOR_COMPRA_EXTENSO}}) do veículo identificado neste Anexo, ao final do período acima acordado.</p>
   <div class="opcao-atencao">
@@ -82,7 +83,7 @@
 
   <section class="opcao-termo">
     <h2>Termo de Compromisso</h2>
-    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, rigorosamente no(a) {{DIA_PAGAMENTO}}, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}.</p>
+    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, rigorosamente no(a) {{DIA_PAGAMENTO}}, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}. {{TEXTO_DESCONTO_PRAZO}}</p>
   </section>
 
   <p class="opcao-data">{{MUNICIPIO_DATA}}</p>
