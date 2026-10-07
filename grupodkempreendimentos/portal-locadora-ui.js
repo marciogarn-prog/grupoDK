@@ -19038,10 +19038,16 @@
   function portalNuvemPushResultOk(push) {
     if (!push || push.ok === false) return false;
     if (push.skipped && push.reason === "android_somente_leitura") return true;
-    return Boolean(push.redisOk || push.source === "redis" || push.source === "both");
+    return Boolean(
+      push.redisOk ||
+        push.supaOk ||
+        push.source === "redis" ||
+        push.source === "both" ||
+        push.source === "supabase"
+    );
   }
 
-  async function portalNuvemPushAwait() {
+  async function portalNuvemPushAwait(opts) {
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
         window.__DK_markLocalDataAuthority();
@@ -19053,7 +19059,10 @@
       return { ok: false, error: new Error("sem envio para a nuvem") };
     }
     try {
-      return await window.__DK_pushCloudSnapshotNow({ force: true });
+      return await window.__DK_pushCloudSnapshotNow({
+        force: true,
+        confirm: opts?.confirm || undefined,
+      });
     } catch (err) {
       return { ok: false, error: err };
     }
@@ -19117,7 +19126,12 @@
       opts?.textoEnviar || "A enviar os dados para o servidor. Aguarde a confirmação.";
     const run = async () => {
       portalNuvemSyncLockShow(textoEnviar);
-      const push = await portalNuvemPushAwait();
+      const push = await portalNuvemPushAwait({
+        confirm:
+          opts?.verifyKind && opts?.verifyValue
+            ? { kind: opts.verifyKind, value: String(opts.verifyValue) }
+            : undefined,
+      });
       if (!portalNuvemPushResultOk(push)) {
         const falha = "Não foi possível salvar no servidor. Nada foi confirmado. Tente de novo.";
         setMsg(falha);
@@ -19129,20 +19143,20 @@
         });
         return false;
       }
-      if (opts?.verifyKind && opts?.verifyValue) {
+      if (opts?.verifyKind && opts?.verifyValue && push?.confirmed !== true) {
         let naNuvem = false;
-        const prazo = Date.now() + 60000;
-        while (Date.now() < prazo) {
-          portalNuvemSyncLockShow(
-            "A confirmar o cadastro na nuvem. Os outros computadores recebem em até 1 minuto."
-          );
-          try {
-            naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
-          } catch {
-            naNuvem = false;
+        if (push?.confirmed !== false) {
+          const prazo = Date.now() + 8000;
+          portalNuvemSyncLockShow("A confirmar o cadastro na nuvem…");
+          while (Date.now() < prazo) {
+            try {
+              naNuvem = await portalNuvemVerificarNoSnapshot(opts.verifyKind, opts.verifyValue);
+            } catch {
+              naNuvem = false;
+            }
+            if (naNuvem) break;
+            await new Promise((res) => setTimeout(res, 700));
           }
-          if (naNuvem) break;
-          await new Promise((res) => setTimeout(res, 4000));
         }
         if (!naNuvem) {
           const falha =
@@ -23523,7 +23537,6 @@
         );
         return;
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof addAuditLog === "function") {
         try {
           addAuditLog(

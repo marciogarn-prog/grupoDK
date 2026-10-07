@@ -2770,6 +2770,7 @@
     const postTimeoutMs = opts && opts.skipShrink ? 90000 : 45000;
     let lastSupabase = { ok: false, reason: "" };
     let lastRedisOk = false;
+    let confirmed;
     for (let i = 0; i < urls.length; i += 1) {
       try {
         const started = Date.now();
@@ -2787,6 +2788,7 @@
               updated_at: updatedAt,
               base_revision: cloudBaseRevision,
               replace,
+              ...(opts && opts.confirm ? { confirm: opts.confirm } : {}),
             }),
           },
           postTimeoutMs
@@ -2829,6 +2831,7 @@
           }
           invalidateSnapshotGetCache();
           lastSupabase = { ok: true };
+          if (typeof data.confirmed === "boolean") confirmed = data.confirmed;
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
           if (data?.reason === "duplicate_payment_same_day_value") {
@@ -2848,7 +2851,7 @@
         if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot POST", e);
       }
     }
-    return { ok: anyOk, success: anyOk, error: lastErr, supabase: lastSupabase, redisOk: lastRedisOk };
+    return { ok: anyOk, success: anyOk, error: lastErr, supabase: lastSupabase, redisOk: lastRedisOk, confirmed };
   }
 
   async function pushLocacaoDocumentoSupabaseBackground() {
@@ -5138,6 +5141,7 @@
     const red = await pushRedundantSnapshotPayload(payload, updatedAt, {
       replace: forceReplace,
       fullReplaceComprovantes,
+      confirm: opts && opts.confirm ? opts.confirm : undefined,
     });
     supaOk = red.success === true && Boolean(red.supabase && red.supabase.ok);
     redisOk = supaOk && red.redisOk === true;
@@ -5164,6 +5168,7 @@
       revision: cloudBaseRevision,
       supaOk,
       redisOk,
+      confirmed: red.confirmed,
       source: "supabase",
     };
   }

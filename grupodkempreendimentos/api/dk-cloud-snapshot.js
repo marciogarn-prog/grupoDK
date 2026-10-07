@@ -153,6 +153,51 @@ function locacaoNcKey(record) {
     .replace(/\s+/g, "");
 }
 
+function probePlaca(v) {
+  return String(v || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+/** O payload desta resposta já foi o que o Supabase gravou. Evita outro download do snapshot. */
+function probeCadastroConfirmado(payload, query) {
+  const kind = String(query?.probe || "").trim().toLowerCase();
+  if (!kind) return null;
+  if (!payload || typeof payload !== "object") return false;
+  if (kind === "locacao") {
+    const want = String(query.nc || query.value || "").replace(/\D/g, "");
+    const arr = payload.dk_locacoes_cadastro;
+    if (!want || !Array.isArray(arr)) return false;
+    return arr.some((l) => {
+      const nc = String(l?.numeroContrato || "").replace(/\D/g, "");
+      if (nc !== want) return false;
+      const inicio = String(l?.inicio || l?.dataInicio || "").trim();
+      const cpf = String(l?.cpf || "").replace(/\D/g, "");
+      const nome = String(l?.nome || l?.cliente || "").trim();
+      const placa = probePlaca(l?.placa);
+      return Boolean(inicio && cpf.length === 11 && nome && placa.length >= 7);
+    });
+  }
+  if (kind === "cliente") {
+    const want = String(query.cpf || query.value || "").replace(/\D/g, "").slice(0, 11);
+    if (want.length !== 11) return false;
+    const arr = [].concat(payload.dk_clientes_cadastro || [], payload.dk_portal_clientes_cadastro || []);
+    return arr.some((c) => String(c?.cpf || "").replace(/\D/g, "").slice(0, 11) === want);
+  }
+  if (kind === "veiculo") {
+    const want = probePlaca(query.placa || query.value);
+    if (!want) return false;
+    const arr = [].concat(
+      payload.dk_veiculos_cadastro || [],
+      payload.dk_portal_veiculos_cadastro || [],
+      payload.dk_veiculos_frota_planilha || []
+    );
+    return arr.some((v) => probePlaca(v?.placa) === want);
+  }
+  return null;
+}
+
 function locacaoNcSetFromPayload(payload) {
   const set = new Set();
   const arr = payload && Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
@@ -1202,6 +1247,18 @@ async function handler(req, res) {
           supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
         });
       }
+      let confirmed;
+      if (body.confirm && typeof body.confirm === "object") {
+        const kind = String(body.confirm.kind || "");
+        const value = body.confirm.value;
+        confirmed = probeCadastroConfirmado(payload, {
+          probe: kind,
+          nc: value,
+          cpf: value,
+          placa: value,
+          value,
+        });
+      }
       let redisOk = true;
       let redisErr = "";
       try {
@@ -1224,6 +1281,7 @@ async function handler(req, res) {
         redis: { ok: redisOk, reason: redisErr },
         replace,
         keys: Object.keys(payload).length,
+        ...(typeof confirmed === "boolean" ? { confirmed } : {}),
       });
       } finally {
         await releaseLocacoesWriteLock(redis, locacoesLockToken);
@@ -1249,3 +1307,4 @@ module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
 module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
 module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;
 module.exports.applyCadastroLock = applyCadastroLock;
+module.exports.probeCadastroConfirmado = probeCadastroConfirmado;

@@ -67,6 +67,20 @@ rec(
     /session_revoked[\s\S]{0,400}return/.test(syncJs),
   ""
 );
+const uiJs = fs.readFileSync(path.join(ROOT, "portal-locadora-ui.js"), "utf8");
+rec(
+  "confirmação do protocolo volta na mesma resposta",
+  apiJs.includes("function probeCadastroConfirmado") &&
+    syncJs.includes("opts.confirm") &&
+    uiJs.includes("push?.confirmed !== true") &&
+    !uiJs.includes("Os outros computadores recebem em até 1 minuto."),
+  ""
+);
+rec(
+  "cadastro de locação não dispara um segundo envio",
+  !/O protocolo \$\{nc\} não ficou gravado[\s\S]{0,280}portalPushCloudSnapshotAfterPersist\(/.test(uiJs),
+  ""
+);
 
 const BASE = "https://grupodkempreendimentos.com.br/";
 async function hit(method, body) {
