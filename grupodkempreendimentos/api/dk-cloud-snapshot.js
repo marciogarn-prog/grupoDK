@@ -965,6 +965,28 @@ function mergePayloads(existing, incoming) {
   return stripInternalPayloadKeys(neverLoseCadastroPayload(existing, out));
 }
 
+/** Uma locação só: o browser não reenvia o snapshot inteiro. */
+function montarPayloadComLocacaoUnica(existingPayload, locacao) {
+  const existing = existingPayload && typeof existingPayload === "object" ? existingPayload : {};
+  const prev = Array.isArray(existing.dk_locacoes_cadastro) ? existing.dk_locacoes_cadastro : [];
+  const loc = { ...locacao };
+  delete loc.arquivoBase64;
+  delete loc.imagem;
+  delete loc.imagemRecortada;
+  const mergedLocs = mergeLocacoesCadastro(prev, [loc]);
+  let payload = { ...existing, dk_locacoes_cadastro: mergedLocs };
+  payload = sanitizePayloadForOficial(
+    payload,
+    oficialTodayYmd(),
+    mergeCadastroKeepSets(cadastroKeepSetsFromPayload(existing), cadastroKeepSetsFromPayload(payload))
+  );
+  if (existingPayload && typeof existingPayload === "object") {
+    payload = neverLoseCadastroPayload(existing, payload);
+  }
+  payload.dk_dados_seguros_v1 = true;
+  return payload;
+}
+
 async function handler(req, res) {
   applyCors(res);
   res.setHeader("Content-Type", "application/json");
@@ -1097,6 +1119,97 @@ async function handler(req, res) {
       }
       try {
       const body = parseBody(req);
+      if (body.locacao && typeof body.locacao === "object" && !Array.isArray(body.locacao) && !isObject(body.payload)) {
+        if (gate.typ === "cliente") {
+          return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
+        }
+        const locacao = body.locacao;
+        const nc = String(locacao.numeroContrato || locacao.protocolo || "").replace(/\D/g, "");
+        if (!nc) {
+          return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
+        }
+        const oficialAtualLoc = isSupabaseDoormanConfigured()
+          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+          : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+        if (
+          !oficialAtualLoc ||
+          oficialAtualLoc.reason === "supabase_timeout" ||
+          oficialAtualLoc.reason === "doorman_key_missing" ||
+          oficialAtualLoc.reason === "cloud_budget" ||
+          (oficialAtualLoc.reason && String(oficialAtualLoc.reason).startsWith("supabase_http"))
+        ) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: (oficialAtualLoc && oficialAtualLoc.reason) || "supabase_indisponivel",
+            message: "A nuvem não respondeu. Tente cadastrar de novo.",
+          });
+        }
+        const existingLocPayload =
+          oficialAtualLoc.payload && typeof oficialAtualLoc.payload === "object" ? oficialAtualLoc.payload : null;
+        if (!gate.service && String(gate.role || "").trim() !== "owner") {
+          const f = findFuncionario(existingLocPayload, onlyDigits(gate.cpf).slice(0, 11));
+          const role = String((f && f.role) || gate.role || "operacao").trim();
+          const acessos = role === "owner" ? ownerWriteAccess() : normalizeOperacaoAccess(f && f.acessos, role);
+          if (!acessos.locacao) {
+            return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
+          }
+        }
+        const payloadLoc = montarPayloadComLocacaoUnica(existingLocPayload, { ...locacao, numeroContrato: nc });
+        const activePlateConflictsLoc = findActivePlateConflicts(payloadLoc.dk_locacoes_cadastro);
+        if (activePlateConflictsLoc.length) {
+          const conflict = activePlateConflictsLoc[0];
+          return res.status(409).json({
+            ok: false,
+            success: false,
+            reason: "active_plate_conflict",
+            placa: conflict.placa,
+            protocolos: conflict.contratos.map((item) => item.protocolo),
+            message: activePlateConflictMessage(conflict),
+          });
+        }
+        const storedAtLoc = new Date().toISOString();
+        let supabaseLoc;
+        try {
+          supabaseLoc = await withDoormanTimeout(
+            upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
+            25000,
+            "supabase_timeout"
+          );
+        } catch (err) {
+          supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
+        }
+        if (!supabaseLoc || supabaseLoc.ok !== true) {
+          return res.status(502).json({
+            ok: false,
+            success: false,
+            reason: (supabaseLoc && supabaseLoc.reason) || "supabase_falhou",
+            message: "A nuvem não confirmou a locação. Tente de novo.",
+          });
+        }
+        const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
+        if (confirmedLoc !== true) {
+          return res.status(409).json({
+            ok: false,
+            success: false,
+            reason: "locacao_nao_confirmada",
+            message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAtLoc,
+          updated_at: storedAtLoc,
+          source: "supabase",
+          persistencia: "supabase",
+          supabase: { ok: true },
+          redis: { ok: false, reason: "cache_adiado" },
+          confirmed: confirmedLoc === true,
+          locacao: nc,
+        });
+      }
       let incoming = body.payload;
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
@@ -1308,3 +1421,4 @@ module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
 module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;
 module.exports.applyCadastroLock = applyCadastroLock;
 module.exports.probeCadastroConfirmado = probeCadastroConfirmado;
+module.exports.montarPayloadComLocacaoUnica = montarPayloadComLocacaoUnica;

@@ -19047,6 +19047,43 @@
     );
   }
 
+  async function portalNuvemConfirmarLocacaoDireta(ncRaw) {
+    const nc = portalNuvemNormProto(ncRaw);
+    const loc = nc && typeof findPortalLocacaoByProtocolo === "function" ? findPortalLocacaoByProtocolo(nc) : null;
+    if (!loc) return { ok: false, error: "O protocolo não está neste computador." };
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 50000) : null;
+    try {
+      const res = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+        method: "POST",
+        cache: "no-store",
+        headers: { Accept: "application/json", "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ locacao: loc, confirm: { kind: "locacao", value: nc } }),
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.success !== true) {
+        return {
+          ok: false,
+          error: data?.message || data?.reason || "Não foi possível salvar no servidor.",
+        };
+      }
+      return {
+        ok: true,
+        success: true,
+        supaOk: true,
+        source: "supabase",
+        confirmed: data.confirmed === true,
+        redisOk: false,
+      };
+    } catch (err) {
+      return { ok: false, error: err };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function portalNuvemPushAwait(opts) {
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       try {
@@ -19126,12 +19163,15 @@
       opts?.textoEnviar || "A enviar os dados para o servidor. Aguarde a confirmação.";
     const run = async () => {
       portalNuvemSyncLockShow(textoEnviar);
-      const push = await portalNuvemPushAwait({
-        confirm:
-          opts?.verifyKind && opts?.verifyValue
-            ? { kind: opts.verifyKind, value: String(opts.verifyValue) }
-            : undefined,
-      });
+      const push =
+        opts?.verifyKind === "locacao"
+          ? await portalNuvemConfirmarLocacaoDireta(opts.verifyValue)
+          : await portalNuvemPushAwait({
+              confirm:
+                opts?.verifyKind && opts?.verifyValue
+                  ? { kind: opts.verifyKind, value: String(opts.verifyValue) }
+                  : undefined,
+            });
       if (!portalNuvemPushResultOk(push)) {
         const detalheBruto =
           push && typeof push.error === "string"
