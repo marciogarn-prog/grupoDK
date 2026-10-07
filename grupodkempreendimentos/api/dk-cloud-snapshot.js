@@ -1064,7 +1064,6 @@ async function handler(req, res) {
           ok: false,
           success: false,
           reason: (oficial && oficial.reason) || "supabase_indisponivel",
-          detail: String((oficial && oficial.detail) || "").slice(0, 180),
           source: "supabase",
         });
       }
