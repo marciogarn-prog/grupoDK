@@ -1059,10 +1059,12 @@ async function handler(req, res) {
         ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
         : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
       if (!oficial || oficial.reason === "supabase_timeout" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
+        console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason, oficial && oficial.detail);
         return res.status(503).json({
           ok: false,
           success: false,
           reason: (oficial && oficial.reason) || "supabase_indisponivel",
+          detail: String((oficial && oficial.detail) || "").slice(0, 180),
           source: "supabase",
         });
       }
