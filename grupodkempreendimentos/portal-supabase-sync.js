@@ -3069,7 +3069,7 @@
     }
     if (!supaOk && redisOk) {
       return {
-        text: "Dados deste computador guardados no Redis oficial. O Supabase não confirmou.",
+        text: "Dados deste computador guardados no Redis oficial. No outro computador clique em Carregar da nuvem.",
         tone: "ok",
       };
     }
@@ -5223,7 +5223,7 @@
       return r;
     }
     if (r.redisOk && !r.supaOk) {
-      setMsg("Dados guardados no Redis oficial. O Supabase não confirmou.", "muted");
+      setMsg("Dados guardados no Redis oficial. No outro computador clique em Carregar da nuvem.", "muted");
       return r;
     }
     return { ...r, ok: false, success: false };

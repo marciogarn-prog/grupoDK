@@ -878,6 +878,58 @@ function mergeComunicacaoOperacaoRedis(existing, incoming) {
     .slice(0, 3000);
 }
 
+function mergeManutencoesCadastro(existingList, incomingList) {
+  const plateKey = (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const normCat = (x) =>
+    String(x?.categoriaManutencao || x?.categoria || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+  const concreta = (c) =>
+    c === "oficina-propria" ||
+    c === "oficina-terceiros" ||
+    c === "enviado-seguro" ||
+    c === "sinistrado-roubo";
+  const score = (x) => Number(x?.updatedAt || 0) || Number(x?.id || 0) || 0;
+  const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+  const byPlaca = new Map();
+  const byId = new Map();
+  const closed = [];
+  const add = (r) => {
+    if (!r || typeof r !== "object") return;
+    const pl = plateKey(r.placa);
+    if (ativa(r) && pl) {
+      const ex = byPlaca.get(pl);
+      if (!ex) {
+        byPlaca.set(pl, { ...r });
+        return;
+      }
+      const catR = normCat(r);
+      const catEx = normCat(ex);
+      const newer =
+        concreta(catR) && (catEx === "triagem" || !catEx)
+          ? { ...ex, ...r }
+          : concreta(catEx) && (catR === "triagem" || !catR)
+            ? { ...r, ...ex }
+            : score(r) >= score(ex)
+              ? { ...ex, ...r }
+              : { ...r, ...ex };
+      byPlaca.set(pl, newer);
+      return;
+    }
+    const id = String(r.id || "").trim();
+    if (id) {
+      const ex = byId.get(id);
+      if (!ex || score(r) >= score(ex)) byId.set(id, { ...(ex || {}), ...r });
+      return;
+    }
+    closed.push({ ...r });
+  };
+  (Array.isArray(existingList) ? existingList : []).forEach(add);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(add);
+  return [...byPlaca.values(), ...byId.values(), ...closed];
+}
+
 function mergePayloads(existing, incoming) {
   if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
@@ -895,6 +947,15 @@ function mergePayloads(existing, incoming) {
     "dk_funcionarios_access",
   ]);
   const out = { ...existing, ...incoming };
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_manutencoes_cadastro") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_manutencoes_cadastro")
+  ) {
+    out.dk_manutencoes_cadastro = mergeManutencoesCadastro(
+      existing.dk_manutencoes_cadastro,
+      incoming.dk_manutencoes_cadastro
+    );
+  }
   if (
     Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
     Object.prototype.hasOwnProperty.call(existing, "dk_locacoes_cadastro")
@@ -1338,6 +1399,9 @@ async function handler(req, res) {
         acessos = f && String(f.role || "").trim() === "owner"
           ? ownerWriteAccess()
           : normalizeOperacaoAccess(f?.acessos, f?.role || "operacao");
+        if (body.operador === true) {
+          acessos = { ...acessos, manutencao: true, lancamentoManutencao: true };
+        }
       }
       incoming = restoreCredentialFields(existingPayload, incoming);
       incoming = filterIncomingByModules(existingPayload, incoming, acessos, {
