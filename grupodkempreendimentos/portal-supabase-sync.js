@@ -2803,6 +2803,7 @@
               base_revision: cloudBaseRevision,
               replace,
               ...(opts && opts.confirm ? { confirm: opts.confirm } : {}),
+              ...(opts && opts.operador ? { operador: true } : {}),
             }),
           },
           postTimeoutMs
@@ -2843,7 +2844,7 @@
           cloudPushDirty = true;
           break;
         }
-        if (res.ok && data?.success === true && data?.supabase?.ok === true) {
+        if (res.ok && data?.success === true && (data?.supabase?.ok === true || data?.redis?.ok === true)) {
           anyOk = true;
           lastRedisOk = Boolean(data.redis && data.redis.ok);
           const rev = String(data.revision || data.updated_at || "").trim();
@@ -2856,7 +2857,10 @@
             }
           }
           invalidateSnapshotGetCache();
-          lastSupabase = { ok: true };
+          lastSupabase = {
+            ok: data?.supabase?.ok === true,
+            reason: String(data?.supabase?.reason || ""),
+          };
           if (typeof data.confirmed === "boolean") confirmed = data.confirmed;
         } else {
           lastErr = data?.message || data?.reason || data?.error || res.statusText;
@@ -3061,6 +3065,12 @@
       return {
         text: `Guardado no Supabase. Cópia Redis indisponível${redisErr ? `: ${redisErr}` : ""}.`,
         tone: "muted",
+      };
+    }
+    if (!supaOk && redisOk) {
+      return {
+        text: "Dados deste computador guardados no Redis oficial. O Supabase não confirmou.",
+        tone: "ok",
       };
     }
     const detail = supaErr || "Supabase não confirmou a gravação";
@@ -5169,15 +5179,16 @@
       replace: forceReplace,
       fullReplaceComprovantes,
       confirm: opts && opts.confirm ? opts.confirm : undefined,
+      operador: showUserMessages === true,
     });
     supaOk = red.success === true && Boolean(red.supabase && red.supabase.ok);
-    redisOk = supaOk && red.redisOk === true;
+    redisOk = red.redisOk === true;
     if (!supaOk) supaErr = String(red.error || (red.supabase && red.supabase.reason) || "supabase_falhou");
     if (supaOk && !redisOk) redisErr = "cache_indisponivel";
 
     updateSupabaseStatusBanner(supaOk, supaErr);
 
-    if (!supaOk) {
+    if (!supaOk && !redisOk) {
       const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
       if (showUserMessages) setMsg(msg.text, msg.tone);
       return { ok: false, success: false, error: new Error(msg.text), supaOk, redisOk };
@@ -5196,7 +5207,7 @@
       supaOk,
       redisOk,
       confirmed: red.confirmed,
-      source: "supabase",
+      source: supaOk ? "supabase" : "redis",
     };
   }
 
@@ -5209,6 +5220,10 @@
     }
     if (r.supaOk && !r.redisOk) {
       setMsg("Nuvem actualizada (Supabase; cópia Redis indisponível).", "muted");
+      return r;
+    }
+    if (r.redisOk && !r.supaOk) {
+      setMsg("Dados guardados no Redis oficial. O Supabase não confirmou.", "muted");
       return r;
     }
     return { ...r, ok: false, success: false };

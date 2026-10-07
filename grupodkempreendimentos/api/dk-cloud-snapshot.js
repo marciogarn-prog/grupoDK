@@ -1167,7 +1167,13 @@ async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const locacoesLockToken = await acquireLocacoesWriteLock(redis, { attempts: 80, waitMs: 100 });
+      const body = parseBody(req);
+      const operador = body.operador === true;
+      const locacoesLockToken = await acquireLocacoesWriteLock(redis, {
+        attempts: operador ? 250 : 5,
+        waitMs: 100,
+        ttlSec: 30,
+      });
       if (!locacoesLockToken) {
         return res.status(409).json({
           ok: false,
@@ -1176,7 +1182,6 @@ async function handler(req, res) {
         });
       }
       try {
-      const body = parseBody(req);
       if (body.locacao && typeof body.locacao === "object" && !Array.isArray(body.locacao) && !isObject(body.payload)) {
         if (gate.typ === "cliente") {
           return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
@@ -1187,7 +1192,7 @@ async function handler(req, res) {
           return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
         }
         const oficialAtualLoc = isSupabaseDoormanConfigured()
-          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
           : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
         if (
           !oficialAtualLoc ||
@@ -1231,7 +1236,7 @@ async function handler(req, res) {
         try {
           supabaseLoc = await withDoormanTimeout(
             upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
-            25000,
+            8000,
             "supabase_timeout"
           );
         } catch (err) {
@@ -1275,8 +1280,11 @@ async function handler(req, res) {
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const baseRevision = String(body.base_revision || body.revision || "");
       const oficialAtual = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 20000, "supabase_timeout")
+        ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
         : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
+      let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
+      let gravarSoRedis = false;
       if (
         !oficialAtual ||
         oficialAtual.reason === "supabase_timeout" ||
@@ -1284,14 +1292,18 @@ async function handler(req, res) {
         oficialAtual.reason === "cloud_budget" ||
         (oficialAtual.reason && String(oficialAtual.reason).startsWith("supabase_http"))
       ) {
-        return res.status(503).json({
-          ok: false,
-          success: false,
-          reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel",
-        });
+        const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+        if (!cached || !cached.payload) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel",
+          });
+        }
+        existingPayload = cached.payload;
+        existingUpdatedAt = cached.updated_at ? String(cached.updated_at) : null;
+        gravarSoRedis = true;
       }
-      let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
-      let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
       if (revisaoConflita(baseRevision, existingUpdatedAt)) {
         return res.status(409).json({
           ok: false,
@@ -1404,18 +1416,65 @@ async function handler(req, res) {
       }
       payload.dk_dados_seguros_v1 = true;
       const storedAt = new Date().toISOString();
+      if (gravarSoRedis) {
+        try {
+          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+          await redis.set(`${REDIS_KEY}:rev`, storedAt);
+        } catch (err) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: "kv_write_failed",
+            message: "Não foi possível guardar no Redis oficial. Tente de novo.",
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAt,
+          updated_at: storedAt,
+          source: "redis",
+          supabasePendente: true,
+          persistencia: "redis",
+          supabase: { ok: false, reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel" },
+          redis: { ok: true },
+          replace,
+          keys: Object.keys(payload).length,
+        });
+      }
       let supabase;
       try {
-        supabase = await withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 20000, "supabase_timeout");
+        supabase = await withDoormanTimeout(upsertSnapshotByLabel(LABEL, payload, storedAt), 8000, "supabase_timeout");
       } catch (err) {
         supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
       }
       if (!supabase || supabase.ok !== true) {
-        return res.status(502).json({
-          ok: false,
-          success: false,
-          reason: (supabase && supabase.reason) || "supabase_falhou",
+        try {
+          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+          await redis.set(`${REDIS_KEY}:rev`, storedAt);
+        } catch (err) {
+          return res.status(502).json({
+            ok: false,
+            success: false,
+            reason: (supabase && supabase.reason) || "supabase_falhou",
+            message: "O Supabase não confirmou e o Redis também não guardou. Tente de novo.",
+            supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAt,
+          updated_at: storedAt,
+          source: "redis",
+          supabasePendente: true,
+          persistencia: "redis",
           supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
+          redis: { ok: true },
+          replace,
+          keys: Object.keys(payload).length,
         });
       }
       let confirmed;
