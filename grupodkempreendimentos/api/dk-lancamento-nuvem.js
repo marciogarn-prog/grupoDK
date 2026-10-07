@@ -1,9 +1,12 @@
 /**
  * Lançamento de aluguel: uma linha pequena em public.dk_cloud_snapshots.
  * Não lê nem regrava o snapshot label=default.
- * O pagamento só existe depois que o Supabase confirma. Redis é cache, depois.
+ * Com o Supabase a responder, o pagamento fica na linha pequena e o Redis só faz cache.
+ * Se o Supabase estourar o tempo ou devolver erro 5xx, o pagamento entra no snapshot
+ * oficial do Redis e na fila, para o operador não perder o clique.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const { CANONICAL_SNAPSHOT_KEY } = require("../lib/dk-locacoes-integrity.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
 
 const FILA_KEY = "dk:portal:lancamentos_fila:v1";
@@ -117,12 +120,37 @@ function urlSemDefault(filtro) {
   return `${supabaseUrl()}/rest/v1/dk_cloud_snapshots?${filtro}`;
 }
 
+function supabaseIndisponivel(reason) {
+  const s = String(reason || "");
+  return s === "supabase_timeout" || s.startsWith("supabase_http_5");
+}
+
+async function fetchSupabase(url, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    return await fetch(url, { ...(opts || {}), signal: ctrl.signal });
+  } catch (error) {
+    const abortou = error && (error.name === "AbortError" || /abort/i.test(String(error.message || error)));
+    const falha = new Error(abortou ? "supabase_timeout" : String(error && error.message ? error.message : error));
+    falha.reason = abortou ? "supabase_timeout" : "supabase_timeout";
+    throw falha;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function lerLinha(label) {
   if (!serviceRoleKey()) return { ok: false, reason: "doorman_key_missing", payload: null };
   if (!String(label).startsWith(PREFIXO)) return { ok: false, reason: "label_proibida", payload: null };
-  const res = await fetch(urlSemDefault(`label=eq.${encodeURIComponent(label)}&select=label,payload,updated_at`), {
-    headers: headersSupabase(),
-  });
+  let res;
+  try {
+    res = await fetchSupabase(urlSemDefault(`label=eq.${encodeURIComponent(label)}&select=label,payload,updated_at`), {
+      headers: headersSupabase(),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.reason || "supabase_timeout", payload: null };
+  }
   if (!res.ok) {
     return { ok: false, reason: `supabase_http_${res.status}`, payload: null };
   }
@@ -137,18 +165,23 @@ async function gravarLinha(label, payload) {
   if (!String(label).startsWith(PREFIXO) || label === "default") return { ok: false, reason: "label_proibida" };
   const bytes = Buffer.byteLength(JSON.stringify(payload));
   if (bytes > LIMITE_BYTES) return { ok: false, reason: "payload_grande" };
-  const res = await fetch(urlSemDefault("on_conflict=label"), {
-    method: "POST",
-    headers: headersSupabase({
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-    }),
-    body: JSON.stringify({
-      label,
-      payload,
-      updated_at: String(payload.updated_at || new Date().toISOString()),
-    }),
-  });
+  let res;
+  try {
+    res = await fetchSupabase(urlSemDefault("on_conflict=label"), {
+      method: "POST",
+      headers: headersSupabase({
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      }),
+      body: JSON.stringify({
+        label,
+        payload,
+        updated_at: String(payload.updated_at || new Date().toISOString()),
+      }),
+    });
+  } catch (error) {
+    return { ok: false, reason: error.reason || "supabase_timeout" };
+  }
   if (!res.ok) return { ok: false, reason: `supabase_http_${res.status}` };
   return { ok: true };
 }
@@ -156,7 +189,12 @@ async function gravarLinha(label, payload) {
 async function listarLinhas(filtroLike, limite) {
   if (!serviceRoleKey()) return { ok: false, reason: "doorman_key_missing", rows: [] };
   const filtro = `label=like.${encodeURIComponent(filtroLike)}&select=label,payload,updated_at&order=updated_at.desc&limit=${Number(limite) || 200}`;
-  const res = await fetch(urlSemDefault(filtro), { headers: headersSupabase() });
+  let res;
+  try {
+    res = await fetchSupabase(urlSemDefault(filtro), { headers: headersSupabase() });
+  } catch (error) {
+    return { ok: false, reason: error.reason || "supabase_timeout", rows: [] };
+  }
   if (!res.ok) return { ok: false, reason: `supabase_http_${res.status}`, rows: [] };
   const rows = await res.json().catch(() => []);
   return { ok: true, rows: Array.isArray(rows) ? rows : [] };
@@ -186,6 +224,64 @@ async function cacheRedis(item, protocolo) {
   }
 }
 
+function lerSnapshot(raw) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  try {
+    const row = JSON.parse(raw);
+    return row && typeof row === "object" ? row : null;
+  } catch {
+    return null;
+  }
+}
+
+async function lerFilaRedis() {
+  if (!isRedisKvConfigured()) return [];
+  try {
+    const redis = createRedisClient();
+    return listaDeMapa(await redis.hgetall(FILA_KEY));
+  } catch {
+    return [];
+  }
+}
+
+async function gravarPagamentoNoRedisOficial(item, protocolo) {
+  if (!isRedisKvConfigured()) return { ok: false, reason: "kv_not_configured" };
+  const redis = createRedisClient();
+  const fila = await lerFilaRedis();
+  const repetidoFila = fila.some((outro) => {
+    if (!outro || String(outro?.pagamento?.protocoloLancamento || "") === protocolo) return false;
+    return onlyDigits(outro.nc) === onlyDigits(item.nc) && mesmaCobranca(outro.pagamento, item.pagamento);
+  });
+  if (repetidoFila) return { ok: false, duplicado: true };
+  const row = lerSnapshot(await redis.get(CANONICAL_SNAPSHOT_KEY));
+  const payload = row && row.payload && typeof row.payload === "object" ? row.payload : null;
+  const locs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : null;
+  if (locs) {
+    const idx = locs.findIndex((loc) => onlyDigits(loc?.numeroContrato || loc?.protocolo) === onlyDigits(item.nc));
+    if (idx >= 0) {
+      const loc = locs[idx];
+      const atuais = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      const repetido = atuais.some((pag) => mesmaCobranca(pag, item.pagamento));
+      if (repetido) return { ok: false, duplicado: true };
+      locs[idx] = {
+        ...loc,
+        portalLancamentosAluguel: atuais.concat([item.pagamento]),
+        updatedAt: Date.now(),
+      };
+      payload.dk_locacoes_cadastro = locs;
+      await redis.set(
+        CANONICAL_SNAPSHOT_KEY,
+        JSON.stringify({ ...row, payload, updated_at: new Date().toISOString() })
+      );
+    }
+  }
+  await redis.hset(FILA_KEY, {
+    [protocolo]: JSON.stringify({ ...item, supabasePendente: true }),
+  });
+  return { ok: true };
+}
+
 module.exports = async function handler(req, res) {
   applyApiCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -196,19 +292,23 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const lido = await listarLinhas(`${PREFIXO}*`, 300);
-      if (!lido.ok) return res.status(503).json({ ok: false, reason: lido.reason || "supabase_indisponivel" });
       const porProto = new Map();
-      if (isRedisKvConfigured()) {
-        try {
-          const redis = createRedisClient();
-          for (const item of listaDeMapa(await redis.hgetall(FILA_KEY))) {
-            const proto = String(item?.pagamento?.protocoloLancamento || "").trim();
-            if (proto) porProto.set(proto, item);
-          }
-        } catch {
-          /* cache ausente não esconde a linha do Supabase */
+      for (const item of await lerFilaRedis()) {
+        const proto = String(item?.pagamento?.protocoloLancamento || "").trim();
+        if (proto) porProto.set(proto, item);
+      }
+      const lido = await listarLinhas(`${PREFIXO}*`, 300);
+      if (!lido.ok) {
+        if (!supabaseIndisponivel(lido.reason) || !porProto.size) {
+          return res.status(503).json({ ok: false, reason: lido.reason || "supabase_indisponivel" });
         }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          fonte: "redis",
+          supabasePendente: true,
+          itens: Array.from(porProto.values()),
+        });
       }
       for (const row of lido.rows) {
         if (!String(row?.label || "").startsWith(PREFIXO) || row.label === "default") continue;
@@ -233,8 +333,6 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         return res.status(400).json({ ok: false, reason: (err && err.reason) || "lancamento_incompleto" });
       }
-      const ja = await lerLinha(label);
-      if (!ja.ok) return res.status(503).json({ ok: false, reason: ja.reason || "supabase_indisponivel" });
       const agora = new Date().toISOString();
       const item = {
         nc,
@@ -251,12 +349,43 @@ module.exports = async function handler(req, res) {
         deleted: false,
         deleted_at: null,
       };
+      const responderRedis = async () => {
+        const guardou = await gravarPagamentoNoRedisOficial(item, protocolo);
+        if (guardou.duplicado) {
+          return res.status(409).json({
+            ok: false,
+            success: false,
+            reason: "duplicate_payment_same_day_value",
+            protocolo: nc,
+            message: "JÁ EXISTE UM PAGAMENTO IGUAL NESTE PROTOCOLO. O NOVO LANÇAMENTO NÃO FOI GRAVADO NA NUVEM.",
+          });
+        }
+        if (!guardou.ok) {
+          return res.status(503).json({ ok: false, success: false, reason: guardou.reason || "supabase_indisponivel" });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          fonte: "redis",
+          supabasePendente: true,
+          protocolo,
+          message: "Pagamento registrado no Redis oficial. O Supabase não respondeu a tempo.",
+        });
+      };
+      const ja = await lerLinha(label);
+      if (!ja.ok) {
+        if (supabaseIndisponivel(ja.reason)) return responderRedis();
+        return res.status(503).json({ ok: false, reason: ja.reason || "supabase_indisponivel" });
+      }
       if (ja.payload && String(ja.payload.id || ja.payload?.pagamento?.protocoloLancamento || "") === protocolo) {
         await cacheRedis(itemDePayload(ja.payload) || item, protocolo);
         return res.status(200).json({ ok: true, success: true, fonte: "supabase", protocolo, idempotente: true });
       }
       const doContrato = await listarLinhas(`${PREFIXO}${nc}:*`, 400);
-      if (!doContrato.ok) return res.status(503).json({ ok: false, reason: doContrato.reason || "supabase_indisponivel" });
+      if (!doContrato.ok) {
+        if (supabaseIndisponivel(doContrato.reason)) return responderRedis();
+        return res.status(503).json({ ok: false, reason: doContrato.reason || "supabase_indisponivel" });
+      }
       const repetido = doContrato.rows.some((row) => {
         const outro = itemDePayload(row && row.payload);
         if (!outro || String(row?.label || "") === label) return false;
@@ -272,7 +401,10 @@ module.exports = async function handler(req, res) {
         });
       }
       const gravou = await gravarLinha(label, item);
-      if (!gravou.ok) return res.status(503).json({ ok: false, success: false, reason: gravou.reason || "supabase_indisponivel" });
+      if (!gravou.ok) {
+        if (supabaseIndisponivel(gravou.reason)) return responderRedis();
+        return res.status(503).json({ ok: false, success: false, reason: gravou.reason || "supabase_indisponivel" });
+      }
       await cacheRedis(item, protocolo);
       return res.status(200).json({ ok: true, success: true, fonte: "supabase", protocolo });
     }

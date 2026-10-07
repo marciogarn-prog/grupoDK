@@ -19387,7 +19387,7 @@
     let ultimo = { ok: false, status: 0, data: null };
     for (let tentativa = 0; tentativa < 2; tentativa += 1) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), 14000);
       try {
         const r = await fetch("/api/dk-lancamento-nuvem?nocache=" + Date.now(), {
           method: "POST",
@@ -26641,8 +26641,18 @@
         msg: String(enviado?.data?.message || "A nuvem recusou este lançamento. Nada foi salvo."),
       };
     }
-    if (!enviado?.ok) return { ok: false, servidor: false, msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
-    return { ok: true };
+    if (!enviado?.ok) {
+      return {
+        ok: false,
+        servidor: false,
+        msg: String(enviado?.data?.message || MSG_LANC_SERVIDOR_NAO_CONFIRMOU),
+      };
+    }
+    return {
+      ok: true,
+      supabasePendente: enviado?.data?.supabasePendente === true,
+      msg: String(enviado?.data?.message || ""),
+    };
   }
 
   async function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
@@ -26759,7 +26769,15 @@
         comentario: comentarioPagamento,
       });
     }
-    return { ok: true, entry, cpfDigits, nc, loc };
+    return {
+      ok: true,
+      entry,
+      cpfDigits,
+      nc,
+      loc,
+      supabasePendente: noServidor.supabasePendente === true,
+      msg: noServidor.msg || "",
+    };
   }
 
   function persistPortalLancamentoAluguelDevolucao(cpfDigits, numeroContratoNorm, valorAbsNum, dataDevolucaoBr, extras) {
@@ -29977,6 +29995,11 @@
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
     const inpComentario = document.getElementById("operacaoLancAluguelComentarioPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const msgPagto = document.getElementById("operacaoLancAluguelPagamentoMsg");
+    const dizerPagto = (texto) => {
+      if (msg) msg.textContent = texto;
+      if (msgPagto) msgPagto.textContent = texto;
+    };
     if (!getPortalSessaoAdminRole()) {
       if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar pagamentos.";
       return;
@@ -30048,17 +30071,15 @@
           descontoPrazo: Number(parseVal(String(inpDesconto?.value || ""))),
         });
         if (!res?.ok) {
-          if (msg) {
-            msg.textContent = res?.msg
-              ? res.msg
-              : res?.duplicado
+          dizerPagto(
+            res?.msg
               ? res.msg
               : !getPortalSessaoAdminRole()
-              ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-              : res?.stripped
-                ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
-                : MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
-          }
+                ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
+                : res?.stripped
+                  ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
+                  : MSG_LANC_SERVIDOR_NAO_CONFIRMOU
+          );
           return;
         }
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -30079,7 +30100,8 @@
           protocolo: proto,
           comentario,
         });
-        if (msg) msg.textContent = "A enviar aviso ao cliente…";
+        if (res.supabasePendente && res.msg) dizerPagto(res.msg);
+        else if (msg) msg.textContent = "A enviar aviso ao cliente…";
         const notify = await portalNotificarClientePagamentosLancados(
           res.cpfDigits,
           res.nc,
@@ -30087,7 +30109,9 @@
           [res.entry],
           new Set()
         );
-        if (msg) {
+        if (res.supabasePendente && res.msg) {
+          dizerPagto(res.msg);
+        } else if (msg) {
           msg.textContent = notify.ok
             ? notify.msg ||
                 "Lançamento de aluguel realizado com sucesso. Informação já enviada para o cliente."
