@@ -19195,15 +19195,8 @@
     );
   }
 
-  function portalMarcarLancamentoUploadPendente(protocolo, nc) {
-    try {
-      sessionStorage.setItem(
-        PORTAL_LANC_UPLOAD_PENDENTE_KEY,
-        JSON.stringify({ protocolo: String(protocolo || "").trim(), nc: String(nc || "").trim() })
-      );
-    } catch {
-      /* ignore */
-    }
+  function portalMarcarLancamentoUploadPendente() {
+    /* Sem fila local. Lançamento que o servidor não confirmou não fica para sincronizar depois. */
   }
 
   function portalLimparLancamentoUploadPendente() {
@@ -19444,14 +19437,7 @@
   }
 
   async function portalExigirConfirmacaoServidorDoLancamento(res) {
-    if (!res?.ok || !res.entry) return false;
-    const protoLanc = String(res.entry.protocoloLancamento || "").trim();
-    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoLanc, res.loc);
-    if (!confirmado) {
-      portalDesfazerLancamentoLocalNaoConfirmado(res.loc, res.entry);
-      return false;
-    }
-    return true;
+    return Boolean(res?.ok && res.entry);
   }
 
   function portalPushCloudSnapshotAfterPersist() {
@@ -19566,10 +19552,8 @@
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
     if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
-    const textoDownload =
-      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar.";
-    const textoEnvioPendente =
-      "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar.";
+    const textoDownload = "A nuvem não devolveu a atualização. Pode continuar e tentar de novo.";
+    const textoEnvioPendente = "Um envio anterior ainda não terminou. Pode continuar.";
     void Promise.resolve(window.__DK_pullFromCloudOnScreenChange())
       .then((r) => {
         if (gen !== portalScreenPullGen) return;
@@ -25947,38 +25931,72 @@
               : "",
           ficticio: portalRegistroEhTeste(loc),
         };
-        loc.portalLancamentosAluguel.push(entry);
-        anexarPortalPagamentoAuditoria(loc, {
-          at: createdAt,
-          acao: "lancado",
-          numeroContrato: nc,
-          cpfCliente: cpfDigits,
-          protocoloLancamento: entry.protocoloLancamento || "",
-          dataPagamento: dataStr,
-          valor: calendarioDelta,
-          operadorCpf: String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11),
-          operadorNome: String(reg?.nome || "").trim(),
-          detalhe: "Lançamento no calendário",
-        });
         novos.push(entry);
       });
     }
     if (bloqueioDuplicado) {
-      const protocolosNovos = new Set(novos.map((item) => portalProtocoloLancamentoKey(item)));
-      loc.portalLancamentosAluguel = loc.portalLancamentosAluguel.filter(
-        (item) => !protocolosNovos.has(portalProtocoloLancamentoKey(item))
-      );
       window.alert(bloqueioDuplicado);
       return { ok: false, duplicado: true, msg: bloqueioDuplicado, added: 0 };
     }
     if (!novos.length) {
       return { ok: true, notify: { ok: true, skipped: true, count: 0 }, added: 0 };
     }
-    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, { adiarNuvem: true });
-    if (!ok) return { ok: false, added: 0 };
-    const gravados = novos.filter((entry) => portalLancamentoAindaGravado(loc, entry));
+    const aceites = [];
+    for (const entry of novos) {
+      const previa = {
+        ...loc,
+        portalLancamentosAluguel: [...loc.portalLancamentosAluguel, ...aceites],
+      };
+      const conf = await portalConfirmarLancamentoNoServidorAntesDeGravar(previa, entry);
+      if (!conf.ok) {
+        if (aceites.length) {
+          for (const item of aceites) {
+            loc.portalLancamentosAluguel.push(item);
+            anexarPortalPagamentoAuditoria(loc, {
+              at: item.createdAt,
+              acao: "lancado",
+              numeroContrato: nc,
+              cpfCliente: cpfDigits,
+              protocoloLancamento: item.protocoloLancamento || "",
+              dataPagamento: item.data,
+              valor: item.valor,
+              operadorCpf: String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11),
+              operadorNome: String(reg?.nome || "").trim(),
+              detalhe: "Lançamento no calendário",
+            });
+          }
+          finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, {
+            adiarNuvem: true,
+            semFilaNuvem: true,
+          });
+        }
+        return { ok: false, nuvem: false, added: aceites.length, msg: conf.msg || MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
+      }
+      aceites.push(entry);
+    }
+    for (const entry of aceites) {
+      loc.portalLancamentosAluguel.push(entry);
+      anexarPortalPagamentoAuditoria(loc, {
+        at: entry.createdAt,
+        acao: "lancado",
+        numeroContrato: nc,
+        cpfCliente: cpfDigits,
+        protocoloLancamento: entry.protocoloLancamento || "",
+        dataPagamento: entry.data,
+        valor: entry.valor,
+        operadorCpf: String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11),
+        operadorNome: String(reg?.nome || "").trim(),
+        detalhe: "Lançamento no calendário",
+      });
+    }
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, {
+      adiarNuvem: true,
+      semFilaNuvem: true,
+    });
+    if (!ok) return { ok: false, added: 0, msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
+    const gravados = aceites.filter((entry) => portalLancamentoAindaGravado(loc, entry));
     if (!gravados.length) {
-      return { ok: false, added: 0, stripped: true };
+      return { ok: false, added: 0, stripped: true, msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
     }
     const { nome, placa } = portalNomePlacaParaPagamentoDoDia(loc, cpfDigits);
     for (const entry of gravados) {
@@ -25995,18 +26013,6 @@
     renderPortalLancPagamentosDoDia();
     renderOperacaoLancAluguelHistorico();
     destacarLancamentoHistorico(gravados[0]?.data, gravados[0]?.protocoloLancamento);
-    const ultimo = gravados[gravados.length - 1];
-    const protoUltimo = String(ultimo?.protocoloLancamento || "").trim();
-    const confirmado = await portalLancamentoConfirmarUploadNaNuvem(protoUltimo, loc);
-    if (!confirmado) {
-      for (const entry of gravados) portalDesfazerLancamentoLocalNaoConfirmado(loc, entry);
-      return {
-        ok: false,
-        nuvem: false,
-        added: 0,
-        msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU,
-      };
-    }
     const notify = await portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, gravados, new Set(), { ano });
     return { ok: true, notify, added: gravados.length };
   }
@@ -26250,13 +26256,20 @@
       loc.ultimoLancamentoAluguelValor = "";
     }
     loc.updatedAt = Date.now();
-    try {
+    const gravarLocal = () => {
       saveCadastro(CAD_LOCACOES_KEY, locs);
+    };
+    try {
+      if (opts?.semFilaNuvem && typeof window.__DK_runWithoutCloudPush === "function") {
+        window.__DK_runWithoutCloudPush(gravarLocal);
+      } else {
+        gravarLocal();
+      }
     } catch (err) {
       console.error(err);
       return false;
     }
-    if (!opts?.adiarNuvem) portalPushCloudSnapshotAfterPersist();
+    if (!opts?.adiarNuvem && !opts?.semFilaNuvem) portalPushCloudSnapshotAfterPersist();
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLocacaoLancamentosHistorico(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
@@ -26479,7 +26492,30 @@
     loc.portalPagamentosAuditoria = mergeFn ? mergeFn([prev, [item]]) : prev.concat([item]);
   }
 
-  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
+  async function portalConfirmarLancamentoNoServidorAntesDeGravar(loc, entry) {
+    const proto = String(entry?.protocoloLancamento || "").trim();
+    if (!proto) return { ok: false, servidor: false, msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
+    const previa = {
+      ...loc,
+      portalLancamentosAluguel: [
+        ...(Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []),
+        entry,
+      ],
+    };
+    const enviado = await portalEnviarLocacaoLancamentoNaNuvem(previa, proto);
+    const reason = String(enviado?.data?.reason || "");
+    if (reason === "duplicate_payment_same_day_value" || reason === "active_plate_conflict") {
+      return {
+        ok: false,
+        duplicado: reason === "duplicate_payment_same_day_value",
+        msg: String(enviado?.data?.message || "A nuvem recusou este lançamento. Nada foi salvo."),
+      };
+    }
+    if (!enviado?.ok) return { ok: false, servidor: false, msg: MSG_LANC_SERVIDOR_NAO_CONFIRMOU };
+    return { ok: true };
+  }
+
+  async function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
     if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -26541,6 +26577,8 @@
     }
     const comentarioPagamento = String(meios?.comentarioPagamento || meios?.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) entry.comentarioPagamento = comentarioPagamento;
+    const noServidor = await portalConfirmarLancamentoNoServidorAntesDeGravar(loc, entry);
+    if (!noServidor.ok) return noServidor;
     loc.portalLancamentosAluguel.push(entry);
     anexarPortalPagamentoAuditoria(loc, {
       at: entry.createdAt,
@@ -26560,7 +26598,10 @@
             ? "Caução"
             : "",
     });
-    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, { adiarNuvem: true });
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc, {
+      adiarNuvem: true,
+      semFilaNuvem: true,
+    });
     if (!ok) return { ok: false };
     if (!portalLancamentoAindaGravado(loc, entry)) {
       return { ok: false, stripped: true };
@@ -29853,8 +29894,7 @@
         if (btn?.disabled) return;
         if (btn) btn.disabled = true;
         try {
-        if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-        const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
+        const res = await persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
           valorEspecie: valorNum,
           valorPix: 0,
           valorCartao: 0,
@@ -29862,19 +29902,16 @@
         });
         if (!res?.ok) {
           if (msg) {
-            msg.textContent = res?.duplicado
+            msg.textContent = res?.msg
+              ? res.msg
+              : res?.duplicado
               ? res.msg
               : !getPortalSessaoAdminRole()
               ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
               : res?.stripped
                 ? `O pagamento de ${dataStr} não ficou gravado. Confirme de novo.`
-                : "Não foi possível guardar o pagamento.";
+                : MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
           }
-          return;
-        }
-        const confirmado = await portalExigirConfirmacaoServidorDoLancamento(res);
-        if (!confirmado) {
-          if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
           return;
         }
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -29993,20 +30030,17 @@
     const texto = `Devolução de investimento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-      const res = persistPortalLancamentoAluguelDevolucao(digits, proto, valorAbs, dataStr, {
+      const res = await persistPortalLancamentoAluguelDevolucao(digits, proto, valorAbs, dataStr, {
         comentarioPagamento: comentario,
       });
       if (!res?.ok) {
         if (msg) {
-          msg.textContent = !getPortalSessaoAdminRole()
+          msg.textContent = res?.msg
+            ? res.msg
+            : !getPortalSessaoAdminRole()
             ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-            : "Não foi possível guardar a devolução.";
+            : MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         }
-        return;
-      }
-      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
-        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         return;
       }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -30078,24 +30112,17 @@
     const texto = `Crédito de manutenção de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor soma no TOTAL PAGO do cliente e não entra na receita da empresa.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-      const res = persistPortalLancamentoAluguelCreditoManutencao(digits, proto, valorNum, dataStr, {
+      const res = await persistPortalLancamentoAluguelCreditoManutencao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
       if (!res?.ok) {
         if (msg) {
-          msg.textContent = res?.duplicado
+          msg.textContent = res?.msg
             ? res.msg
             : !getPortalSessaoAdminRole()
               ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-              : res?.stripped
-                ? `O crédito de ${dataStr} não ficou gravado. Confirme de novo.`
-                : "Não foi possível guardar o crédito de manutenção.";
+              : MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         }
-        return;
-      }
-      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
-        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         return;
       }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -30173,24 +30200,17 @@
     const texto = `Caução de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}. Este valor entra na receita da empresa e não contabiliza no aluguel do cliente.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
-      if (document.body.classList.contains("portal-nuvem-sync-lock-on")) return;
-      const res = persistPortalLancamentoAluguelCaucao(digits, proto, valorNum, dataStr, {
+      const res = await persistPortalLancamentoAluguelCaucao(digits, proto, valorNum, dataStr, {
         comentarioPagamento: comentario,
       });
       if (!res?.ok) {
         if (msg) {
-          msg.textContent = res?.duplicado
+          msg.textContent = res?.msg
             ? res.msg
             : !getPortalSessaoAdminRole()
               ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-              : res?.stripped
-                ? `A caução de ${dataStr} não ficou gravada. Confirme de novo.`
-                : "Não foi possível guardar a caução.";
+              : MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         }
-        return;
-      }
-      if (!(await portalExigirConfirmacaoServidorDoLancamento(res))) {
-        if (msg) msg.textContent = MSG_LANC_SERVIDOR_NAO_CONFIRMOU;
         return;
       }
       const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
