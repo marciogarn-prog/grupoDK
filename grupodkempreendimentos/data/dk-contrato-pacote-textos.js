@@ -83,7 +83,7 @@
 
   <section class="opcao-termo">
     <h2>Termo de Compromisso</h2>
-    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, rigorosamente no(a) {{DIA_PAGAMENTO}}, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}. {{TEXTO_DESCONTO_PRAZO}}</p>
+    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, no(a) {{DIA_PAGAMENTO}} rigorosamente, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}. {{TEXTO_DESCONTO_PRAZO}}</p>
   </section>
 
   <p class="opcao-data">{{MUNICIPIO_DATA}}</p>
