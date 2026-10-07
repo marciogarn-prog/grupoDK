@@ -1873,9 +1873,18 @@
     return false;
   }
 
+  /** Administrador e colaborador na área da equipa. */
+  function portalSessaoPodeUsarNuvem() {
+    if (typeof window.__DK_getPortalSessaoAdminRole === "function") {
+      const role = String(window.__DK_getPortalSessaoAdminRole() || "").trim();
+      return role === "owner" || role === "operacao";
+    }
+    return portalSessaoEhAdministradorNuvem();
+  }
+
   function recusarOpcaoNuvemSeNaoAdmin() {
-    if (portalSessaoEhAdministradorNuvem()) return false;
-    setMsg("Estas opções da nuvem são só para administrador.", null);
+    if (portalSessaoPodeUsarNuvem()) return false;
+    setMsg("Inicie sessão na área da equipa para guardar, carregar ou fazer backup.", null);
     return true;
   }
 
@@ -2221,12 +2230,12 @@
   function refreshCloudBarVisibility() {
     const bar = document.getElementById("portal-cloud-sync-bar");
     if (!bar) return;
-    const admin = portalSessaoEhAdministradorNuvem();
-    bar.classList.toggle("hidden", !admin);
-    if (admin) bar.removeAttribute("hidden");
+    const pode = portalSessaoPodeUsarNuvem();
+    bar.classList.toggle("hidden", !pode);
+    if (pode) bar.removeAttribute("hidden");
     else bar.setAttribute("hidden", "");
     refreshSessionKillBox();
-    if (!admin) return;
+    if (!pode) return;
     refreshLastBackupPanel().catch((e) => console.warn("[DK backup] panel", e));
     probeSupabaseCloudHealth().catch((e) => console.warn("[DK cloud] health", e));
   }

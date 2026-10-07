@@ -2549,19 +2549,21 @@
       }
     },
     {
-      "id": "nuvem-opcoes-apenas-administrador",
-      "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
+      "id": "nuvem-opcoes-todos-usuarios",
+      "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis para administrador e colaborador.",
       "ficheiros": {
         "index.html": [
           "portal-cloud-sync-bar",
-          "data-apenas-administrador",
-          "btn-dk-cloud-push"
+          "data-equipa-nuvem",
+          "btn-dk-cloud-push",
+          "btn-dk-cloud-pull",
+          "btn-dk-backup-email",
+          "btn-dk-backup-import"
         ],
         "portal-supabase-sync.js": [
-          "portalSessaoEhAdministradorNuvem",
-          "recusarOpcaoNuvemSeNaoAdmin",
-          "__DK_isPortalTitularAdministrador",
-          "Estas opções da nuvem são só para administrador."
+          "portalSessaoPodeUsarNuvem",
+          "refreshCloudBarVisibility",
+          "role === \"owner\" || role === \"operacao\""
         ]
       }
     },
