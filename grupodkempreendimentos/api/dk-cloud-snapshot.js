@@ -1608,7 +1608,12 @@ async function handler(req, res) {
   return res.status(405).json({ ok: false, reason: "method" });
 }
 
-module.exports = handler;
+const { comMedicaoCusto } = require("../lib/dk-custos-sistema.cjs");
+function handlerMedido(req, res) {
+  return comMedicaoCusto(req, res, () => handler(req, res));
+}
+
+module.exports = handlerMedido;
 module.exports.sanitizePayloadForOficial = sanitizePayloadForOficial;
 module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
 module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;

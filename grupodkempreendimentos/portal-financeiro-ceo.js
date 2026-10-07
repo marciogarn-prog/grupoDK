@@ -6740,6 +6740,103 @@
     pintarAcoesPainelOperacionalCeo();
   }
 
+  function formatoVolumeCeo(n) {
+    const v = Math.max(0, Number(n) || 0);
+    if (v >= 1024 ** 3) return `${(v / 1024 ** 3).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} GB`;
+    if (v >= 1024 ** 2) return `${(v / 1024 ** 2).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+    if (v >= 1024) return `${Math.round(v / 1024).toLocaleString("pt-BR")} KB`;
+    return `${Math.round(v).toLocaleString("pt-BR")} B`;
+  }
+
+  function usdCeo(n) {
+    return (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "USD" });
+  }
+
+  function textoUsoCustoCeo(item, uso) {
+    const u = uso || {};
+    if (item.id === "vercel") {
+      return `${Number(u.vercelInvocacoes || 0).toLocaleString("pt-BR")} pedidos · ${formatoVolumeCeo(u.vercelBytes)} neste mês.`;
+    }
+    if (item.id === "supabase") {
+      return `${Number(u.supabasePedidos || 0).toLocaleString("pt-BR")} pedidos · ${formatoVolumeCeo(u.supabaseBytes)} neste mês.`;
+    }
+    if (item.id === "redis") {
+      const modo = item.modo === "gratis" ? "Ainda dentro da franquia grátis." : "Acima da franquia grátis: cobrança por comando e volume.";
+      return `${Number(u.redisComandos || 0).toLocaleString("pt-BR")} comandos · ${formatoVolumeCeo(u.redisBytes)} em trânsito · ${formatoVolumeCeo(u.redisArmazenamento)} guardados. ${modo}`;
+    }
+    return "Plano do código. Cadastro, locação e manutenção passam pela Vercel, pelo Supabase e pelo Redis.";
+  }
+
+  function pintarCustosSistemaCeo(data) {
+    const total = document.getElementById("finCeoCustosTotal");
+    const cards = document.getElementById("finCeoCustosCards");
+    const msg = document.getElementById("finCeoCustosMsg");
+    if (!data || data.ok === false) {
+      if (total) total.textContent = "Não foi possível ler os custos.";
+      if (msg) msg.textContent = "Abra de novo com o login de administrador CEO.";
+      return;
+    }
+    const mes = String(data.mes || "");
+    const mesTxt = /^\d{4}-\d{2}$/.test(mes) ? `${mes.slice(5)}/${mes.slice(0, 4)}` : mes;
+    if (total) total.textContent = `${brl(data.totalBrl)} neste mês ${mesTxt} · ${usdCeo(data.totalUsd)}`;
+    if (cards) {
+      const tabela = data.tabela || {};
+      cards.innerHTML = (Array.isArray(data.itens) ? data.itens : [])
+        .map((item) => {
+          return `<article class="fin-ceo-custos-card"><span>${esc(item.nome)}</span><strong>${esc(brl(item.brl))}</strong><p>${esc(usdCeo(item.usd))} · plano ${esc(usdCeo(item.planoUsd))} · uso ${esc(usdCeo(item.usoUsd))}</p><p>${esc(textoUsoCustoCeo(item, data.uso))}</p><p>${esc(tabela[item.id] || "")}</p></article>`;
+        })
+        .join("");
+    }
+    const cambio = document.getElementById("finCeoCustosCambio");
+    const pv = document.getElementById("finCeoCustosPlanoVercel");
+    const ps = document.getElementById("finCeoCustosPlanoSupabase");
+    const pg = document.getElementById("finCeoCustosPlanoGithub");
+    const planos = data.planos || {};
+    if (cambio && document.activeElement !== cambio) cambio.value = String(planos.cambioBrl ?? data.cambioBrl ?? "").replace(".", ",");
+    if (pv && document.activeElement !== pv) pv.value = String(planos.planoVercelUsd ?? "");
+    if (ps && document.activeElement !== ps) ps.value = String(planos.planoSupabaseUsd ?? "");
+    if (pg && document.activeElement !== pg) pg.value = String(planos.planoGithubUsd ?? "");
+    if (msg) {
+      msg.textContent = data.atualizadoEm
+        ? `Última passagem medida em ${data.atualizadoEm.slice(0, 16).replace("T", " ")}.`
+        : "O contador começa na próxima gravação ou leitura da nuvem.";
+    }
+  }
+
+  async function carregarCustosSistemaCeo() {
+    const total = document.getElementById("finCeoCustosTotal");
+    if (total) total.textContent = "A calcular…";
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    try {
+      const res = await fetch("/api/dk-custos-sistema", { headers, cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      pintarCustosSistemaCeo(res.ok ? data : { ok: false });
+    } catch {
+      pintarCustosSistemaCeo({ ok: false });
+    }
+  }
+
+  async function guardarPlanosCustosCeo(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("finCeoCustosMsg");
+    if (msg) msg.textContent = "A guardar os planos…";
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders({ "Content-Type": "application/json" }) : { "Content-Type": "application/json" };
+    const body = {
+      cambioBrl: parseValor(document.getElementById("finCeoCustosCambio")?.value),
+      planoVercelUsd: parseValor(document.getElementById("finCeoCustosPlanoVercel")?.value),
+      planoSupabaseUsd: parseValor(document.getElementById("finCeoCustosPlanoSupabase")?.value),
+      planoGithubUsd: parseValor(document.getElementById("finCeoCustosPlanoGithub")?.value),
+    };
+    try {
+      const res = await fetch("/api/dk-custos-sistema", { method: "POST", headers, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      pintarCustosSistemaCeo(res.ok ? data : { ok: false });
+      if (res.ok && msg) msg.textContent = "Planos guardados. O total usa estes valores mais o tráfego do mês.";
+    } catch {
+      pintarCustosSistemaCeo({ ok: false });
+    }
+  }
+
   function abrirPane(id) {
     if (isAtalhoLocadora() && id && id !== "despesas") id = "despesas";
     paneAberto = id || "";
@@ -6776,6 +6873,7 @@
     if (id === "grafico-despesas") renderGraficoDespesas();
     if (id === "rotatividade-financeira") renderRotatividadeFinanceira();
     if (id === "relatorio") renderRelatorio();
+    if (id === "custos-sistema") void carregarCustosSistemaCeo();
     if (typeof window.__DK_portalAndroidSyncNavegacao === "function") window.__DK_portalAndroidSyncNavegacao();
   }
 
@@ -6785,6 +6883,12 @@
 
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
+    });
+    document.getElementById("finCeoCustosPlanos")?.addEventListener("submit", (ev) => {
+      void guardarPlanosCustosCeo(ev);
+    });
+    document.getElementById("finCeoCustosAtualizar")?.addEventListener("click", () => {
+      void carregarCustosSistemaCeo();
     });
     document.getElementById("finCeoOpPessoas")?.addEventListener("change", (ev) => {
       const inp = ev.target?.closest?.("[data-op-cpf]");

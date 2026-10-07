@@ -3729,6 +3729,28 @@
           "portal-lanc-pagto-linha"
         ]
       }
+    },
+    {
+      "id": "fin-ceo-custos-sistema",
+      "descricao": "Financeiro CEO: caixa Custos do sistema no menu, com Vercel, Supabase, Redis e GitHub. O valor de Vercel, Supabase e Redis sobe com o tráfego do mês. O GitHub entra com o plano do código.",
+      "ficheiros": {
+        "index.html": [
+          "btn-fin-ceo-custos",
+          "finCeoPaneCustos",
+          "Custos do sistema"
+        ],
+        "portal-financeiro-ceo.js": [
+          "carregarCustosSistemaCeo",
+          "custos-sistema"
+        ],
+        "api/dk-custos-sistema.js": [
+          "lerCustos",
+          "gravarPlanos"
+        ],
+        "styles.css": [
+          "fin-ceo-custos"
+        ]
+      }
     }
   ]
 }

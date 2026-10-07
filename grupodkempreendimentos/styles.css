@@ -6613,6 +6613,47 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   pointer-events: none;
 }
 
+.fin-ceo-custos-total {
+  margin: 0 0 0.8rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #86efac;
+}
+
+.fin-ceo-custos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.fin-ceo-custos-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.fin-ceo-custos-card strong {
+  display: block;
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.fin-ceo-custos-card p {
+  margin: 0.25rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.fin-ceo-custos-planos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+}
+
 #view-financeiro .fin-pptx__rail .operacao-comandos {
   margin: 0.25rem 0 0;
   gap: 0.22rem;

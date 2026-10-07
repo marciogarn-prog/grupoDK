@@ -48,6 +48,12 @@ async function fetchSnapshotByLabel(label) {
   const res = await fetch(url, { headers: doormanHeaders() });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    try {
+      const { anotarSupabase } = require("./dk-custos-sistema.cjs");
+      anotarSupabase(text);
+    } catch {
+      /* ignore */
+    }
     return {
       ok: false,
       reason: `supabase_http_${res.status}`,
@@ -59,6 +65,12 @@ async function fetchSnapshotByLabel(label) {
   const rows = await res.json().catch(() => null);
   const row = Array.isArray(rows) && rows.length ? rows[0] : null;
   const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
+  try {
+    const { anotarSupabase } = require("./dk-custos-sistema.cjs");
+    anotarSupabase(payload || rows);
+  } catch {
+    /* ignore */
+  }
   return {
     ok: Boolean(payload),
     reason: payload ? "ok" : "supabase_empty",
@@ -80,6 +92,17 @@ async function upsertSnapshotByLabel(label, payload, updatedAt) {
   }
   const safe = normalizeLabel(label);
   const url = `${supabaseUrl()}/rest/v1/dk_cloud_snapshots?on_conflict=label`;
+  const corpo = JSON.stringify({
+    label: safe,
+    payload,
+    updated_at: String(updatedAt || new Date().toISOString()),
+  });
+  try {
+    const { anotarSupabase } = require("./dk-custos-sistema.cjs");
+    anotarSupabase(corpo);
+  } catch {
+    /* ignore */
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -87,11 +110,7 @@ async function upsertSnapshotByLabel(label, payload, updatedAt) {
       "Content-Type": "application/json",
       Prefer: "resolution=merge-duplicates,return=minimal",
     },
-    body: JSON.stringify({
-      label: safe,
-      payload,
-      updated_at: String(updatedAt || new Date().toISOString()),
-    }),
+    body: corpo,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

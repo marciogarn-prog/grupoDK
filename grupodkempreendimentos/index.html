@@ -4204,6 +4204,10 @@
                 <span class="btn-operacao-cmd__title">Relatório de despesas</span>
                 <span class="btn-operacao-cmd__hint">Filtros por categoria, período e valor</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-custos" data-ceo-mod="custos-sistema" aria-expanded="false" aria-controls="finCeoPaneCustos">
+                <span class="btn-operacao-cmd__title">Custos do sistema</span>
+                <span class="btn-operacao-cmd__hint">Vercel, Supabase, Redis e GitHub</span>
+              </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main fin-pptx__slide" id="finCeoPainelDireito">
@@ -5048,6 +5052,36 @@
               </div>
               <p id="finCeoRelVazia" class="subtext hidden">Nenhum lançamento corresponde aos filtros.</p>
             </div>
+
+            <div id="finCeoPaneCustos" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="custos-sistema" role="region">
+              <h3 class="operacao-inline-form__title">Custos do sistema</h3>
+              <p class="subtext">O valor de Vercel, Supabase e Redis sobe com o que passa por cada um neste mês: guardar na nuvem, carregar da nuvem e lançar pagamento. O GitHub guarda o código e entra com o plano mensal.</p>
+              <p id="finCeoCustosTotal" class="fin-ceo-custos-total" role="status">A calcular…</p>
+              <div id="finCeoCustosCards" class="fin-ceo-custos" aria-live="polite"></div>
+              <form id="finCeoCustosPlanos" class="fin-ceo-custos-planos" novalidate>
+                <label class="portal-field">
+                  <span>Câmbio (R$ por US$ 1)</span>
+                  <input type="text" id="finCeoCustosCambio" inputmode="decimal" value="5,40" autocomplete="off">
+                </label>
+                <label class="portal-field">
+                  <span>Plano Vercel (US$)</span>
+                  <input type="text" id="finCeoCustosPlanoVercel" inputmode="decimal" value="20" autocomplete="off">
+                </label>
+                <label class="portal-field">
+                  <span>Plano Supabase (US$)</span>
+                  <input type="text" id="finCeoCustosPlanoSupabase" inputmode="decimal" value="25" autocomplete="off">
+                </label>
+                <label class="portal-field">
+                  <span>Plano GitHub (US$)</span>
+                  <input type="text" id="finCeoCustosPlanoGithub" inputmode="decimal" value="0" autocomplete="off">
+                </label>
+                <div class="operacao-inline-form__actions">
+                  <button type="submit" class="btn-primary">Guardar planos</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoCustosAtualizar">Atualizar</button>
+                </div>
+              </form>
+              <p id="finCeoCustosMsg" class="subtext" role="status"></p>
+            </div>
           </div>
         </div>
       </section>
@@ -5799,7 +5833,7 @@
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20261006ceoconfirma" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20261007custos" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

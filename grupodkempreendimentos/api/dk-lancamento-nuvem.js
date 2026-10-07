@@ -283,6 +283,11 @@ async function gravarPagamentoNoRedisOficial(item, protocolo) {
 }
 
 module.exports = async function handler(req, res) {
+  if (!req.__dkCustoMedido) {
+    req.__dkCustoMedido = true;
+    const { comMedicaoCusto } = require("../lib/dk-custos-sistema.cjs");
+    return comMedicaoCusto(req, res, () => handler(req, res));
+  }
   applyApiCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
 

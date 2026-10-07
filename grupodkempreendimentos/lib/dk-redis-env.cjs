@@ -14,12 +14,24 @@ function isRedisKvConfigured() {
   );
 }
 
+function anotarComandoRedis(args, result) {
+  try {
+    const { anotarRedis } = require("./dk-custos-sistema.cjs");
+    anotarRedis(args, result);
+  } catch {
+    /* o contador não interrompe o Redis */
+  }
+}
+
 function wrapRedisFn(fn, target) {
   return async function wrappedRedisFn(...args) {
     if (isCloudBudgetTripped()) throw cloudBudgetError();
     try {
-      return await fn.apply(target, args);
+      const out = await fn.apply(target, args);
+      anotarComandoRedis(args, out);
+      return out;
     } catch (e) {
+      anotarComandoRedis(args, null);
       if (isQuotaError(e)) tripCloudBudget();
       throw e;
     }
