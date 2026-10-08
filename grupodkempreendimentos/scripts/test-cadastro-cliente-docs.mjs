@@ -19,8 +19,9 @@ const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const docs = fs.readFileSync(path.join(ROOT, "portal-cliente-docs.js"), "utf8");
 const ui = fs.readFileSync(path.join(ROOT, "portal-locadora-ui.js"), "utf8");
 
-record("caixa comprovante de residência", html.includes("operacaoClienteDocResidenciaBox"));
-record("caixa CNH", html.includes("operacaoClienteDocCnhBox"));
+record("sem caixa de comprovante de residência", !html.includes("operacaoClienteDocResidenciaBox") && !html.includes("Soltar comprovante aqui"));
+record("sem caixa de CNH", !html.includes("operacaoClienteDocCnhBox") && !html.includes("Soltar CNH aqui"));
+record("sem trava de anexo no guardar", !ui.includes("envie o comprovante de residência") && !ui.includes("envie a CNH"));
 record("modal Salvar e Atualizar", html.includes("portalClienteConfirmSalvarBtn") && html.includes("portalClienteConfirmAtualizarBtn"));
 record("corte 04/09/2026", docs.includes("2026-09-04"));
 record("exigência telefone e recados no novo cadastro", ui.includes("informe o telefone do cliente") && ui.includes("Recados 01"));

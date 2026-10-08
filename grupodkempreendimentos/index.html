@@ -838,28 +838,6 @@
               <span>Endereço</span>
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
-            <div class="portal-field portal-field--wide portal-cliente-docs" id="operacaoClienteDocsWrap">
-              <div class="portal-cliente-docs__grid">
-                <div class="portal-cliente-docs__box" id="operacaoClienteDocResidenciaBox">
-                  <span class="portal-cliente-docs__label">Comprovante de residência</span>
-                  <p class="subtext portal-cliente-docs__hint">Imagem ou PDF — cole, arraste ou clique.</p>
-                  <input type="file" id="operacaoClienteDocResidenciaFile" class="hidden" accept="image/*,application/pdf,.pdf" tabindex="-1" aria-hidden="true">
-                  <label class="portal-cliente-docs__drop" id="operacaoClienteDocResidenciaDrop" for="operacaoClienteDocResidenciaFile" tabindex="0">
-                    Soltar comprovante aqui
-                  </label>
-                  <div id="operacaoClienteDocResidenciaPreview" class="portal-cliente-docs__preview" aria-live="polite"></div>
-                </div>
-                <div class="portal-cliente-docs__box" id="operacaoClienteDocCnhBox">
-                  <span class="portal-cliente-docs__label">CNH</span>
-                  <p class="subtext portal-cliente-docs__hint">Imagem ou PDF — cole, arraste ou clique.</p>
-                  <input type="file" id="operacaoClienteDocCnhFile" class="hidden" accept="image/*,application/pdf,.pdf" tabindex="-1" aria-hidden="true">
-                  <label class="portal-cliente-docs__drop" id="operacaoClienteDocCnhDrop" for="operacaoClienteDocCnhFile" tabindex="0">
-                    Soltar CNH aqui
-                  </label>
-                  <div id="operacaoClienteDocCnhPreview" class="portal-cliente-docs__preview" aria-live="polite"></div>
-                </div>
-              </div>
-            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteEnviarNuvemBtn">Enviar para nuvem</button>
@@ -5828,7 +5806,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260925login3b"></script>
-  <script src="app.js?v=20261007salvar" defer></script>
+  <script src="app.js?v=20261008sem-anexo" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5839,7 +5817,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20261007salvar" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261007salvar" defer></script>
+  <script src="portal-locadora-ui.js?v=20261008sem-anexo" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>

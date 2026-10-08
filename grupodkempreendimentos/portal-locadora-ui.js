@@ -1559,19 +1559,11 @@
     };
   }
 
-  function portalClienteDocNome(tipo) {
-    const fn = window.__DK_portalClienteDocsMeta;
-    if (typeof fn !== "function") return "";
-    const meta = fn(tipo);
-    return meta?.nome ? String(meta.nome) : "";
-  }
-
   function portalClienteValidarNovoCadastro(msgEl) {
     const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
     const celular = getVal("operacaoClienteCelular");
     const recado1 = getVal("operacaoClienteRecado1");
     const recado2 = getVal("operacaoClienteRecado2");
-    const hasDoc = typeof window.__DK_portalClienteDocsHas === "function" ? window.__DK_portalClienteDocsHas : () => false;
     if (!celular) {
       if (msgEl) msgEl.textContent = "Novo cadastro: informe o telefone do cliente.";
       document.getElementById("operacaoClienteCelular")?.focus();
@@ -1585,14 +1577,6 @@
     if (!recado2) {
       if (msgEl) msgEl.textContent = "Novo cadastro: informe o Recados 02.";
       document.getElementById("operacaoClienteRecado2")?.focus();
-      return false;
-    }
-    if (!hasDoc("residencia")) {
-      if (msgEl) msgEl.textContent = "Novo cadastro: envie o comprovante de residência (imagem ou PDF).";
-      return false;
-    }
-    if (!hasDoc("cnh")) {
-      if (msgEl) msgEl.textContent = "Novo cadastro: envie a CNH (imagem ou PDF).";
       return false;
     }
     return true;
@@ -1632,8 +1616,8 @@
     if (titulo) titulo.textContent = novo ? "Confirmar cadastro de cliente" : "Atualizar cadastro de cliente";
     if (lead) {
       lead.textContent = novo
-        ? "Revise os dados e clique em Salvar. Cadastros a partir de 04/09/2026 exigem telefone, recados e documentos."
-        : "Documentos ou dados atualizados. Clique em Atualizar para gravar.";
+        ? "Revise os dados e clique em Salvar. Cadastros a partir de 04/09/2026 exigem telefone e recados."
+        : "Dados atualizados. Clique em Atualizar para gravar.";
     }
     const rows = Array.isArray(opts?.rows) ? opts.rows : [];
     resumo.innerHTML = rows
@@ -1699,8 +1683,6 @@
       { label: "Recados 02", value: getVal("operacaoClienteRecado2") },
       { label: "CNH", value: getVal("operacaoClienteCnh") },
       { label: "Endereço", value: getVal("operacaoClienteEndereco") },
-      { label: "Comprovante", value: portalClienteDocNome("residencia") || "—" },
-      { label: "Ficheiro CNH", value: portalClienteDocNome("cnh") || "—" },
     ];
   }
 

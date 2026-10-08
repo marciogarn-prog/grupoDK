@@ -850,30 +850,22 @@
     },
     {
       "id": "cadastro-cliente-docs-residencia-cnh",
-      "descricao": "No Cadastro de cliente, duas caixas verdes para comprovante de residência e CNH (imagem ou PDF). Novos cadastros a partir de 04/09/2026 exigem telefone, Recados 01, Recados 02 e os dois ficheiros; Guardar abre janela com resumo e botões Salvar e Cancelar. Cliente já cadastrado (ou data antes de 04/09/2026) abre a janela só com Atualizar. A numeração do Cód. continua a sequência existente.",
+      "descricao": "O Cadastro de cliente não tem caixas para anexar comprovante de residência nem CNH, e não bloqueia o guardar por falta desses ficheiros. Novos cadastros a partir de 04/09/2026 exigem telefone, Recados 01 e Recados 02. Guardar abre janela com resumo e botões Salvar e Cancelar. Cliente já cadastrado (ou data antes de 04/09/2026) abre a janela só com Atualizar. A numeração do Cód. continua a sequência existente.",
       "ficheiros": {
         "index.html": [
-          "operacaoClienteDocResidenciaBox",
-          "operacaoClienteDocCnhBox",
-          "Comprovante de residência",
           "portalClienteConfirmModal",
           "portalClienteConfirmSalvarBtn",
           "portalClienteConfirmAtualizarBtn"
         ],
         "portal-cliente-docs.js": [
-          "dk_cliente_docs_v1",
           "2026-09-04",
-          "portalClienteEhNovoCadastro",
-          "Comprovante de residência"
+          "portalClienteEhNovoCadastro"
         ],
         "portal-locadora-ui.js": [
           "portalClienteValidarNovoCadastro",
+          "informe o telefone do cliente",
           "portalAbrirClienteConfirmModal",
           "iniciarConfirmacaoCliente"
-        ],
-        "styles.css": [
-          "portal-cliente-docs__box",
-          "border: 3px solid #22c55e"
         ]
       }
     },
