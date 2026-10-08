@@ -8,6 +8,7 @@
   const MAX_BYTES = 6 * 1024 * 1024;
   const TIPOS = ["residencia", "cnh"];
   const pending = { residencia: null, cnh: null };
+  const pedidoFicheiro = {};
 
   function onlyDig(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -180,6 +181,14 @@
     const cpf = onlyDig(document.getElementById("operacaoClienteCpf")?.value || "").slice(0, 11);
     const saved = !pendingRec && cpf.length === 11 ? getDocsCpf(cpf)[tipo] : null;
     const rec = pendingRec || saved;
+    const pedidoKey = cpf + ":" + tipo;
+    if (rec && !rec.data && cpf.length === 11 && typeof window.__DK_baixarFicheiro === "function" && !pedidoFicheiro[pedidoKey]) {
+      pedidoFicheiro[pedidoKey] = true;
+      void window.__DK_baixarFicheiro("dk_cliente_docs_v1", pedidoKey).then((baixado) => {
+        if (baixado && baixado.data) setDocCpf(cpf, tipo, { ...baixado, cpf, tipo });
+        renderPreview(tipo);
+      });
+    }
     if (!rec?.data) {
       host.innerHTML = `<p class="subtext portal-cliente-docs__vazio">Nenhum ficheiro.</p>`;
       return;
@@ -246,8 +255,12 @@
     if (cpf.length !== 11) return;
     TIPOS.forEach((tipo) => {
       if (!pending[tipo]) return;
-      setDocCpf(cpf, tipo, { ...pending[tipo], updatedAt: Date.now() });
+      const rec = { ...pending[tipo], updatedAt: Date.now(), cpf, tipo };
+      setDocCpf(cpf, tipo, rec);
       pending[tipo] = null;
+      if (typeof window.__DK_enviarFicheiro === "function") {
+        void window.__DK_enviarFicheiro("dk_cliente_docs_v1", rec);
+      }
     });
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       try {

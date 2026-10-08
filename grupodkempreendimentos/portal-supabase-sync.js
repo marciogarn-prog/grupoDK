@@ -2396,7 +2396,17 @@
     return "";
   }
 
-  async function fetchRedundantSnapshotPayloadUncached() {
+  function urlComPacote(url, opts) {
+    if (!opts || !opts.pacote) return url;
+    const join = url.includes("?") ? "&" : "?";
+    let extra = "pacote=" + encodeURIComponent(opts.pacote);
+    if (opts.dia) extra += "&dia=" + encodeURIComponent(opts.dia);
+    if (opts.chave) extra += "&chave=" + encodeURIComponent(opts.chave);
+    if (opts.id) extra += "&id=" + encodeURIComponent(opts.id);
+    return url + join + extra;
+  }
+
+  async function fetchRedundantSnapshotPayloadUncached(opts) {
     if (cloudSyncIsHalted()) return null;
     if (!hasUsableCloudToken()) {
       markCloudLocalOnly();
@@ -2406,15 +2416,16 @@
     for (let i = 0; i < urls.length; i += 1) {
       try {
         const res = await fetchWithCloudTimeout(
-          urls[i],
+          urlComPacote(urls[i], opts),
           {
             method: "GET",
             headers: dkCloudGetHeaders(),
           },
           15000
         );
-        guardarEtagResposta(res);
+        if (!(opts && opts.pacote)) guardarEtagResposta(res);
         if (res.status === 304) {
+          if (opts && opts.pacote) continue;
           registrarSnapshotOk();
           return lastGoodSnapshot || snapshotGetCache.data || null;
         }
@@ -2446,8 +2457,10 @@
           updated_at: data.updated_at || null,
           revision: rev || null,
           source: fonte,
+          pacote: data.pacote || "",
+          dia: data.dia || "",
         };
-        lastGoodSnapshot = row;
+        if (!(opts && opts.pacote)) lastGoodSnapshot = row;
         return row;
       } catch (e) {
         registrarSnapshotFalha(null, null);
@@ -2464,6 +2477,8 @@
   }
 
   async function fetchRedundantSnapshotPayload(opts) {
+    const parcial = Boolean(opts && opts.pacote);
+    if (parcial) return fetchRedundantSnapshotPayloadUncached(opts);
     const userAction = Boolean(opts && (opts.userAction || opts.fresh));
     if (!userAction && snapshotGetCache.data && Date.now() - snapshotGetCache.at < SNAPSHOT_GET_CACHE_MS) {
       return snapshotGetCache.data;
@@ -2473,7 +2488,7 @@
     }
     if (snapshotGetInFlight && !userAction) return snapshotGetInFlight;
     const gen = snapshotGetGen;
-    const flight = fetchRedundantSnapshotPayloadUncached().then((row) => {
+    const flight = fetchRedundantSnapshotPayloadUncached(opts).then((row) => {
       if (row && row.payload && gen === snapshotGetGen) snapshotGetCache = { at: Date.now(), data: row };
       return row;
     });
@@ -2893,6 +2908,10 @@
               updated_at: updatedAt,
               base_revision: cloudBaseRevision,
               replace,
+              ...(opts && opts.pacote ? { pacote: opts.pacote } : {}),
+              ...(opts && opts.dia ? { dia: opts.dia } : {}),
+              ...(opts && opts.chave ? { chave: opts.chave } : {}),
+              ...(opts && opts.registro ? { registro: opts.registro } : {}),
               ...(opts && opts.confirm ? { confirm: opts.confirm } : {}),
               ...(opts && opts.operador ? { operador: true } : {}),
             }),
@@ -5267,15 +5286,24 @@
 
     const fp = fingerprintCloudPayload(payload);
     const forceSend = Boolean(opts && opts.force);
-    if (fp && fp === lastPushedFingerprint && !forceReplace && !forceSend) {
+    if (fp && fp === lastPushedFingerprint && !forceReplace && !forceSend && !(opts && opts.pacote === "dia")) {
       return { ok: true, skipped: true, reason: "unchanged", supaOk: true, redisOk: true, source: "unchanged" };
     }
+    let ficheirosDia = [];
+    let payloadEnvio = payload;
+    if (opts && opts.pacote === "dia" && opts.dia && window.__DK_pacotes) {
+      const extraido = window.__DK_pacotes.extrairPacoteDia(payload, opts.dia);
+      payloadEnvio = extraido.payload;
+      ficheirosDia = extraido.ficheiros || [];
+    }
 
-    const red = await pushRedundantSnapshotPayload(payload, updatedAt, {
+    const red = await pushRedundantSnapshotPayload(payloadEnvio, updatedAt, {
       replace: forceReplace,
       fullReplaceComprovantes,
       confirm: opts && opts.confirm ? opts.confirm : undefined,
       operador: showUserMessages === true,
+      pacote: opts && opts.pacote === "dia" ? "dia" : undefined,
+      dia: opts && opts.pacote === "dia" ? opts.dia : undefined,
     });
     supaOk = red.success === true && Boolean(red.supabase && red.supabase.ok);
     redisOk = red.redisOk === true;
@@ -5304,6 +5332,7 @@
       redisOk,
       confirmed: red.confirmed,
       source: supaOk ? "supabase" : "redis",
+      ficheiros: ficheirosDia,
     };
   }
 
@@ -5326,6 +5355,62 @@
   }
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
+  const DK_PACOTES_BASE_KEY = "dk_pacotes_base_v1";
+
+  function marcarBasePacotes() {
+    try {
+      localStorage.setItem(DK_PACOTES_BASE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function basePacotesPronta() {
+    try {
+      return localStorage.getItem(DK_PACOTES_BASE_KEY) === "1" && window.__DK_pacotes;
+    } catch {
+      return false;
+    }
+  }
+
+  async function enviarFicheiroDireto(chave, registro) {
+    if (!chave || !registro) return { ok: false };
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    const r = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({
+        pacote: "ficheiro",
+        chave,
+        registro,
+        payload: {},
+        updated_at: new Date().toISOString(),
+        base_revision: cloudBaseRevision,
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok && data && data.success === true, data };
+  }
+
+  async function puxarPacoteDoDia(dia) {
+    const ymd = String(dia || (window.__DK_pacotes && window.__DK_pacotes.hojeYmd()) || "");
+    if (!ymd || !window.__DK_pacotes) return { ok: false, reason: "sem_pacote" };
+    const row = await fetchRedundantSnapshotPayload({ pacote: "dia", dia: ymd, fresh: true });
+    if (!row || !row.payload) return { ok: false, reason: "sem_dia" };
+    const local = collectPayloadFromLocalStorage();
+    const merged = window.__DK_pacotes.fundirPacoteDia(local, ymd, row.payload);
+    suppressCloudHook = true;
+    try {
+      Object.keys(row.payload).forEach((chave) => {
+        if (merged[chave] == null) return;
+        localStorage.setItem(chave, JSON.stringify(merged[chave]));
+      });
+    } finally {
+      suppressCloudHook = false;
+    }
+    return { ok: true, applied: true, pacote: "dia", dia: ymd, source: row.source || "cloud" };
+  }
+
   async function pushCloudSnapshotNow(opts) {
     if (!(opts && opts.manual)) {
       return { ok: true, skipped: true, reason: "manual_only" };
@@ -5355,11 +5440,40 @@
     }
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    return runTrackedCloudPush(() => pushSnapshotQuiet(opts), "pushCloudSnapshotNow");
+    const temBase = basePacotesPronta();
+    const dia = temBase ? window.__DK_pacotes.hojeYmd() : "";
+    const optsEnvio = temBase ? { ...opts, pacote: "dia", dia } : { ...opts, pacote: "completo" };
+    const enviado = await runTrackedCloudPush(() => pushSnapshotQuiet(optsEnvio), "pushCloudSnapshotNow");
+    if (!temBase && enviado && enviado.ok !== false && (enviado.success === true || enviado.skipped === true)) {
+      marcarBasePacotes();
+    }
+    if (temBase && enviado && enviado.ok && Array.isArray(enviado.ficheiros)) {
+      for (let i = 0; i < enviado.ficheiros.length; i += 1) {
+        const f = enviado.ficheiros[i];
+        try {
+          await enviarFicheiroDireto(f.chave, f.registro);
+        } catch (e) {
+          console.warn("[DK pacotes] ficheiro", e);
+        }
+      }
+    }
+    return enviado;
   }
 
   try {
     window.__DK_pushCloudSnapshotNow = pushCloudSnapshotNow;
+    window.__DK_baixarPacoteDia = puxarPacoteDoDia;
+    window.__DK_enviarFicheiro = enviarFicheiroDireto;
+    window.__DK_baixarFicheiro = async (chave, id) => {
+      const row = await fetchRedundantSnapshotPayload({
+        pacote: "ficheiro",
+        chave: String(chave || ""),
+        id: String(id || ""),
+        fresh: true,
+      });
+      const registro = row && row.payload ? row.payload.registro : null;
+      return registro || null;
+    };
     window.__DK_awaitAutoCloudPushConfirmed = awaitAutoCloudPushConfirmed;
     window.__DK_runWithoutCloudPush = runWithoutCloudPush;
   } catch {
@@ -5460,6 +5574,14 @@
   }
 
   async function pullCloudSnapshotSilentMerge(opts) {
+    if (basePacotesPronta() && !(opts && opts.completo)) {
+      try {
+        return await puxarPacoteDoDia(window.__DK_pacotes.hojeYmd());
+      } catch (e) {
+        console.warn("[DK pacotes] download do dia", e);
+        return { ok: false, error: e, pacote: "dia" };
+      }
+    }
     const force = Boolean(opts && opts.force);
     const bypassLocalAuthority = Boolean(opts && opts.bypassLocalAuthority);
     const clientePage = isClienteAppPage();

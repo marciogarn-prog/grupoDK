@@ -48,6 +48,7 @@ const {
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
+const pacotes = require("../portal-pacotes.js");
 const {
   findActivePlateConflicts,
   activePlateConflictMessage,
@@ -1126,6 +1127,27 @@ async function consultarSupabase(fn) {
   return result;
 }
 
+function corpoDaConsulta(req, safePayload) {
+  const limpo = stripSecretsFromPayload(safePayload);
+  const pacote = String((req.query && req.query.pacote) || "");
+  const dia = String((req.query && req.query.dia) || "");
+  if (pacote === "dia" && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
+    const extraido = pacotes.extrairPacoteDia(limpo, dia);
+    return { pacote: "dia", dia, payload: extraido.payload };
+  }
+  if (pacote === "ficheiro") {
+    const chave = String((req.query && req.query.chave) || "");
+    const id = String((req.query && req.query.id) || "");
+    return {
+      pacote: "ficheiro",
+      chave,
+      id,
+      payload: { registro: pacotes.lerFicheiro(limpo, chave, id) },
+    };
+  }
+  return { payload: limpo };
+}
+
 function etagDeRevisao(rev) {
   const raw = String(rev || "").trim();
   if (!raw) return "";
@@ -1333,7 +1355,7 @@ async function handler(req, res) {
             ok: true,
             success: true,
             label: LABEL,
-            payload: stripSecretsFromPayload(safeRedis),
+            ...corpoDaConsulta(req, safeRedis),
             revision: revisaoRedis,
             updated_at: revisaoRedis,
             source: "redis",
@@ -1382,7 +1404,7 @@ async function handler(req, res) {
         ok: true,
         success: true,
         label: LABEL,
-        payload: stripSecretsFromPayload(safePayload),
+        ...corpoDaConsulta(req, safePayload),
         revision: revisao,
         updated_at: revisao,
         source: "supabase",
@@ -1507,6 +1529,7 @@ async function handler(req, res) {
         });
       }
       let incoming = body.payload;
+      if (body.pacote === "ficheiro") incoming = incoming && typeof incoming === "object" ? incoming : {};
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
       }
@@ -1547,6 +1570,11 @@ async function handler(req, res) {
           updated_at: existingUpdatedAt,
           message: "A nuvem tem uma versão mais nova. Recarregue antes de gravar.",
         });
+      }
+      if (body.pacote === "dia" && /^\d{4}-\d{2}-\d{2}$/.test(String(body.dia || ""))) {
+        incoming = pacotes.fundirPacoteDia(existingPayload || {}, body.dia, incoming);
+      } else if (body.pacote === "ficheiro" && body.registro && typeof body.registro === "object") {
+        incoming = pacotes.fundirFicheiro(existingPayload || {}, String(body.chave || ""), body.registro);
       }
       if (channel === "default") {
         incoming = sanitizePayloadForOficial(
