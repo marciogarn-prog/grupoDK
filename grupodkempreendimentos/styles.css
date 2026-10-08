@@ -1956,6 +1956,20 @@ body.portal-body--admin-ceo {
   color: var(--accent);
 }
 
+.btn-operacao-cmd__ocupado {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: #fff4c2;
+}
+
+.btn-operacao-cmd__ocupado[hidden] {
+  display: none;
+}
+
 .btn-operacao-cmd__hint {
   display: none;
 }

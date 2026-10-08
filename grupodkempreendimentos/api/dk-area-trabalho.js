@@ -20,6 +20,15 @@ const AREAS = new Set([
   "documentos",
   "financeiro",
   "financeiro-ceo",
+  "operacao-cadastro-cliente",
+  "operacao-cadastro-veiculo",
+  "operacao-cadastro-locacao",
+  "operacao-relatorio-rotatividade",
+  "operacao-relatorio-inatividade",
+  "operacao-lancamento-aluguel",
+  "operacao-lancamento-multas",
+  "operacao-cadastro-colaborador",
+  "operacao-cadastro-administrador",
 ]);
 
 function chave(area) {
@@ -91,6 +100,24 @@ module.exports = async function handler(req, res) {
   const body = parseBody(req);
   const area = String(body.area || "").trim();
   const acao = String(body.acao || "entrar").trim();
+  if (acao === "listar") {
+    let redisLista;
+    try {
+      redisLista = createRedisClient();
+      const areas = {};
+      for (const id of AREAS) {
+        if (id === "operacao") continue;
+        const dono = lerDono(await redisLista.get(chave(id)));
+        if (dono && dono.nome) areas[id] = dono.nome;
+      }
+      return res.status(200).json({ ok: true, areas });
+    } catch (e) {
+      const reason = e && e.reason === "cloud_budget" ? "cloud_budget" : "area_indisponivel";
+      return res.status(503).json({ ok: false, reason });
+    } finally {
+      void redisLista;
+    }
+  }
   if (!AREAS.has(area)) return res.status(400).json({ ok: false, reason: "area" });
 
   let redis;

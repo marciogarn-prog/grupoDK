@@ -51,10 +51,10 @@
       if (!raw) return;
       const s = JSON.parse(raw);
       if (s?.tipo !== "admin") return;
-      if (localStorage.getItem(PORTAL_SESSAO_BUILD_KEY) !== PORTAL_SESSAO_BUILD_ID) {
-        if (typeof clearSession === "function") clearSession();
-        localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);
-      }
+      const marca = localStorage.getItem(PORTAL_SESSAO_BUILD_KEY);
+      if (!marca || marca === PORTAL_SESSAO_BUILD_ID) return;
+      if (typeof clearSession === "function") clearSession();
+      localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);
     } catch {
       /* ignore */
     }
@@ -2240,7 +2240,8 @@
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
     clearPortalUnitDadosAtualizados();
-    if (funcionario.role === "owner") portalMarcarSessaoAdminBuild();
+    portalMarcarSessaoAdminBuild();
+    portalCarregarOcupacaoBotoes();
     portalAplicarVisibilidadeEquipaPorPerfil();
     if (typeof window.__DK_iniciarAvisoHorarioFimColab === "function") {
       window.__DK_iniciarAvisoHorarioFimColab(funcionario);
@@ -2567,7 +2568,7 @@
     showView("unit");
     setPortalHash("locadora/empresa");
 
-    const funcAdmin = isPortalAdministradorLogado() ? portalObterFuncionarioDaSessaoRestauracao() : null;
+    const funcAdmin = portalObterFuncionarioDaSessaoRestauracao();
     if (funcAdmin) {
       clearPortalUnitDadosAtualizados();
       resetPortalLoginFormularioETipoAcesso();
@@ -3051,14 +3052,25 @@
   }
 
   const PORTAL_AREA_LOCK_NOME = {
-    operacao: "Operação",
     manutencao: "Manutenção",
-    estoque: "Controle de Estoque",
+    estoque: "Estoque",
     localizacao: "Localização de clientes",
     documentos: "Documentos",
     financeiro: "Financeiro",
     "financeiro-ceo": "Financeiro CEO",
+    "operacao-cadastro-cliente": "Cadastro de cliente",
+    "operacao-cadastro-veiculo": "Cadastro de veículo",
+    "operacao-cadastro-locacao": "Cadastro de locação",
+    "operacao-relatorio-rotatividade": "Relatório de rotatividade",
+    "operacao-relatorio-inatividade": "Relatório de inatividade",
+    "operacao-lancamento-aluguel": "Lançamento de aluguel",
+    "operacao-lancamento-multas": "Lançamento de multas",
+    "operacao-cadastro-colaborador": "Cadastro de colaborador",
+    "operacao-cadastro-administrador": "Cadastro de administrador",
   };
+  const PORTAL_TELA_ATIVA_KEY = "dk_portal_tela_ativa";
+  let portalOcupacaoCache = {};
+  let portalOcupacaoCarregada = false;
   let portalAreaLockIdAtual = "";
   let portalAreaLockMarca = 0;
   let portalAreaLockTimer = 0;
@@ -3114,6 +3126,7 @@
     portalPararRenovacaoArea();
     portalAreaLockIdAtual = area;
     portalAreaLockMarca = Number(marca) || Date.now();
+    portalPintarOcupacaoBotoes(portalOcupacaoCache);
     portalAreaLockTimer = window.setInterval(() => {
       if (!portalAreaLockIdAtual) return;
       void portalAreaTrabalhoPedido(portalAreaLockIdAtual, "renovar")
@@ -3159,6 +3172,10 @@
     portalPararRenovacaoArea();
     portalAreaLockIdAtual = "";
     portalAreaLockMarca = 0;
+    if (id && portalOcupacaoCache && portalOcupacaoCache[id]) {
+      delete portalOcupacaoCache[id];
+    }
+    portalPintarOcupacaoBotoes(portalOcupacaoCache);
     if (!id) return;
     void portalAreaTrabalhoPedido(id, "sair", marca).catch(() => {});
   }
@@ -3168,6 +3185,87 @@
       if (livre) abrir();
     });
   }
+
+  function portalRotuloOcupado(nome) {
+    const quem = String(nome || "").trim();
+    if (!quem) return "";
+    return `( OCUPADO POR ${quem.toLocaleUpperCase("pt-BR")})`;
+  }
+
+  function portalPintarOcupacaoBotoes(mapa) {
+    const base = mapa && typeof mapa === "object" ? mapa : {};
+    document.querySelectorAll("[data-area-ocupacao]").forEach((btn) => {
+      const id = btn.getAttribute("data-area-ocupacao") || "";
+      let nome = base[id] || "";
+      if (portalAreaLockIdAtual && id === portalAreaLockIdAtual) nome = portalNomeSessaoArea() || nome;
+      let el = btn.querySelector(".btn-operacao-cmd__ocupado");
+      if (!el) {
+        el = document.createElement("span");
+        el.className = "btn-operacao-cmd__ocupado";
+        const title = btn.querySelector(".btn-operacao-cmd__title");
+        if (title) title.insertAdjacentElement("afterend", el);
+        else btn.appendChild(el);
+      }
+      const texto = portalRotuloOcupado(nome);
+      el.textContent = texto;
+      el.hidden = !texto;
+    });
+  }
+
+  function portalCarregarOcupacaoBotoes() {
+    if (portalOcupacaoCarregada) return;
+    portalOcupacaoCarregada = true;
+    void portalAreaTrabalhoPedido("operacao-cadastro-cliente", "listar")
+      .then(({ res, data }) => {
+        if (res.status === 401) {
+          portalOcupacaoCarregada = false;
+          return;
+        }
+        if (!res.ok || !data || typeof data.areas !== "object" || !data.areas) return;
+        portalOcupacaoCache = data.areas;
+        portalPintarOcupacaoBotoes(portalOcupacaoCache);
+      })
+      .catch(() => {
+        portalOcupacaoCarregada = false;
+      });
+  }
+
+  function portalGuardarTelaAtiva(area) {
+    try {
+      if (area) sessionStorage.setItem(PORTAL_TELA_ATIVA_KEY, area);
+      else sessionStorage.removeItem(PORTAL_TELA_ATIVA_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalAbrirTelaOperacao(area, abrir) {
+    portalAbrirSeAreaLivre(area, () => {
+      portalGuardarTelaAtiva(area);
+      abrir();
+    });
+  }
+
+  function portalRetomarTelaOperacao() {
+    let area = "";
+    try {
+      area = sessionStorage.getItem(PORTAL_TELA_ATIVA_KEY) || "";
+    } catch {
+      area = "";
+    }
+    if (!portalAreaLockId(area)) return;
+    const btn = document.querySelector(`[data-area-ocupacao="${area}"]`);
+    if (!btn) return;
+    void portalEntrarAreaExclusiva(area).then((livre) => {
+      if (!livre) {
+        portalGuardarTelaAtiva("");
+        return;
+      }
+      btn.click();
+    });
+  }
+
+  window.__DK_portalAbrirTelaOperacao = portalAbrirTelaOperacao;
 
   window.addEventListener("pagehide", () => {
     portalSairAreaExclusiva();
@@ -3279,7 +3377,14 @@
     } else if (area === "operacao") {
       panelOperacao?.classList.remove("hidden");
       refreshPortalOperacaoNavPorAcessos();
-      portalOperacaoAutoAbrirSeUnicoPermitido();
+      let tela = "";
+      try {
+        tela = sessionStorage.getItem(PORTAL_TELA_ATIVA_KEY) || "";
+      } catch {
+        tela = "";
+      }
+      if (!tela) portalOperacaoAutoAbrirSeUnicoPermitido();
+      portalRetomarTelaOperacao();
     } else if (area === "manutencao") {
       panelManutencao?.classList.remove("hidden");
     } else if (area === "estoque") {
@@ -4029,19 +4134,19 @@
   });
 
   btnOperacao?.addEventListener("click", () => {
-    portalAbrirSeAreaLivre("operacao", () => {
-      portalOperacaoOnScreenChange();
-      portalScheduleBackgroundCloudPullOnce();
-      hideOperacaoInlineFormsCore();
-      setOperacaoFormPlaceholderVisible(true);
-      syncOperacaoCadastroButtons(null);
-      hideAllPanels();
-      panelOperacao?.classList.remove("hidden");
-      refreshPortalOperacaoNavPorAcessos();
-      refreshOperacaoClienteCodigoEditavel();
-      portalOperacaoAutoAbrirSeUnicoPermitido();
-      portalPersistirAreaAtiva("operacao");
-    });
+    portalOperacaoOnScreenChange();
+    portalScheduleBackgroundCloudPullOnce();
+    hideOperacaoInlineFormsCore();
+    setOperacaoFormPlaceholderVisible(true);
+    syncOperacaoCadastroButtons(null);
+    hideAllPanels();
+    panelOperacao?.classList.remove("hidden");
+    refreshPortalOperacaoNavPorAcessos();
+    refreshOperacaoClienteCodigoEditavel();
+    portalPersistirAreaAtiva("operacao");
+    portalGuardarTelaAtiva("");
+    portalSairAreaExclusiva();
+    portalOperacaoAutoAbrirSeUnicoPermitido();
   });
 
   function hideManutencaoInlineFormsCore() {
@@ -5184,6 +5289,7 @@
       if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
       showPortalEstoqueSub("cadastro");
       portalPersistirAreaAtiva("estoque");
+      portalGuardarTelaAtiva("estoque");
     });
   }
 
@@ -19864,6 +19970,8 @@
     hideOperacaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
+    portalGuardarTelaAtiva("");
+    portalSairAreaExclusiva();
   }
 
   /**
@@ -28865,6 +28973,7 @@
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
+    portalAbrirTelaOperacao("operacao-cadastro-cliente", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -28887,8 +28996,10 @@
           : `Não foi possível alinhar à nuvem (${sync?.reason || "erro"}). A usar a cópia deste PC.`;
       }
     })();
+    });
   });
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+    portalAbrirTelaOperacao("operacao-cadastro-veiculo", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
@@ -28898,8 +29009,10 @@
     refreshOperacaoVeiculoTagPreview();
     renderOperacaoVeiculoResumoFrota();
     refreshOperacaoVeiculoTotalCadastrados();
+    });
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
+    portalAbrirTelaOperacao("operacao-cadastro-locacao", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
@@ -28914,6 +29027,7 @@
     void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
+    });
     });
   });
 
@@ -29267,6 +29381,7 @@
   }
 
   function openOperacaoRelatorioRotatividade() {
+    portalAbrirTelaOperacao("operacao-relatorio-rotatividade", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineRelatorioRotatividade")?.classList.remove("hidden");
@@ -29283,6 +29398,7 @@
       renderOperacaoRelatorioRotatividade();
     });
     renderOperacaoRelatorioRotatividade();
+    });
   }
 
   document.getElementById("btn-operacao-relatorio-rotatividade")?.addEventListener("click", () => {
@@ -29547,6 +29663,7 @@
   }
 
   function openOperacaoRelatorioInatividade() {
+    portalAbrirTelaOperacao("operacao-relatorio-inatividade", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineRelatorioInatividade")?.classList.remove("hidden");
@@ -29563,6 +29680,7 @@
       renderOperacaoRelatorioInatividade();
     });
     renderOperacaoRelatorioInatividade();
+    });
   }
 
   document.getElementById("btn-operacao-relatorio-inatividade")?.addEventListener("click", () => {
@@ -29585,9 +29703,13 @@
       hideOperacaoInlineFormsCore();
       setOperacaoFormPlaceholderVisible(true);
       syncOperacaoCadastroButtons(null);
+      portalGuardarTelaAtiva("");
+      portalSairAreaExclusiva();
       return;
     }
-    openOperacaoLancamentoAluguel("avulso");
+    portalAbrirTelaOperacao("operacao-lancamento-aluguel", () => {
+      openOperacaoLancamentoAluguel("avulso");
+    });
   });
 
   syncOperacaoLancAluguelSubnavItemsVisibility();
@@ -29619,6 +29741,7 @@
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
     if (!portalPodeCriarColaborador()) return;
+    portalAbrirTelaOperacao("operacao-cadastro-colaborador", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
@@ -29626,15 +29749,18 @@
     syncOperacaoCadastroButtons("btn-operacao-cadastro-colaborador");
     syncPortalColaboradorFormFromCpf();
     portalRenderColaboradoresLista();
+    });
   });
 
   document.getElementById("btn-operacao-cadastro-administrador")?.addEventListener("click", () => {
     if (!portalPodeCriarAdministrador()) return;
+    portalAbrirTelaOperacao("operacao-cadastro-administrador", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineAdministrador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-administrador");
     portalRenderAdministradoresLista();
+    });
   });
 
   document.getElementById("formPortalCadastroAdministrador")?.addEventListener("submit", (ev) => {

@@ -36,13 +36,13 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261007desconto">
+  <link rel="stylesheet" href="styles.css?v=20261007ocupado">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20261007enviar"></script>
-  <script src="dk-pwa-update.js?v=20261007area"></script>
+  <script src="dk-pwa-update.js?v=20261007ocupado"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
@@ -604,28 +604,34 @@
                 <span class="btn-operacao-cmd__title">Falar com o cliente</span>
                 <span class="btn-operacao-cmd__hint">Mensagem pela linha comercial &mdash; pesquisa CPF, nome ou placa</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" data-area-ocupacao="operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Colaboradores cadastram novos clientes</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" data-area-ocupacao="operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
                 <span class="btn-operacao-cmd__title">Cadastro de veículo</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">14 campos (tag, placa, código, marca, etc.) à direita</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" data-area-ocupacao="operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
                 <span class="btn-operacao-cmd__title">Cadastro de locação</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Protocolo automático, CPF, placa, plano, valores e datas</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-relatorio-rotatividade" aria-expanded="false" aria-controls="operacaoInlineRelatorioRotatividade">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-relatorio-rotatividade" data-area-ocupacao="operacao-relatorio-rotatividade" aria-expanded="false" aria-controls="operacaoInlineRelatorioRotatividade">
                 <span class="btn-operacao-cmd__title">Relatório de rotatividade</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Novas locações × finalizadas por período</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-relatorio-inatividade" aria-expanded="false" aria-controls="operacaoInlineRelatorioInatividade">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-relatorio-inatividade" data-area-ocupacao="operacao-relatorio-inatividade" aria-expanded="false" aria-controls="operacaoInlineRelatorioInatividade">
                 <span class="btn-operacao-cmd__title">Relatório de inatividade</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Placas sem protocolo vinculado na data</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoLancAluguelSubnav">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" data-area-ocupacao="operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoLancAluguelSubnav">
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Registo manual de pagamento (data e valor por protocolo)</span>
               </button>
               <nav id="operacaoLancAluguelSubnav" class="operacao-lanc-aluguel-subnav hidden" aria-label="Tipos de lançamento de aluguel">
@@ -672,20 +678,24 @@
                   <span class="btn-operacao-cmd__hint">Período, CPF ou placa</span>
                 </button>
               </nav>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" data-area-ocupacao="operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
                 <span class="btn-operacao-cmd__title">Lançamento de multas</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-estoque" aria-expanded="false" aria-controls="panel-estoque-locadora">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-estoque" data-area-ocupacao="estoque" aria-expanded="false" aria-controls="panel-estoque-locadora">
                 <span class="btn-operacao-cmd__title">Estoque</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Controle de estoque por código de barras</span>
               </button>
-              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
+              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" data-area-ocupacao="operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Usuários administradores criam colaboradores</span>
               </button>
-              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-administrador" aria-expanded="false" aria-controls="operacaoInlineAdministrador">
+              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-administrador" data-area-ocupacao="operacao-cadastro-administrador" aria-expanded="false" aria-controls="operacaoInlineAdministrador">
                 <span class="btn-operacao-cmd__title">Cadastro de administrador</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Só o Administrador CEO cria novos administradores</span>
               </button>
             </div>
@@ -5818,7 +5828,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260925login3b"></script>
-  <script src="app.js?v=20261007area" defer></script>
+  <script src="app.js?v=20261007ocupado" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5829,7 +5839,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20260908excel-dt" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261007area" defer></script>
+  <script src="portal-locadora-ui.js?v=20261007ocupado" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
@@ -5871,7 +5881,7 @@
   <script src="portal-contrato-pacote.js?v=20261007desconto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="dk-parse-autuacao-transito.js?v=20260904placa-ocr" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260916multas-sintaxe" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20261007ocupado" defer></script>
   <script src="portal-multas-ocr.js?v=20260904placa-frota" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260915itemlivre" defer></script>

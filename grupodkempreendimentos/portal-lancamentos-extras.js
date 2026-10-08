@@ -1369,14 +1369,21 @@
     state.set(cfg.key, true);
 
     document.getElementById(cfg.btnId)?.addEventListener("click", () => {
-      if (typeof window.__DK_portalOperacaoOnScreenChange === "function") {
-        window.__DK_portalOperacaoOnScreenChange();
+      const abrir = () => {
+        if (typeof window.__DK_portalOperacaoOnScreenChange === "function") {
+          window.__DK_portalOperacaoOnScreenChange();
+        }
+        showPanel(cfg);
+        hideDetalhe(cfg);
+        bindPesquisaLazyRefresh(cfg);
+        const msg = $(cfg, "InlineMsg");
+        if (msg) msg.textContent = "";
+      };
+      if (cfg.key === "lancamentoMultas" && typeof window.__DK_portalAbrirTelaOperacao === "function") {
+        window.__DK_portalAbrirTelaOperacao("operacao-lancamento-multas", abrir);
+        return;
       }
-      showPanel(cfg);
-      hideDetalhe(cfg);
-      bindPesquisaLazyRefresh(cfg);
-      const msg = $(cfg, "InlineMsg");
-      if (msg) msg.textContent = "";
+      abrir();
     });
 
     $(cfg, "ConfirmarPesquisaBtn")?.addEventListener("click", (e) => {
