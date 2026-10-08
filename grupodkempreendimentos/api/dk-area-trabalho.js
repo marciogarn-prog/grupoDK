@@ -134,6 +134,16 @@ module.exports = async function handler(req, res) {
 
     const marca = Number(body.marca) || Date.now();
     const pacote = JSON.stringify({ cpf, nome: nomeExibicao(body), at: marca });
+    if (acao === "renovar") {
+      const donoRenova = lerDono(await redis.get(key));
+      if (!donoRenova || donoRenova.cpf !== cpf) {
+        return res.status(200).json({ ok: true, livre: false, expirada: true });
+      }
+      await redis.set(key, JSON.stringify({ cpf, nome: nomeExibicao(body), at: donoRenova.at || marca }), {
+        ex: TTL_SEC,
+      });
+      return res.status(200).json({ ok: true, livre: true, marca: donoRenova.at || marca });
+    }
     if (acao === "entrar") {
       const reservou = await redis.set(key, pacote, { nx: true, ex: TTL_SEC });
       if (reservou) {

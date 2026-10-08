@@ -3108,21 +3108,46 @@
     );
   }
 
+  function portalNomeChaveOcupacao(nome) {
+    return String(nome || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleUpperCase("pt-BR");
+  }
+
+  function portalLimparMeuNomeDasOutrasAreas(areaAtual) {
+    const eu = portalNomeChaveOcupacao(portalNomeSessaoArea());
+    const next = {};
+    Object.keys(portalOcupacaoCache || {}).forEach((id) => {
+      const meu = eu && portalNomeChaveOcupacao(portalOcupacaoCache[id]) === eu;
+      if (meu && id !== areaAtual) return;
+      next[id] = portalOcupacaoCache[id];
+    });
+    if (areaAtual && portalNomeSessaoArea()) next[areaAtual] = portalNomeSessaoArea();
+    portalOcupacaoCache = next;
+  }
+
   function portalIniciarRenovacaoArea(area, marca) {
     portalPararRenovacaoArea();
     portalAreaLockIdAtual = area;
     portalAreaLockMarca = Number(marca) || Date.now();
+    portalLimparMeuNomeDasOutrasAreas(area);
     portalPintarOcupacaoBotoes(portalOcupacaoCache);
     portalAreaLockTimer = window.setInterval(() => {
-      if (!portalAreaLockIdAtual) return;
-      void portalAreaTrabalhoPedido(portalAreaLockIdAtual, "renovar")
+      const areaRenovada = portalAreaLockIdAtual;
+      if (!areaRenovada) return;
+      void portalAreaTrabalhoPedido(areaRenovada, "renovar")
         .then(({ res, data }) => {
+          if (portalAreaLockIdAtual !== areaRenovada) return;
+          if (data?.expirada) return;
           if (res.status === 409 || data?.ocupada) {
-            const perdida = portalAreaLockIdAtual;
             portalPararRenovacaoArea();
             portalAreaLockIdAtual = "";
+            portalLimparMeuNomeDasOutrasAreas("");
+            portalPintarOcupacaoBotoes(portalOcupacaoCache);
             portalVoltarEquipaLocadora();
-            portalAvisarAreaOcupada(perdida, data?.nome);
+            portalAvisarAreaOcupada(areaRenovada, data?.nome);
           }
         })
         .catch(() => {});
@@ -3158,9 +3183,7 @@
     portalPararRenovacaoArea();
     portalAreaLockIdAtual = "";
     portalAreaLockMarca = 0;
-    if (id && portalOcupacaoCache && portalOcupacaoCache[id]) {
-      delete portalOcupacaoCache[id];
-    }
+    portalLimparMeuNomeDasOutrasAreas("");
     portalPintarOcupacaoBotoes(portalOcupacaoCache);
     if (!id) return;
     void portalAreaTrabalhoPedido(id, "sair", marca).catch(() => {});
@@ -3183,7 +3206,9 @@
     document.querySelectorAll("[data-area-ocupacao]").forEach((btn) => {
       const id = btn.getAttribute("data-area-ocupacao") || "";
       let nome = base[id] || "";
+      const eu = portalNomeChaveOcupacao(portalNomeSessaoArea());
       if (portalAreaLockIdAtual && id === portalAreaLockIdAtual) nome = portalNomeSessaoArea() || nome;
+      else if (eu && portalNomeChaveOcupacao(nome) === eu) nome = "";
       let el = btn.querySelector(".btn-operacao-cmd__ocupado");
       if (!el) {
         el = document.createElement("span");
@@ -3209,6 +3234,7 @@
         }
         if (!res.ok || !data || typeof data.areas !== "object" || !data.areas) return;
         portalOcupacaoCache = data.areas;
+        portalLimparMeuNomeDasOutrasAreas(portalAreaLockIdAtual);
         portalPintarOcupacaoBotoes(portalOcupacaoCache);
       })
       .catch(() => {
