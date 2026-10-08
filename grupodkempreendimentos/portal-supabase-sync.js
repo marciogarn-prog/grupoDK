@@ -495,6 +495,7 @@
   let backgroundPullInFlight = null;
   let screenPullLastAt = 0;
   let screenPullInFlight = null;
+  let screenPullAgain = false;
   let snapshotGetInFlight = null;
   let snapshotGetCache = { at: 0, data: null };
   let snapshotGetGen = 0;
@@ -2470,7 +2471,7 @@
     if (!userAction && snapshotAutomaticoPausado() && (snapshotGetCache.data || lastGoodSnapshot)) {
       return snapshotGetCache.data || lastGoodSnapshot;
     }
-    if (snapshotGetInFlight) return snapshotGetInFlight;
+    if (snapshotGetInFlight && !userAction) return snapshotGetInFlight;
     const gen = snapshotGetGen;
     const flight = fetchRedundantSnapshotPayloadUncached().then((row) => {
       if (row && row.payload && gen === snapshotGetGen) snapshotGetCache = { at: Date.now(), data: row };
@@ -5552,33 +5553,40 @@
    * evita carregar snapshot antigo por cima do lançamento ainda a subir.
    */
   async function pullFromCloudOnScreenChangeCore() {
-    const gate = await awaitAutoCloudPushConfirmed();
-    if (!gate.ok) {
-      console.warn("[DK cloud] await_push_failed — o download da nuvem não substitui o lançamento local", gate.reason);
+    const gate = await Promise.race([
+      awaitAutoCloudPushConfirmed(),
+      new Promise((resolve) => setTimeout(() => resolve({ ok: true, reason: "download_nao_espera_envio" }), 800)),
+    ]);
+    if (!gate.ok && gate.reason === "lancamento_em_envio") {
+      console.warn("[DK cloud] download adiado: lançamento ainda a subir", gate.reason);
       return { ok: false, reason: "await_push_failed", skipped: true };
     }
-    if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
-      try {
-        await window.__DK_portalPullCadastroFromCloud();
-      } catch (e) {
-        console.warn("[DK cloud] pull cadastro API ao mudar ecrã", e);
-      }
+    if (!gate.ok) {
+      console.warn("[DK cloud] a tela baixa mesmo com um envio ainda pendente", gate.reason);
     }
-    // Após upload confirmado neste PC, o merge da nuvem é seguro (já inclui o que enviámos).
-    return pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true });
+    const cadastro =
+      typeof window.__DK_portalPullCadastroFromCloud === "function"
+        ? Promise.resolve(window.__DK_portalPullCadastroFromCloud()).catch((e) => {
+            console.warn("[DK cloud] pull cadastro API ao mudar ecrã", e);
+          })
+        : Promise.resolve();
+    const snapshot = await pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true });
+    await Promise.race([cadastro, new Promise((resolve) => setTimeout(resolve, 4000))]);
+    return snapshot;
   }
 
   function pullFromCloudOnScreenChange() {
-    return Promise.resolve({ ok: true, skipped: true, reason: "manual_only" });
     if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
-    if (snapshotAutomaticoPausado()) {
-      return Promise.resolve({ ok: true, skipped: true, reason: "pausado" });
-    }
     const now = Date.now();
-    if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
-      return screenPullInFlight || Promise.resolve({ ok: true, skipped: true, reason: "throttled" });
+    void SCREEN_PULL_MIN_INTERVAL_MS;
+    if (screenPullInFlight) {
+      screenPullAgain = true;
+      return screenPullInFlight.then(() => {
+        if (!screenPullAgain) return { ok: true, skipped: true, reason: "ja_em_curso" };
+        screenPullAgain = false;
+        return pullFromCloudOnScreenChange();
+      });
     }
-    if (screenPullInFlight) return screenPullInFlight;
     screenPullLastAt = now;
     screenPullInFlight = pullFromCloudOnScreenChangeCore()
       .catch((e) => {
@@ -5618,7 +5626,7 @@
   }
 
   function pushToCloudAfterSave() {
-    return Promise.resolve({ ok: true, skipped: true, reason: "manual_only" });
+    return pushCloudSnapshotNow({ manual: true, force: true });
   }
 
   async function pushLocalSnapshotAfterImport() {

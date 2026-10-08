@@ -463,6 +463,7 @@ function lerLinhaSnapshotRedis(raw) {
 }
 
 async function lerSnapshotRedisOficial(redis, key) {
+  if (!redis) return null;
   try {
     return lerLinhaSnapshotRedis(await redis.get(key));
   } catch (err) {
@@ -1245,16 +1246,6 @@ async function handler(req, res) {
     });
   }
 
-  if (supabaseBreakerAberto()) {
-    res.setHeader("Retry-After", "60");
-    return res.status(503).json({
-      ok: false,
-      success: false,
-      reason: "supabase_circuit_open",
-      retryAfter: 60,
-    });
-  }
-
   if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
@@ -1266,7 +1257,7 @@ async function handler(req, res) {
     return res.status(503).json({ ok: false, reason: "cloud_budget" });
   }
 
-  let redis;
+  let redis = null;
   try {
     redis = createRedisClient();
     if (await rejectIfRedisBurst(redis)) return budgetReject(res);
@@ -1274,7 +1265,8 @@ async function handler(req, res) {
     if (isQuotaError(e) || (e && e.reason === "cloud_budget") || isCloudBudgetTripped()) {
       return budgetReject(res);
     }
-    return res.status(503).json({ ok: false, reason: "cloud_budget" });
+    console.error("[dk-snapshot] redis indisponivel, segue no supabase");
+    redis = null;
   }
   const channel = resolveDeployChannel(req);
   const REDIS_KEY = redisKeyForChannel(channel);
@@ -1310,16 +1302,7 @@ async function handler(req, res) {
           ? await consultarSupabase(() => fetchSnapshotByLabel(LABEL))
           : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
       }
-      if (oficial && oficial.reason === "supabase_circuit_open") {
-        res.setHeader("Retry-After", "60");
-        return res.status(503).json({
-          ok: false,
-          success: false,
-          reason: "supabase_circuit_open",
-          retryAfter: 60,
-        });
-      }
-      if (!oficial || oficial.reason === "supabase_timeout" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
+      if (!oficial || oficial.reason === "supabase_timeout" || oficial.reason === "supabase_circuit_open" || (oficial.reason && String(oficial.reason).startsWith("supabase_http")) || oficial.reason === "doorman_key_missing" || oficial.reason === "cloud_budget") {
         console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
         const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
         if (cached && cached.payload) {
@@ -1409,11 +1392,21 @@ async function handler(req, res) {
     if (req.method === "POST") {
       const body = parseBody(req);
       const operador = body.operador === true;
-      const locacoesLockToken = await acquireLocacoesWriteLock(redis, {
-        attempts: operador ? 250 : 5,
-        waitMs: 100,
-        ttlSec: 30,
-      });
+      let locacoesLockToken = "";
+      if (!redis) {
+        locacoesLockToken = "sem-redis";
+      } else {
+        try {
+          locacoesLockToken = await acquireLocacoesWriteLock(redis, {
+            attempts: operador ? 250 : 5,
+            waitMs: 100,
+            ttlSec: 30,
+          });
+        } catch (err) {
+          console.error("[dk-snapshot] lock redis", err && err.message ? err.message : err);
+          locacoesLockToken = "sem-redis";
+        }
+      }
       if (!locacoesLockToken) {
         return res.status(409).json({
           ok: false,
@@ -1528,6 +1521,7 @@ async function handler(req, res) {
       if (
         !oficialAtual ||
         oficialAtual.reason === "supabase_timeout" ||
+        oficialAtual.reason === "supabase_circuit_open" ||
         oficialAtual.reason === "doorman_key_missing" ||
         oficialAtual.reason === "cloud_budget" ||
         (oficialAtual.reason && String(oficialAtual.reason).startsWith("supabase_http"))

@@ -246,6 +246,16 @@
     localStorage.setItem("dk_estoque_saidas_v1", JSON.stringify(Array.isArray(list) ? list : []));
   }
 
+  function enviarEstoqueConfirmadoParaNuvem() {
+    if (typeof window.portalPushCloudSnapshotAfterPersist === "function") {
+      window.portalPushCloudSnapshotAfterPersist();
+      return;
+    }
+    if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      void window.__DK_pushToCloudAfterSave();
+    }
+  }
+
   function chavePlanilhaSaida(r, i) {
     return `planilha-sai:${i}:${nkBar(r?.codigo)}:${nkPlate(r?.placa)}:${String(r?.data || "")}:${String(r?.quantidade ?? "")}:${String(r?.km ?? "")}`;
   }
@@ -1513,8 +1523,9 @@
     gravarExtrasSaidas(extra);
     if (placa) gravarMemoriaPlaca(placa, { modelo, tipo: veiculo });
     sairEdicaoSaida({ limpar: true });
-    if (msg) msg.textContent = `Saída atualizada: ${descricao || codigo} · ${quantidade} · ${placa || "sem placa"}.`;
+    if (msg) msg.textContent = `Saída atualizada: ${descricao || codigo} · ${quantidade} · ${placa || "sem placa"}. Enviando para a nuvem.`;
     carregarPlanilhaNasTelas();
+    enviarEstoqueConfirmadoParaNuvem();
     return true;
   }
 
@@ -1588,8 +1599,9 @@
     gravarExtrasCadastro(extra);
     if (preco > 0 && codigoValido(codigo)) gravarPrecoRecente(codigo, preco);
     sairEdicaoCadastro();
-    if (msg) msg.textContent = `Cadastro atualizado: ${descricao || codigo}.`;
+    if (msg) msg.textContent = `Cadastro atualizado: ${descricao || codigo}. Enviando para a nuvem.`;
     carregarPlanilhaNasTelas();
+    enviarEstoqueConfirmadoParaNuvem();
     return true;
   }
 
@@ -1675,8 +1687,9 @@
     else cadExtra.unshift(cadRow);
     gravarExtrasCadastro(cadExtra);
     sairEdicaoSaldo();
-    if (msg) msg.textContent = `Estoque atualizado: ${descricao || codigo} · QT ${qt}.`;
+    if (msg) msg.textContent = `Estoque atualizado: ${descricao || codigo} · QT ${qt}. Enviando para a nuvem.`;
     carregarPlanilhaNasTelas();
+    enviarEstoqueConfirmadoParaNuvem();
     return true;
   }
 
@@ -1921,8 +1934,9 @@
     }
     const acao = editando ? "Entrada atualizada" : "Entrada gravada";
     sairEdicaoEntrada({ limpar: true });
-    if (msg) msg.textContent = `${avisoCad}${acao}: ${descricao || codigo} · ${quantidade} · ${formaPagamento}.`;
+    if (msg) msg.textContent = `${avisoCad}${acao}: ${descricao || codigo} · ${quantidade} · ${formaPagamento}. Enviando para a nuvem.`;
     carregarPlanilhaNasTelas();
+    enviarEstoqueConfirmadoParaNuvem();
     return true;
   }
 

@@ -2606,6 +2606,7 @@
       return;
     }
     portalAbrirSeAreaLivre("financeiro", () => {
+      portalOperacaoOnScreenChange();
       finalizarLoginEquipaPortal(func);
       hideAllPanels();
       panelFinanceiro?.classList.remove("hidden");
@@ -2626,6 +2627,7 @@
       return;
     }
     portalAbrirSeAreaLivre("financeiro-ceo", () => {
+      portalOperacaoOnScreenChange();
       finalizarLoginEquipaPortal(func);
       hideAllPanels();
       panelFinanceiroCeo?.classList.remove("hidden");
@@ -2655,6 +2657,7 @@
       return;
     }
     portalAbrirSeAreaLivre("financeiro-ceo", () => {
+      portalOperacaoOnScreenChange();
       finalizarLoginEquipaPortal(func);
       hideAllPanels();
       panelFinanceiroCeo?.classList.remove("hidden");
@@ -2987,6 +2990,7 @@
 
   /** Da Operação/Manutenção/Localização/Documentos/Financeiro → Área da equipa. */
   function portalVoltarEquipaLocadora() {
+    portalOperacaoOnScreenChange();
     portalSairAreaExclusiva();
     hideInlineForms();
     hideManutencaoInlineFormsCore();
@@ -3242,6 +3246,7 @@
   function portalAbrirTelaOperacao(area, abrir) {
     portalAbrirSeAreaLivre(area, () => {
       portalGuardarTelaAtiva(area);
+      portalOperacaoOnScreenChange();
       abrir();
     });
   }
@@ -5093,6 +5098,7 @@
   portalSyncAuthAutofillState();
 
   function expandManutencaoParentMenuOnly(parentBtnId, placeholderText) {
+    portalOperacaoOnScreenChange();
     portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(true);
@@ -5108,6 +5114,7 @@
   }
 
   function openManutencaoLocadoSub(subRaw) {
+    portalOperacaoOnScreenChange();
     const sub = MANUT_LOCADO_SUB_META[subRaw] ? subRaw : "minha-moto";
     portalManutLocadoSubAtivo = sub;
     portalRefreshOperacaoLocal();
@@ -5137,6 +5144,7 @@
   }
 
   function openManutencaoDisponivelSub(subRaw) {
+    portalOperacaoOnScreenChange();
     const sub = MANUT_DISP_SUB_META[subRaw] ? subRaw : "prontos";
     portalManutDispSubAtivo = sub;
     portalRefreshOperacaoLocal();
@@ -5166,6 +5174,7 @@
   }
 
   function openManutencaoEmManutencaoSub(subRaw) {
+    portalOperacaoOnScreenChange();
     portalMigrateManutencaoEntradaParaTriagem();
     const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "triagem";
     portalManutEmManutSubAtivo = sub;
@@ -5206,6 +5215,7 @@
 
   btnManutencao?.addEventListener("click", () => {
     portalAbrirSeAreaLivre("manutencao", () => {
+      portalOperacaoOnScreenChange();
       portalRefreshOperacaoLocal();
       hideManutencaoInlineFormsCore();
       setManutencaoFormPlaceholderVisible(true);
@@ -5224,6 +5234,7 @@
   btnDocumentos?.addEventListener("click", () => {
     if (!isPortalDocumentosAcesso()) return;
     portalAbrirSeAreaLivre("documentos", () => {
+      portalOperacaoOnScreenChange();
       hideAllPanels();
       if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
       panelDocumentos?.classList.remove("hidden");
@@ -5240,6 +5251,7 @@
   });
 
   function showPortalEstoqueSub(subRaw) {
+    portalOperacaoOnScreenChange();
     const panes = {
       cadastro: "estoquePaneCadastro",
       estoque: "estoquePaneEstoque",
@@ -5284,6 +5296,7 @@
   function abrirPortalControleEstoque() {
     if (!portalPodeAcessarEstoque()) return;
     portalAbrirSeAreaLivre("estoque", () => {
+      portalOperacaoOnScreenChange();
       hideAllPanels();
       panelEstoque?.classList.remove("hidden");
       if (typeof window.__DK_estoqueAoAbrirPainel === "function") window.__DK_estoqueAoAbrirPainel();
@@ -5334,6 +5347,7 @@
 
   btnLocalizacao?.addEventListener("click", () => {
     portalAbrirSeAreaLivre("localizacao", () => {
+      portalOperacaoOnScreenChange();
       hideAllPanels();
       panelLocalizacao?.classList.remove("hidden");
       if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
@@ -10653,6 +10667,7 @@
   });
 
   function openManutencaoRapidaIndependente() {
+    portalOperacaoOnScreenChange();
     portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(false);
@@ -11827,9 +11842,10 @@
       if (typeof window.__DK_portalClienteDocsPersist === "function") {
         window.__DK_portalClienteDocsPersist(cpfDigits);
       }
-      if (msg) msg.textContent = "Dados do cliente guardados neste PC. A confirmar na nuvem…";
+      if (msg) msg.textContent = "Dados do cliente guardados. Enviando para a nuvem.";
       portalApplyAmbienteVisualForm("Cliente", payloadPortal);
       refreshOperacaoClienteCodigoEditavel();
+      portalPushCloudSnapshotAfterPersist();
       return true;
     }
 
@@ -12243,7 +12259,8 @@
       }
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
-      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado neste PC. A confirmar na nuvem…`;
+      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado. Enviando para a nuvem.`;
+      portalPushCloudSnapshotAfterPersist();
       portalApplyAmbienteVisualForm("Cliente", novo);
       portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
@@ -12278,7 +12295,9 @@
         () => {
           const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
           if (!ok) return;
-          if (msg) msg.textContent = "Cliente guardado neste computador. Envie com Guardar na nuvem ou Enviar para nuvem.";
+          if (msg && !/Enviando para a nuvem/.test(msg.textContent || "")) {
+            msg.textContent = "Cliente guardado. Enviando para a nuvem.";
+          }
         }
       );
     }
@@ -19814,7 +19833,10 @@
   }
 
   function portalPushCloudSnapshotAfterPersist() {
-    return;
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
+    void window.__DK_pushCloudSnapshotNow({ manual: true, force: true }).catch((e) => {
+      console.warn("[DK portal] upload apos salvar", e);
+    });
   }
 
   /**
@@ -19947,6 +19969,7 @@
   try {
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
     window.__DK_portalOperacaoOnScreenChange = portalOperacaoOnScreenChange;
+    window.__DK_portalSyncFluxoVeiculoNuvem = portalSyncFluxoVeiculoNuvem;
     window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
     window.__DK_portalNuvemGarantirNaNuvem = portalNuvemGarantirNaNuvem;
     window.portalPushCloudSnapshotAfterPersist = portalPushCloudSnapshotAfterPersist;
@@ -23414,10 +23437,11 @@
         console.error(err);
         return;
       }
+      portalPushCloudSnapshotAfterPersist();
       if (msg) {
         msg.textContent = existenteVeiculo
-          ? "Veículo atualizado neste computador. Envie com Guardar na nuvem."
-          : "Veículo cadastrado neste computador. Envie com Guardar na nuvem.";
+          ? "Veículo atualizado. Enviando para a nuvem."
+          : "Veículo cadastrado. Enviando para a nuvem.";
       }
       portalApplyAmbienteVisualForm("Veiculo", novo);
       refreshOperacaoVeiculoApagarBtn(plate);
@@ -23900,10 +23924,11 @@
           /* ignore */
         }
       }
+      portalPushCloudSnapshotAfterPersist();
       portalLocacaoFeedback(
         prev
-          ? "Locação atualizada neste computador. Envie com Guardar na nuvem ou Enviar para nuvem."
-          : "Locação cadastrada neste computador. Envie com Guardar na nuvem ou Enviar para nuvem."
+          ? "Locação atualizada. Enviando para a nuvem."
+          : "Locação cadastrada. Enviando para a nuvem."
       );
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();

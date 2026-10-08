@@ -740,6 +740,9 @@
     document.getElementById("btn-operacao-lancamento-manutencao")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (typeof window.__DK_portalOperacaoOnScreenChange === "function") {
+        window.__DK_portalOperacaoOnScreenChange();
+      }
       openModal("");
     });
 

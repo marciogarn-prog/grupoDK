@@ -191,7 +191,7 @@
     if (changed) {
       saveArr(STORAGE_KEY, list);
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        void window.__DK_pushCloudSnapshotNow();
+        void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
       }
     }
     return list;
@@ -448,7 +448,7 @@
       /* ignore */
     }
     if (opts && opts.push && typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow();
+      void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
     }
   }
 
@@ -592,7 +592,7 @@
     }
     void pushManutencoesParaNuvem(next);
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow();
+      void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
     }
     limparForm();
     renderDia();
