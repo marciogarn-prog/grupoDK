@@ -252,6 +252,63 @@
     return base;
   }
 
+  function digitosCliente(v) {
+    return String(v ?? "").replace(/\D/g, "");
+  }
+
+  function textoCliente(v) {
+    return String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+  }
+
+  function codigoCliente4(v) {
+    const d = digitosCliente(v);
+    return d ? d.padStart(4, "0").slice(-4) : "";
+  }
+
+  /** Campos do cadastro, sem hora de gravação. Dois lados iguais devolvem a mesma frase. */
+  function assinaturaCliente(c) {
+    if (!c || typeof c !== "object") return "";
+    const cpf = digitosCliente(c.cpf).slice(0, 11);
+    if (cpf.length !== 11) return "";
+    return [
+      codigoCliente4(c.codigo),
+      cpf,
+      textoCliente(c.nome),
+      digitosCliente(c.celular),
+      textoCliente(c.recado1),
+      textoCliente(c.recado2),
+      textoCliente(c.cnh),
+      textoCliente(c.categoria),
+      textoCliente(c.vencimento),
+      textoCliente(c.ear),
+      digitosCliente(c.cep),
+      textoCliente(c.municipioUf),
+      textoCliente(c.endereco),
+      textoCliente(c.dataCadastro),
+      textoCliente(c.status || "ATIVO"),
+    ].join("\u001f");
+  }
+
+  function mapaAssinaturaClientes(lista) {
+    const map = new Map();
+    (Array.isArray(lista) ? lista : []).forEach((c) => {
+      const sig = assinaturaCliente(c);
+      if (!sig) return;
+      map.set(digitosCliente(c.cpf).slice(0, 11), sig);
+    });
+    return map;
+  }
+
+  function listasClientesIguais(a, b) {
+    const ma = mapaAssinaturaClientes(a);
+    const mb = mapaAssinaturaClientes(b);
+    if (ma.size !== mb.size) return false;
+    for (const [cpf, sig] of ma) {
+      if (mb.get(cpf) !== sig) return false;
+    }
+    return true;
+  }
+
   function lerFicheiro(payload, chave, id) {
     if (!payload || !chave || !id) return null;
     if (chave === "dk_cliente_docs_v1") {
@@ -274,5 +331,6 @@
     fundirPacoteDia,
     fundirFicheiro,
     lerFicheiro,
+    listasClientesIguais,
   };
 });

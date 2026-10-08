@@ -11824,10 +11824,8 @@
       if (typeof window.__DK_portalClienteDocsPersist === "function") {
         window.__DK_portalClienteDocsPersist(cpfDigits);
       }
-      if (msg) msg.textContent = "Dados do cliente guardados. Enviando para a nuvem.";
       portalApplyAmbienteVisualForm("Cliente", payloadPortal);
       refreshOperacaoClienteCodigoEditavel();
-      portalPushCloudSnapshotAfterPersist();
       return true;
     }
 
@@ -12241,8 +12239,6 @@
       }
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
-      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado. Enviando para a nuvem.`;
-      portalPushCloudSnapshotAfterPersist();
       portalApplyAmbienteVisualForm("Cliente", novo);
       portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
@@ -12277,9 +12273,7 @@
         () => {
           const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
           if (!ok) return;
-          if (msg && !/Enviando para a nuvem/.test(msg.textContent || "")) {
-            msg.textContent = "Cliente guardado. Enviando para a nuvem.";
-          }
+          portalAgendarEnvioClienteParaNuvem();
         }
       );
     }
@@ -16697,6 +16691,159 @@
   }
   window.__DK_portalSincronizarClientesCadastroComNuvemOficial = portalSincronizarClientesCadastroComNuvemOficial;
 
+  const DK_MSG_PC_NUVEM_IGUAIS = "dados do pc e da nuvem iguais";
+  const DK_MSG_BAIXANDO_NUVEM = "dados da nuvem diferente do pc=>baixando atualização";
+  const DK_MSG_ENVIANDO_CLIENTE = "dados da nuvem diferente do pc=>enviando novo cliente para nuvem";
+  let portalClienteMsgGeracao = 0;
+
+  function portalMsgCliente(texto, geracao) {
+    if (geracao != null && geracao !== portalClienteMsgGeracao) return;
+    const el = document.getElementById("operacaoClienteInlineMsg");
+    if (!el) return;
+    el.textContent = texto;
+    el.classList.toggle("portal-feedback--ok", texto === DK_MSG_PC_NUVEM_IGUAIS);
+  }
+
+  function portalEnvioClienteConfirmado(envio) {
+    return Boolean(envio) && envio.ok !== false && envio.success !== false;
+  }
+
+  function portalLerClientesLocais() {
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      return loadCadastro(CAD_CLIENTES_KEY) || [];
+    }
+    return [];
+  }
+
+  function portalClientesIguais(localLista, cloudLista) {
+    const fn = window.__DK_pacotes && window.__DK_pacotes.listasClientesIguais;
+    return typeof fn === "function" ? fn(localLista, cloudLista) : false;
+  }
+
+  async function portalLerClientesNuvem() {
+    const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+    const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+    const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+    const url = `/api/cadastro-clientes${q || ""}${sep}nocache=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store", headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.ok === false || !Array.isArray(data?.data)) {
+      return { ok: false, reason: data?.reason || "sem_clientes_nuvem", lista: [] };
+    }
+    return { ok: true, lista: data.data };
+  }
+
+  function portalAplicarClientesOficiaisNoPc(cloudCli) {
+    const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const padCod = (raw) => {
+      if (typeof formatPortalClienteCodigoPadrao === "function") return formatPortalClienteCodigoPadrao(raw);
+      const d = dig(raw);
+      return d ? d.padStart(4, "0").slice(-4) : "";
+    };
+    if (!Array.isArray(cloudCli) || !cloudCli.length) return 0;
+    const localLista = portalLerClientesLocais();
+    const localPorCpf = new Map();
+    localLista.forEach((c) => {
+      const d = dig(String(c?.cpf || "")).slice(0, 11);
+      if (d.length === 11) localPorCpf.set(d, c);
+    });
+    const byCpf = new Map();
+    cloudCli.forEach((c) => {
+      const d = dig(String(c?.cpf || "")).slice(0, 11);
+      if (d.length !== 11) return;
+      const local = localPorCpf.get(d);
+      byCpf.set(d, {
+        ...c,
+        cpf: d,
+        codigo: padCod(c.codigo) || c.codigo,
+        senha: c.senha || local?.senha,
+        origemPortal: true,
+      });
+    });
+    localLista.forEach((c) => {
+      const d = dig(String(c?.cpf || "")).slice(0, 11);
+      if (d.length === 11 && !byCpf.has(d)) byCpf.set(d, c);
+    });
+    const unified = Array.from(byCpf.values());
+    const prevSuppress = window.__DK_suppressPortalCadastroPush;
+    window.__DK_suppressPortalCadastroPush = true;
+    try {
+      if (typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+        saveCadastro(CAD_CLIENTES_KEY, unified, { allowShrink: true });
+      }
+      if (typeof saveCadastro === "function" && typeof PORTAL_CLIENTES_KEY !== "undefined") {
+        saveCadastro(PORTAL_CLIENTES_KEY, unified, { allowShrink: true });
+      } else if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.setItem("dk_portal_clientes_cadastro", JSON.stringify(unified));
+        } catch {
+          /* ignore */
+        }
+      }
+    } finally {
+      window.__DK_suppressPortalCadastroPush = prevSuppress;
+    }
+    return unified.length;
+  }
+
+  async function portalAgendarEnvioClienteParaNuvem() {
+    const geracao = ++portalClienteMsgGeracao;
+    portalMsgCliente(DK_MSG_ENVIANDO_CLIENTE, geracao);
+    let envio = null;
+    try {
+      envio = await portalPushCloudSnapshotAfterPersist();
+    } catch (e) {
+      envio = { ok: false, reason: String(e?.message || e || "erro") };
+    }
+    if (geracao !== portalClienteMsgGeracao) return;
+    portalMsgCliente(
+      portalEnvioClienteConfirmado(envio)
+        ? DK_MSG_PC_NUVEM_IGUAIS
+        : "Não foi possível enviar o cliente para a nuvem. O cadastro ficou neste PC.",
+      geracao
+    );
+  }
+
+  async function portalAlinharClientesAoEntrarNaTela() {
+    const geracao = ++portalClienteMsgGeracao;
+    portalMsgCliente("A comparar o cadastro deste PC com a nuvem…", geracao);
+    let nuvem;
+    try {
+      nuvem = await portalLerClientesNuvem();
+    } catch (e) {
+      return { ok: false, reason: String(e?.message || e || "erro"), geracao };
+    }
+    if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
+    if (!nuvem.ok) return { ok: false, reason: nuvem.reason, geracao };
+    const local = portalLerClientesLocais();
+    if (portalClientesIguais(local, nuvem.lista)) return { ok: true, iguais: true, geracao };
+    if (nuvem.lista.length) {
+      portalMsgCliente(DK_MSG_BAIXANDO_NUVEM, geracao);
+      portalAplicarClientesOficiaisNoPc(nuvem.lista);
+      try {
+        refreshOperacaoClienteTotalCadastrados();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
+    if (portalClientesIguais(portalLerClientesLocais(), nuvem.lista)) {
+      return { ok: true, iguais: true, geracao };
+    }
+    portalMsgCliente(DK_MSG_ENVIANDO_CLIENTE, geracao);
+    let envio = null;
+    try {
+      envio = await portalPushCloudSnapshotAfterPersist();
+    } catch (e) {
+      envio = { ok: false, reason: String(e?.message || e || "erro") };
+    }
+    if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
+    if (!portalEnvioClienteConfirmado(envio)) {
+      return { ok: false, reason: envio?.reason || "envio", geracao };
+    }
+    return { ok: true, iguais: true, geracao };
+  }
+
   function portalPlacaRelatorioKey(v) {
     const raw = String(v?.placa || "");
     if (typeof normalizePlacaParaCadastro === "function") {
@@ -19815,9 +19962,12 @@
   }
 
   function portalPushCloudSnapshotAfterPersist() {
-    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
-    void window.__DK_pushCloudSnapshotNow({ manual: true, force: true }).catch((e) => {
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
+      return Promise.resolve({ ok: false, reason: "sem_envio" });
+    }
+    return Promise.resolve(window.__DK_pushCloudSnapshotNow({ manual: true, force: true })).catch((e) => {
       console.warn("[DK portal] upload apos salvar", e);
+      return { ok: false, reason: String(e && e.message ? e.message : e) };
     });
   }
 
@@ -28986,22 +29136,23 @@
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
     const totalEl = document.getElementById("operacaoClienteTotalCadastrados");
-    const msg = document.getElementById("operacaoClienteInlineMsg");
     if (totalEl) totalEl.textContent = "A alinhar com a nuvem…";
-    if (msg) msg.textContent = "A alinhar o cadastro de clientes com a nuvem oficial…";
     void (async () => {
-      const sync = await portalSincronizarClientesCadastroComNuvemOficial();
+      const sync = await portalAlinharClientesAoEntrarNaTela();
+      if (sync?.cancelado) return;
       refreshOperacaoClienteCodigoEditavel();
       try {
         refreshOperacaoClienteTotalCadastrados();
       } catch {
         /* ignore */
       }
-      if (msg) {
-        msg.textContent = sync?.ok
-          ? `Cadastro alinhado à nuvem (${sync.fromCloud} clientes). Relatório e formulário usam a mesma base.`
-          : `Não foi possível alinhar à nuvem (${sync?.reason || "erro"}). A usar a cópia deste PC.`;
-      }
+      if (sync?.geracao != null && sync.geracao !== portalClienteMsgGeracao) return;
+      portalMsgCliente(
+        sync?.iguais
+          ? DK_MSG_PC_NUVEM_IGUAIS
+          : `Não foi possível comparar com a nuvem (${sync?.reason || "erro"}). A usar a cópia deste PC.`,
+        sync?.geracao
+      );
     })();
     });
   });

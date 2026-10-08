@@ -67,5 +67,11 @@ const comFicheiro = pacotes.fundirFicheiro(nuvem, "dk_cliente_docs_v1", {
 ok("o ficheiro novo não apaga o comprovante antigo", comFicheiro.dk_cliente_docs_v1["11111111111"].residencia.data.startsWith("data:"));
 ok("o ficheiro novo fica no cpf certo", comFicheiro.dk_cliente_docs_v1["22222222222"].cnh.nome === "cnh.pdf");
 
+const fichaA = { cpf: "12345678901", codigo: "418", nome: "Ana", celular: "(87) 99999-0000", status: "ATIVO" };
+const fichaB = { cpf: "123.456.789-01", codigo: "0418", nome: " ana ", celular: "87999990000", status: "" };
+ok("cpf e código iguais contam como a mesma ficha", pacotes.listasClientesIguais([fichaA], [fichaB]));
+ok("nome diferente não conta como igual", !pacotes.listasClientesIguais([fichaA], [{ ...fichaB, nome: "Bia" }]));
+ok("cliente só no PC não conta como igual", !pacotes.listasClientesIguais([fichaA, { cpf: "10987654321", nome: "Novo", codigo: "419" }], [fichaB]));
+
 console.log(failed ? `FAIL ${failed}` : "OK pacotes");
 process.exit(failed ? 1 : 0);
