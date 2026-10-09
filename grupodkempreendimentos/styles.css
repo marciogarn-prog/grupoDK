@@ -3795,6 +3795,24 @@ body.portal-body--admin-ceo {
   justify-content: center;
 }
 
+.portal-nuvem-offline__card {
+  max-width: 34rem;
+}
+
+.portal-nuvem-offline__texto {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-accent);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+#portalNuvemOfflineBackdrop {
+  cursor: default;
+}
+
 /* Recibo (Relat?rio 1): acima da pr?-visualiza??o PDF (z-index 3000). */
 #portalReciboModal.portal-modal {
   z-index: 4000;

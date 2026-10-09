@@ -16730,6 +16730,107 @@
     el.classList.toggle("portal-feedback--ok", texto === DK_MSG_PC_NUVEM_IGUAIS);
   }
 
+  function portalMsgFalhaCompararNuvem(reason) {
+    const motivo = String(reason || "erro").trim() || "erro";
+    return `Não foi possível comparar com a nuvem (${motivo}). A usar a cópia deste PC.`;
+  }
+
+  function portalFecharAvisoNuvemCliente() {
+    const modal = document.getElementById("portalNuvemOfflineModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function portalAbrirAvisoNuvemCliente(texto, geracao) {
+    if (geracao != null && geracao !== portalClienteMsgGeracao) return;
+    const modal = document.getElementById("portalNuvemOfflineModal");
+    const txt = document.getElementById("portalNuvemOfflineTexto");
+    if (!modal || !txt) {
+      portalMsgCliente(texto, geracao);
+      return;
+    }
+    txt.textContent = texto;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    const tentar = document.getElementById("portalNuvemOfflineTentarBtn");
+    if (tentar) tentar.disabled = false;
+    window.setTimeout(() => tentar?.focus(), 0);
+  }
+
+  function portalDescartarAvisoNuvemCliente() {
+    portalClienteMsgGeracao += 1;
+    portalFecharAvisoNuvemCliente();
+  }
+
+  let portalNuvemOfflineTentando = false;
+
+  function portalConcluirAlinharClientes(sync) {
+    if (sync?.cancelado) return;
+    try {
+      refreshOperacaoClienteCodigoEditavel();
+    } catch {
+      /* ignore */
+    }
+    try {
+      refreshOperacaoClienteTotalCadastrados();
+    } catch {
+      /* ignore */
+    }
+    if (sync?.geracao != null && sync.geracao !== portalClienteMsgGeracao) return;
+    if (sync?.iguais) {
+      portalFecharAvisoNuvemCliente();
+      portalMsgCliente(DK_MSG_PC_NUVEM_IGUAIS, sync.geracao);
+      return;
+    }
+    const el = document.getElementById("operacaoClienteInlineMsg");
+    if (el) {
+      el.textContent = "";
+      el.classList.remove("portal-feedback--ok");
+    }
+    portalAbrirAvisoNuvemCliente(portalMsgFalhaCompararNuvem(sync?.reason), sync?.geracao);
+  }
+
+  async function portalTentarAlinharClientesNovamente() {
+    if (portalNuvemOfflineTentando) return;
+    portalNuvemOfflineTentando = true;
+    const tentarBtn = document.getElementById("portalNuvemOfflineTentarBtn");
+    if (tentarBtn) tentarBtn.disabled = true;
+    portalFecharAvisoNuvemCliente();
+    portalMsgCliente("A comparar o cadastro deste PC com a nuvem…", portalClienteMsgGeracao);
+    try {
+      const sync = await portalAlinharClientesAoEntrarNaTela();
+      portalConcluirAlinharClientes(sync);
+    } finally {
+      portalNuvemOfflineTentando = false;
+      if (tentarBtn) tentarBtn.disabled = false;
+    }
+  }
+
+  function portalTrabalharOfflineCliente() {
+    portalFecharAvisoNuvemCliente();
+    portalMsgCliente("A trabalhar off-line com a cópia deste PC.", portalClienteMsgGeracao);
+  }
+
+  function bindPortalNuvemOfflineModalOnce() {
+    if (window.__DK_nuvemOfflineModalBound) return;
+    window.__DK_nuvemOfflineModalBound = true;
+    document.getElementById("portalNuvemOfflineTentarBtn")?.addEventListener("click", () => {
+      void portalTentarAlinharClientesNovamente();
+    });
+    document.getElementById("portalNuvemOfflineOfflineBtn")?.addEventListener("click", () => {
+      portalTrabalharOfflineCliente();
+    });
+    document.addEventListener("keydown", (e) => {
+      const modal = document.getElementById("portalNuvemOfflineModal");
+      if (!modal || modal.classList.contains("hidden")) return;
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      portalTrabalharOfflineCliente();
+    });
+  }
+  bindPortalNuvemOfflineModalOnce();
+
   function portalEnvioClienteConfirmado(envio) {
     return Boolean(envio) && envio.ok !== false && envio.success !== false;
   }
@@ -19384,6 +19485,7 @@
   window.__DK_bindLancMultasRodarMouse = portalBindLancMultasRodarMouseOnce;
 
   function hideOperacaoInlineFormsCore() {
+    portalDescartarAvisoNuvemCliente();
     hideOperacaoLocacaoPlacaDropdown();
     hideOperacaoVeiculoPlacaDropdown();
     portalWaHideAllDropdowns();
@@ -29165,20 +29267,7 @@
     if (totalEl) totalEl.textContent = "A alinhar com a nuvem…";
     void (async () => {
       const sync = await portalAlinharClientesAoEntrarNaTela();
-      if (sync?.cancelado) return;
-      refreshOperacaoClienteCodigoEditavel();
-      try {
-        refreshOperacaoClienteTotalCadastrados();
-      } catch {
-        /* ignore */
-      }
-      if (sync?.geracao != null && sync.geracao !== portalClienteMsgGeracao) return;
-      portalMsgCliente(
-        sync?.iguais
-          ? DK_MSG_PC_NUVEM_IGUAIS
-          : `Não foi possível comparar com a nuvem (${sync?.reason || "erro"}). A usar a cópia deste PC.`,
-        sync?.geracao
-      );
+      portalConcluirAlinharClientes(sync);
     })();
     });
   });

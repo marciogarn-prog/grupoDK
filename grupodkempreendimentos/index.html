@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261007ocupado">
+  <link rel="stylesheet" href="styles.css?v=20261009nuvem-offline">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -5082,6 +5082,17 @@
       <p class="portal-session-revoked__text">Atualize o sistema e faça login novamente.</p>
     </div>
   </div>
+  <div id="portalNuvemOfflineModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalNuvemOfflineTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalNuvemOfflineBackdrop"></div>
+    <div class="portal-modal__card portal-nuvem-offline__card">
+      <h3 id="portalNuvemOfflineTitulo" class="portal-modal__title">Nuvem indisponível</h3>
+      <p id="portalNuvemOfflineTexto" class="portal-modal__text portal-nuvem-offline__texto" role="status">Não foi possível comparar com a nuvem. A usar a cópia deste PC.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalNuvemOfflineTentarBtn">TENTAR NOVAMENTE</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalNuvemOfflineOfflineBtn">TRABALHAR OFF-LINE</button>
+      </div>
+    </div>
+  </div>
   <div id="portalSessionKillModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalSessionKillTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-session-kill></div>
     <div class="portal-modal__card">
@@ -5806,7 +5817,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
   <script src="dk-portal-api-auth.js?v=20260925login3b"></script>
-  <script src="app.js?v=20261008uma-area" defer></script>
+  <script src="app.js?v=20261009nuvem-offline" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5817,7 +5828,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20261007salvar" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261008uma-area" defer></script>
+  <script src="portal-locadora-ui.js?v=20261009nuvem-offline" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
