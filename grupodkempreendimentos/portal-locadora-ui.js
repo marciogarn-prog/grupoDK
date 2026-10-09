@@ -16960,15 +16960,71 @@
     portalMsgCliente(DK_MSG_ENVIANDO_CLIENTE, geracao);
     let envio = null;
     try {
-      envio = await portalPushCloudSnapshotAfterPersist();
+      envio = await portalEnviarClientesCadastroNaNuvem(portalLerClientesLocais());
     } catch (e) {
       envio = { ok: false, reason: String(e?.message || e || "erro") };
     }
     if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
-    if (!portalEnvioClienteConfirmado(envio)) {
-      return { ok: false, reason: envio?.reason || "envio", geracao };
+    if (!envio || envio.ok === false || envio.success === false) {
+      return { ok: false, reason: envio?.reason || envio?.message || "envio", geracao };
     }
-    return { ok: true, iguais: true, geracao };
+    let nuvem2;
+    try {
+      nuvem2 = await portalLerClientesNuvem();
+    } catch (e) {
+      return { ok: false, reason: String(e?.message || e || "erro"), geracao };
+    }
+    if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
+    if (!nuvem2.ok) return { ok: false, reason: nuvem2.reason || "sem_clientes_nuvem", geracao };
+    if (nuvem2.lista.length) {
+      portalAplicarClientesOficiaisNoPc(nuvem2.lista);
+      try {
+        refreshOperacaoClienteTotalCadastrados();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (portalClientesIguais(portalLerClientesLocais(), nuvem2.lista)) {
+      return { ok: true, iguais: true, geracao };
+    }
+    return { ok: false, reason: "diferenca", geracao };
+  }
+
+  async function portalEnviarClientesCadastroNaNuvem(lista) {
+    const post = async (body) => {
+      const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+      const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+      const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+      const url = `/api/cadastro-clientes${q || ""}${sep}nocache=${Date.now()}`;
+      const res = await fetch(url, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      const revision = String(data?.revision || data?.updated_at || "");
+      if (revision) {
+        try {
+          window.__DK_CLOUD_REVISION = revision;
+        } catch {
+          /* ignore */
+        }
+      }
+      return {
+        status: res.status,
+        ok: res.ok && data?.ok !== false && data?.success !== false,
+        success: data?.success !== false && res.ok,
+        reason: String(data?.reason || data?.error || ""),
+        message: String(data?.message || ""),
+        revision,
+        count: data?.count,
+      };
+    };
+    const fn = window.__DK_pacotes && window.__DK_pacotes.postarClientesComRevisao;
+    const revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
+    if (typeof fn === "function") return fn(post, lista, revisao);
+    return post({ data: lista, base_revision: revisao });
   }
 
   function portalPlacaRelatorioKey(v) {

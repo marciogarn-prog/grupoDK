@@ -48,7 +48,7 @@ const {
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
-const pacotes = require("../portal-pacotes.js");
+const pacotes = require("../lib/dk-pacotes.cjs");
 const {
   findActivePlateConflicts,
   activePlateConflictMessage,
@@ -1171,6 +1171,7 @@ function instalarTelemetriaSnapshot(res) {
   if (res.__dkSnapTel) return;
   res.__dkSnapTel = true;
   res.__dkSnapT0 = Date.now();
+  const origJson = typeof res.json === "function" ? res.json.bind(res) : null;
   res.json = (body) => {
     let json = "{}";
     try {
@@ -1205,8 +1206,10 @@ function instalarTelemetriaSnapshot(res) {
         registros: contarRegistrosPayload(body && body.payload),
       })
     );
+    if (origJson) return origJson(body);
+    res.statusCode = status;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    return res.status(status).send(json);
+    res.end(json);
   };
 }
 
