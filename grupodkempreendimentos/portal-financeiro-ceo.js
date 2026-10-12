@@ -4096,6 +4096,7 @@
     if (s.includes("CONSTRUTORA")) return "construtora";
     if (s.includes("CENTRO") || s.includes("OFICINA")) return "centro";
     if (s.includes("LOCADORA")) return "locadora";
+    if (s.includes("PARTICULAR") || s.includes("PESSOAIS") || s.includes("PESSOAL")) return "particular";
     return "";
   }
 
@@ -4106,10 +4107,12 @@
     let construtora = 0;
     let centro = 0;
     let locadora = 0;
+    let particular = 0;
     let vencidos = 0;
     let qtdConstrutora = 0;
     let qtdCentro = 0;
     let qtdLocadora = 0;
+    let qtdParticular = 0;
     let qtdVencidos = 0;
     (linhas || []).forEach((r) => {
       const v = Number(r.valor) || 0;
@@ -4128,6 +4131,9 @@
       } else if (chave === "locadora") {
         locadora += v;
         qtdLocadora += 1;
+      } else if (chave === "particular") {
+        particular += v;
+        qtdParticular += 1;
       }
       if (linhaDespesaVencidaNaoPaga(r)) {
         vencidos += v;
@@ -4142,10 +4148,12 @@
       construtora,
       centro,
       locadora,
+      particular,
       vencidos,
       qtdConstrutora,
       qtdCentro,
       qtdLocadora,
+      qtdParticular,
       qtdVencidos,
     };
   }
@@ -4160,6 +4168,7 @@
       ["finCeoDespSubCentroValor", "finCeoDespSubCentroHint", totais?.centro || 0, totais?.qtdCentro || 0],
       ["finCeoDespSubLocadoraValor", "finCeoDespSubLocadoraHint", totais?.locadora || 0, totais?.qtdLocadora || 0],
       ["finCeoDespSubVencidosValor", "finCeoDespSubVencidosHint", totais?.vencidos || 0, totais?.qtdVencidos || 0],
+      ["finCeoDespSubParticularValor", "finCeoDespSubParticularHint", totais?.particular || 0, totais?.qtdParticular || 0],
     ];
     itens.forEach(([valId, hintId, valor, qtd]) => {
       const el = document.getElementById(valId);
@@ -4177,10 +4186,12 @@
       ceoTotaisBloco.construtora = totais.construtora;
       ceoTotaisBloco.centro = totais.centro;
       ceoTotaisBloco.locadora = totais.locadora;
+      ceoTotaisBloco.particular = totais.particular;
       ceoTotaisBloco.vencidos = totais.vencidos;
       ceoTotaisBloco.qtdConstrutora = totais.qtdConstrutora;
       ceoTotaisBloco.qtdCentro = totais.qtdCentro;
       ceoTotaisBloco.qtdLocadora = totais.qtdLocadora;
+      ceoTotaisBloco.qtdParticular = totais.qtdParticular;
       ceoTotaisBloco.qtdVencidos = totais.qtdVencidos;
     }
     pintarSubtotaisUnidade(totais);

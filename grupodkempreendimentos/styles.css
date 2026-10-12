@@ -12771,9 +12771,15 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 .fin-ceo-desp-subtotais {
   flex: 1 1 28rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.5rem;
   min-width: min(100%, 22rem);
+}
+
+.fin-ceo-desp-subtotal--construtora,
+.fin-ceo-desp-subtotal--centro,
+.fin-ceo-desp-subtotal--locadora {
+  grid-column: span 2;
 }
 
 .fin-ceo-desp-subtotal {
@@ -12824,8 +12830,12 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ffffff;
 }
 
+.fin-ceo-desp-subtotal--vencidos,
+.fin-ceo-desp-subtotal--particular {
+  grid-column: span 3;
+}
+
 .fin-ceo-desp-subtotal--vencidos {
-  grid-column: 1 / -1;
   border-color: #854d0e;
   background: #facc15;
   color: #1c1917;
@@ -12835,9 +12845,27 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #1c1917;
 }
 
+.fin-ceo-desp-subtotal--particular {
+  border-color: #c4b5fd;
+  background: #5b21b6;
+  color: #f5f3ff;
+}
+
+.fin-ceo-desp-subtotal--particular strong {
+  color: #ffffff;
+}
+
 @media (max-width: 720px) {
   .fin-ceo-desp-subtotais {
     grid-template-columns: 1fr;
+  }
+
+  .fin-ceo-desp-subtotal--construtora,
+  .fin-ceo-desp-subtotal--centro,
+  .fin-ceo-desp-subtotal--locadora,
+  .fin-ceo-desp-subtotal--vencidos,
+  .fin-ceo-desp-subtotal--particular {
+    grid-column: auto;
   }
 }
 
