@@ -25466,15 +25466,19 @@
   function portalAplicarSugestaoDescontoPagamento() {
     const loc = typeof resolveLocOperacaoLancAluguelAtual === "function" ? resolveLocOperacaoLancAluguelAtual() : null;
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
-    const valEl = document.getElementById("operacaoLancAluguelValorSimples");
+    const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const descEl = document.getElementById("operacaoLancAluguelDescontoPrazo");
     if (!descEl) return;
-    const cheio = portalParseReaisCampo(portalValorPlanoPagamentoSugeridoFmt(loc));
+    const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
+    const cheio = portalParseReaisCampo(valPlano);
     const descontoCad = portalDescontoPrazoCadastroNum(loc);
     const emDia = portalPagamentoCaiNoDiaDoContrato(loc, dataEl?.value);
     const desconto = emDia ? descontoCad : 0;
     descEl.value = portalFmtReaisCampo(desconto);
-    if (valEl && cheio > 0) valEl.value = portalFmtReaisCampo(Math.max(0, cheio - desconto));
+    if (valSimples && valPlano) valSimples.value = valPlano;
+    if (valSimples && cheio > 0 && desconto > 0) {
+      valSimples.value = portalFmtReaisCampo(Math.max(0, cheio - desconto));
+    }
   }
 
   function portalRecalcularValorPeloDescontoDigitado() {

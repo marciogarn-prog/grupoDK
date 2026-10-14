@@ -2100,9 +2100,12 @@ async function runSuite() {
     const pageE2e = await browser.newPage();
     pageE2e.setDefaultNavigationTimeout(120000);
     pageE2e.setDefaultTimeout(30000);
+    pageE2e.on("dialog", (d) => {
+      d.dismiss().catch(() => {});
+    });
     try {
       await pageE2e.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 120000 });
-      await pageE2e.evaluate(() => {
+      await pageE2e.evaluate((token) => {
         localStorage.clear();
         sessionStorage.clear();
         localStorage.setItem(
@@ -2110,8 +2113,9 @@ async function runSuite() {
           JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
         );
         localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+        if (token) localStorage.setItem("dk_portal_api_token_v1", token);
         sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
-      });
+      }, tokCeo);
       await pageE2e.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
       await pageE2e.waitForTimeout(14000);
       await pageE2e
