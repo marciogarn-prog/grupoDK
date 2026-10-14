@@ -24,6 +24,10 @@ const {
 } = require("../lib/dk-supabase-doorman.cjs");
 const { revisaoConflita } = require("../lib/dk-persistencia-central.cjs");
 const {
+  cpfSoDigitoRepetido,
+  isCodigoAcimaDoUltimoClienteOficial,
+} = require("../lib/dk-sequencia-cliente-0427.cjs");
+const {
   applyApiCors,
   enforceRateLimit,
   requirePortalAuth,
@@ -222,6 +226,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "01503628514",
   /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
   "11369128423",
+  /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
+  "19174403400",
 ]);
 /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
 const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
@@ -379,6 +385,9 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
     out[k] = out[k].filter((r) => {
       const cpfEarly = cpfDigitsKey(r);
       if (cpfEarly.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly) && !isVei) return false;
+      if (!isVei && cpfSoDigitoRepetido(cpfEarly)) return false;
+      if (isCli && isCodigoAcimaDoUltimoClienteOficial(r, "codigo")) return false;
+      if (isLoc && isCodigoAcimaDoUltimoClienteOficial(r, "clienteCodigo")) return false;
       if (isNotif) {
         if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
         if (!String(r?.mensagem || "").trim()) return false;

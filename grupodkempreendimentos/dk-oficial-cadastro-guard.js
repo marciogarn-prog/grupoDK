@@ -120,6 +120,46 @@
     return String(record?.cpf || "").replace(/\D/g, "");
   }
 
+  /**
+   * Espelho de lib/dk-sequencia-cliente-0427.cjs (o browser não faz require).
+   * Códigos acima de 0427 anteriores a 14/10/2026 16:55 (Brasília) não existem.
+   * O próximo cadastro real é 0428.
+   */
+  const SEQUENCIA_CLIENTE_TETO = 427;
+  const SEQUENCIA_CLIENTE_CORTE_MS = Date.parse("2026-10-14T19:55:00.000Z");
+  const SEQUENCIA_CLIENTE_CORTE_YMD = "2026-10-14";
+
+  function numeroCodigoCadastro(raw) {
+    const digits = String(raw ?? "").replace(/\D/g, "");
+    if (!digits) return 0;
+    const n = Number(digits);
+    return Number.isFinite(n) ? Math.trunc(n) : 0;
+  }
+
+  function cpfSoDigitoRepetido(cpf) {
+    const d = String(cpf ?? "").replace(/\D/g, "").slice(0, 11);
+    return d.length === 11 && /^(\d)\1{10}$/.test(d);
+  }
+
+  function instanteCriacaoMs(record) {
+    const c = Number(record?.createdAt || 0);
+    if (c > 1e12) return c;
+    const id = Number(record?.id || 0);
+    if (id > 1e12) return id;
+    return 0;
+  }
+
+  function isCodigoAcimaDoUltimoClienteOficial(record, campo) {
+    if (!record || typeof record !== "object") return false;
+    const n = numeroCodigoCadastro(record[campo || "codigo"]);
+    if (n <= SEQUENCIA_CLIENTE_TETO) return false;
+    const ymd = parseAnyDateToYmd(record.dataCadastro || record.dataInicio || record.inicio);
+    if (ymd && ymd < SEQUENCIA_CLIENTE_CORTE_YMD) return true;
+    const created = instanteCriacaoMs(record);
+    if (created && created >= SEQUENCIA_CLIENTE_CORTE_MS) return false;
+    return true;
+  }
+
   /** Placeholders 000.000.000-01 / -03 / -04 (TESTE demo) e cadastros lixo fora de ordem. */
   const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
     "00000000001",
@@ -133,6 +173,8 @@
     "01503628514",
     /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
     "11369128423",
+    /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
+    "19174403400",
   ]);
   /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
   const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
@@ -256,6 +298,9 @@
     if (cpfN0.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfN0) && family !== "veiculo") {
       return false;
     }
+    if (family !== "veiculo" && cpfSoDigitoRepetido(cpfN0)) return false;
+    if (family === "cliente" && isCodigoAcimaDoUltimoClienteOficial(record, "codigo")) return false;
+    if (family === "locacao" && isCodigoAcimaDoUltimoClienteOficial(record, "clienteCodigo")) return false;
     if (cadastroKeyFamily(key) === "notificacao") {
       const cpfN = cpfDigits(record);
       if (cpfN.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfN)) return false;
@@ -448,4 +493,7 @@
   };
   window.__DK_isLocacaoFantasmaCadastro = isLocacaoFantasmaCadastro;
   window.__DK_isVeiculoFantasmaCadastro = isVeiculoFantasmaCadastro;
+  window.__DK_isClienteCodigoForaDaSequencia = function (record) {
+    return isCodigoAcimaDoUltimoClienteOficial(record, "codigo");
+  };
 })();

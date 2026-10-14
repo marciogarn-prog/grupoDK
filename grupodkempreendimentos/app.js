@@ -1826,6 +1826,12 @@ try {
 function getMaxClienteCodigoFromBundledSnapshots() {
   let max = 0;
   const bump = (c) => {
+    if (
+      typeof window.__DK_isClienteCodigoForaDaSequencia === "function" &&
+      window.__DK_isClienteCodigoForaDaSequencia(c)
+    ) {
+      return;
+    }
     const n = Number(onlyDigits(String(c.codigo || "")));
     if (Number.isFinite(n) && n > max) max = n;
   };
@@ -9172,6 +9178,12 @@ function nextClienteCodigo() {
   const addCodes = (arr) => {
     if (!Array.isArray(arr)) return;
     for (const c of arr) {
+      if (
+        typeof window.__DK_isClienteCodigoForaDaSequencia === "function" &&
+        window.__DK_isClienteCodigoForaDaSequencia(c)
+      ) {
+        continue;
+      }
       const n = Number(onlyDigits(String(c.codigo || "")));
       if (Number.isFinite(n) && n > 0) used.add(n);
     }

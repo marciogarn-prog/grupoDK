@@ -2,6 +2,10 @@
  * Canal oficial nas APIs Vercel (Redis / gate app cliente).
  */
 const { mergeClientesCadastro, mergeLocacoesCadastro } = require("./dk-append-only-merge.cjs");
+const {
+  cpfSoDigitoRepetido,
+  isCodigoAcimaDoUltimoClienteOficial,
+} = require("./dk-sequencia-cliente-0427.cjs");
 
 const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
 
@@ -65,6 +69,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "01503628514",
   /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
   "11369128423",
+  /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
+  "19174403400",
 ]);
 const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
   "01503608514": "0315",
@@ -77,7 +83,9 @@ function dropClientesCpfExcluidos(list) {
   return (Array.isArray(list) ? list : [])
     .filter((c) => {
       const d = onlyDigits(c?.cpf).slice(0, 11);
-      return d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d);
+      if (d.length !== 11 || OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d) || cpfSoDigitoRepetido(d)) return false;
+      if (isCodigoAcimaDoUltimoClienteOficial(c, "codigo")) return false;
+      return true;
     })
     .map((c) => {
       const d = onlyDigits(c?.cpf).slice(0, 11);
@@ -90,7 +98,8 @@ function dropLocacoesCpfExcluidos(list) {
   return (Array.isArray(list) ? list : [])
     .filter((l) => {
       const d = onlyDigits(l?.cpf).slice(0, 11);
-      if (d && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) return false;
+      if (d && (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d) || cpfSoDigitoRepetido(d))) return false;
+      if (isCodigoAcimaDoUltimoClienteOficial(l, "clienteCodigo")) return false;
       const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
       if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
       return true;
