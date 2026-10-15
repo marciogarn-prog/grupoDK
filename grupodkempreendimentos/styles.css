@@ -1958,16 +1958,35 @@ body.portal-body--admin-ceo {
 
 .btn-operacao-cmd__ocupado {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
-  color: #fff4c2;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: #ffe08a;
 }
 
 .btn-operacao-cmd__ocupado[hidden] {
   display: none;
+}
+
+.btn-operacao-cmd.is-ocupado {
+  border-color: #e6b325;
+  background: rgba(230, 179, 37, 0.16);
+  cursor: not-allowed;
+}
+
+.btn-operacao-cmd.is-ocupado-pulso {
+  animation: dk-ocupado-pulso 0.55s ease-out 2;
+}
+
+@keyframes dk-ocupado-pulso {
+  0% {
+    box-shadow: 0 0 0 0 rgba(230, 179, 37, 0.75);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(230, 179, 37, 0);
+  }
 }
 
 .btn-operacao-cmd__hint {

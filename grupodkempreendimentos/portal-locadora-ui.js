@@ -2223,7 +2223,7 @@
     }
     clearPortalUnitDadosAtualizados();
     portalMarcarSessaoAdminBuild();
-    portalCarregarOcupacaoBotoes();
+    portalIniciarObservacaoOcupacao();
     portalAplicarVisibilidadeEquipaPorPerfil();
     if (typeof window.__DK_iniciarAvisoHorarioFimColab === "function") {
       window.__DK_iniciarAvisoHorarioFimColab(funcionario);
@@ -3009,6 +3009,7 @@
       portalVoltarLocadoraHub();
       return;
     }
+    portalPararObservacaoOcupacao();
     portalColaboradorSenhaPendente = null;
     portalLimparAreaAtiva();
     hideInlineForms();
@@ -3055,8 +3056,10 @@
     "operacao-cadastro-administrador": "Cadastro de administrador",
   };
   const PORTAL_TELA_ATIVA_KEY = "dk_portal_tela_ativa";
+  const PORTAL_OCUPACAO_INTERVALO_MS = 4000;
   let portalOcupacaoCache = {};
-  let portalOcupacaoCarregada = false;
+  let portalOcupacaoTimer = 0;
+  let portalOcupacaoPedidoEmCurso = false;
   let portalAreaLockIdAtual = "";
   let portalAreaLockMarca = 0;
   let portalAreaLockTimer = 0;
@@ -3108,6 +3111,18 @@
     );
   }
 
+  function portalRegistrarOcupacaoVista(area, nome) {
+    const quem = String(nome || "").trim();
+    if (!area || !quem) return;
+    portalOcupacaoCache = { ...(portalOcupacaoCache || {}), [area]: quem };
+    portalPintarOcupacaoBotoes(portalOcupacaoCache);
+    const btn = document.querySelector(`[data-area-ocupacao="${area}"]`);
+    if (!btn || !btn.classList.contains("is-ocupado")) return;
+    btn.classList.remove("is-ocupado-pulso");
+    void btn.offsetWidth;
+    btn.classList.add("is-ocupado-pulso");
+  }
+
   function portalNomeChaveOcupacao(nome) {
     return String(nome || "")
       .normalize("NFD")
@@ -3144,6 +3159,7 @@
           if (res.status === 409 || data?.ocupada) {
             portalPararRenovacaoArea();
             portalAreaLockIdAtual = "";
+            portalRegistrarOcupacaoVista(areaRenovada, data?.nome);
             portalLimparMeuNomeDasOutrasAreas("");
             portalPintarOcupacaoBotoes(portalOcupacaoCache);
             portalVoltarEquipaLocadora();
@@ -3162,7 +3178,7 @@
       const marca = Date.now();
       const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
       if (res.status === 409 || data?.ocupada) {
-        portalAvisarAreaOcupada(id, data?.nome);
+        portalRegistrarOcupacaoVista(id, data?.nome);
         return false;
       }
       if (!res.ok) {
@@ -3195,18 +3211,26 @@
     });
   }
 
+  function portalPrimeiroNomeOcupacao(nome) {
+    const limpo = String(nome || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!limpo) return "";
+    return limpo.split(" ")[0];
+  }
+
   function portalRotuloOcupado(nome) {
-    const quem = String(nome || "").trim();
+    const quem = portalPrimeiroNomeOcupacao(nome);
     if (!quem) return "";
-    return `( OCUPADO POR ${quem.toLocaleUpperCase("pt-BR")})`;
+    return `OCUPADO POR ${quem.toLocaleUpperCase("pt-BR")}`;
   }
 
   function portalPintarOcupacaoBotoes(mapa) {
     const base = mapa && typeof mapa === "object" ? mapa : {};
+    const eu = portalNomeChaveOcupacao(portalNomeSessaoArea());
     document.querySelectorAll("[data-area-ocupacao]").forEach((btn) => {
       const id = btn.getAttribute("data-area-ocupacao") || "";
       let nome = base[id] || "";
-      const eu = portalNomeChaveOcupacao(portalNomeSessaoArea());
       if (portalAreaLockIdAtual && id === portalAreaLockIdAtual) nome = portalNomeSessaoArea() || nome;
       else if (eu && portalNomeChaveOcupacao(nome) === eu) nome = "";
       let el = btn.querySelector(".btn-operacao-cmd__ocupado");
@@ -3218,28 +3242,49 @@
         else btn.appendChild(el);
       }
       const texto = portalRotuloOcupado(nome);
+      const deOutraPessoa = Boolean(texto) && portalNomeChaveOcupacao(nome) !== eu;
       el.textContent = texto;
       el.hidden = !texto;
+      btn.classList.toggle("is-ocupado", deOutraPessoa);
+      if (!deOutraPessoa) btn.classList.remove("is-ocupado-pulso");
     });
   }
 
-  function portalCarregarOcupacaoBotoes() {
-    if (portalOcupacaoCarregada) return;
-    portalOcupacaoCarregada = true;
+  function portalAplicarMapaOcupacao(areas) {
+    const next = {};
+    Object.keys(areas || {}).forEach((id) => {
+      if (areas[id]) next[id] = areas[id];
+    });
+    portalOcupacaoCache = next;
+    portalLimparMeuNomeDasOutrasAreas(portalAreaLockIdAtual);
+    portalPintarOcupacaoBotoes(portalOcupacaoCache);
+  }
+
+  function portalPararObservacaoOcupacao() {
+    if (portalOcupacaoTimer) {
+      clearInterval(portalOcupacaoTimer);
+      portalOcupacaoTimer = 0;
+    }
+  }
+
+  function portalBuscarOcupacaoBotoes() {
+    if (portalOcupacaoPedidoEmCurso) return;
+    portalOcupacaoPedidoEmCurso = true;
     void portalAreaTrabalhoPedido("operacao-cadastro-cliente", "listar")
       .then(({ res, data }) => {
-        if (res.status === 401) {
-          portalOcupacaoCarregada = false;
-          return;
-        }
         if (!res.ok || !data || typeof data.areas !== "object" || !data.areas) return;
-        portalOcupacaoCache = data.areas;
-        portalLimparMeuNomeDasOutrasAreas(portalAreaLockIdAtual);
-        portalPintarOcupacaoBotoes(portalOcupacaoCache);
+        portalAplicarMapaOcupacao(data.areas);
       })
-      .catch(() => {
-        portalOcupacaoCarregada = false;
+      .catch(() => {})
+      .finally(() => {
+        portalOcupacaoPedidoEmCurso = false;
       });
+  }
+
+  function portalIniciarObservacaoOcupacao() {
+    portalBuscarOcupacaoBotoes();
+    if (portalOcupacaoTimer) return;
+    portalOcupacaoTimer = window.setInterval(portalBuscarOcupacaoBotoes, PORTAL_OCUPACAO_INTERVALO_MS);
   }
 
   function portalGuardarTelaAtiva(area) {

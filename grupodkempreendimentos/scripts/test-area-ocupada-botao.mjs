@@ -1,6 +1,6 @@
 /**
- * O botão mostra ( OCUPADO POR NOME) depois da atualização,
- * a sessão da equipa continua, e o clique não abre a tela ocupada.
+ * O botão mostra OCUPADO POR NOME em todos os computadores,
+ * atualiza sozinho quando outra pessoa entra, e o clique não abre a tela.
  */
 import http from "http";
 import fs from "fs";
@@ -43,6 +43,8 @@ function rec(name, ok, detail) {
   if (!ok) fails.push(name);
 }
 
+const areasOcupadas = { "operacao-cadastro-cliente": "Lucelina" };
+let dialogs = 0;
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ serviceWorkers: "block" });
 page.setDefaultTimeout(20000);
@@ -61,7 +63,7 @@ await page.route("**/api/**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ ok: true, areas: { "operacao-cadastro-cliente": "Lucelina" } }),
+      body: JSON.stringify({ ok: true, areas: { ...areasOcupadas } }),
     });
     return;
   }
@@ -84,7 +86,10 @@ await page.addInitScript(() => {
   sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
   sessionStorage.setItem("dk_portal_area_ativa", "operacao");
 });
-page.on("dialog", (d) => d.accept());
+page.on("dialog", (d) => {
+  dialogs += 1;
+  d.accept();
+});
 
 await page.goto(base + "#locadora/empresa", { waitUntil: "domcontentloaded", timeout: 60000 });
 const btn = page.locator("#btn-operacao-cadastro-cliente");
@@ -94,7 +99,9 @@ await page.waitForFunction(() => {
   return el && !el.hidden && el.textContent.includes("OCUPADO POR LUCELINA");
 }, { timeout: 20000 });
 const texto = await btn.locator(".btn-operacao-cmd__ocupado").innerText();
-rec("rótulo abaixo do nome", texto === "( OCUPADO POR LUCELINA)", texto);
+const bloqueado = await btn.evaluate((el) => el.classList.contains("is-ocupado"));
+rec("rótulo abaixo do nome", texto === "OCUPADO POR LUCELINA", texto);
+rec("botão marcado como ocupado", bloqueado === true);
 const sessaoAntes = await page.evaluate(() => {
   const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
   return s && { tipo: s.tipo, cpf: s.cpf, nome: s.nome, role: s.role };
@@ -104,6 +111,13 @@ await page.waitForFunction(() => {
   const el = document.querySelector("#btn-operacao-cadastro-cliente .btn-operacao-cmd__ocupado");
   return el && !el.hidden && el.textContent.includes("OCUPADO POR LUCELINA");
 }, { timeout: 20000 });
+areasOcupadas["operacao-cadastro-veiculo"] = "Jesimiel de Lima Matias";
+await page.waitForFunction(() => {
+  const el = document.querySelector("#btn-operacao-cadastro-veiculo .btn-operacao-cmd__ocupado");
+  return el && !el.hidden && el.textContent === "OCUPADO POR JESIMIEL";
+}, { timeout: 12000 });
+const veiculo = await page.locator("#btn-operacao-cadastro-veiculo .btn-operacao-cmd__ocupado").innerText();
+rec("outro computador vê ocupado por jesimiel", veiculo === "OCUPADO POR JESIMIEL", veiculo);
 const depois = await page.evaluate(() => {
   const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
   const login = document.getElementById("panel-login");
@@ -119,10 +133,12 @@ rec(
     depois.loginVisivel === false,
   depois.loginVisivel ? "tela de login aberta" : ""
 );
+const dialogsAntes = dialogs;
 await btn.click();
 await page.waitForTimeout(400);
 const formAberto = await page.locator("#operacaoInlineCliente").evaluate((el) => !el.classList.contains("hidden"));
 rec("clique não abre a tela ocupada", formAberto === false);
+rec("clique não abre alerta", dialogs === dialogsAntes);
 
 await browser.close();
 server.close();
