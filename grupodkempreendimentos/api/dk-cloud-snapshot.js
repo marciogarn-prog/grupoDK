@@ -228,6 +228,11 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "11369128423",
   /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
   "19174403400",
+  /* teste 4–7 repetem os códigos 0312–0315. O último cliente oficial é 0427. */
+  "12345678910",
+  "23456789012",
+  "34567890123",
+  "45678901234",
 ]);
 /** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
 const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
