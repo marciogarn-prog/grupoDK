@@ -3767,7 +3767,8 @@
           "fin-ceo-rel-modos",
           "fin-ceo-rel-row--pago",
           "fin-ceo-rel-row--vencida",
-          "fin-ceo-rel-kpi--resta"
+          "fin-ceo-rel-kpi--resta",
+          "fin-ceo-rel-tabela"
         ]
       }
     }
