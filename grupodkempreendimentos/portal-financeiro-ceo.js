@@ -4770,8 +4770,6 @@
   function filtrarDespesasRelatorio() {
     const cat = document.getElementById("finCeoRelCat")?.value || "";
     const tipo = document.getElementById("finCeoRelTipo")?.value || "";
-    const de = parseBrDate(document.getElementById("finCeoRelDe")?.value);
-    const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
     const vminStr = String(document.getElementById("finCeoRelValorMin")?.value || "").trim();
     const vmaxStr = String(document.getElementById("finCeoRelValorMax")?.value || "").trim();
     const vmin = parseValor(vminStr);
@@ -4779,12 +4777,9 @@
     const busca = String(document.getElementById("finCeoRelBusca")?.value || "").trim().toLowerCase();
 
     return ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa)).filter((d) => {
+      if (d.deleted) return false;
       if (cat && d.categoria !== cat) return false;
       if (!despesaMatchesTipoFiltro(d, tipo)) return false;
-      const dt = d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento);
-      if (de) {
-        if (!dt || fmtBrDate(dt) !== fmtBrDate(de)) return false;
-      }
       if (filtroValorMonetarioAtivo(vminStr) && d.valor < vmin) return false;
       if (filtroValorMonetarioAtivo(vmaxStr) && d.valor > vmax) return false;
       if (busca) {
@@ -4796,9 +4791,122 @@
     });
   }
 
-  function montarPagamentosRelatorio(despesas) {
+  function modoRelatorioDespesas() {
+    const v = document.querySelector('#finCeoPaneRelatorio input[name="finCeoRelModo"]:checked')?.value;
+    if (v === "lancamento" || v === "vencimento" || v === "pago") return v;
+    return "vencimento";
+  }
+
+  function limitesPeriodoRelatorio() {
+    let ini = parseBrDate(document.getElementById("finCeoRelDe")?.value);
+    let fim = parseBrDate(document.getElementById("finCeoRelAte")?.value);
+    ini = ini ? startOfDay(ini) : null;
+    fim = fim ? startOfDay(fim) : null;
+    if (ini && fim && fim < ini) {
+      const troca = ini;
+      ini = fim;
+      fim = troca;
+    }
+    return { ini, fim };
+  }
+
+  function dataDentroPeriodoRelatorio(dt, ini, fim) {
+    if (!ini && !fim) return true;
+    const bruto = dt instanceof Date ? dt : parseBrDate(dt);
+    if (!bruto || Number.isNaN(bruto.getTime())) return false;
+    const d = startOfDay(bruto);
+    if (ini && d < ini) return false;
+    if (fim && d > fim) return false;
+    return true;
+  }
+
+  function textoPeriodoRelatorio(ini, fim) {
+    if (ini && fim) return `${fmtBrDate(ini)} a ${fmtBrDate(fim)}`;
+    if (ini) return `a partir de ${fmtBrDate(ini)}`;
+    if (fim) return `até ${fmtBrDate(fim)}`;
+    return "sem limite de datas";
+  }
+
+  function atualizarHintModoRelatorio() {
+    const el = document.getElementById("finCeoRelModoHint");
+    if (!el) return;
+    const modo = modoRelatorioDespesas();
+    if (modo === "vencimento") {
+      el.textContent =
+        "Por vencimento: entram todas as parcelas cuja data de vencimento está no período, em ordem de vencimento. Se o pagamento já foi registrado, a linha mostra o valor pago e o saldo a pagar igual a zero. Preencha data início e data fim para fechar o mês.";
+    } else if (modo === "pago") {
+      el.textContent =
+        "Pago: só parcelas com pagamento já registrado. As datas filtram o dia em que o pagamento foi lançado. O saldo a pagar fica zero.";
+    } else {
+      el.textContent =
+        "Por lançamento: as datas filtram o dia em que a despesa foi cadastrada. O Nº de repetições limita quantas parcelas de cada lançamento aparecem.";
+    }
+  }
+
+  function aplicarOrdemPadraoModoRelatorio() {
+    const modo = modoRelatorioDespesas();
+    if (modo === "pago") {
+      ceoRelExcelState.sortKey = "pagoEm";
+      ceoRelExcelState.sortDir = "asc";
+      return;
+    }
+    if (modo === "lancamento") {
+      ceoRelExcelState.sortKey = "lancamento";
+      ceoRelExcelState.sortDir = "desc";
+      return;
+    }
+    ceoRelExcelState.sortKey = "data";
+    ceoRelExcelState.sortDir = "asc";
+  }
+
+  function situacaoRelatorioLinha(map, despesaId, pagNum, data) {
+    const item = map.get(chaveSituacaoPagamento(despesaId, pagNum, data));
+    const pago = item?.situacao === "PAGO";
+    let pagoEm = null;
+    if (pago && String(item?.pagoEm || "").trim()) {
+      const dt = new Date(item.pagoEm);
+      if (!Number.isNaN(dt.getTime())) pagoEm = dt;
+    }
+    return { situacao: pago ? "PAGO" : "A_PAGAR", pagoEm };
+  }
+
+  function labelSituacaoRelatorio(situacao, data) {
+    if (situacao === "PAGO") return "PAGO";
+    const venc = data instanceof Date ? data : parseBrDate(data);
+    if (venc && startOfDay(venc) < startOfDay(new Date())) return "VENCIDO";
+    return "A PAGAR";
+  }
+
+  function classeCorRelatorio(situacao, data) {
+    if (situacao === "PAGO") return "fin-ceo-rel-row--pago";
+    const venc = data instanceof Date ? data : parseBrDate(data);
+    if (venc && startOfDay(venc) < startOfDay(new Date())) return "fin-ceo-rel-row--vencida";
+    return "fin-ceo-rel-row--aberto";
+  }
+
+  function coletarLinhasRelatorio() {
+    const modo = modoRelatorioDespesas();
+    const { ini, fim } = limitesPeriodoRelatorio();
     const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
-    return despesas.flatMap((d) => expandirPagamentosDespesa(d, repFiltro || d.repeticoes));
+    const mapSit = loadSituacaoPagamentosMap();
+    const linhas = [];
+    filtrarDespesasRelatorio().forEach((d) => {
+      const lancamento = dataLancamentoDespesa(d) || (d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento));
+      if (modo === "lancamento" && !dataDentroPeriodoRelatorio(lancamento, ini, fim)) return;
+      const excluidos = new Set(Array.isArray(d.pagamentosExcluidos) ? d.pagamentosExcluidos.map(Number) : []);
+      const limite = modo === "lancamento" && repFiltro > 0 ? Math.min(repFiltro, d.repeticoes) : d.repeticoes;
+      expandirPagamentosDespesa(d, limite).forEach((p) => {
+        if (excluidos.has(Number(p.numero))) return;
+        const sit = situacaoRelatorioLinha(mapSit, d.id, p.numero, p.data);
+        if (modo === "vencimento" && !dataDentroPeriodoRelatorio(p.data, ini, fim)) return;
+        if (modo === "pago") {
+          if (sit.situacao !== "PAGO") return;
+          if (!dataDentroPeriodoRelatorio(sit.pagoEm || p.data, ini, fim)) return;
+        }
+        linhas.push(ceoRelLinhaFromPagamento(p, { lancamento, situacao: sit.situacao, pagoEm: sit.pagoEm }));
+      });
+    });
+    return linhas;
   }
 
   function nkRel(s) {
@@ -4816,7 +4924,19 @@
     { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
     { key: "detalhe", label: "Detalhe", type: "text" },
   ];
-  const CEO_REL_COLS = CEO_PAG_COLS;
+  const CEO_REL_COLS = [
+    { key: "pagamento", label: "Pagamento", type: "num" },
+    { key: "lancamento", label: "Lançamento", type: "date" },
+    { key: "data", label: "Vencimento", type: "date" },
+    { key: "valor", label: "Valor", type: "num" },
+    { key: "valorPago", label: "Valor pago", type: "num" },
+    { key: "saldo", label: "Saldo a pagar", type: "num" },
+    { key: "situacao", label: "Situação", type: "text" },
+    { key: "pagoEm", label: "Pago em", type: "date" },
+    { key: "categoria", label: "Categoria", type: "text" },
+    { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
+    { key: "detalhe", label: "Detalhe", type: "text" },
+  ];
 
   const CEO_LISTA_COLS = [
     { key: "pagamento", label: "Pagamento", type: "num" },
@@ -4831,7 +4951,7 @@
 
   let ceoRelExcelState = {
     sortKey: "data",
-    sortDir: "desc",
+    sortDir: "asc",
     cols: {},
   };
   let ceoListaExcelState = {
@@ -4861,19 +4981,36 @@
     ceoRelExcelState.cols = {};
   }
 
-  function ceoRelLinhaFromPagamento(p) {
+  function ceoRelLinhaFromPagamento(p, extra) {
     const { tipo, desc } = detalheDespesaLista(p.despesa);
     const totalPagamentos = Math.max(1, Number(p.despesa?.repeticoes) || 1);
+    const situacao = extra?.situacao === "PAGO" ? "PAGO" : "A_PAGAR";
+    const valor = Number(p.valor) || 0;
+    const valorPago = situacao === "PAGO" ? valor : 0;
+    const saldo = situacao === "PAGO" ? 0 : valor;
+    const lancamento = extra?.lancamento || dataLancamentoDespesa(p.despesa);
+    const pagoEm = extra?.pagoEm instanceof Date ? extra.pagoEm : null;
     return {
       pagamento: p.numero,
       pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}/${String(totalPagamentos).padStart(2, "0")}`,
+      lancamento,
+      lancamentoLabel: fmtBrDate(lancamento) || "—",
       data: p.data,
       dataLabel: fmtBrDate(p.data),
-      valor: p.valor,
-      valorLabel: brl(p.valor),
+      valor,
+      valorLabel: brl(valor),
+      valorPago,
+      valorPagoLabel: brl(valorPago),
+      saldo,
+      saldoLabel: brl(saldo),
+      situacao,
+      situacaoLabel: labelSituacaoRelatorio(situacao, p.data),
+      pagoEm,
+      pagoEmLabel: pagoEm ? fmtBrDate(pagoEm) : "—",
       categoria: labelCategoria(p.despesa.categoria),
       rubrica: tipo,
       detalhe: desc,
+      corCls: classeCorRelatorio(situacao, p.data),
       _pag: p,
     };
   }
@@ -4886,6 +5023,9 @@
     if (key === "lancamento") return row.lancamentoLabel || "—";
     if (key === "valor") return row.valorLabel;
     if (key === "situacao") return row.situacaoLabel || labelSituacaoPagamento(row.situacao);
+    if (key === "valorPago") return row.valorPagoLabel || brl(row.valorPago);
+    if (key === "saldo") return row.saldoLabel || brl(row.saldo);
+    if (key === "pagoEm") return row.pagoEmLabel || "—";
     if (key === "despesa") return String(row.despesa ?? row.label ?? "—");
     if (key === "inicio") return row.inicioLabel || fmtBrDate(row.inicio);
     if (key === "fim") return row.fimLabel || fmtBrDate(row.fim);
@@ -4898,7 +5038,10 @@
 
   function ceoRelCellSortValue(row, key, cols = CEO_PAG_COLS) {
     const col = cols.find((c) => c.key === key);
-    if (key === "situacao") return row.situacao === "PAGO" ? 1 : 0;
+    if (key === "situacao") return row.situacao === "PAGO" ? 2 : row.situacaoLabel === "VENCIDO" ? 0 : 1;
+    if (key === "valorPago") return Number(row.valorPago) || 0;
+    if (key === "saldo") return Number(row.saldo) || 0;
+    if (key === "pagoEm") return row.pagoEm?.getTime?.() || 0;
     if (key === "inicio") return row.inicio?.getTime?.() || 0;
     if (key === "fim") return row.fim?.getTime?.() || 0;
     if (key === "lancamento") return row.lancamento?.getTime?.() || 0;
@@ -4973,7 +5116,7 @@
   }
 
   function aplicarCeoRelExcelFiltroSort(rows) {
-    return aplicarCeoPagExcelFiltroSort(rows, ceoRelExcelState);
+    return aplicarCeoPagExcelFiltroSort(rows, ceoRelExcelState, CEO_REL_COLS);
   }
 
   function ceoGrafLinhaFromRow(r) {
@@ -5095,7 +5238,7 @@
   }
 
   function ceoRelValoresUnicosColuna(rows, key) {
-    return ceoPagValoresUnicosColuna(rows, key);
+    return ceoPagValoresUnicosColuna(rows, key, CEO_REL_COLS);
   }
 
   function fecharCeoPagExcelFiltroPopup() {
@@ -5122,7 +5265,7 @@
   }
 
   function ceoRelLinhasBaseAntesDaColuna(openKey, rows) {
-    return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState, CEO_PAG_COLS);
+    return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState, CEO_REL_COLS);
   }
 
   const MESES_FILTRO_PT = [
@@ -5490,7 +5633,7 @@
   }
 
   function abrirCeoRelExcelFiltroPopup(btn, key, rows) {
-    abrirCeoPagExcelFiltroPopup("rel", btn, key, rows, ceoRelExcelState, aplicarRelatorio);
+    abrirCeoPagExcelFiltroPopup("rel", btn, key, rows, ceoRelExcelState, aplicarRelatorio, CEO_REL_COLS);
   }
 
   function buildCeoPagHeadHtml(state, colAttr, colFilterFn, cols = CEO_PAG_COLS) {
@@ -5507,7 +5650,7 @@
   }
 
   function buildCeoRelHeadHtml() {
-    return buildCeoPagHeadHtml(ceoRelExcelState, "data-ceo-rel-excel-col", ceoRelColFilterActive);
+    return buildCeoPagHeadHtml(ceoRelExcelState, "data-ceo-rel-excel-col", ceoRelColFilterActive, CEO_REL_COLS);
   }
 
   function buildCeoListaHeadHtml() {
@@ -5533,12 +5676,7 @@
         fecharCeoPagExcelFiltroPopup();
         return;
       }
-      const despesas = filtrarDespesasRelatorio();
-      abrirCeoRelExcelFiltroPopup(
-        btn,
-        key,
-        montarPagamentosRelatorio(despesas).map(ceoRelLinhaFromPagamento)
-      );
+      abrirCeoRelExcelFiltroPopup(btn, key, coletarLinhasRelatorio());
     });
 
     const paneLista = document.getElementById("finCeoPaneDespesas");
@@ -5645,14 +5783,51 @@
     renderRelatorioTipoSelect();
   }
 
+  function htmlResumoRelatorio(linhas, linhasBase) {
+    let contas = 0;
+    let pagos = 0;
+    let restante = 0;
+    const base = linhas && linhas.length ? linhas : [];
+    base.forEach((r) => {
+      contas += Number(r.valor) || 0;
+      pagos += Number(r.valorPago) || 0;
+      restante += Number(r.saldo) || 0;
+    });
+    const { ini, fim } = limitesPeriodoRelatorio();
+    const periodo = textoPeriodoRelatorio(ini, fim);
+    const colFiltroAtivo = CEO_REL_COLS.some((c) => ceoRelColFilterActive(c.key));
+    const lancamentos = new Set(base.map((r) => r._pag?.despesa?.id).filter(Boolean));
+    let contagem = base.length
+      ? `${base.length} parcela(s) · ${lancamentos.size} lançamento(s) · período ${periodo}`
+      : linhasBase.length
+        ? "Nenhum valor corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho."
+        : loadDespesasCeo().some((d) => d && d.deleted !== true)
+          ? "Nenhuma parcela corresponde aos filtros — ajuste as datas, o tipo do relatório ou clique em «Ver todos»."
+          : "Nenhuma despesa cadastrada ainda — use Cadastro de despesas.";
+    if (colFiltroAtivo && linhasBase.length !== base.length && base.length) {
+      contagem += ` · ${base.length} de ${linhasBase.length} após filtro das colunas`;
+    }
+    const restaCls = restante === 0 ? " fin-ceo-rel-kpi--resta is-zero" : " fin-ceo-rel-kpi--resta";
+    return `<div class="fin-ceo-rel-kpis" aria-label="Resumo do período">
+      <div class="fin-ceo-rel-kpi"><span>Contas a pagar referentes ao período selecionado</span><strong>${esc(brl(contas))}</strong></div>
+      <div class="fin-ceo-rel-kpi fin-ceo-rel-kpi--pago"><span>Valores pagos referentes ao período selecionado</span><strong>${esc(brl(pagos))}</strong></div>
+      <div class="fin-ceo-rel-kpi${restaCls}"><span>Valores restantes a serem pagos</span><strong>${esc(brl(restante))}</strong></div>
+    </div>
+    <p class="fin-ceo-rel-resumo__contagem">${esc(contagem)}</p>
+    <p class="fin-ceo-rel-legenda">
+      <span class="fin-ceo-rel-legenda__item fin-ceo-rel-legenda__item--aberto">Verde = a pagar no prazo</span>
+      <span class="fin-ceo-rel-legenda__item fin-ceo-rel-legenda__item--pago">Azul = pago</span>
+      <span class="fin-ceo-rel-legenda__item fin-ceo-rel-legenda__item--vencida">Vermelho = vencido</span>
+    </p>`;
+  }
+
   function aplicarRelatorio(ev) {
     ev?.preventDefault();
     if (ev) resetCeoRelExcelFiltros();
     fecharCeoRelExcelFiltroPopup();
     ensureCeoRelExcelPaneBound();
-    const despesas = filtrarDespesasRelatorio();
-    const pagamentos = montarPagamentosRelatorio(despesas);
-    const linhasBase = pagamentos.map(ceoRelLinhaFromPagamento);
+    atualizarHintModoRelatorio();
+    const linhasBase = coletarLinhasRelatorio();
     const linhas = aplicarCeoRelExcelFiltroSort(linhasBase);
     const body = document.getElementById("finCeoRelBody");
     const head = document.getElementById("finCeoRelHead");
@@ -5661,40 +5836,30 @@
     if (!body) return;
 
     if (head) head.innerHTML = `<tr>${buildCeoRelHeadHtml()}</tr>`;
+    if (resumo) resumo.innerHTML = htmlResumoRelatorio(linhas, linhasBase);
 
-    const totalPagamentos = linhas.reduce((s, r) => s + r.valor, 0);
-    const colFiltroAtivo = CEO_PAG_COLS.some((c) => ceoRelColFilterActive(c.key));
-    const resumoFiltroCol = colFiltroAtivo && linhasBase.length !== linhas.length ? ` · ${linhas.length} de ${linhasBase.length} após filtro das colunas` : "";
-
-    if (resumo) {
-      resumo.textContent = pagamentos.length
-        ? linhas.length
-          ? `${linhas.length} pagamento(s) · ${despesas.length} lançamento(s) · total: ${brl(totalPagamentos)}${resumoFiltroCol}`
-          : "Nenhum valor corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho."
-        : despesas.length
-          ? "Nenhum pagamento gerado com os filtros actuais."
-          : loadDespesasCeo().length
-            ? "Nenhum lançamento corresponde aos filtros — clique em «Ver todos» ou «Limpar filtros»."
-            : "Nenhuma despesa cadastrada ainda — use Cadastro de despesas.";
-    }
-
-    if (!pagamentos.length) {
+    if (!linhasBase.length) {
       body.innerHTML = "";
       vazia?.classList.remove("hidden");
       return;
     }
     if (!linhas.length) {
-      body.innerHTML = `<tr><td colspan="${CEO_PAG_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${CEO_REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>`;
       vazia?.classList.add("hidden");
       return;
     }
     vazia?.classList.add("hidden");
     body.innerHTML = linhas
       .map((r) => {
-        return `<tr>
+        return `<tr class="${esc(r.corCls)}">
           <td><strong>${esc(r.pagamentoLabel)}</strong></td>
+          <td>${esc(r.lancamentoLabel)}</td>
           <td>${esc(r.dataLabel)}</td>
           <td>${esc(r.valorLabel)}</td>
+          <td>${esc(r.valorPagoLabel)}</td>
+          <td>${esc(r.saldoLabel)}</td>
+          <td>${esc(r.situacaoLabel)}</td>
+          <td>${esc(r.pagoEmLabel)}</td>
           <td>${esc(r.categoria)}</td>
           <td>${esc(r.rubrica)}</td>
           <td>${esc(r.detalhe)}</td>
@@ -5706,11 +5871,14 @@
   function limparCamposFiltroRelatorio() {
     const cat = document.getElementById("finCeoRelCat");
     if (cat) cat.value = "";
-    ["finCeoRelDe", "finCeoRelRepeticoes", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
+    ["finCeoRelDe", "finCeoRelAte", "finCeoRelRepeticoes", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    const modo = document.querySelector('#finCeoPaneRelatorio input[name="finCeoRelModo"][value="vencimento"]');
+    if (modo) modo.checked = true;
     renderRelatorioTipoSelect();
+    atualizarHintModoRelatorio();
   }
 
   function preencherRelatorioComDespesa(d) {
@@ -5724,14 +5892,22 @@
         ? `part:${inferirTipoParticularLegado(d)}`
         : `dk:${d.rubrica}`;
     }
+    const modoLanc = document.querySelector('#finCeoPaneRelatorio input[name="finCeoRelModo"][value="lancamento"]');
+    if (modoLanc) modoLanc.checked = true;
+    const lanc = dataLancamentoDespesa(d) || d.dataEvento;
+    const lancLabel = fmtBrDate(lanc instanceof Date ? lanc : parseBrDate(lanc));
     const de = document.getElementById("finCeoRelDe");
-    if (de) de.value = fmtBrDate(d.dataEvento);
+    const ate = document.getElementById("finCeoRelAte");
+    if (de) de.value = lancLabel;
+    if (ate) ate.value = lancLabel;
     const rep = document.getElementById("finCeoRelRepeticoes");
     if (rep) rep.value = String(d.repeticoes);
     const vmin = document.getElementById("finCeoRelValorMin");
     const vmax = document.getElementById("finCeoRelValorMax");
     if (vmin) vmin.value = "";
     if (vmax) vmax.value = "";
+    atualizarHintModoRelatorio();
+    aplicarOrdemPadraoModoRelatorio();
   }
 
   function abrirRelatorioComDespesa(d) {
@@ -5765,14 +5941,17 @@
   function limparFiltrosRelatorio() {
     limparCamposFiltroRelatorio();
     resetCeoRelExcelFiltros();
-    ceoRelExcelState.sortKey = "data";
-    ceoRelExcelState.sortDir = "desc";
+    aplicarOrdemPadraoModoRelatorio();
     aplicarRelatorio();
   }
 
   function renderRelatorio(opcoes = {}) {
     const { limparFiltros = true } = opcoes;
-    if (limparFiltros) limparCamposFiltroRelatorio();
+    if (limparFiltros) {
+      limparCamposFiltroRelatorio();
+      resetCeoRelExcelFiltros();
+      aplicarOrdemPadraoModoRelatorio();
+    }
     renderRelatorioCategoriaSelect();
     bindMascarasCeo(document.getElementById("finCeoPaneRelatorio"));
     aplicarRelatorio();
@@ -7082,6 +7261,15 @@
     document.getElementById("finCeoRelForm")?.addEventListener("submit", aplicarRelatorio);
     document.getElementById("finCeoRelLimpar")?.addEventListener("click", limparFiltrosRelatorio);
     document.getElementById("finCeoRelCat")?.addEventListener("change", renderRelatorioTipoSelect);
+    document.querySelectorAll('#finCeoPaneRelatorio input[name="finCeoRelModo"]').forEach((inp) => {
+      inp.addEventListener("change", () => {
+        if (paneAberto !== "relatorio") return;
+        atualizarHintModoRelatorio();
+        resetCeoRelExcelFiltros();
+        aplicarOrdemPadraoModoRelatorio();
+        aplicarRelatorio();
+      });
+    });
     document.getElementById("finCeoRelBusca")?.addEventListener("input", () => {
       if (paneAberto === "relatorio") {
         resetCeoRelExcelFiltros();

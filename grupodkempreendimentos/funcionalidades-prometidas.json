@@ -3743,6 +3743,33 @@
           "fin-ceo-custos"
         ]
       }
+    },
+    {
+      "id": "fin-ceo-relatorio-periodo-vencimento",
+      "descricao": "FINANCEIRO CEO → Relatório de despesas: opções Por lançamento, Por vencimento e Pago; calendário de data fim ao lado da data início. Por vencimento lista as parcelas do período em ordem de vencimento, com valor pago e saldo a pagar (zero se já pago). Resumo: contas a pagar, valores pagos e valores restantes. Verde = a pagar no prazo, azul = pago, vermelho = vencido.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoRelAte",
+          "Por vencimento",
+          "Por lançamento",
+          "Data fim"
+        ],
+        "portal-financeiro-ceo.js": [
+          "coletarLinhasRelatorio",
+          "modoRelatorioDespesas",
+          "Contas a pagar referentes ao período selecionado",
+          "Valores restantes a serem pagos",
+          "fin-ceo-rel-row--pago",
+          "fin-ceo-rel-row--vencida",
+          "fin-ceo-rel-row--aberto"
+        ],
+        "styles.css": [
+          "fin-ceo-rel-modos",
+          "fin-ceo-rel-row--pago",
+          "fin-ceo-rel-row--vencida",
+          "fin-ceo-rel-kpi--resta"
+        ]
+      }
     }
   ]
 }

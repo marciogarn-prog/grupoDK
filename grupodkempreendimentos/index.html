@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261015ocupadobtn">
+  <link rel="stylesheet" href="styles.css?v=20261016relatorio">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -4995,8 +4995,26 @@
             </div>
 
             <div id="finCeoPaneRelatorio" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="relatorio" role="region">
-              <h3 class="operacao-inline-form__title">Relatório de despesas</h3>
-              <p class="subtext">Deixe os filtros vazios para ver <strong>todos</strong> os pagamentos. O campo <strong>Nº repetições</strong> limita quantas parcelas mensais aparecem por lançamento.</p>
+              <div class="fin-ceo-rel-cabeca">
+                <div class="fin-ceo-rel-cabeca__texto">
+                  <h3 class="operacao-inline-form__title">Relatório de despesas</h3>
+                  <p class="subtext" id="finCeoRelModoHint">Por vencimento: as datas filtram o vencimento de cada parcela. Parcelas já pagas entram no conjunto, com o valor pago e o saldo a pagar igual a zero.</p>
+                </div>
+                <fieldset class="fin-ceo-rel-modos" aria-label="Tipo do relatório">
+                  <label class="fin-ceo-rel-modo">
+                    <input type="radio" name="finCeoRelModo" value="lancamento">
+                    <span>Por lançamento</span>
+                  </label>
+                  <label class="fin-ceo-rel-modo">
+                    <input type="radio" name="finCeoRelModo" value="vencimento" checked>
+                    <span>Por vencimento</span>
+                  </label>
+                  <label class="fin-ceo-rel-modo">
+                    <input type="radio" name="finCeoRelModo" value="pago">
+                    <span>Pago</span>
+                  </label>
+                </fieldset>
+              </div>
               <form id="finCeoRelForm" class="fin-ceo-rel-filtros" novalidate>
                 <label class="portal-field">
                   <span>Categoria</span>
@@ -5011,8 +5029,12 @@
                   </select>
                 </label>
                 <label class="portal-field">
-                  <span>1ª data do pagamento</span>
-                  <span class="dk-date-cal fin-date-cal"><input type="text" id="finCeoRelDe" data-dk-cal="intervalo" data-dk-mask="date" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></span>
+                  <span>Data início</span>
+                  <span class="dk-date-cal fin-date-cal"><input type="text" id="finCeoRelDe" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off" aria-label="Data início"></span>
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <span class="dk-date-cal fin-date-cal"><input type="text" id="finCeoRelAte" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off" aria-label="Data fim"></span>
                 </label>
                 <label class="portal-field">
                   <span>Nº repetições</span>
@@ -5037,7 +5059,7 @@
                   <button type="button" class="btn-primary btn-secondary-outline" id="finCeoRelLimpar">Limpar filtros</button>
                 </div>
               </form>
-              <p id="finCeoRelResumo" class="fin-ceo-desp-resumo" role="status">—</p>
+              <div id="finCeoRelResumo" class="fin-ceo-rel-resumo" role="status">—</div>
               <div class="fin-table-wrap">
                 <table class="fin-table fin-table--excel-cols" id="finCeoRelTable">
                   <thead id="finCeoRelHead"><tr></tr></thead>
@@ -5838,7 +5860,7 @@
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260911loc-int"></script>
-  <script src="portal-financeiro-ceo.js?v=20261011particulares" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20261016relatorio" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
