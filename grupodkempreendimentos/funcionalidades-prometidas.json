@@ -2949,7 +2949,9 @@
           "fin-quant-cal__day--novo",
           "Foto da frota em",
           "mapaNovosEquipamentosPorDia",
-          "veiculosAteDia"
+          "veiculosAteDia",
+          "dataDeInstanteSalvo",
+          "dia em que o operador salvou"
         ],
         "styles.css": [
           "fin-quant-cal__day--novo",

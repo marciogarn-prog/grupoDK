@@ -23642,6 +23642,16 @@
     }
   }
 
+  /** Dia em que o operador salvou o cadastro, em DD/MM/AAAA. Não troca a data numa edição posterior. */
+  function portalDataCadastroDoDiaSalvo(existente, criadoEmMs) {
+    const ja = String(existente?.dataCadastro || "").trim();
+    if (/(\d{1,2})\/(\d{1,2})\/(\d{4})/.test(ja) || /^(\d{4})-(\d{2})-(\d{2})/.test(ja)) return ja;
+    const ms = Number(criadoEmMs);
+    const d = new Date(Number.isFinite(ms) && ms > 1e11 ? ms : Date.now());
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  }
+
   /** Cadastro de veículo no portal (Receita 2026) — envia snapshot à nuvem após guardar. */
   function persistPortalOperacaoVeiculoInlineSubmit(ev) {
     ev.preventDefault();
@@ -23730,10 +23740,13 @@
     }
     const existenteVeiculo = existenteVeiculoPre;
     const stamp = portalResolveResponsavelStamp(existenteVeiculo);
+    const criadoEmMs = Number(existenteVeiculo?.createdAt || existenteVeiculo?.id || Date.now());
+    const dataCadastroSalva = portalDataCadastroDoDiaSalvo(existenteVeiculo, criadoEmMs);
     const novo = {
       id: existenteVeiculo?.id ?? Date.now(),
       createdAt: existenteVeiculo?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
+      dataCadastro: dataCadastroSalva,
       origemPortal: true,
       tipo,
       tag,

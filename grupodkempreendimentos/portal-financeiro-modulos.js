@@ -650,8 +650,40 @@
     return `<div class="fin-hbar${money ? " fin-hbar--money" : ""}">${blocks.join("")}</div>`;
   }
 
+  /** Instante em que o operador salvou o cadastro (createdAt ou id no padrão Date.now()). */
+  function dataDeInstanteSalvo(raw) {
+    const n = typeof raw === "number" ? raw : Number(String(raw || "").trim());
+    if (!Number.isFinite(n) || n < 1e12 || n > 4e12) return null;
+    const d = new Date(n);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    if (y < 2018 || y > 2100) return null;
+    return new Date(y, d.getMonth(), d.getDate());
+  }
+
+  function parseDataCadastroTexto(raw) {
+    const direto = parseBrDate(raw);
+    if (direto) return direto;
+    const s = String(raw || "").trim();
+    if (!s) return null;
+    const emb = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (emb) {
+      const d = new Date(Number(emb[3]), Number(emb[2]) - 1, Number(emb[1]));
+      if (!Number.isNaN(d.getTime()) && d.getDate() === Number(emb[1])) return d;
+    }
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+      if (!Number.isNaN(d.getTime()) && d.getDate() === Number(iso[3])) return d;
+    }
+    return null;
+  }
+
+  /** Dia do cadastro: a data gravada, ou o dia em que o operador salvou. */
   function dataCadastroEquipamento(v) {
-    return parseBrDate(v?.dataCadastro);
+    const texto = parseDataCadastroTexto(v?.dataCadastro);
+    if (texto) return texto;
+    return dataDeInstanteSalvo(v?.createdAt) || dataDeInstanteSalvo(v?.id);
   }
 
   function veiculosAteDia(dia) {
