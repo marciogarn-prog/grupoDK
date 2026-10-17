@@ -871,24 +871,42 @@
     return `${QUANT_MES_CURTO[mes]}/${String(ano).slice(-2)}`;
   }
 
-  /** Dia 30 do mês. Fevereiro usa o último dia. No mês corrente, se o dia 30 ainda não chegou, usa hoje. */
-  function dia30DoMes(ano, mes, hojeTime) {
-    const ultimo = new Date(ano, mes + 1, 0).getDate();
-    const dia = Math.min(30, ultimo);
-    let t = new Date(ano, mes, dia).getTime();
-    if (t > hojeTime) {
-      const hoje = new Date(hojeTime);
-      if (hoje.getFullYear() === ano && hoje.getMonth() === mes) return hojeTime;
+  /** Data gravada no protocolo (AAAAMMDD do número). Se o número não tiver data, usa o início. */
+  function dataDoProtocolo(loc) {
+    if (!loc || typeof loc !== "object") return null;
+    if (typeof window.__DK_isLocacaoFantasmaCadastro === "function" && window.__DK_isLocacaoFantasmaCadastro(loc)) {
       return null;
     }
-    return t;
+    const num = String(loc.numeroContrato || loc.protocolo || "").replace(/\D/g, "");
+    if (!num || num === "2099010199") return null;
+    if (num.length >= 8) {
+      const y = Number(num.slice(0, 4));
+      const m = Number(num.slice(4, 6));
+      const d = Number(num.slice(6, 8));
+      if (y >= 2020 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        const dt = new Date(y, m - 1, d);
+        if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+          return inicioDoDia(dt);
+        }
+      }
+    }
+    const ini = parseDataLoc(loc.inicio || loc.dataInicio);
+    if (!ini) return null;
+    const y = ini.getFullYear();
+    if (y < 2020 || y > 2100) return null;
+    return inicioDoDia(ini);
   }
 
-  /** A locadora começou em fevereiro de 2025. Cadastros anteriores não puxam o eixo. */
-  const LOCADORA_INICIO_MES = new Date(2025, 1, 1).getTime();
-
-  function primeiroMesLocadora() {
-    return new Date(LOCADORA_INICIO_MES);
+  function extremosProtocolos() {
+    let primeiro = null;
+    let ultimo = null;
+    locacoesCadastro().forEach((loc) => {
+      const t = dataDoProtocolo(loc);
+      if (t == null) return;
+      if (primeiro == null || t < primeiro) primeiro = t;
+      if (ultimo == null || t > ultimo) ultimo = t;
+    });
+    return { primeiro, ultimo };
   }
 
   function aproveitamentoNoDia(frota, intervalos, hojeSet, t) {
@@ -916,8 +934,8 @@
   }
 
   /**
-   * Sempre 10 pontos: fevereiro de 2025, o dia de hoje,
-   * e 8 datas em parcelas iguais de tempo entre os dois.
+   * Sempre 10 pontos: a data do primeiro protocolo, a data do último protocolo,
+   * e 8 datas em parcelas iguais de tempo entre as duas.
    */
   function serieAproveitamentoPorMes() {
     const hojeTime = inicioDoDia(new Date());
@@ -925,9 +943,14 @@
       const desde = dataCadastroEquipamento(v);
       return { placa: placaNorm(v?.placa), desde: desde ? inicioDoDia(desde) : null };
     });
-    const inicio = primeiroMesLocadora(frota);
-    const t0raw = dia30DoMes(inicio.getFullYear(), inicio.getMonth(), hojeTime);
-    const t0 = t0raw == null || t0raw > hojeTime ? hojeTime : t0raw;
+    const extremos = extremosProtocolos();
+    let t0 = extremos.primeiro == null ? hojeTime : extremos.primeiro;
+    let tFim = extremos.ultimo == null ? hojeTime : extremos.ultimo;
+    if (tFim < t0) {
+      const troca = t0;
+      t0 = tFim;
+      tFim = troca;
+    }
     const intervalos = intervalosPorPlaca();
     let hojeSet = null;
     if (typeof getActivePlatesSet === "function") {
@@ -943,7 +966,7 @@
     const pontos = [];
     const fatias = 9;
     for (let i = 0; i <= fatias; i += 1) {
-      const bruto = i === 0 ? t0 : i === fatias ? hojeTime : t0 + Math.round(((hojeTime - t0) * i) / fatias);
+      const bruto = i === 0 ? t0 : i === fatias ? tFim : t0 + Math.round(((tFim - t0) * i) / fatias);
       const t = inicioDoDia(new Date(bruto));
       pontos.push(aproveitamentoNoDia(frota, intervalos, hojeSet, t));
     }
@@ -997,7 +1020,7 @@
         return `<text x="${x}" y="${h - 3}" text-anchor="middle" fill="#bdbdbd" font-size="9">${esc(p.label)}</text>`;
       })
       .join("");
-    return `<svg class="fin-quant-linha__svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Dez pontos de aproveitamento, do primeiro mês ao dia de hoje">${grid}${line}${marcas}${axis}</svg>`;
+    return `<svg class="fin-quant-linha__svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Dez pontos de aproveitamento, do primeiro ao último protocolo">${grid}${line}${marcas}${axis}</svg>`;
   }
 
   function renderLinhaAproveitamento() {
