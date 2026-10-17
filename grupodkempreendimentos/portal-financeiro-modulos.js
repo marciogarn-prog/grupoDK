@@ -884,20 +884,11 @@
     return t;
   }
 
-  function primeiroMesLocadora(frota) {
-    let min = null;
-    frota.forEach((v) => {
-      if (v.desde == null) return;
-      const d = new Date(v.desde);
-      if (d.getFullYear() < 2019) return;
-      const t = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-      if (min == null || t < min) min = t;
-    });
-    if (min == null) {
-      const h = new Date();
-      return new Date(h.getFullYear(), h.getMonth(), 1);
-    }
-    return new Date(min);
+  /** A locadora começou em fevereiro de 2025. Cadastros anteriores não puxam o eixo. */
+  const LOCADORA_INICIO_MES = new Date(2025, 1, 1).getTime();
+
+  function primeiroMesLocadora() {
+    return new Date(LOCADORA_INICIO_MES);
   }
 
   function aproveitamentoNoDia(frota, intervalos, hojeSet, t) {
@@ -925,7 +916,7 @@
   }
 
   /**
-   * Sempre 10 pontos: o primeiro mês da locadora, o dia de hoje,
+   * Sempre 10 pontos: fevereiro de 2025, o dia de hoje,
    * e 8 datas em parcelas iguais de tempo entre os dois.
    */
   function serieAproveitamentoPorMes() {
