@@ -823,6 +823,173 @@
     return `${((Number(parte) || 0) / t * 100).toFixed(1)}%`;
   }
 
+  function inicioDoDia(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+
+  function intervalosPorPlaca() {
+    const porPlaca = new Map();
+    locacoesCadastro().forEach((loc) => {
+      if (typeof window.__DK_isLocacaoFantasmaCadastro === "function" && window.__DK_isLocacaoFantasmaCadastro(loc)) {
+        return;
+      }
+      const st = nk(String(loc?.statusLocacao || loc?.status || ""));
+      if (st.includes("CANCEL")) return;
+      const placa = placaNorm(loc?.placa);
+      if (!placa) return;
+      const iniRaw =
+        parseDataLoc(loc?.inicio || loc?.dataInicio) ||
+        dataDeInstanteSalvo(loc?.createdAt) ||
+        dataDeInstanteSalvo(loc?.id);
+      const fimTxt = String(loc?.fim || loc?.dataFim || "").trim();
+      const aberta = (!fimTxt || fimTxt === "...") && !st.includes("FINALIZ") && !st.includes("INATIV");
+      const fim = aberta ? null : parseDataLoc(fimTxt);
+      if (!aberta && !fim) return;
+      if (!porPlaca.has(placa)) porPlaca.set(placa, []);
+      porPlaca.get(placa).push({
+        ini: iniRaw ? inicioDoDia(iniRaw) : null,
+        fim: fim ? inicioDoDia(fim) : null,
+      });
+    });
+    return porPlaca;
+  }
+
+  function placaCobertaNoDia(intervalos, placa, diaTime) {
+    const lista = intervalos.get(placa);
+    if (!lista) return false;
+    for (let i = 0; i < lista.length; i += 1) {
+      const it = lista[i];
+      if (it.ini != null && it.ini > diaTime) continue;
+      if (it.fim == null || it.fim >= diaTime) return true;
+    }
+    return false;
+  }
+
+  /** Um ponto por dia do mês visível no calendário, até hoje. */
+  function serieAproveitamentoMes(mesRef) {
+    const base = mesRef instanceof Date && !Number.isNaN(mesRef.getTime()) ? mesRef : new Date();
+    const ano = base.getFullYear();
+    const mes = base.getMonth();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const hoje = new Date();
+    const hojeTime = inicioDoDia(hoje);
+    const frota = veiculosCadastro().map((v) => {
+      const desde = dataCadastroEquipamento(v);
+      return { placa: placaNorm(v?.placa), desde: desde ? inicioDoDia(desde) : null };
+    });
+    const intervalos = intervalosPorPlaca();
+    let hojeSet = null;
+    if (ano === hoje.getFullYear() && mes === hoje.getMonth() && typeof getActivePlatesSet === "function") {
+      const set = getActivePlatesSet();
+      if (set && typeof set.forEach === "function") {
+        hojeSet = new Set();
+        set.forEach((p) => {
+          const k = placaNorm(p);
+          if (k) hojeSet.add(k);
+        });
+      }
+    }
+    const pontos = [];
+    for (let dia = 1; dia <= diasNoMes; dia += 1) {
+      const t = new Date(ano, mes, dia).getTime();
+      if (t > hojeTime) break;
+      let total = 0;
+      let alug = 0;
+      const usaHoje = Boolean(hojeSet) && t === hojeTime;
+      for (let i = 0; i < frota.length; i += 1) {
+        const v = frota[i];
+        if (v.desde != null && v.desde > t) continue;
+        total += 1;
+        const rented = usaHoje ? hojeSet.has(v.placa) : placaCobertaNoDia(intervalos, v.placa, t);
+        if (rented) alug += 1;
+      }
+      pontos.push({
+        dia,
+        t,
+        total,
+        alug,
+        pct: total > 0 ? (alug / total) * 100 : null,
+      });
+    }
+    return pontos;
+  }
+
+  let quantLinhaWh = "";
+
+  function svgLinhaAproveitamento(pontos, w, h, diaSel) {
+    const padL = 34;
+    const padR = 8;
+    const padT = 22;
+    const padB = 16;
+    const innerW = Math.max(8, w - padL - padR);
+    const innerH = Math.max(8, h - padT - padB);
+    const n = Math.max(1, pontos.length);
+    const xAt = (i) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const yAt = (pct) => padT + innerH - (Math.max(0, Math.min(100, pct)) / 100) * innerH;
+    const grid = [0, 50, 100]
+      .map((p) => {
+        const y = yAt(p);
+        return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.14)"/>
+          <text x="${padL - 4}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="#bdbdbd" font-size="9">${p}%</text>`;
+      })
+      .join("");
+    const valid = [];
+    pontos.forEach((p, i) => {
+      if (p.pct == null) return;
+      valid.push({ ...p, i });
+    });
+    const pts = valid.map((p) => `${xAt(p.i).toFixed(1)},${yAt(p.pct).toFixed(1)}`).join(" ");
+    const line = pts
+      ? `<polyline fill="none" stroke="#c084fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/>`
+      : "";
+    const selTime = diaSel instanceof Date && !Number.isNaN(diaSel.getTime()) ? inicioDoDia(diaSel) : 0;
+    const mes = quantCalMes.getMonth();
+    const ano = quantCalMes.getFullYear();
+    const ultimo = valid.length ? valid[valid.length - 1].i : -1;
+    const marcas = valid
+      .filter((p) => p.t === selTime || p.i === ultimo)
+      .map((p) => {
+        const sel = p.t === selTime;
+        const tit = `${String(p.dia).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}/${ano} — ${p.pct.toFixed(1)}%`;
+        return `<circle cx="${xAt(p.i).toFixed(1)}" cy="${yAt(p.pct).toFixed(1)}" r="${sel ? 3.4 : 2.2}" fill="${sel ? "#f5f3ff" : "#c084fc"}" stroke="${sel ? "#c084fc" : "none"}" stroke-width="1.5"><title>${esc(tit)}</title></circle>`;
+      })
+      .join("");
+    const step = n > 20 ? 5 : n > 12 ? 2 : 1;
+    const axis = pontos
+      .map((p, i) => {
+        if (i % step !== 0 && i !== n - 1) return "";
+        return `<text x="${xAt(i).toFixed(1)}" y="${h - 3}" text-anchor="middle" fill="#bdbdbd" font-size="9">${p.dia}</text>`;
+      })
+      .join("");
+    const titulo = `<text x="${w - padR}" y="12" text-anchor="end" fill="#e9d5ff" font-size="10">${esc(QUANT_MES_NOM[mes])} ${ano}</text>`;
+    return `<svg class="fin-quant-linha__svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Linha do aproveitamento da frota no mês">${titulo}${grid}${line}${marcas}${axis}</svg>`;
+  }
+
+  function renderLinhaAproveitamento() {
+    const host = document.getElementById("finQuantAproveitamentoChart");
+    if (!host) return;
+    const paint = () => {
+      const w = Math.round(host.clientWidth);
+      const h = Math.round(host.clientHeight);
+      if (w < 48 || h < 48) return;
+      quantLinhaWh = `${w}x${h}`;
+      const pontos = serieAproveitamentoMes(quantCalMes);
+      host.innerHTML = pontos.length
+        ? svgLinhaAproveitamento(pontos, w, h, quantCalDia)
+        : '<p class="fin-quant-linha__vazio">Sem dias neste mês.</p>';
+    };
+    requestAnimationFrame(paint);
+    if (host.dataset.linhaObs !== "1" && typeof ResizeObserver !== "undefined") {
+      host.dataset.linhaObs = "1";
+      const ro = new ResizeObserver(() => {
+        const key = `${Math.round(host.clientWidth)}x${Math.round(host.clientHeight)}`;
+        if (key === quantLinhaWh) return;
+        paint();
+      });
+      ro.observe(host);
+    }
+  }
+
   function agregarQuantitativoPorTipo(lista, placasAlugadas) {
     const byTipo = new Map();
     const alugSet = placasAlugadas instanceof Set ? placasAlugadas : null;
@@ -941,6 +1108,7 @@
           const delta = Number(nav.getAttribute("data-quant-nav")) || 0;
           quantCalMes = new Date(quantCalMes.getFullYear(), quantCalMes.getMonth() + delta, 1);
           renderQuantCalendario();
+          renderLinhaAproveitamento();
           return;
         }
         if (e.target.closest("[data-quant-hoje]")) {
@@ -1163,6 +1331,7 @@
         coluna("Motos", alugMotos, paradoMotos, nMotos) +
         coluna("Carros", alugCarros, paradoCarros, nCarros);
     }
+    renderLinhaAproveitamento();
     renderQuantCalendario();
     bindQuantRelAquisicoes();
     renderQuantFotoDia(dia, novosNoDia, frota);

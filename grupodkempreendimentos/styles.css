@@ -6908,14 +6908,40 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   min-width: 0;
 }
 
+.fin-quant-meio {
+  display: grid;
+  grid-template-columns: 17.5rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
 .fin-quant-aprov {
-  flex: 1;
-  width: 17.5rem;
+  width: auto;
   max-width: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.3rem 0.28rem;
   align-items: stretch;
+}
+
+.fin-quant-linha {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fin-quant-linha__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fin-quant-linha__vazio {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .fin-quant-aprov__col {
@@ -7127,6 +7153,14 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
   .fin-hbar--split .fin-hbar__legend {
     grid-column: 1 / -1;
+  }
+
+  .fin-quant-meio {
+    grid-template-columns: 1fr;
+  }
+
+  .fin-quant-linha {
+    height: 9rem;
   }
 }
 
