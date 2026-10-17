@@ -865,21 +865,53 @@
     return false;
   }
 
-  /** Um ponto por dia do mês visível no calendário, até hoje. */
-  function serieAproveitamentoMes(mesRef) {
-    const base = mesRef instanceof Date && !Number.isNaN(mesRef.getTime()) ? mesRef : new Date();
-    const ano = base.getFullYear();
-    const mes = base.getMonth();
-    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const QUANT_MES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+  function rotuloMesCurto(ano, mes) {
+    return `${QUANT_MES_CURTO[mes]}/${String(ano).slice(-2)}`;
+  }
+
+  /** Dia 30 do mês. Fevereiro usa o último dia. No mês corrente, se o dia 30 ainda não chegou, usa hoje. */
+  function dia30DoMes(ano, mes, hojeTime) {
+    const ultimo = new Date(ano, mes + 1, 0).getDate();
+    const dia = Math.min(30, ultimo);
+    let t = new Date(ano, mes, dia).getTime();
+    if (t > hojeTime) {
+      const hoje = new Date(hojeTime);
+      if (hoje.getFullYear() === ano && hoje.getMonth() === mes) return hojeTime;
+      return null;
+    }
+    return t;
+  }
+
+  function primeiroMesLocadora(frota) {
+    let min = null;
+    frota.forEach((v) => {
+      if (v.desde == null) return;
+      const d = new Date(v.desde);
+      if (d.getFullYear() < 2019) return;
+      const t = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      if (min == null || t < min) min = t;
+    });
+    if (min == null) {
+      const h = new Date();
+      return new Date(h.getFullYear(), h.getMonth(), 1);
+    }
+    return new Date(min);
+  }
+
+  /** Um ponto por mês, do primeiro mês da locadora até o mês atual. Percentual = foto do dia 30. */
+  function serieAproveitamentoPorMes() {
     const hoje = new Date();
     const hojeTime = inicioDoDia(hoje);
     const frota = veiculosCadastro().map((v) => {
       const desde = dataCadastroEquipamento(v);
       return { placa: placaNorm(v?.placa), desde: desde ? inicioDoDia(desde) : null };
     });
+    const inicio = primeiroMesLocadora(frota);
     const intervalos = intervalosPorPlaca();
     let hojeSet = null;
-    if (ano === hoje.getFullYear() && mes === hoje.getMonth() && typeof getActivePlatesSet === "function") {
+    if (typeof getActivePlatesSet === "function") {
       const set = getActivePlatesSet();
       if (set && typeof set.forEach === "function") {
         hojeSet = new Set();
@@ -889,10 +921,13 @@
         });
       }
     }
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const pontos = [];
-    for (let dia = 1; dia <= diasNoMes; dia += 1) {
-      const t = new Date(ano, mes, dia).getTime();
-      if (t > hojeTime) break;
+    for (let cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1); cursor <= fim; cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)) {
+      const ano = cursor.getFullYear();
+      const mes = cursor.getMonth();
+      const t = dia30DoMes(ano, mes, hojeTime);
+      if (t == null) continue;
       let total = 0;
       let alug = 0;
       const usaHoje = Boolean(hojeSet) && t === hojeTime;
@@ -903,8 +938,12 @@
         const rented = usaHoje ? hojeSet.has(v.placa) : placaCobertaNoDia(intervalos, v.placa, t);
         if (rented) alug += 1;
       }
+      const ref = new Date(t);
       pontos.push({
-        dia,
+        ano,
+        mes,
+        dia: ref.getDate(),
+        label: rotuloMesCurto(ano, mes),
         t,
         total,
         alug,
@@ -916,21 +955,21 @@
 
   let quantLinhaWh = "";
 
-  function svgLinhaAproveitamento(pontos, w, h, diaSel) {
-    const padL = 34;
-    const padR = 8;
-    const padT = 22;
-    const padB = 16;
+  function svgLinhaAproveitamento(pontos, w, h) {
+    const n = Math.max(1, pontos.length);
+    const padL = 32;
+    const padR = 18;
+    const padT = 16;
+    const padB = n > 8 ? 48 : 20;
     const innerW = Math.max(8, w - padL - padR);
     const innerH = Math.max(8, h - padT - padB);
-    const n = Math.max(1, pontos.length);
     const xAt = (i) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
     const yAt = (pct) => padT + innerH - (Math.max(0, Math.min(100, pct)) / 100) * innerH;
     const grid = [0, 50, 100]
       .map((p) => {
         const y = yAt(p);
         return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.14)"/>
-          <text x="${padL - 4}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="#bdbdbd" font-size="9">${p}%</text>`;
+          <text x="${padL - 3}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="#bdbdbd" font-size="8">${p}%</text>`;
       })
       .join("");
     const valid = [];
@@ -942,27 +981,28 @@
     const line = pts
       ? `<polyline fill="none" stroke="#c084fc" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/>`
       : "";
-    const selTime = diaSel instanceof Date && !Number.isNaN(diaSel.getTime()) ? inicioDoDia(diaSel) : 0;
-    const mes = quantCalMes.getMonth();
-    const ano = quantCalMes.getFullYear();
-    const ultimo = valid.length ? valid[valid.length - 1].i : -1;
     const marcas = valid
-      .filter((p) => p.t === selTime || p.i === ultimo)
       .map((p) => {
-        const sel = p.t === selTime;
-        const tit = `${String(p.dia).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}/${ano} — ${p.pct.toFixed(1)}%`;
-        return `<circle cx="${xAt(p.i).toFixed(1)}" cy="${yAt(p.pct).toFixed(1)}" r="${sel ? 3.4 : 2.2}" fill="${sel ? "#f5f3ff" : "#c084fc"}" stroke="${sel ? "#c084fc" : "none"}" stroke-width="1.5"><title>${esc(tit)}</title></circle>`;
+        const x = xAt(p.i);
+        const y = yAt(p.pct);
+        const pctTxt = `${p.pct.toFixed(1)}%`;
+        const yTxt = Math.max(10, y - 8 - (p.i % 2) * 9);
+        const tit = `${String(p.dia).padStart(2, "0")}/${String(p.mes + 1).padStart(2, "0")}/${p.ano} — ${pctTxt}`;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="#f5f3ff" stroke="#c084fc" stroke-width="1.2"><title>${esc(tit)}</title></circle>
+          <text x="${x.toFixed(1)}" y="${yTxt.toFixed(1)}" text-anchor="middle" fill="#e9d5ff" font-size="8">${esc(pctTxt)}</text>`;
       })
       .join("");
-    const step = n > 20 ? 5 : n > 12 ? 2 : 1;
+    const girar = n > 8;
     const axis = pontos
       .map((p, i) => {
-        if (i % step !== 0 && i !== n - 1) return "";
-        return `<text x="${xAt(i).toFixed(1)}" y="${h - 3}" text-anchor="middle" fill="#bdbdbd" font-size="9">${p.dia}</text>`;
+        const x = xAt(i).toFixed(1);
+        const y = girar ? (h - padB + 11).toFixed(1) : (h - 4).toFixed(1);
+        const rot = girar ? ` transform="rotate(52 ${x} ${y})"` : "";
+        const anchor = girar ? "start" : "middle";
+        return `<text x="${x}" y="${y}" text-anchor="${anchor}" fill="#bdbdbd" font-size="8"${rot}>${esc(p.label)}</text>`;
       })
       .join("");
-    const titulo = `<text x="${w - padR}" y="12" text-anchor="end" fill="#e9d5ff" font-size="10">${esc(QUANT_MES_NOM[mes])} ${ano}</text>`;
-    return `<svg class="fin-quant-linha__svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Linha do aproveitamento da frota no mês">${titulo}${grid}${line}${marcas}${axis}</svg>`;
+    return `<svg class="fin-quant-linha__svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Aproveitamento da frota do primeiro mês até o mês atual">${grid}${line}${marcas}${axis}</svg>`;
   }
 
   function renderLinhaAproveitamento() {
@@ -973,10 +1013,10 @@
       const h = Math.round(host.clientHeight);
       if (w < 48 || h < 48) return;
       quantLinhaWh = `${w}x${h}`;
-      const pontos = serieAproveitamentoMes(quantCalMes);
+      const pontos = serieAproveitamentoPorMes();
       host.innerHTML = pontos.length
-        ? svgLinhaAproveitamento(pontos, w, h, quantCalDia)
-        : '<p class="fin-quant-linha__vazio">Sem dias neste mês.</p>';
+        ? svgLinhaAproveitamento(pontos, w, h)
+        : '<p class="fin-quant-linha__vazio">Sem meses na frota.</p>';
     };
     requestAnimationFrame(paint);
     if (host.dataset.linhaObs !== "1" && typeof ResizeObserver !== "undefined") {
