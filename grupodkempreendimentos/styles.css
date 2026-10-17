@@ -6900,6 +6900,80 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   margin: 0;
 }
 
+.fin-quant-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  height: 100%;
+  min-width: 0;
+}
+
+.fin-quant-aprov {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem 0.5rem;
+  align-items: stretch;
+}
+
+.fin-quant-aprov__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.fin-quant-aprov__colab {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.fin-quant-aprov__box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 3.15rem;
+  padding: 0.35rem 0.4rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  text-align: center;
+}
+
+.fin-quant-aprov__box span {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fin-quant-aprov__box strong {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.fin-quant-aprov__box--alug {
+  border-color: #fb923c;
+  color: #fdba74;
+}
+
+.fin-quant-aprov__box--parado {
+  border-color: #4ade80;
+  color: #86efac;
+}
+
+.fin-quant-aprov__box--pct {
+  border-color: #c084fc;
+  color: #e9d5ff;
+}
+
 .fin-quant-cal {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -7038,6 +7112,18 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 @media (max-width: 900px) {
   .fin-quant-topo {
     grid-template-columns: 1fr;
+  }
+
+  .fin-hbar--split .fin-hbar__row {
+    grid-template-columns: minmax(2.6rem, 4.2rem) minmax(0, 1fr);
+  }
+
+  .fin-hbar--split .fin-hbar__nums {
+    grid-column: 1 / -1;
+  }
+
+  .fin-hbar--split .fin-hbar__legend {
+    grid-column: 1 / -1;
   }
 }
 
@@ -7584,6 +7670,18 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   align-items: center;
 }
 
+.fin-hbar--split .fin-hbar__row {
+  grid-template-columns: minmax(3.2rem, 5.2rem) minmax(0, 1fr) minmax(13.5rem, 16.5rem);
+}
+
+.fin-hbar--split .fin-hbar__track {
+  height: 0.85rem;
+}
+
+.fin-hbar__row--head {
+  margin-bottom: 0.15rem;
+}
+
 .fin-hbar__lab {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7605,12 +7703,118 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   border-radius: 99px;
 }
 
+.fin-hbar__split {
+  display: flex;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.fin-hbar__split .fin-hbar__fill {
+  width: auto;
+  min-width: 3px;
+  flex-basis: 0;
+  flex-shrink: 1;
+  border-radius: 0;
+}
+
 .fin-hbar__fill--moto {
   background: #9ca3af;
 }
 
 .fin-hbar__fill--carro {
   background: #f97316;
+}
+
+.fin-hbar__fill--moto.fin-hbar__fill--alugado {
+  background: #e5e7eb;
+}
+
+.fin-hbar__fill--moto.fin-hbar__fill--parado {
+  background: #4b5563;
+}
+
+.fin-hbar__fill--carro.fin-hbar__fill--alugado {
+  background: #fb923c;
+}
+
+.fin-hbar__fill--carro.fin-hbar__fill--parado {
+  background: #9a3412;
+}
+
+.fin-hbar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  align-items: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.fin-hbar__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.fin-hbar__swatch {
+  display: inline-block;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 2px;
+}
+
+.fin-hbar__swatch--moto-alug {
+  background: #e5e7eb;
+}
+
+.fin-hbar__swatch--moto-parado {
+  background: #4b5563;
+}
+
+.fin-hbar__swatch--carro-alug {
+  background: #fb923c;
+}
+
+.fin-hbar__swatch--carro-parado {
+  background: #9a3412;
+}
+
+.fin-hbar__nums {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.15rem 0.3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.fin-hbar__nums--head {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.fin-hbar__num--alug {
+  color: #fdba74;
+}
+
+.fin-hbar__num--parado {
+  color: #86efac;
+}
+
+.fin-hbar__num--total {
+  color: #f5f5f5;
+  font-weight: 700;
+}
+
+.fin-hbar__num--pct {
+  color: #e9d5ff;
 }
 
 .fin-hbar__val {

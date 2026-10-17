@@ -628,8 +628,21 @@
     const formatVal =
       typeof opts.formatVal === "function" ? opts.formatVal : (n) => String(n);
     const money = Boolean(opts.money);
+    const split = Boolean(opts.split) && !money;
     const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
     const blocks = [];
+    if (split) {
+      blocks.push(`<div class="fin-hbar__row fin-hbar__row--head">
+          <span class="fin-hbar__lab"></span>
+          <span class="fin-hbar__legend">
+            <span class="fin-hbar__legend-item"><i class="fin-hbar__swatch fin-hbar__swatch--moto-alug"></i><i class="fin-hbar__swatch fin-hbar__swatch--carro-alug"></i> Alugado</span>
+            <span class="fin-hbar__legend-item"><i class="fin-hbar__swatch fin-hbar__swatch--moto-parado"></i><i class="fin-hbar__swatch fin-hbar__swatch--carro-parado"></i> Parado</span>
+          </span>
+          <span class="fin-hbar__nums fin-hbar__nums--head">
+            <span>Alug.</span><span>Parado</span><span>Total</span><span title="Percentual alugado deste modelo">% alug.</span>
+          </span>
+        </div>`);
+    }
     let lastCat = "";
     rows.forEach((r) => {
       const cat = r.categoria === "CARRO" ? "CARRO" : "MOTO";
@@ -639,15 +652,43 @@
           `<div class="fin-hbar__group" data-cat="${cat}">${cat === "MOTO" ? "Motos" : "Carros"}</div>`
         );
       }
-      const pct = Math.max(2, ((Number(r.value) || 0) / max) * 100);
+      const total = Number(r.value) || 0;
+      const pct = Math.max(total ? 2 : 0, (total / max) * 100);
       const fillClass = cat === "CARRO" ? "fin-hbar__fill--carro" : "fin-hbar__fill--moto";
-      blocks.push(`<div class="fin-hbar__row" data-cat="${cat}">
+      if (!split) {
+        blocks.push(`<div class="fin-hbar__row" data-cat="${cat}">
           <span class="fin-hbar__lab" title="${esc(r.label)}">${esc(r.label)}</span>
           <span class="fin-hbar__track"><span class="fin-hbar__fill ${fillClass}" style="width:${pct}%"></span></span>
           <span class="fin-hbar__val${money ? " fin-hbar__val--money" : ""}">${esc(formatVal(r.value))}</span>
         </div>`);
+        return;
+      }
+      const alug = Math.max(0, Number(r.alugado) || 0);
+      const parado = Math.max(0, Number.isFinite(Number(r.parado)) ? Number(r.parado) : total - alug);
+      const segs = [];
+      if (alug > 0) {
+        segs.push(`<span class="fin-hbar__fill ${fillClass} fin-hbar__fill--alugado" style="flex-grow:${alug}"></span>`);
+      }
+      if (parado > 0) {
+        segs.push(`<span class="fin-hbar__fill ${fillClass} fin-hbar__fill--parado" style="flex-grow:${parado}"></span>`);
+      }
+      const pctAlug = pctUmDecimal(alug, total);
+      const titulo = `${r.label}: ${alug} alugada${alug === 1 ? "" : "s"}, ${parado} parada${parado === 1 ? "" : "s"}, total ${total}, ${pctAlug} alugado deste modelo`;
+      blocks.push(`<div class="fin-hbar__row" data-cat="${cat}">
+          <span class="fin-hbar__lab" title="${esc(r.label)}">${esc(r.label)}</span>
+          <span class="fin-hbar__track" title="${esc(titulo)}"><span class="fin-hbar__split" style="width:${pct}%">${segs.join("")}</span></span>
+          <span class="fin-hbar__nums" title="${esc(titulo)}">
+            <span class="fin-hbar__num fin-hbar__num--alug">${alug}</span>
+            <span class="fin-hbar__num fin-hbar__num--parado">${parado}</span>
+            <span class="fin-hbar__num fin-hbar__num--total">${total}</span>
+            <span class="fin-hbar__num fin-hbar__num--pct">${esc(pctAlug)}</span>
+          </span>
+        </div>`);
     });
-    return `<div class="fin-hbar${money ? " fin-hbar--money" : ""}">${blocks.join("")}</div>`;
+    const cls = ["fin-hbar"];
+    if (money) cls.push("fin-hbar--money");
+    if (split) cls.push("fin-hbar--split");
+    return `<div class="${cls.join(" ")}">${blocks.join("")}</div>`;
   }
 
   /** Instante em que o operador salvou o cadastro (createdAt ou id no padrão Date.now()). */
@@ -709,19 +750,96 @@
     return map;
   }
 
-  function agregarQuantitativoPorTipo(lista) {
+  function placaNorm(raw) {
+    if (typeof getCorrectedPlate === "function") return getCorrectedPlate(raw);
+    if (typeof normalizePlate === "function") return normalizePlate(raw);
+    return nkPlate(raw);
+  }
+
+  function parseDataLoc(raw) {
+    return parseBrDate(raw) || parseDataCadastroTexto(raw);
+  }
+
+  /** Contrato cobre o dia da foto (início até a data fim, inclusive). */
+  function locacaoCobreDia(loc, dia) {
+    const st = nk(String(loc?.statusLocacao || loc?.status || ""));
+    if (st.includes("CANCEL")) return false;
+    const inicioDia = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate()).getTime();
+    const ini =
+      parseDataLoc(loc?.inicio || loc?.dataInicio) ||
+      dataDeInstanteSalvo(loc?.createdAt) ||
+      dataDeInstanteSalvo(loc?.id);
+    const fimRaw = String(loc?.fim || loc?.dataFim || "").trim();
+    const aberta = (!fimRaw || fimRaw === "...") && !st.includes("FINALIZ") && !st.includes("INATIV");
+    if (ini) {
+      const iniDia = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate()).getTime();
+      if (iniDia > inicioDia) return false;
+    }
+    if (aberta) return true;
+    const fim = parseDataLoc(fimRaw);
+    if (!fim) return false;
+    const fimDia = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()).getTime();
+    return fimDia >= inicioDia;
+  }
+
+  /**
+   * Placas alugadas na data da foto.
+   * No dia de hoje usa a mesma regra dos Locados (contrato sem data fim).
+   * Em data passada, o contrato que cobria aquele dia.
+   */
+  function placasAlugadasNoDia(dia) {
+    const alvo = dia instanceof Date && !Number.isNaN(dia.getTime()) ? dia : new Date();
+    const hoje = new Date();
+    const mesmoDia =
+      alvo.getFullYear() === hoje.getFullYear() &&
+      alvo.getMonth() === hoje.getMonth() &&
+      alvo.getDate() === hoje.getDate();
+    if (mesmoDia && typeof getActivePlatesSet === "function") {
+      const set = getActivePlatesSet();
+      if (set && typeof set.forEach === "function") {
+        const out = new Set();
+        set.forEach((p) => {
+          const k = placaNorm(p);
+          if (k) out.add(k);
+        });
+        return out;
+      }
+    }
+    const out = new Set();
+    locacoesCadastro().forEach((loc) => {
+      if (typeof window.__DK_isLocacaoFantasmaCadastro === "function" && window.__DK_isLocacaoFantasmaCadastro(loc)) {
+        return;
+      }
+      if (!locacaoCobreDia(loc, alvo)) return;
+      const p = placaNorm(loc?.placa);
+      if (p) out.add(p);
+    });
+    return out;
+  }
+
+  function pctUmDecimal(parte, total) {
+    const t = Number(total) || 0;
+    if (t <= 0) return "—";
+    return `${((Number(parte) || 0) / t * 100).toFixed(1)}%`;
+  }
+
+  function agregarQuantitativoPorTipo(lista, placasAlugadas) {
     const byTipo = new Map();
+    const alugSet = placasAlugadas instanceof Set ? placasAlugadas : null;
     const src = Array.isArray(lista) ? lista : veiculosCadastro();
     src.forEach((v) => {
       const label = tipoPlanilhaDeVeiculo(v);
       const categoria = categoriaFrotaVeiculo(v);
       const valor = valorAquisicaoVeiculo(v);
+      const placa = placaNorm(v?.placa);
+      const alugado = alugSet && placa && alugSet.has(placa) ? 1 : 0;
       const prev = byTipo.get(label);
       if (!prev) {
-        byTipo.set(label, { label, categoria, qtd: 1, valor });
+        byTipo.set(label, { label, categoria, qtd: 1, alugado, valor });
         return;
       }
       prev.qtd += 1;
+      prev.alugado += alugado;
       prev.valor += valor;
       /* Se houver divergência, CARRO vence só se a maioria for carro — mantém 1.ª categoria. */
     });
@@ -743,15 +861,24 @@
   function tabelaQuantitativo(rows, valueKey, valueHeader, total, formatCell) {
     if (!rows.length) return "";
     const fmt = typeof formatCell === "function" ? formatCell : (n) => String(n);
+    const comOcupacao = valueKey !== "valor" && rows.some((r) => r.alugado != null);
     const body = rows
       .map((r) => {
         const v = Number(r[valueKey]) || 0;
         const pct = total ? ((v / total) * 100).toFixed(1) : "0";
         const cat = r.categoria === "CARRO" ? "Carro" : "Moto";
-        return `<tr data-cat="${esc(r.categoria)}"><td>${esc(r.label)}</td><td>${esc(cat)}</td><td>${esc(fmt(v))}</td><td>${pct}%</td></tr>`;
+        if (!comOcupacao) {
+          return `<tr data-cat="${esc(r.categoria)}"><td>${esc(r.label)}</td><td>${esc(cat)}</td><td>${esc(fmt(v))}</td><td>${pct}%</td></tr>`;
+        }
+        const alug = Number(r.alugado) || 0;
+        const parado = Number.isFinite(Number(r.parado)) ? Number(r.parado) : Math.max(0, v - alug);
+        return `<tr data-cat="${esc(r.categoria)}"><td>${esc(r.label)}</td><td>${esc(cat)}</td><td>${alug}</td><td>${parado}</td><td>${esc(fmt(v))}</td><td>${esc(pctUmDecimal(alug, v))}</td><td>${pct}%</td></tr>`;
       })
       .join("");
-    return `<table class="fin-table"><thead><tr><th>TIPO</th><th>Categoria</th><th>${esc(valueHeader)}</th><th>%</th></tr></thead><tbody>${body}</tbody></table>`;
+    const head = comOcupacao
+      ? `<th>TIPO</th><th>Categoria</th><th>Alugado</th><th>Parado</th><th>${esc(valueHeader)}</th><th>% alugado</th><th>% da frota</th>`
+      : `<th>TIPO</th><th>Categoria</th><th>${esc(valueHeader)}</th><th>%</th>`;
+    return `<table class="fin-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   }
 
   const QUANT_MES_NOM = [
@@ -989,10 +1116,13 @@
     const frota = veiculosAteDia(dia);
     const novosMap = mapaNovosEquipamentosPorDia();
     const novosNoDia = novosMap.get(ymd(dia)) || [];
-    const agg = agregarQuantitativoPorTipo(frota);
+    const placasAlugadas = placasAlugadasNoDia(dia);
+    const agg = agregarQuantitativoPorTipo(frota, placasAlugadas);
     const rowsQtd = ordenarTiposMotoDepoisCarro(agg, "qtd").map((r) => ({
       label: r.label,
       value: r.qtd,
+      alugado: r.alugado,
+      parado: Math.max(0, r.qtd - (Number(r.alugado) || 0)),
       categoria: r.categoria,
     }));
     const rowsVal = ordenarTiposMotoDepoisCarro(agg, "valor").map((r) => ({
@@ -1004,6 +1134,12 @@
     const totalVal = rowsVal.reduce((s, r) => s + (Number(r.value) || 0), 0);
     const nMotos = agg.filter((r) => r.categoria === "MOTO").reduce((s, r) => s + r.qtd, 0);
     const nCarros = agg.filter((r) => r.categoria === "CARRO").reduce((s, r) => s + r.qtd, 0);
+    const alugMotos = agg.filter((r) => r.categoria === "MOTO").reduce((s, r) => s + (Number(r.alugado) || 0), 0);
+    const alugCarros = agg.filter((r) => r.categoria === "CARRO").reduce((s, r) => s + (Number(r.alugado) || 0), 0);
+    const alugTotal = alugMotos + alugCarros;
+    const paradoTotal = Math.max(0, totalQtd - alugTotal);
+    const paradoMotos = Math.max(0, nMotos - alugMotos);
+    const paradoCarros = Math.max(0, nCarros - alugCarros);
     const kpis = document.getElementById("finQuantitativoKpis");
     if (kpis) {
       kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Veículos</span><strong>${totalQtd}</strong></div>
@@ -1012,13 +1148,28 @@
         <div class="fin-kpi"><span class="fin-kpi__lab">TIPOS</span><strong>${agg.length}</strong></div>
         <div class="fin-kpi"><span class="fin-kpi__lab">Aquisição</span><strong>${esc(brl(totalVal))}</strong></div>`;
     }
+    const aprov = document.getElementById("finQuantitativoAproveitamento");
+    if (aprov) {
+      const caixa = (mod, lab, valor) =>
+        `<div class="fin-quant-aprov__box fin-quant-aprov__box--${mod}"><span>${esc(lab)}</span><strong>${esc(String(valor))}</strong></div>`;
+      const coluna = (titulo, alug, parado, tot) => `<div class="fin-quant-aprov__col">
+          <span class="fin-quant-aprov__colab">${esc(titulo)}</span>
+          ${caixa("alug", "Alugado", alug)}
+          ${caixa("parado", "Parado", parado)}
+          ${caixa("pct", "Aproveitamento", pctUmDecimal(alug, tot))}
+        </div>`;
+      aprov.innerHTML =
+        coluna("Veículos", alugTotal, paradoTotal, totalQtd) +
+        coluna("Motos", alugMotos, paradoMotos, nMotos) +
+        coluna("Carros", alugCarros, paradoCarros, nCarros);
+    }
     renderQuantCalendario();
     bindQuantRelAquisicoes();
     renderQuantFotoDia(dia, novosNoDia, frota);
     const chart = document.getElementById("finQuantitativoChart");
     if (chart) {
       chart.innerHTML = rowsQtd.length
-        ? svgHBar(rowsQtd)
+        ? svgHBar(rowsQtd, { split: true })
         : '<p class="subtext">Nenhum veículo no cadastro até esta data.</p>';
     }
     const tab = document.getElementById("finQuantitativoTabela");
