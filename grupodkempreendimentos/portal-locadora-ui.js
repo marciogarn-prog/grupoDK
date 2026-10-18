@@ -18698,6 +18698,29 @@
     };
   }
 
+  function portalRelClienteVidaDataEncerramentoMs(br) {
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const d = parseD(String(br || "").trim());
+    return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+  }
+
+  /** Ativos no topo. Inativos abaixo, do encerramento mais recente para o mais antigo. */
+  function sortPortalRelClienteVidaSections(sections) {
+    const ativos = [];
+    const inativos = [];
+    for (const sec of sections || []) {
+      if (sec?.status === "ativo") ativos.push(sec);
+      else inativos.push(sec);
+    }
+    inativos.sort((a, b) => {
+      const ta = portalRelClienteVidaDataEncerramentoMs(a.fim);
+      const tb = portalRelClienteVidaDataEncerramentoMs(b.fim);
+      if (ta !== tb) return tb - ta;
+      return String(b.proto || "").localeCompare(String(a.proto || ""), "pt-BR");
+    });
+    return ativos.concat(inativos);
+  }
+
   function collectPortalRelClienteVida(cpfDigitsRaw) {
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
@@ -18722,7 +18745,7 @@
     };
     if (cpf.length !== 11) return empty;
     const locs = sortPortalLocacoesPorProtocoloAsc(collectPortalLocacoesComProtocoloByCpf(cpf));
-    const sections = locs.map((loc) => {
+    const sections = sortPortalRelClienteVidaSections(locs.map((loc) => {
       const proto = normPortalNumeroContrato(loc.numeroContrato || "") || "—";
       if (!nome) nome = String(loc.nome || loc.cliente || "").trim();
       const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
@@ -18747,7 +18770,7 @@
         pagamentos,
         resumo: computePortalRelClienteVidaResumoNum(loc),
       };
-    });
+    }));
     return {
       ok: true,
       cpf,
