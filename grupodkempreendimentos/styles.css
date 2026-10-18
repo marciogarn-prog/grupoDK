@@ -162,6 +162,9 @@ body.portal-body--admin-ceo {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1.25rem;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .brand__logo {

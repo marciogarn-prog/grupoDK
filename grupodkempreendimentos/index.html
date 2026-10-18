@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261018siteb">
+  <link rel="stylesheet" href="styles.css?v=20261018logo">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -91,7 +91,7 @@
   </div>
   <div id="view-site" class="view view--site view--active" role="region" aria-label="Site do Grupo DK" aria-hidden="false">
     <header class="site-publico__topo">
-      <a class="site-publico__marca" href="#view-site">
+      <a class="site-publico__marca" href="/" data-site-go="site" aria-label="Tela inicial">
         <img src="/images/dk-locadora-logo.png" alt="" width="120" height="48" decoding="async">
         <span>
           <strong>Grupo DK</strong>
@@ -169,13 +169,13 @@
 
   <div id="view-home" class="view" role="region" aria-label="Início" aria-hidden="true">
     <header class="site-header">
-      <div class="brand">
+      <a class="brand" href="/" data-site-go="site" aria-label="Tela inicial">
         <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="DK Locadora" width="140" height="56" decoding="async">
         <div class="brand__text">
           <span class="brand__title">Grupo DK</span>
           <span class="brand__subtitle">Empreendimentos</span>
         </div>
-      </div>
+      </a>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
       <button type="button" class="home-site-link" data-site-go="site">Site da empresa</button>
     </header>
