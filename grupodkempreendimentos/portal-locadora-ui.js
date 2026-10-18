@@ -21192,7 +21192,7 @@
     }
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
     const max = 40;
-    const ordenadas = sortPortalPesquisaLinhasAtivoPrimeiro(linhas);
+    const ordenadas = sortPortalPesquisaLinhasAtivoPrimeiro(portalExpandirLinhasPesquisaComContratos(linhas));
     const slice = ordenadas.slice(0, max);
     const item = tituloItem || "cadastro";
     const countLbl =
@@ -25870,9 +25870,79 @@
    * Cor da fonte nas pesquisas do sistema.
    * Azul = contrato ativo. Vermelho = contrato inativo. Branco = cadastro sem protocolo.
    */
+  function portalLinhasContratoCadastroPorCpf(cpfRaw, nomeFallback, codigoFallback) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfRaw || "")).slice(0, 11);
+    if (cpf.length !== 11) return [];
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const out = [];
+    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+      if (!l || isGhost(l)) return;
+      if (dig(String(l.cpf || "")).slice(0, 11) !== cpf) return;
+      const proto = normPortalNumeroContrato(l.numeroContrato || "");
+      if (!proto) return;
+      const cancelada = typeof isPortalLocacaoCancelada === "function" && isPortalLocacaoCancelada(l);
+      out.push({
+        cpf,
+        nome: String(l.nome || l.cliente || nomeFallback || "").trim() || nomeFallback || "(sem nome)",
+        proto,
+        placa: np(String(l.placa || "")),
+        ativo: !cancelada && isPortalLocacaoAtiva(l),
+        fimBr: typeof portalFormatDataFinalizacaoLocacao === "function" ? portalFormatDataFinalizacaoLocacao(l) : "",
+        codigo: String(codigoFallback || "").trim(),
+      });
+    });
+    return out;
+  }
+
+  function portalExpandirLinhasPesquisaComContratos(linhas) {
+    const out = [];
+    const vistos = new Set();
+    for (const row of linhas || []) {
+      if (row && String(row.proto || "").trim()) {
+        const k = `${row.cpf}|${row.proto}`;
+        if (!vistos.has(k)) {
+          vistos.add(k);
+          out.push(row);
+        }
+        continue;
+      }
+      const contratos = row?.cpf
+        ? portalLinhasContratoCadastroPorCpf(row.cpf, row.nome, row.codigo)
+        : [];
+      if (!contratos.length) {
+        out.push(row);
+        continue;
+      }
+      for (const c of contratos) {
+        const k = `${c.cpf}|${c.proto}`;
+        if (vistos.has(k)) continue;
+        vistos.add(k);
+        out.push(c);
+      }
+    }
+    return out;
+  }
+
   function portalCorFontePesquisaClasse(row) {
     if (row && row.ativo) return "portal-lanc-pesquisa-linha--azul";
     if (row && String(row.proto || "").trim()) return "portal-lanc-pesquisa-linha--vermelho";
+    if (row?.cpf) {
+      const contratos = portalLinhasContratoCadastroPorCpf(row.cpf, row.nome, row.codigo);
+      if (contratos.some((c) => c.ativo)) return "portal-lanc-pesquisa-linha--azul";
+      if (contratos.length) return "portal-lanc-pesquisa-linha--vermelho";
+    }
     return "portal-lanc-pesquisa-linha--branco";
   }
 
@@ -25991,9 +26061,7 @@
       window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         ? window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         : null;
-    const nuvemOk = window.__DK_IS_DEMO_DEPLOY__ === true || window.__DK_locacoesNuvemOk === true;
     const confirmados = window.__DK_locacoesNuvemProtocolos;
-    if (!nuvemOk) return [];
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       const proto = normPortalNumeroContrato(l.numeroContrato || "");
       if (!proto) return;
@@ -28781,6 +28849,11 @@
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
     try {
       invalidatePesquisaLinhasCache();
+    } catch {
+      /* ignore */
+    }
+    try {
+      tentarAtualizarPortalRelClienteVidaAoBuscar();
     } catch {
       /* ignore */
     }
