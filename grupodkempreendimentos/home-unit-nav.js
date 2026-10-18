@@ -46,6 +46,36 @@
     return true;
   }
 
+  function mostrarView(id) {
+    const target = document.getElementById(id);
+    if (!target) return false;
+    document.querySelectorAll(".view").forEach((v) => {
+      const on = v === target;
+      v.classList.toggle("view--active", on);
+      v.setAttribute("aria-hidden", on ? "false" : "true");
+    });
+    try {
+      history.replaceState(null, "", `${location.pathname}${location.search}`);
+    } catch {
+      /* ignore */
+    }
+    window.scrollTo(0, 0);
+    return true;
+  }
+
+  document.addEventListener("click", (e) => {
+    const siteBtn = e.target && e.target.closest ? e.target.closest("[data-site-go]") : null;
+    if (!siteBtn) return;
+    const destino = siteBtn.getAttribute("data-site-go") || "";
+    if (destino === "sistema") {
+      e.preventDefault();
+      mostrarView("view-home");
+    } else if (destino === "site") {
+      e.preventDefault();
+      mostrarView("view-site");
+    }
+  });
+
   document.addEventListener("click", (e) => {
     const btn = e.target && e.target.closest ? e.target.closest("#view-home [data-go]") : null;
     if (!btn || btn.disabled || btn.hidden || btn.classList.contains("hidden")) return;

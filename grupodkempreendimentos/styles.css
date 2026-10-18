@@ -15792,3 +15792,242 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     grid-template-columns: 1fr;
   }
 }
+
+/* Site público — primeira tela, antes das unidades e da instalação. */
+#view-site.view {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #f6f3ee;
+  color: #1c1917;
+  min-height: 100vh;
+}
+
+.site-publico__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem clamp(1rem, 4vw, 3rem);
+  background: #111;
+  color: #f5f5f5;
+}
+
+.site-publico__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-publico__marca strong,
+.site-publico__marca small {
+  display: block;
+  line-height: 1.15;
+}
+
+.site-publico__marca small {
+  color: #a3a3a3;
+  font-size: 0.78rem;
+}
+
+.site-publico__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.site-publico__nav a {
+  color: #f5f5f5;
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.site-publico__entrar,
+.site-publico__cta,
+.home-site-link {
+  font: inherit;
+  cursor: pointer;
+}
+
+.site-publico__entrar {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+}
+
+.site-publico__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem) clamp(1rem, 4vw, 3rem);
+  align-items: center;
+}
+
+.site-publico__kicker {
+  margin: 0 0 0.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
+.site-publico__hero h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3.1rem);
+  line-height: 1.12;
+  max-width: 16ch;
+}
+
+.site-publico__lead {
+  max-width: 38rem;
+  color: #44403c;
+  font-size: 1.05rem;
+}
+
+.site-publico__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.site-publico__cta {
+  border: 0;
+  background: #111;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.7rem 1.1rem;
+  text-decoration: none;
+}
+
+.site-publico__cta--linha {
+  background: transparent;
+  color: #111;
+  border: 1px solid #111;
+}
+
+.site-publico__painel {
+  background: #111;
+  color: #f5f5f5;
+  border-radius: 18px;
+  padding: 1.2rem 1.3rem 1.4rem;
+}
+
+.site-publico__painel p {
+  margin: 0 0 0.8rem;
+  color: #fca5a5;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.site-publico__painel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-publico__painel li {
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.site-publico__painel strong,
+.site-publico__painel span {
+  display: block;
+}
+
+.site-publico__painel span {
+  color: #d6d3d1;
+  font-size: 0.92rem;
+}
+
+.site-publico__faixa {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  background: #7f1d1d;
+  color: #fff;
+  text-align: center;
+  font-size: 0.92rem;
+}
+
+.site-publico__frentes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 4vw, 3rem);
+}
+
+.site-publico__frentes article {
+  background: #fff;
+  border: 1px solid #e7e5e4;
+  border-radius: 16px;
+  padding: 1.1rem 1.15rem 1.25rem;
+}
+
+.site-publico__frentes h2,
+.site-publico__passo h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.25rem;
+}
+
+.site-publico__frentes ol,
+.site-publico__passo ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #44403c;
+}
+
+.site-publico__passo {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  margin: 0 clamp(1rem, 4vw, 3rem) 2rem;
+  padding: 1.3rem;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e7e5e4;
+}
+
+.site-publico__passo-cta {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.8rem;
+}
+
+.site-publico__rodape {
+  padding: 1rem clamp(1rem, 4vw, 3rem) 1.5rem;
+  color: #57534e;
+}
+
+.home-site-link {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #f5f5f5;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 800px) {
+  .site-publico__hero,
+  .site-publico__frentes,
+  .site-publico__passo {
+    grid-template-columns: 1fr;
+  }
+
+  .site-publico__topo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

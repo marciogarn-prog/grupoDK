@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261017quantlinha">
+  <link rel="stylesheet" href="styles.css?v=20261018siteb">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -89,7 +89,85 @@
     </div>
     <button type="button" id="portalAndroidNavSair" class="portal-android-nav__sair">Sair</button>
   </div>
-  <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
+  <div id="view-site" class="view view--site view--active" role="region" aria-label="Site do Grupo DK" aria-hidden="false">
+    <header class="site-publico__topo">
+      <a class="site-publico__marca" href="#view-site">
+        <img src="/images/dk-locadora-logo.png" alt="" width="120" height="48" decoding="async">
+        <span>
+          <strong>Grupo DK</strong>
+          <small>Empreendimentos</small>
+        </span>
+      </a>
+      <nav class="site-publico__nav" aria-label="Site">
+        <a href="#site-locacao">Locação</a>
+        <a href="#site-oficina">Oficina</a>
+        <a href="#site-obras">Obras</a>
+        <button type="button" class="site-publico__entrar" data-site-go="sistema">Entrar no sistema</button>
+      </nav>
+    </header>
+
+    <section class="site-publico__hero">
+      <div class="site-publico__hero-texto">
+        <p class="site-publico__kicker">Petrolina · Pernambuco</p>
+        <h1>Veículo para o trabalho, oficina na mesma casa, obra no mesmo grupo.</h1>
+        <p class="site-publico__lead">A DK Locadora coloca moto ou carro na rua com plano semanal. Quem precisa de serviço leva o veículo ao Centro Automotivo. A Construtora segue as obras do grupo.</p>
+        <div class="site-publico__acoes">
+          <button type="button" class="site-publico__cta" data-site-go="sistema">Acessar as unidades</button>
+          <a class="site-publico__cta site-publico__cta--linha" href="#site-frentes">Ver o que cada frente faz</a>
+        </div>
+      </div>
+      <aside class="site-publico__painel" aria-label="Frentes do grupo">
+        <p>Base em Petrolina</p>
+        <ul>
+          <li><strong>Locadora</strong><span>Motos e carros em plano semanal</span></li>
+          <li><strong>Centro Automotivo</strong><span>Oficina da frota e de clientes</span></li>
+          <li><strong>Construtora</strong><span>Obras e empreendimentos</span></li>
+        </ul>
+      </aside>
+    </section>
+
+    <p class="site-publico__faixa">Plano semanal · Retirada na base · Oficina do grupo · Obras em Petrolina</p>
+
+    <section class="site-publico__frentes" id="site-frentes">
+      <article id="site-locacao">
+        <h2>Locação</h2>
+        <ol>
+          <li>Escolha moto ou carro e o valor da semana.</li>
+          <li>Retire o veículo na base, em Petrolina.</li>
+          <li>A manutenção combinada fica com a oficina do grupo.</li>
+        </ol>
+      </article>
+      <article id="site-oficina">
+        <h2>Oficina</h2>
+        <p>O Centro Automotivo atende a frota da locadora e também o veículo de quem chega de fora. O serviço fica registrado no mesmo grupo.</p>
+      </article>
+      <article id="site-obras">
+        <h2>Obras</h2>
+        <p>A Construtora cuida dos empreendimentos do Grupo DK. É outra frente, no mesmo endereço de decisão.</p>
+      </article>
+    </section>
+
+    <section class="site-publico__passo">
+      <div>
+        <h2>Para retirar um veículo</h2>
+        <ul>
+          <li>Documento com foto</li>
+          <li>Telefone de contato</li>
+          <li>Escolha do plano feita na base</li>
+        </ul>
+      </div>
+      <div class="site-publico__passo-cta">
+        <p>O sistema interno, com as unidades e a instalação dos aplicativos, abre na próxima tela.</p>
+        <button type="button" class="site-publico__cta" data-site-go="sistema">Entrar no sistema</button>
+      </div>
+    </section>
+
+    <footer class="site-publico__rodape">
+      <p>Petrolina — PE · Grupo DK Empreendimentos</p>
+    </footer>
+  </div>
+
+  <div id="view-home" class="view" role="region" aria-label="Início" aria-hidden="true">
     <header class="site-header">
       <div class="brand">
         <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="DK Locadora" width="140" height="56" decoding="async">
@@ -99,6 +177,7 @@
         </div>
       </div>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
+      <button type="button" class="home-site-link" data-site-go="site">Site da empresa</button>
     </header>
 
     <main class="grid-choices" id="main-choices" aria-label="Unidades de negócio">
@@ -5846,7 +5925,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
-  <script src="home-unit-nav.js?v=20260903home-loc" defer></script>
+  <script src="home-unit-nav.js?v=20261018site" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
@@ -5862,7 +5941,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20261007salvar" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261016cadveiculo" defer></script>
+  <script src="portal-locadora-ui.js?v=20261018site" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>

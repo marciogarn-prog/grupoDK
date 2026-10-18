@@ -5,6 +5,7 @@
  */
 (function portalLocadoraUi() {
   const viewHome = document.getElementById("view-home");
+  const viewSite = document.getElementById("view-site");
   const viewUnit = document.getElementById("view-unit");
   const viewLocadoraHub = document.getElementById("view-locadora-hub");
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
@@ -2309,6 +2310,7 @@
   }
 
   const portalViews = [
+    viewSite,
     viewHome,
     viewUnit,
     viewLocadoraHub,
@@ -2324,6 +2326,7 @@
 
   function showView(which) {
     const map = {
+      site: viewSite,
       home: viewHome,
       unit: viewUnit,
       hub: viewLocadoraHub,
