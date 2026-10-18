@@ -2581,6 +2581,14 @@
               <span>Data de ingresso</span>
               <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
             </label>
+            <label class="portal-field">
+              <span>Empresa</span>
+              <select id="portalColabEmpresa" aria-label="Empresa do colaborador">
+                <option value="locadora">DK Locadora</option>
+                <option value="centro">DK Centro Automotivo</option>
+                <option value="construtora">DK Construtora</option>
+              </select>
+            </label>
             <div class="portal-field portal-field--stack portal-colab-acessos" role="group" aria-labelledby="portal-colab-acessos-legend">
               <span id="portal-colab-acessos-legend" class="portal-field__label">Operações permitidas</span>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceCliente" checked> Cadastro de cliente</label>
@@ -2690,6 +2698,14 @@
             <label class="portal-field">
               <span>Senha inicial</span>
               <input type="password" id="portalAdminSenha" maxlength="32" autocomplete="new-password" placeholder="Senha de acesso" aria-label="Senha inicial">
+            </label>
+            <label class="portal-field">
+              <span>Empresa</span>
+              <select id="portalAdminEmpresa" aria-label="Empresa do administrador">
+                <option value="locadora">DK Locadora</option>
+                <option value="centro">DK Centro Automotivo</option>
+                <option value="construtora">DK Construtora</option>
+              </select>
             </label>
             <div class="operacao-inline-form__actions">
               <button type="submit" id="portalAdminBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar administrador</button>
@@ -5901,8 +5917,8 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
-  <script src="dk-portal-api-auth.js?v=20260925login3b"></script>
-  <script src="app.js?v=20261014teto0427" defer></script>
+  <script src="dk-portal-api-auth.js?v=20261018empresa"></script>
+  <script src="app.js?v=20261018empresa" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -5913,7 +5929,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20261007salvar" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261018logindireto" defer></script>
+  <script src="portal-locadora-ui.js?v=20261018empresa" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>

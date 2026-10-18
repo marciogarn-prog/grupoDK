@@ -635,6 +635,9 @@ function publicFuncionario(f) {
     acessos: f.acessos && typeof f.acessos === "object" ? f.acessos : undefined,
     horarioAcesso: f.horarioAcesso || undefined,
     adminNivel: f.adminNivel || undefined,
+    empresa: ["centro", "construtora", "locadora"].includes(String(f.empresa || "").trim())
+      ? String(f.empresa).trim()
+      : "locadora",
   };
 }
 

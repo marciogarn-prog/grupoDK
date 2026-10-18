@@ -1763,6 +1763,9 @@ function hydrateFuncionariosAccess() {
       mustChangePassword: Boolean(f?.mustChangePassword),
       funcao: String(f?.funcao || "").trim(),
       dataIngresso: String(f?.dataIngresso || "").trim(),
+      empresa: ["centro", "construtora", "locadora"].includes(String(f?.empresa || "").trim())
+        ? String(f.empresa).trim()
+        : "locadora",
       acessos: normalizeOperacaoAccess(
         f?.acessos || null,
         String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
@@ -15092,6 +15095,7 @@ if (funcionarioCadastroForm) {
       blocked: false,
       mustChangePassword: role === "operacao",
       acessos,
+      empresa: "locadora",
     });
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);

@@ -2134,11 +2134,40 @@
     return false;
   }
 
+  function portalEmpresaDoFuncionario(funcionario) {
+    const raw = String(funcionario?.empresa || "").trim().toLowerCase();
+    if (raw === "centro" || raw === "construtora" || raw === "locadora") return raw;
+    return "locadora";
+  }
+
+  function portalEmpresaLabel(code) {
+    if (code === "centro") return "DK Centro Automotivo";
+    if (code === "construtora") return "DK Construtora";
+    return "DK Locadora";
+  }
+
+  function portalLerEmpresaSelecionada(selectId) {
+    return portalEmpresaDoFuncionario({ empresa: document.getElementById(selectId)?.value || "" });
+  }
+
   function portalEntrarDiretoNaArea(funcionario) {
     const ua = String(navigator.userAgent || "");
     const celular = /Android|iPhone|iPad|Mobile/i.test(ua);
     const plat = celular && portalFuncionarioEhCeo(funcionario) ? "android" : "windows";
+    const empresa = portalEmpresaDoFuncionario(funcionario);
+    currentUnit = empresa;
+    if (loginUnit) loginUnit.value = empresa;
     portalFecharLoginNoSite();
+    if (plat === "android" && !portalFuncionarioEhCeo(funcionario)) {
+      showView("unit");
+      finalizarLoginEquipaPortal(funcionario, plat);
+      return;
+    }
+    if (empresa === "centro" || empresa === "construtora") {
+      finalizarLoginEquipaPortal(funcionario, plat);
+      openUnidadeEmpresa(empresa);
+      return;
+    }
     showView("unit");
     finalizarLoginEquipaPortal(funcionario, plat);
   }
@@ -2209,6 +2238,7 @@
         cpf: funcionario.cpf,
         nome: funcionario.nome,
         role: funcionario.role,
+        empresa: portalEmpresaDoFuncionario(funcionario),
         plataforma: plat,
         loginAt: Date.now(),
       })
@@ -2968,6 +2998,11 @@
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
     }
+    const funcInicio = portalObterFuncionarioDaSessaoRestauracao();
+    if (funcInicio && (funcInicio.role === "owner" || funcInicio.role === "operacao")) {
+      portalEntrarDiretoNaArea(funcInicio);
+      return;
+    }
     const scope = portalAppScope();
     if (scope === "locadora") {
       openLocadoraHub();
@@ -3378,9 +3413,15 @@
           cpf,
           nome: String(s.nome || "").trim() || "Administrador",
           role: "owner",
+          empresa: portalEmpresaDoFuncionario(s),
         };
       }
-      return { cpf, nome: String(s.nome || "").trim(), role: role || "operacao" };
+      return {
+        cpf,
+        nome: String(s.nome || "").trim(),
+        role: role || "operacao",
+        empresa: portalEmpresaDoFuncionario(s),
+      };
     } catch {
       return null;
     }
@@ -4033,9 +4074,19 @@
     }
     if (loginFeedback) loginFeedback.classList.remove("portal-feedback--error");
     const fd = new FormData(formLogin);
-    const cpf = onlyDigits(String(fd.get("cpf") || ""));
-    const senha = String(fd.get("senha") || "").trim();
+    const cpfEl = document.getElementById("login-cpf");
+    const senhaEl = document.getElementById("login-senha");
+    const cpf = onlyDigits(String(cpfEl?.value || fd.get("cpf") || ""));
+    const senha = String(senhaEl?.value || fd.get("senha") || "").trim();
     const role = String(loginRole?.value || "").trim() || "auto";
+    if (cpf.length !== 11 || !senha) {
+      if (loginFeedback) {
+        loginFeedback.textContent =
+          cpf.length !== 11 ? "Informe o CPF com 11 dígitos." : "Informe a senha.";
+        loginFeedback.classList.add("portal-feedback--error");
+      }
+      return;
+    }
     if (loginFeedback) loginFeedback.textContent = "";
 
     if (role === "cliente") {
@@ -10890,6 +10941,8 @@
     if (nome) nome.value = "";
     if (funcao) funcao.value = "";
     if (ingresso) ingresso.value = "";
+    const empresaSel = document.getElementById("portalColabEmpresa");
+    if (empresaSel) empresaSel.value = "locadora";
     const c1 = document.getElementById("portalColabAceCliente");
     const c2 = document.getElementById("portalColabAceVeiculo");
     const c3 = document.getElementById("portalColabAceLocacao");
@@ -11022,9 +11075,10 @@
         const bloqueado = f.blocked
           ? '<span class="portal-colab-lista__badge portal-colab-lista__badge--bloqueado">Bloqueado</span>'
           : "";
+        const empresaTxt = portalEscapeHtml(portalEmpresaLabel(portalEmpresaDoFuncionario(f)));
         const sub = funcao
-          ? `${funcao} · ${cpfFmt} · ${nPerm} permissão(ões)`
-          : `${cpfFmt} · ${nPerm} permissão(ões)`;
+          ? `${funcao} · ${empresaTxt} · ${cpfFmt} · ${nPerm} permissão(ões)`
+          : `${empresaTxt} · ${cpfFmt} · ${nPerm} permissão(ões)`;
         return `<li class="portal-colab-lista__item${sel}">
           <button type="button" class="portal-colab-lista__btn" data-colab-cpf="${portalEscapeHtml(dig)}" aria-pressed="${dig === portalColabListaCpfAtivo ? "true" : "false"}">
             <span class="portal-colab-lista__nome">${nome}</span>
@@ -11052,6 +11106,8 @@
     const ingresso = document.getElementById("portalColabIngresso");
     if (nome) nome.value = String(f.nome || "").trim();
     if (funcao) funcao.value = String(f.funcao || "").trim();
+    const empresaSel = document.getElementById("portalColabEmpresa");
+    if (empresaSel) empresaSel.value = portalEmpresaDoFuncionario(f);
     if (ingresso) {
       const raw = String(f.dataIngresso || "").trim();
       const di = onlyDigits(raw).slice(0, 8);
@@ -11208,6 +11264,7 @@
       dataIngresso,
       acessos,
       horarioAcesso,
+      empresa: portalLerEmpresaSelecionada("portalColabEmpresa"),
       ...portalResolveResponsavelStamp(null),
     });
     saveFuncionariosAccess();
@@ -11242,6 +11299,7 @@
     const nome = String(document.getElementById("portalColabNome")?.value || "").trim();
     const funcao = String(document.getElementById("portalColabFuncao")?.value || "").trim();
     const dataIngresso = String(document.getElementById("portalColabIngresso")?.value || "").trim();
+    const empresa = portalLerEmpresaSelecionada("portalColabEmpresa");
     if (cpfNovo.length !== 11) {
       if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
       return;
@@ -11276,6 +11334,7 @@
       nome: portalNormDiffVal(f.nome),
       funcao: portalNormDiffVal(f.funcao),
       dataIngresso: portalNormDiffVal(f.dataIngresso),
+      empresa: portalEmpresaLabel(portalEmpresaDoFuncionario(f)),
       cliente: portalNormDiffVal(f.acessos?.cliente ? "sim" : "não"),
       veiculo: portalNormDiffVal(f.acessos?.veiculo ? "sim" : "não"),
       locacao: portalNormDiffVal(f.acessos?.locacao ? "sim" : "não"),
@@ -11289,6 +11348,7 @@
       nome,
       funcao,
       dataIngresso,
+      empresa: portalEmpresaLabel(empresa),
       cliente: acessos.cliente ? "sim" : "não",
       veiculo: acessos.veiculo ? "sim" : "não",
       locacao: acessos.locacao ? "sim" : "não",
@@ -11302,6 +11362,7 @@
       nome: "Nome",
       funcao: "Função",
       dataIngresso: "Data ingresso",
+      empresa: "Empresa",
       cliente: "Cadastro cliente",
       veiculo: "Cadastro veículo",
       locacao: "Cadastro locação",
@@ -11315,6 +11376,7 @@
       f.nome = nome;
       f.funcao = funcao;
       f.dataIngresso = dataIngresso;
+      f.empresa = empresa;
       f.acessos = acessos;
       if (horarioAcesso) f.horarioAcesso = horarioAcesso;
       saveFuncionariosAccess();
@@ -30258,6 +30320,7 @@
       role: "owner",
       blocked: false,
       adminNivel: 2,
+      empresa: portalLerEmpresaSelecionada("portalAdminEmpresa"),
     });
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();

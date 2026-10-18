@@ -160,7 +160,15 @@
           (res.status === 429 && reason === "rate_limited") ||
           res.status >= 500);
       let msg = String(data.message || "").trim() || "Não foi possível autenticar no servidor.";
-      if (reason === "invalid_credentials" || reason === "password_locked") {
+      if (reason === "cpf_senha") {
+        msg = "Informe CPF e senha.";
+      } else if (reason === "blocked") {
+        msg = "Acesso bloqueado.";
+      } else if (reason === "not_admin") {
+        msg = "Este CPF não tem perfil de administrador.";
+      } else if (reason === "use_admin") {
+        msg = "Este CPF é administrador. O acesso abre pelo cadastro.";
+      } else if (reason === "invalid_credentials" || reason === "password_locked") {
         msg =
           String(data.message || "").trim() ||
           (reason === "password_locked"
