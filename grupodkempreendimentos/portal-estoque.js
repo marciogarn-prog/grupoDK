@@ -2054,7 +2054,11 @@
       panel.innerHTML = items
         .map((v) => {
           const sub = [v.veiculo, v.extra].filter(Boolean).join(" · ");
-          return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${escapeHtml(
+          const cor =
+            typeof window.__DK_corFontePesquisaPorPlaca === "function"
+              ? window.__DK_corFontePesquisaPorPlaca(v.placa)
+              : "portal-lanc-pesquisa-linha--branco";
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-placa="${escapeHtml(
             v.placa
           )}" data-veiculo="${escapeHtml(v.veiculo)}"><span class="portal-placa-dropdown__plate">${escapeHtml(
             v.placa

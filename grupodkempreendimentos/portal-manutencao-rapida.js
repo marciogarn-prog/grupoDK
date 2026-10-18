@@ -389,7 +389,11 @@
       .map((r) => {
         const placa = esc(r.placa || r);
         const extra = r.nome || r.modelo ? ` · ${esc(r.nome || r.modelo)}` : "";
-        return `<button type="button" class="portal-placa-dropdown__opt" role="option" data-placa="${placa}">${placa}${extra}</button>`;
+        const cor =
+          typeof window.__DK_corFontePesquisaPorPlaca === "function"
+            ? window.__DK_corFontePesquisaPorPlaca(r.placa || r)
+            : "portal-lanc-pesquisa-linha--branco";
+        return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" data-placa="${placa}">${placa}${extra}</button>`;
       })
       .join("");
     panel.classList.remove("hidden");
@@ -420,7 +424,11 @@
     panel.innerHTML = rows
       .map((r) => {
         const extra = r.extra ? ` · ${esc(r.extra)}` : "";
-        return `<button type="button" class="portal-placa-dropdown__opt" role="option" data-placa="${esc(r.placa)}">${esc(r.placa)}${extra}</button>`;
+        const cor =
+          typeof window.__DK_corFontePesquisaPorPlaca === "function"
+            ? window.__DK_corFontePesquisaPorPlaca(r.placa)
+            : "portal-lanc-pesquisa-linha--branco";
+        return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" data-placa="${esc(r.placa)}">${esc(r.placa)}${extra}</button>`;
       })
       .join("");
     panel.classList.remove("hidden");

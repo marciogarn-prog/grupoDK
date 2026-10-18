@@ -2604,6 +2604,42 @@ body.portal-body--admin-ceo {
   color: #f8fafc;
 }
 
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul .portal-placa-dropdown__model {
+  color: #5eb8ff;
+}
+
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho .portal-placa-dropdown__model {
+  color: #ff6b6b;
+}
+
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco .portal-placa-dropdown__model {
+  color: #f8fafc;
+}
+
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--azul .portal-placa-dropdown__model {
+  color: #1565c0;
+}
+
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--vermelho .portal-placa-dropdown__model {
+  color: #c62828;
+}
+
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-lanc-pesquisa-linha--branco .portal-placa-dropdown__model {
+  color: #111;
+}
+
 .portal-lanc-pesquisa-linha__fim {
   font-weight: 800;
   white-space: nowrap;

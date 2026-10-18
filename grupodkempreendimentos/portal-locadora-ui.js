@@ -12710,7 +12710,7 @@
       panel.innerHTML = items
         .map(
           (v) =>
-            `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${v.placa}">
+            `<button type="button" class="portal-placa-dropdown__opt ${portalEscapeHtml(portalCorFontePesquisaPorPlaca(v.placa))}" role="option" tabindex="-1" data-placa="${v.placa}">
               <span class="portal-placa-dropdown__plate">${v.placa}</span>
               <span class="portal-placa-dropdown__model">${portalEscapeHtml(v.modelo)}</span>
             </button>`
@@ -13088,7 +13088,7 @@
       panel.innerHTML = items
         .map((v) => {
           const extra = [v.tag, v.marca].filter(Boolean).join(" · ");
-          return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${v.placa}">
+          return `<button type="button" class="portal-placa-dropdown__opt ${portalEscapeHtml(portalCorFontePesquisaPorPlaca(v.placa))}" role="option" tabindex="-1" data-placa="${v.placa}">
               <span class="portal-placa-dropdown__plate">${v.placa}</span>
               <span class="portal-placa-dropdown__model">${portalEscapeHtml(v.modelo)}${extra ? ` · ${portalEscapeHtml(extra)}` : ""}</span>
             </button>`;
@@ -19010,28 +19010,17 @@
     const qDig = dig(query);
     const qNome = portalNomeChaveBusca(query);
     if (qDig.length < 3 && qNome.length < 2) return [];
-    const cands = typeof getLancamentoClienteCandidates === "function" ? getLancamentoClienteCandidates() : [];
-    const seen = new Set();
-    const rows = [];
-    for (const c of cands || []) {
-      const cpf = dig(String(c.cpf || "")).slice(0, 11);
-      if (cpf.length !== 11 || seen.has(cpf)) continue;
-      const nome = String(c.nome || "").trim();
-      if (qDig.length >= 3 && !cpf.includes(qDig) && !portalNomeChaveBusca(nome).includes(qNome)) continue;
-      if (qDig.length < 3 && qNome && !portalNomeChaveBusca(nome).includes(qNome)) continue;
-      seen.add(cpf);
-      rows.push({
-        cpf,
-        nome: nome || "—",
-        proto: "",
-        placa: "",
-        codigo: "",
-        ativo: true,
-        corClasse: "portal-lanc-pesquisa-linha--branco",
-      });
-    }
-    rows.sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
-    return rows;
+    const base =
+      typeof collectOperacaoLocacaoSugestoesLinhas === "function" ? collectOperacaoLocacaoSugestoesLinhas() : [];
+    return base.filter((row) => {
+      const cpf = String(row?.cpf || "");
+      const nome = portalNomeChaveBusca(row?.nome);
+      const bateCpf = qDig.length >= 3 && cpf.includes(qDig);
+      const bateNome = qNome.length >= 2 && nome.includes(qNome);
+      if (qDig.length >= 3 && qNome.length >= 2) return bateCpf || bateNome;
+      if (qDig.length >= 3) return bateCpf;
+      return bateNome;
+    });
   }
 
   function tentarAtualizarPortalRelClienteVidaAoBuscar() {
@@ -20660,10 +20649,7 @@
       : []
     ).filter((r) => r.cpf === cpf);
     if (linhas.length) return portalLancAluguelCpfCorClasseFromLinhas(linhas);
-    if (typeof portalAdminPreviewCpfCorClasse === "function") {
-      return portalAdminPreviewCpfCorClasse(null, cpf);
-    }
-    return "portal-admin-cpf-opt--inativo";
+    return "portal-lanc-pesquisa-linha--branco";
   }
 
   function renderOperacaoLocacaoCpfLista(candidatos, opts = {}) {
@@ -21218,7 +21204,7 @@
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const protoLbl = row.proto ? ` · ${portalEscapeHtml(row.proto)}` : "";
         const codLbl = row.codigo ? ` · cód. ${portalEscapeHtml(row.codigo)}` : "";
-        const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
+        const corCls = portalEscapeHtml(portalCorFontePesquisaClasse(row));
         const status = row.proto ? (row.ativo ? "ativo" : "inativo") : "cadastro";
         const fimLbl =
           row.proto && !row.ativo && row.fimBr
@@ -25880,6 +25866,37 @@
     return "";
   }
 
+  /**
+   * Cor da fonte nas pesquisas do sistema.
+   * Azul = contrato ativo. Vermelho = contrato inativo. Branco = cadastro sem protocolo.
+   */
+  function portalCorFontePesquisaClasse(row) {
+    if (row && row.ativo) return "portal-lanc-pesquisa-linha--azul";
+    if (row && String(row.proto || "").trim()) return "portal-lanc-pesquisa-linha--vermelho";
+    return "portal-lanc-pesquisa-linha--branco";
+  }
+
+  function portalCorFontePesquisaPorPlaca(placaRaw) {
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(placaRaw || ""))
+        : String(placaRaw || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!np) return "portal-lanc-pesquisa-linha--branco";
+    const linhas = (
+      typeof collectOperacaoLancAluguelPesquisaLinhas === "function"
+        ? collectOperacaoLancAluguelPesquisaLinhas()
+        : []
+    ).filter((r) => String(r.placa || "") === np);
+    if (linhas.some((r) => r.ativo)) return "portal-lanc-pesquisa-linha--azul";
+    if (linhas.length) return "portal-lanc-pesquisa-linha--vermelho";
+    return "portal-lanc-pesquisa-linha--branco";
+  }
+
+  window.__DK_corFontePesquisaClasse = portalCorFontePesquisaClasse;
+  window.__DK_corFontePesquisaPorPlaca = portalCorFontePesquisaPorPlaca;
+
   /** Cor na lista de pesquisa — versão leve (sem recalcular totais do protocolo). */
   function getPortalLancPesquisaLinhaCorClasseFast(loc, vehicleMap) {
     if (!loc) return "portal-lanc-pesquisa-linha--branco";
@@ -26061,7 +26078,7 @@
     panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === ordenadas.length ? slice.length : `${slice.length} de ${ordenadas.length}`} contrato(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
       .map((row) => {
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
-        const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
+        const corCls = portalEscapeHtml(portalCorFontePesquisaClasse(row));
         const status = row.ativo ? "ativo" : "inativo";
         const fimLbl =
           !row.ativo && row.fimBr
@@ -26081,21 +26098,10 @@
 
   /** Cor da fonte na lista CPF (lançamento): prioriza contrato ativo carro > minha moto > meu transporte. */
   function portalLancAluguelCpfCorClasseFromLinhas(rows) {
-    if (!rows?.length) return "portal-admin-cpf-opt--inativo";
-    const ativas = rows.filter((r) => r.ativo);
-    const pool = ativas.length ? ativas : rows;
-    const rank = (cls) => {
-      if (cls === "portal-lanc-pesquisa-linha--amarelo") return 3;
-      if (cls === "portal-lanc-pesquisa-linha--azul") return 2;
-      if (cls === "portal-lanc-pesquisa-linha--verde") return 1;
-      return 0;
-    };
-    let best = pool[0];
-    for (const r of pool) {
-      if (rank(r.corClasse) > rank(best.corClasse)) best = r;
-    }
-    if (!best.ativo) return "portal-admin-cpf-opt--inativo";
-    return portalLancPesquisaLinhaCorParaCpfOpt(best.corClasse);
+    return portalCorFontePesquisaClasse({
+      ativo: Boolean(rows?.some((r) => r.ativo)),
+      proto: rows?.some((r) => String(r.proto || "").trim()) ? "1" : "",
+    });
   }
 
   function hideOperacaoLancAluguelCpfLista() {
@@ -26178,9 +26184,7 @@
       panel.innerHTML = entries
         .map(([proto, meta]) => {
           const cor = portalEscapeHtml(
-            meta.ativo === false
-              ? "portal-admin-cpf-opt--inativo"
-              : portalLancPesquisaLinhaCorParaCpfOpt(meta.corClasse || "")
+            portalCorFontePesquisaClasse({ ativo: Boolean(meta.ativo), proto })
           );
           const sub = `${fmt(meta.cpf)} · ${meta.nome || "Cliente"}${meta.placa ? ` · ${meta.placa}` : ""}`;
           return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-proto="${portalEscapeHtml(proto)}" data-cpf="${portalEscapeHtml(meta.cpf || "")}" data-nome="${portalEscapeHtml(meta.nome || "")}" data-placa="${portalEscapeHtml(meta.placa || "")}">

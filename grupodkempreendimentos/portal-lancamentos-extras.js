@@ -968,7 +968,11 @@
         const placaLbl = row.placa ? ` · ${escHtml(row.placa)}` : "";
         const status = row.ativo ? "ativo" : "inativo";
         const fimLbl = !row.ativo && row.fimBr ? ` · ${escHtml(row.fimBr)}` : "";
-        const corCls = escHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
+        const corCls = escHtml(
+          typeof window.__DK_corFontePesquisaClasse === "function"
+            ? window.__DK_corFontePesquisaClasse(row)
+            : row.corClasse || "portal-lanc-pesquisa-linha--branco"
+        );
         return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-lanc-pesquisa-key="${cfg.key}" data-cpf="${escHtml(row.cpf)}" data-nome="${escHtml(row.nome)}" data-proto="${escHtml(row.proto)}" data-placa="${escHtml(row.placa || "")}">${escHtml(row.nome)} · ${escHtml(fmt(row.cpf))} · ${escHtml(row.proto)}${placaLbl} · <strong>${status}</strong>${fimLbl}</button></li>`;
       })
       .join("")}</ul>`;
@@ -1009,10 +1013,16 @@
   }
 
   function cpfCorClasseFromLinhas(rows) {
+    if (typeof window.__DK_corFontePesquisaClasse === "function") {
+      return window.__DK_corFontePesquisaClasse({
+        ativo: Boolean(rows?.some((r) => r.ativo)),
+        proto: rows?.some((r) => String(r.proto || "").trim()) ? "1" : "",
+      });
+    }
     if (typeof window.__DK_portalLancAluguelCpfCorClasseFromLinhas === "function") {
       return window.__DK_portalLancAluguelCpfCorClasseFromLinhas(rows);
     }
-    if (!rows?.length) return "portal-admin-cpf-opt--inativo";
+    if (!rows?.length) return "portal-lanc-pesquisa-linha--branco";
     const ativas = rows.filter((r) => r.ativo);
     const pool = ativas.length ? ativas : rows;
     const rank = (cls) => {
@@ -1033,7 +1043,10 @@
   }
 
   function protoCorClasse(row) {
-    if (!row || row.ativo === false) return "portal-admin-cpf-opt--inativo";
+    if (typeof window.__DK_corFontePesquisaClasse === "function") {
+      return window.__DK_corFontePesquisaClasse(row);
+    }
+    if (!row || row.ativo === false) return "portal-lanc-pesquisa-linha--vermelho";
     if (row.corClasse === "portal-lanc-pesquisa-linha--azul") return "portal-admin-cpf-opt--minha-moto";
     if (row.corClasse === "portal-lanc-pesquisa-linha--verde") return "portal-admin-cpf-opt--meu-transporte";
     if (row.corClasse === "portal-lanc-pesquisa-linha--amarelo") return "portal-admin-cpf-opt--carro";
