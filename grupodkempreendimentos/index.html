@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261018prop2">
+  <link rel="stylesheet" href="styles.css?v=20261018planos">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -124,6 +124,24 @@
           <button type="button" id="site-login-fechar">Cancelar</button>
         </div>
       </form>
+    </section>
+
+    <section id="sitePlanos" class="site-planos" hidden aria-labelledby="sitePlanosTitulo">
+      <div class="site-planos__intro">
+        <p class="site-planos__olho">Planos</p>
+        <h1 id="sitePlanosTitulo">Oito espaços para os planos da DK</h1>
+        <p>Cada cartão fica vazio até receber o texto, o valor e o botão.</p>
+      </div>
+      <div class="site-planos__grade">
+        <article class="site-plano" data-plano-espaco="1" aria-label="Espaço 1, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="2" aria-label="Espaço 2, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="3" aria-label="Espaço 3, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="4" aria-label="Espaço 4, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="5" aria-label="Espaço 5, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="6" aria-label="Espaço 6, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="7" aria-label="Espaço 7, ainda sem conteúdo"></article>
+        <article class="site-plano" data-plano-espaco="8" aria-label="Espaço 8, ainda sem conteúdo"></article>
+      </div>
     </section>
 
     <section class="site-publico__hero">
@@ -5922,7 +5940,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
-  <script src="home-unit-nav.js?v=20261018login" defer></script>
+  <script src="home-unit-nav.js?v=20261018planos" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>

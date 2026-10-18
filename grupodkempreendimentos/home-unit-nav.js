@@ -63,15 +63,47 @@
     return true;
   }
 
+  function siteMostrarPlanos(aberto) {
+    const painel = document.getElementById("sitePlanos");
+    const hero = document.querySelector("#view-site .site-publico__hero");
+    if (!painel) return;
+    painel.hidden = !aberto;
+    if (hero) hero.hidden = aberto;
+    document.querySelectorAll("[data-site-detalhe='planos']").forEach((btn) => {
+      btn.classList.toggle("site-publico__nav-atual", aberto);
+      if (aberto) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
+    if (aberto) {
+      try {
+        history.replaceState(null, "", `${location.pathname}${location.search}#planos`);
+      } catch {
+        /* ignore */
+      }
+      window.scrollTo(0, 0);
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const detalheBtn = e.target && e.target.closest ? e.target.closest("[data-site-detalhe]") : null;
+    if (!detalheBtn) return;
+    if ((detalheBtn.getAttribute("data-site-detalhe") || "") !== "planos") return;
+    e.preventDefault();
+    mostrarView("view-site");
+    siteMostrarPlanos(true);
+  });
+
   document.addEventListener("click", (e) => {
     const siteBtn = e.target && e.target.closest ? e.target.closest("[data-site-go]") : null;
     if (!siteBtn) return;
     const destino = siteBtn.getAttribute("data-site-go") || "";
     if (destino === "sistema") {
       e.preventDefault();
+      siteMostrarPlanos(false);
       mostrarView("view-home");
     } else if (destino === "site") {
       e.preventDefault();
+      siteMostrarPlanos(false);
       mostrarView("view-site");
     } else if (destino === "cliente") {
       e.preventDefault();
@@ -92,4 +124,9 @@
   });
 
   window.__DK_homeOpenUnit = openFromGo;
+
+  if ((location.hash || "").toLowerCase() === "#planos") {
+    mostrarView("view-site");
+    siteMostrarPlanos(true);
+  }
 })();
