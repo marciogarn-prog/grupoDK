@@ -16015,17 +16015,17 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   box-sizing: border-box;
 }
 
-/* Caixa azul do print: a arte ocupa exatamente esse retângulo, sem corte nem estique. */
+/* Mesma altura do espaço marcado. A largura segue a arte, sem faixa branca dos lados. */
 .site-publico__propaganda {
   position: absolute;
   z-index: 2;
-  left: 0.2%;
+  left: 0.35%;
   top: 32.7%;
-  width: 21.6%;
   height: 62.5%;
-  object-fit: contain;
-  object-position: center;
-  background: #fff;
+  width: auto;
+  aspect-ratio: 576 / 1024;
+  object-fit: fill;
+  background: transparent;
 }
 
 .site-publico__plano {
@@ -16101,9 +16101,11 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     left: auto;
     top: auto;
     display: block;
-    width: min(92%, 28rem);
+    width: min(92%, 22rem);
     height: auto;
     margin: 11rem 4% 1rem;
     aspect-ratio: 576 / 1024;
+    object-fit: fill;
+    background: transparent;
   }
 }
