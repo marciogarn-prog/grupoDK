@@ -11554,13 +11554,14 @@
     btnEstoque?.classList.add("hidden");
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
-    if (currentUnit === "locadora") {
-      openLocadoraEmpresa();
-      return;
-    }
-    panelLogin?.classList.remove("hidden");
-    portalSyncAuthAutofillState();
+    portalFecharLoginNoSite();
+    showView("site");
     setPortalHash("");
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      /* ignore */
+    }
   });
 
   function portalEscapeHtml(s) {
