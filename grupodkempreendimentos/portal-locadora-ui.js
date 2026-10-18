@@ -2134,6 +2134,15 @@
     return false;
   }
 
+  function portalEntrarDiretoNaArea(funcionario) {
+    const ua = String(navigator.userAgent || "");
+    const celular = /Android|iPhone|iPad|Mobile/i.test(ua);
+    const plat = celular && portalFuncionarioEhCeo(funcionario) ? "android" : "windows";
+    portalFecharLoginNoSite();
+    showView("unit");
+    finalizarLoginEquipaPortal(funcionario, plat);
+  }
+
   function portalMostrarEscolhaPlataforma(funcionario) {
     portalLoginPendentePlataforma = funcionario;
     portalFecharLoginNoSite();
@@ -4112,7 +4121,7 @@
             if (sf) sf.textContent = "";
             return;
           }
-          portalMostrarEscolhaPlataforma(funcionario);
+          portalEntrarDiretoNaArea(funcionario);
           return;
         }
       }
@@ -4147,7 +4156,7 @@
         if (sf) sf.textContent = "";
         return;
       }
-      portalMostrarEscolhaPlataforma(funcionario);
+      portalEntrarDiretoNaArea(funcionario);
       return;
     }
   });
