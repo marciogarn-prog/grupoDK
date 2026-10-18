@@ -73,6 +73,12 @@
     } else if (destino === "site") {
       e.preventDefault();
       mostrarView("view-site");
+    } else if (destino === "cliente") {
+      e.preventDefault();
+      if (typeof window.__DK_siteAbrirCliente === "function") window.__DK_siteAbrirCliente();
+    } else if (destino === "login") {
+      e.preventDefault();
+      if (typeof window.__DK_siteAbrirLogin === "function") window.__DK_siteAbrirLogin();
     }
   });
 

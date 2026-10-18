@@ -2136,6 +2136,8 @@
 
   function portalMostrarEscolhaPlataforma(funcionario) {
     portalLoginPendentePlataforma = funcionario;
+    portalFecharLoginNoSite();
+    showView("unit");
     hideAllPanels();
     panelPlataforma?.classList.remove("hidden");
     const quem = document.getElementById("plataforma-quem");
@@ -2165,6 +2167,8 @@
       return;
     }
     portalLoginPendentePlataforma = null;
+    portalFecharLoginNoSite();
+    showView("unit");
     finalizarLoginEquipaPortal(funcionario, plat);
     portalPersistirAreaAtiva("equipa");
   }
@@ -2504,29 +2508,37 @@
     if (portalUnitBackBtn) portalUnitBackBtn.textContent = "← Voltar";
   }
 
+  function portalFecharLoginNoSite() {
+    const panel = document.getElementById("siteLoginEquipa");
+    if (!panel) return;
+    panel.classList.add("hidden");
+    panel.setAttribute("hidden", "");
+  }
+
+  function portalAbrirLoginNoSite() {
+    showView("site");
+    setPortalHash("");
+    const panel = document.getElementById("siteLoginEquipa");
+    const fb = document.getElementById("site-login-feedback");
+    if (fb) fb.textContent = "";
+    panel?.classList.remove("hidden");
+    panel?.removeAttribute("hidden");
+    document.getElementById("site-login-cpf")?.focus();
+  }
+
   function openLocadoraHub() {
     if (!portalAppScopeAllowsUnit("locadora")) {
       portalBootAppScopeHome();
       return;
     }
     currentUnit = "locadora";
-    portalAtualizarBannerHubLabel();
-    portalColaboradorSenhaPendente = null;
-    portalResetSessaoSeNaoAdmin();
-    if (!isPortalAdministradorLogado()) {
-      resetPortalLoginFormularioETipoAcesso();
-      hideAllPanels();
-      btnOperacao?.classList.add("hidden");
-      btnManutencao?.classList.add("hidden");
-      btnLocalizacao?.classList.add("hidden");
-      btnDocumentos?.classList.add("hidden");
-      btnFinanceiro?.classList.add("hidden");
-      btnFinanceiroCeo?.classList.add("hidden");
-      btnEstoque?.classList.add("hidden");
+    if (portalObterFuncionarioDaSessaoRestauracao()) {
+      openLocadoraEmpresa();
+      return;
     }
-    showView("hub");
-    setPortalHash("locadora");
-    portalAtualizarBannerAdmin();
+    portalFecharLoginNoSite();
+    showView("site");
+    setPortalHash("");
   }
 
   function openLocadoraClienteArea() {
@@ -2550,26 +2562,19 @@
     if (loginUnit) loginUnit.value = "locadora";
     if (unitTitle) unitTitle.textContent = "DK Locadora — Área da empresa";
     setPortalRolePickerLocadoraEmpresa();
-    showView("unit");
-    setPortalHash("locadora/empresa");
 
     const funcAdmin = portalObterFuncionarioDaSessaoRestauracao();
     if (funcAdmin) {
+      showView("unit");
+      setPortalHash("locadora/empresa");
       clearPortalUnitDadosAtualizados();
       resetPortalLoginFormularioETipoAcesso();
+      portalFecharLoginNoSite();
       finalizarLoginEquipaPortal(funcAdmin);
       return;
     }
 
-    portalResetSessaoSeNaoAdmin();
-    portalLimparPlataformaUi();
-    portalLoginPendentePlataforma = null;
-    if (unitLead) unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
-    clearPortalUnitDadosAtualizados();
-    resetPortalLoginFormularioETipoAcesso();
-    hideAllPanels();
-    if (panelLogin) panelLogin.classList.add("hidden");
-    portalAtualizarBannerAdmin();
+    portalAbrirLoginNoSite();
   }
 
   function portalPodeAcessarFinanceiro() {
@@ -3829,13 +3834,18 @@
           "CPF ou senha inválidos. Se o cadastro foi feito noutro computador, aguarde alguns segundos e tente de novo (ou Ctrl+F5).",
       };
     }
-    if (role === "administrador") {
-      if (funcionario.role !== "owner") {
+    const papelCadastro = String(funcionario.role || "").trim();
+    if (role === "auto" || !role) {
+      if (papelCadastro !== "owner" && papelCadastro !== "operacao") {
+        return { ok: false, msg: "Este CPF não está cadastrado como funcionário." };
+      }
+    } else if (role === "administrador") {
+      if (papelCadastro !== "owner") {
         return { ok: false, msg: "Este CPF não tem perfil de administrador." };
       }
-    } else if (funcionario.role === "owner") {
+    } else if (papelCadastro === "owner") {
       return { ok: false, msg: "Administrador: use a opção Administrador acima." };
-    } else if (funcionario.role !== "operacao") {
+    } else if (papelCadastro !== "operacao") {
       return { ok: false, msg: "Perfil sem permissão de colaborador." };
     }
     if (funcionario.blocked) {
@@ -3972,13 +3982,18 @@
         msg: fail.message,
       };
     }
-    if (role === "administrador") {
-      if (funcionario.role !== "owner") {
+    const papelCadastro = String(funcionario.role || "").trim();
+    if (role === "auto" || !role) {
+      if (papelCadastro !== "owner" && papelCadastro !== "operacao") {
+        return { ok: false, msg: "Este CPF não está cadastrado como funcionário." };
+      }
+    } else if (role === "administrador") {
+      if (papelCadastro !== "owner") {
         return { ok: false, msg: "Este CPF não tem perfil de administrador." };
       }
-    } else if (funcionario.role === "owner") {
+    } else if (papelCadastro === "owner") {
       return { ok: false, msg: "Administrador: use a opção Administrador acima." };
-    } else if (funcionario.role !== "operacao") {
+    } else if (papelCadastro !== "operacao") {
       return { ok: false, msg: "Perfil sem permissão de colaborador." };
     }
     if (funcionario.blocked) {
@@ -4011,13 +4026,8 @@
     const fd = new FormData(formLogin);
     const cpf = onlyDigits(String(fd.get("cpf") || ""));
     const senha = String(fd.get("senha") || "").trim();
-    const role = String(loginRole?.value || "").trim();
+    const role = String(loginRole?.value || "").trim() || "auto";
     if (loginFeedback) loginFeedback.textContent = "";
-
-    if (!role) {
-      loginFeedback.textContent = "Selecione Colaborador ou Administrador acima.";
-      return;
-    }
 
     if (role === "cliente") {
       loginFeedback.textContent =
@@ -4025,7 +4035,7 @@
       return;
     }
 
-    if (role === "colaborador" || role === "administrador") {
+    if (role === "colaborador" || role === "administrador" || role === "auto") {
       const bloqueioLocal = portalLoginBloqueadoMsg(cpf);
       if (bloqueioLocal) {
         if (loginFeedback) {
@@ -4089,6 +4099,8 @@
           const funcionario = authRemote.funcionario;
           if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
             portalColaboradorSenhaPendente = funcionario;
+            portalFecharLoginNoSite();
+            showView("unit");
             hideAllPanels();
             panelSenha?.classList.remove("hidden");
             portalSyncAuthAutofillState();
@@ -4122,6 +4134,8 @@
       }
       if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
         portalColaboradorSenhaPendente = funcionario;
+        portalFecharLoginNoSite();
+        showView("unit");
         hideAllPanels();
         panelSenha?.classList.remove("hidden");
         portalSyncAuthAutofillState();
@@ -4147,9 +4161,46 @@
   document.getElementById("btn-plataforma-voltar-login")?.addEventListener("click", () => {
     portalLoginPendentePlataforma = null;
     hideAllPanels();
-    panelLogin?.classList.remove("hidden");
-    portalSyncAuthAutofillState();
+    portalAbrirLoginNoSite();
   });
+
+  if (loginFeedback) {
+    const siteFb = document.getElementById("site-login-feedback");
+    if (siteFb) {
+      const copiarFeedbackSite = () => {
+        const aberto = document.getElementById("siteLoginEquipa");
+        if (!aberto || aberto.classList.contains("hidden")) return;
+        siteFb.textContent = loginFeedback.textContent;
+        siteFb.className = loginFeedback.className;
+      };
+      new MutationObserver(copiarFeedbackSite).observe(loginFeedback, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
+  }
+
+  document.getElementById("form-site-login")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cpfIn = document.getElementById("login-cpf");
+    const senhaIn = document.getElementById("login-senha");
+    if (cpfIn) cpfIn.value = document.getElementById("site-login-cpf")?.value || "";
+    if (senhaIn) senhaIn.value = document.getElementById("site-login-senha")?.value || "";
+    if (loginRole) loginRole.value = "";
+    if (loginUnit) loginUnit.value = "locadora";
+    currentUnit = "locadora";
+    if (formLogin && typeof formLogin.requestSubmit === "function") formLogin.requestSubmit();
+  });
+
+  document.getElementById("site-login-fechar")?.addEventListener("click", () => {
+    portalFecharLoginNoSite();
+  });
+
+  window.__DK_siteAbrirCliente = () => openLocadoraClienteArea();
+  window.__DK_siteAbrirLogin = () => portalAbrirLoginNoSite();
 
   document.getElementById("portalAndroidNavVoltar")?.addEventListener("click", () => {
     portalAndroidVoltar();

@@ -1549,61 +1549,25 @@ async function runSuite() {
       });
     }
 
-    async function ensureLocadoraHubVisible() {
-      await page.goto(`${BASE_URL}#locadora`, { waitUntil: "networkidle", timeout: 90000 });
-      for (let attempt = 0; attempt < 3; attempt++) {
-        let state = await readLocadoraHubState();
-        if (state.hubActive && state.hasCliente && state.hasEmpresa) return true;
-        await page
-          .evaluate(() => {
-            location.hash = "locadora";
-            window.dispatchEvent(new HashChangeEvent("hashchange"));
-          })
-          .catch(() => null);
-        await page
-          .waitForFunction(
-            () => {
-              const hub = document.getElementById("view-locadora-hub");
-              return Boolean(
-                hub?.classList.contains("view--active") &&
-                  hub.querySelector("[data-locadora-go='cliente']") &&
-                  hub.querySelector("[data-locadora-go='empresa']")
-              );
-            },
-            { timeout: 15000 }
-          )
-          .catch(() => null);
-        await page.waitForTimeout(500);
-        state = await readLocadoraHubState();
-        if (state.hubActive && state.hasCliente && state.hasEmpresa) return true;
-        const homeBtn = page.locator('#view-home [data-go="locadora"]').first();
-        if (await homeBtn.isVisible().catch(() => false)) {
-          await homeBtn.click().catch(() => null);
-    await page.waitForTimeout(800);
-        }
-      }
-      const finalState = await readLocadoraHubState();
-      return finalState.hubActive && finalState.hasCliente && finalState.hasEmpresa;
-    }
-    await ensureLocadoraHubVisible();
-    await page.waitForTimeout(300);
-
-    const hubState = await readLocadoraHubState();
-    record(
-      "hub DK Locadora (cliente + empresa)",
-      hubState.hubActive && hubState.hasCliente && hubState.hasEmpresa,
-      `hubActive=${hubState.hubActive}`
-    );
-
-    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa']").first();
-    if (hubState.hasEmpresa) {
-      await hubEmpresa.click().catch(() => null);
-      await page.waitForTimeout(500);
-    }
-
-    const colab = page.locator(".role-picker__btn:has-text('Colaborador'), text=Colaborador").first();
-    if (await colab.isVisible().catch(() => false)) await colab.click();
+    await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 90000 });
     await page.waitForTimeout(400);
+    const entradaSite = await page.evaluate(() => {
+      const site = document.getElementById("view-site");
+      const cliente = document.querySelector("[data-site-go='cliente']");
+      const login = document.querySelector("[data-site-go='login']");
+      const hub = document.getElementById("view-locadora-hub");
+      return {
+        site: Boolean(site?.classList.contains("view--active")),
+        cliente: Boolean(cliente),
+        login: Boolean(login),
+        hubOff: !hub?.classList.contains("view--active"),
+      };
+    });
+    record(
+      "entrada do site: já sou cliente e entrar no sistema",
+      entradaSite.site && entradaSite.cliente && entradaSite.login && entradaSite.hubOff,
+      `site=${entradaSite.site} hubOff=${entradaSite.hubOff}`
+    );
 
     const cpfLogin = page.locator("#login-cpf");
     if (await cpfLogin.isVisible().catch(() => false)) {

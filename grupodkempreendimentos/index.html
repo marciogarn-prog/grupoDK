@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261018minhamoto">
+  <link rel="stylesheet" href="styles.css?v=20261018login">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -99,12 +99,33 @@
         </span>
       </a>
       <nav class="site-publico__nav" aria-label="Site">
+        <button type="button" class="site-publico__cliente" data-site-go="cliente">Já sou cliente</button>
         <button type="button" data-site-detalhe="planos">Planos</button>
         <button type="button" data-site-detalhe="motos">Motos</button>
         <button type="button" data-site-detalhe="como-funciona">Como funciona?</button>
         <button type="button" class="site-publico__alugar" data-site-detalhe="alugar">Alugar agora</button>
       </nav>
     </header>
+
+    <section id="siteLoginEquipa" class="site-publico__login hidden" hidden aria-label="Login do funcionário">
+      <form id="form-site-login" class="site-publico__login-card" novalidate>
+        <h2>Entrar no sistema</h2>
+        <p>CPF e senha do funcionário cadastrado. O acesso abre conforme o cadastro.</p>
+        <label>
+          <span>CPF</span>
+          <input type="text" id="site-login-cpf" inputmode="numeric" autocomplete="username" maxlength="14" required placeholder="000.000.000-00">
+        </label>
+        <label>
+          <span>Senha</span>
+          <input type="password" id="site-login-senha" autocomplete="current-password" required placeholder="Senha">
+        </label>
+        <p id="site-login-feedback" class="portal-feedback" role="status"></p>
+        <div class="site-publico__login-acoes">
+          <button type="submit" class="site-publico__alugar">Entrar</button>
+          <button type="button" id="site-login-fechar">Cancelar</button>
+        </div>
+      </form>
+    </section>
 
     <section class="site-publico__hero">
       <p class="site-publico__plano">DK Minha Moto</p>
@@ -114,7 +135,7 @@
 
     <footer class="site-publico__rodape">
       <p>Petrolina — PE · Grupo DK Empreendimentos</p>
-      <button type="button" class="site-publico__sistema" data-site-go="sistema">Entrar no sistema</button>
+      <button type="button" class="site-publico__sistema" data-site-go="login">Entrar no sistema</button>
     </footer>
   </div>
 
@@ -5876,7 +5897,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
-  <script src="home-unit-nav.js?v=20261018site" defer></script>
+  <script src="home-unit-nav.js?v=20261018login" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>
@@ -5892,7 +5913,7 @@
   <script src="data/estoque/dk-estoque-planilha.js?v=20260908desp-red" defer></script>
   <script src="portal-estoque.js?v=20261007salvar" defer></script>
   <script src="portal-distrato-locacao.js?v=20260916distratodias" defer></script>
-  <script src="portal-locadora-ui.js?v=20261018site" defer></script>
+  <script src="portal-locadora-ui.js?v=20261018login" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>

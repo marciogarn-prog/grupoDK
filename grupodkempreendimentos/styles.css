@@ -15862,6 +15862,85 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   padding: 0.35rem 0.15rem;
 }
 
+.site-publico__cliente {
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem !important;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.site-publico__login {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.site-publico__login.hidden {
+  display: none;
+}
+
+.site-publico__login-card {
+  width: min(26rem, 100%);
+  background: rgba(12, 12, 12, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  padding: 1.2rem 1.25rem 1.3rem;
+  color: #f5f5f5;
+}
+
+.site-publico__login-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.site-publico__login-card p {
+  margin: 0 0 0.8rem;
+  color: #d6d3d1;
+}
+
+.site-publico__login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.85rem;
+}
+
+.site-publico__login-card input {
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #111;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+}
+
+.site-publico__login-acoes {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+#site-login-fechar {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: #e7e5e4;
+}
+
+#view-unit .portal-unit-bar__left {
+  display: none;
+}
+
 .site-publico__alugar {
   background: #dc2626 !important;
   color: #fff !important;
