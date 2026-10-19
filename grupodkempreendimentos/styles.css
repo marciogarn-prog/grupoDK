@@ -15696,7 +15696,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: #111;
+  display: block;
+  overflow: auto;
+  padding-top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 2.75rem));
+  background: #f4f4f2;
 }
 
 .portal-manut-lanc-vis.hidden {
