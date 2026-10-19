@@ -3595,7 +3595,8 @@
     const emFinanceiro = panelFinanceiro && !panelFinanceiro.classList.contains("hidden");
     const emFinanceiroCeo = panelFinanceiroCeo && !panelFinanceiroCeo.classList.contains("hidden");
     const emLocalizacao = panelLocalizacao && !panelLocalizacao.classList.contains("hidden");
-    if (emOperacao || emManutencao || emDocumentos || emFinanceiro || emFinanceiroCeo || emLocalizacao) {
+    const emEstoque = panelEstoque && !panelEstoque.classList.contains("hidden");
+    if (emOperacao || emManutencao || emDocumentos || emFinanceiro || emFinanceiroCeo || emLocalizacao || emEstoque) {
       portalVoltarEquipaLocadora();
       return;
     }
