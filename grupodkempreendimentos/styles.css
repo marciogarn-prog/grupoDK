@@ -16171,6 +16171,23 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   gap: 1rem;
 }
 
+.site-motos__par {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 72rem;
+  margin: 0 auto 1.6rem;
+}
+
+.site-motos__par .site-motos__marca {
+  max-width: none;
+  margin: 0;
+}
+
+.site-motos__grade--duas {
+  grid-template-columns: 1fr 1fr;
+}
+
 .site-moto {
   display: flex;
   flex-direction: column;
@@ -16300,6 +16317,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   .site-motos__grade {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .site-motos__par {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 800px) {
@@ -16309,7 +16330,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 @media (max-width: 640px) {
-  .site-motos__grade {
+  .site-motos__grade,
+  .site-motos__grade--duas {
     grid-template-columns: 1fr;
   }
 }
