@@ -1871,7 +1871,7 @@
       btn.toggleAttribute("disabled", !allow);
     });
     if (!allow && viewMiel?.classList.contains("view--active")) {
-      showView("home");
+      showView("site");
       setPortalHash("");
     }
   }
@@ -2774,7 +2774,7 @@
   function openMielSistema() {
     if (!portalPodeAcessarSistemaMiel()) {
       refreshPortalMielHomeAcesso();
-      showView("home");
+      showView("site");
       setPortalHash("");
       portalAlertSemAcessoMiel();
       return;
@@ -2982,6 +2982,13 @@
     });
   });
 
+  function portalAbrirEscolhaUnidadesCeo() {
+    showView("home");
+    setPortalHash("");
+    portalAtualizarBannerAdmin();
+    window.scrollTo(0, 0);
+  }
+
   function portalVoltarInicio() {
     portalColaboradorSenhaPendente = null;
     portalResetSessaoSeNaoAdmin();
@@ -2999,6 +3006,10 @@
       clearPortalUnitDadosAtualizados();
     }
     const funcInicio = portalObterFuncionarioDaSessaoRestauracao();
+    if (portalFuncionarioEhCeo(funcInicio)) {
+      portalAbrirEscolhaUnidadesCeo();
+      return;
+    }
     if (funcInicio && (funcInicio.role === "owner" || funcInicio.role === "operacao")) {
       portalEntrarDiretoNaArea(funcInicio);
       return;
@@ -3012,9 +3023,10 @@
       openUnidadeHub(scope);
       return;
     }
-    showView("home");
+    showView("site");
     setPortalHash("");
     portalAtualizarBannerAdmin();
+    window.scrollTo(0, 0);
   }
 
   function portalVoltarLocadoraHub() {
@@ -4172,6 +4184,12 @@
             if (sf) sf.textContent = "";
             return;
           }
+          if (portalFuncionarioEhCeo(funcionario)) {
+            portalFecharLoginNoSite();
+            finalizarLoginEquipaPortal(funcionario);
+            portalAbrirEscolhaUnidadesCeo();
+            return;
+          }
           portalEntrarDiretoNaArea(funcionario);
           return;
         }
@@ -4205,6 +4223,12 @@
         if (n1) n1.value = "";
         if (n2) n2.value = "";
         if (sf) sf.textContent = "";
+        return;
+      }
+      if (portalFuncionarioEhCeo(funcionario)) {
+        portalFecharLoginNoSite();
+        finalizarLoginEquipaPortal(funcionario);
+        portalAbrirEscolhaUnidadesCeo();
         return;
       }
       portalEntrarDiretoNaArea(funcionario);
