@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261018obs">
+  <link rel="stylesheet" href="styles.css?v=20261018padrao">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -132,7 +132,7 @@
         <h1 id="sitePlanosTitulo">Venha fazer parte da família DK, escolha o plano que melhor se encaixa no seu perfil.</h1>
       </div>
       <div class="site-planos__grade">
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="1" aria-label="DK Minha Moto Honda Start">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="1" data-plano-id="minha-start" aria-label="DK Minha Moto Honda Start">
           <p class="site-plano__tipo">DK Minha Moto</p>
           <h2 class="site-plano__nome">Honda Start</h2>
           <p class="site-plano__faixa">Moto entre 0 e 10.000 km</p>
@@ -151,7 +151,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="2" aria-label="DK Minha Moto Honda Bros">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="2" data-plano-id="minha-bros" aria-label="DK Minha Moto Honda Bros">
           <p class="site-plano__tipo">DK Minha Moto</p>
           <h2 class="site-plano__nome">Honda Bros</h2>
           <p class="site-plano__faixa">Moto entre 0 e 10.000 km</p>
@@ -170,7 +170,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="3" aria-label="DK Minha Moto Yamaha Factor">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="3" data-plano-id="minha-factor" aria-label="DK Minha Moto Yamaha Factor">
           <p class="site-plano__tipo">DK Minha Moto</p>
           <h2 class="site-plano__nome">Yamaha Factor</h2>
           <p class="site-plano__faixa">Moto entre 0 e 10.000 km</p>
@@ -189,7 +189,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="4" aria-label="DK Minha Moto Yamaha Crosser">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="4" data-plano-id="minha-crosser" aria-label="DK Minha Moto Yamaha Crosser">
           <p class="site-plano__tipo">DK Minha Moto</p>
           <h2 class="site-plano__nome">Yamaha Crosser</h2>
           <p class="site-plano__faixa">Moto entre 0 e 10.000 km</p>
@@ -208,7 +208,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="5" aria-label="DK Meu Transporte Start ou Factor">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="5" data-plano-id="transporte-start" aria-label="DK Meu Transporte Start ou Factor">
           <p class="site-plano__tipo">DK Meu Transporte</p>
           <h2 class="site-plano__nome">Start ou Factor</h2>
           <ul class="site-plano__lista">
@@ -224,7 +224,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="6" aria-label="DK Meu Transporte Bros ou Crosser">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="6" data-plano-id="transporte-bros" aria-label="DK Meu Transporte Bros ou Crosser">
           <p class="site-plano__tipo">DK Meu Transporte</p>
           <h2 class="site-plano__nome">Bros ou Crosser</h2>
           <ul class="site-plano__lista">
@@ -240,7 +240,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="7" aria-label="DK Super Econômico Shineray JEF">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="7" data-plano-id="super-jef" aria-label="DK Super Econômico Shineray JEF">
           <p class="site-plano__tipo">DK Super Econômico</p>
           <h2 class="site-plano__nome">Shineray JEF</h2>
           <ul class="site-plano__lista">
@@ -256,7 +256,7 @@
           <p class="site-plano__desconto">Quem paga em dia ganha R$ 30,00 de desconto</p>
           <button type="button" class="site-plano__quero">Quero esse plano</button>
         </article>
-        <article class="site-plano site-plano--preenchido" data-plano-espaco="8" aria-label="DK Super Econômico Shineray SHI 175">
+        <article class="site-plano site-plano--preenchido" data-plano-espaco="8" data-plano-id="super-shi" aria-label="DK Super Econômico Shineray SHI 175">
           <p class="site-plano__tipo">DK Super Econômico</p>
           <h2 class="site-plano__nome">Shineray SHI 175</h2>
           <ul class="site-plano__lista">
@@ -282,6 +282,88 @@
         </ul>
       </aside>
     </section>
+
+    <section id="siteMotos" class="site-motos" hidden aria-labelledby="siteMotosTitulo">
+      <div class="site-planos__intro">
+        <p class="site-planos__olho">Motos</p>
+        <h1 id="siteMotosTitulo">Conheça os modelos</h1>
+      </div>
+
+      <section class="site-motos__marca" aria-label="Honda">
+        <h2>Honda</h2>
+        <div class="site-motos__grade">
+          <button type="button" class="site-moto" data-moto="start" data-moto-nome="CG160 Start">
+            <img src="/images/site-motos/padrao-start.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">CG160 Start</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+          <button type="button" class="site-moto" data-moto="fan" data-moto-nome="CG160 Fan">
+            <img src="/images/site-motos/padrao-fan.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">CG160 Fan</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+          <button type="button" class="site-moto" data-moto="titan" data-moto-nome="CG160 Titan">
+            <img src="/images/site-motos/padrao-titan.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">CG160 Titan</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+          <button type="button" class="site-moto" data-moto="bros" data-moto-nome="Bros 160">
+            <img src="/images/site-motos/padrao-bros.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">Bros 160</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="site-motos__marca" aria-label="Yamaha">
+        <h2>Yamaha</h2>
+        <div class="site-motos__grade">
+          <button type="button" class="site-moto" data-moto="factor" data-moto-nome="Factor 150">
+            <img src="/images/site-motos/padrao-factor.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">Factor 150</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+          <button type="button" class="site-moto" data-moto="crosser" data-moto-nome="Crosser S">
+            <img src="/images/site-motos/padrao-crosser.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">Crosser S</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="site-motos__marca" aria-label="Shineray">
+        <h2>Shineray</h2>
+        <div class="site-motos__grade">
+          <button type="button" class="site-moto" data-moto="jef" data-moto-nome="JEF 150">
+            <img src="/images/site-motos/padrao-jef.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">JEF 150</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+          <button type="button" class="site-moto" data-moto="shi" data-moto-nome="SHI 175">
+            <img src="/images/site-motos/padrao-shi.jpg?v=20261018padrao" alt="" width="1024" height="768">
+            <span class="site-moto__nome">SHI 175</span>
+            <span class="site-moto__acao">Conheça o modelo</span>
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <div id="siteMotoJanelas" class="site-moto-janelas" hidden>
+      <div class="site-moto-janelas__caixa" role="dialog" aria-modal="true" aria-labelledby="siteMotoJanelasTitulo">
+        <div class="site-moto-janelas__topo">
+          <h2 id="siteMotoJanelasTitulo"></h2>
+          <button type="button" class="site-moto-janelas__fechar" data-moto-fechar>Fechar</button>
+        </div>
+        <div id="siteMotoJanelasGrade" class="site-moto-janelas__grade"></div>
+      </div>
+    </div>
+    <template id="tplPlanoSobConsulta">
+      <article class="site-plano site-plano--preenchido" data-plano-id="sob-consulta" aria-label="Sob consulta">
+        <p class="site-plano__tipo">DK</p>
+        <h2 class="site-plano__nome">Sob consulta</h2>
+        <p class="site-plano__consulta">Existem outras opções de planos sob consulta.</p>
+      </article>
+    </template>
 
     <section class="site-publico__hero">
       <div class="site-publico__chamada">
@@ -6079,7 +6161,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
-  <script src="home-unit-nav.js?v=20261018planos" defer></script>
+  <script src="home-unit-nav.js?v=20261018motos" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>

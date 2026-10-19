@@ -16143,6 +16143,177 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   }
 }
 
+.site-motos {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2.5rem;
+  background: #14110e;
+}
+
+.site-motos__marca {
+  max-width: 72rem;
+  margin: 0 auto 1.6rem;
+}
+
+.site-motos__marca h2 {
+  margin: 0 0 0.75rem;
+  color: #fca5a5;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site-motos__grade {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.site-moto {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0.85rem 0.85rem 0.9rem;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.site-moto img {
+  width: 100%;
+  height: 14rem;
+  object-fit: contain;
+  background: #fff;
+}
+
+.site-moto__nome {
+  color: #8a8a8a;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.site-moto__acao {
+  display: block;
+  border-radius: 14px;
+  background: #111;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 0.85rem 0.6rem;
+}
+
+.site-moto:hover .site-moto__acao,
+.site-moto:focus-visible .site-moto__acao {
+  background: #000;
+}
+
+.site-moto:focus-visible {
+  outline: 3px solid #dc2626;
+  outline-offset: 3px;
+}
+
+.site-moto-janelas {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(10, 8, 7, 0.78);
+  overflow: auto;
+}
+
+.site-moto-janelas[hidden] {
+  display: none !important;
+}
+
+.site-moto-janelas__caixa {
+  width: min(72rem, 100%);
+  margin: auto;
+}
+
+.site-moto-janelas__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  color: #fff;
+}
+
+.site-moto-janelas__topo h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.site-moto-janelas__fechar {
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-weight: 800;
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+}
+
+.site-moto-janelas__grade {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.site-moto-janelas__grade--duas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.site-moto-janelas .site-plano {
+  min-height: 0;
+  width: min(24rem, 100%);
+}
+
+.site-moto-janelas__grade--duas .site-plano {
+  width: auto;
+}
+
+.site-plano__consulta {
+  margin: 0.85rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+  .site-motos__grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .site-moto-janelas__grade--duas {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-motos__grade {
+    grid-template-columns: 1fr;
+  }
+}
+
 .site-publico__cliente {
   border: 1px solid rgba(255, 255, 255, 0.7) !important;
   border-radius: 999px;

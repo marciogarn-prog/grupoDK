@@ -63,20 +63,67 @@
     return true;
   }
 
-  function siteMostrarPlanos(aberto) {
-    const painel = document.getElementById("sitePlanos");
+  const PLANOS_DA_MOTO = {
+    start: ["minha-start", "transporte-start"],
+    fan: ["sob-consulta"],
+    titan: ["sob-consulta"],
+    bros: ["minha-bros", "transporte-bros"],
+    factor: ["minha-factor", "transporte-start"],
+    crosser: ["minha-crosser", "transporte-bros"],
+    jef: ["super-jef"],
+    shi: ["super-shi"],
+  };
+
+  function siteFecharJanelasMoto() {
+    const box = document.getElementById("siteMotoJanelas");
+    const grade = document.getElementById("siteMotoJanelasGrade");
+    if (grade) grade.replaceChildren();
+    if (box) box.hidden = true;
+  }
+
+  function siteAbrirJanelasMoto(btn) {
+    const moto = btn.getAttribute("data-moto") || "";
+    const nome = btn.getAttribute("data-moto-nome") || "Moto";
+    const ids = PLANOS_DA_MOTO[moto] || ["sob-consulta"];
+    const box = document.getElementById("siteMotoJanelas");
+    const grade = document.getElementById("siteMotoJanelasGrade");
+    const titulo = document.getElementById("siteMotoJanelasTitulo");
+    if (!box || !grade) return;
+    grade.replaceChildren();
+    ids.forEach((planoId) => {
+      let node = null;
+      if (planoId === "sob-consulta") {
+        const tpl = document.getElementById("tplPlanoSobConsulta");
+        node = tpl && tpl.content.firstElementChild ? tpl.content.firstElementChild.cloneNode(true) : null;
+      } else {
+        const orig = document.querySelector(`#sitePlanos [data-plano-id="${planoId}"]`);
+        node = orig ? orig.cloneNode(true) : null;
+      }
+      if (node) grade.appendChild(node);
+    });
+    grade.classList.toggle("site-moto-janelas__grade--duas", ids.length > 1);
+    if (titulo) titulo.textContent = nome;
+    box.hidden = false;
+  }
+
+  function siteMostrarDetalhe(nome) {
+    const planos = document.getElementById("sitePlanos");
+    const motos = document.getElementById("siteMotos");
     const hero = document.querySelector("#view-site .site-publico__hero");
-    if (!painel) return;
-    painel.hidden = !aberto;
+    const aberto = nome === "planos" || nome === "motos";
+    if (planos) planos.hidden = nome !== "planos";
+    if (motos) motos.hidden = nome !== "motos";
     if (hero) hero.hidden = aberto;
-    document.querySelectorAll("[data-site-detalhe='planos']").forEach((btn) => {
-      btn.classList.toggle("site-publico__nav-atual", aberto);
-      if (aberto) btn.setAttribute("aria-current", "page");
+    if (nome !== "motos") siteFecharJanelasMoto();
+    document.querySelectorAll("[data-site-detalhe]").forEach((btn) => {
+      const on = (btn.getAttribute("data-site-detalhe") || "") === nome;
+      btn.classList.toggle("site-publico__nav-atual", on);
+      if (on) btn.setAttribute("aria-current", "page");
       else btn.removeAttribute("aria-current");
     });
     if (aberto) {
       try {
-        history.replaceState(null, "", `${location.pathname}${location.search}#planos`);
+        history.replaceState(null, "", `${location.pathname}${location.search}#${nome}`);
       } catch {
         /* ignore */
       }
@@ -87,10 +134,34 @@
   document.addEventListener("click", (e) => {
     const detalheBtn = e.target && e.target.closest ? e.target.closest("[data-site-detalhe]") : null;
     if (!detalheBtn) return;
-    if ((detalheBtn.getAttribute("data-site-detalhe") || "") !== "planos") return;
+    const detalhe = detalheBtn.getAttribute("data-site-detalhe") || "";
+    if (detalhe !== "planos" && detalhe !== "motos") return;
     e.preventDefault();
     mostrarView("view-site");
-    siteMostrarPlanos(true);
+    siteMostrarDetalhe(detalhe);
+  });
+
+  document.addEventListener("click", (e) => {
+    const motoBtn = e.target && e.target.closest ? e.target.closest("#siteMotos .site-moto") : null;
+    if (!motoBtn) return;
+    e.preventDefault();
+    siteAbrirJanelasMoto(motoBtn);
+  });
+
+  document.addEventListener("click", (e) => {
+    const box = document.getElementById("siteMotoJanelas");
+    if (!box || box.hidden) return;
+    if (e.target === box || (e.target.closest && e.target.closest("[data-moto-fechar]"))) {
+      e.preventDefault();
+      siteFecharJanelasMoto();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const box = document.getElementById("siteMotoJanelas");
+    if (!box || box.hidden) return;
+    siteFecharJanelasMoto();
   });
 
   document.addEventListener("click", (e) => {
@@ -99,11 +170,11 @@
     const destino = siteBtn.getAttribute("data-site-go") || "";
     if (destino === "sistema") {
       e.preventDefault();
-      siteMostrarPlanos(false);
+      siteMostrarDetalhe(null);
       mostrarView("view-home");
     } else if (destino === "site") {
       e.preventDefault();
-      siteMostrarPlanos(false);
+      siteMostrarDetalhe(null);
       mostrarView("view-site");
     } else if (destino === "cliente") {
       e.preventDefault();
@@ -125,8 +196,9 @@
 
   window.__DK_homeOpenUnit = openFromGo;
 
-  if ((location.hash || "").toLowerCase() === "#planos") {
+  const hashSite = (location.hash || "").toLowerCase();
+  if (hashSite === "#planos" || hashSite === "#motos") {
     mostrarView("view-site");
-    siteMostrarPlanos(true);
+    siteMostrarDetalhe(hashSite.slice(1));
   }
 })();
