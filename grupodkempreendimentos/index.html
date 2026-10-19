@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261018linha">
+  <link rel="stylesheet" href="styles.css?v=20261018rolar">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -89,6 +89,7 @@
     <button type="button" id="portalAndroidNavSair" class="portal-android-nav__sair">Sair</button>
   </div>
   <div id="view-site" class="view view--site view--active" role="region" aria-label="Site do Grupo DK" aria-hidden="false">
+    <div class="site-publico__fundo" aria-hidden="true"></div>
     <header class="site-publico__topo">
       <a class="site-publico__marca" href="/" data-site-go="site" aria-label="Tela inicial">
         <img src="/images/dk-locadora-logo.png" alt="" width="120" height="48" decoding="async">
@@ -126,7 +127,15 @@
       </form>
     </section>
 
-    <section id="sitePlanos" class="site-planos" hidden aria-labelledby="sitePlanosTitulo">
+    <div class="site-publico__abertura">
+      <section class="site-publico__hero" aria-hidden="true"></section>
+      <footer class="site-publico__rodape">
+        <p>Petrolina — PE · Grupo DK Empreendimentos</p>
+        <button type="button" class="site-publico__sistema" data-site-go="login">Entrar no sistema</button>
+      </footer>
+    </div>
+
+    <section id="sitePlanos" class="site-planos" aria-labelledby="sitePlanosTitulo">
       <div class="site-planos__intro">
         <p class="site-planos__olho">Planos</p>
         <h1 id="sitePlanosTitulo">Venha fazer parte da família DK, escolha o plano que melhor se encaixa no seu perfil.</h1>
@@ -283,7 +292,7 @@
       </aside>
     </section>
 
-    <section id="siteMotos" class="site-motos" hidden aria-labelledby="siteMotosTitulo">
+    <section id="siteMotos" class="site-motos" aria-labelledby="siteMotosTitulo">
       <div class="site-planos__intro">
         <p class="site-planos__olho">Motos</p>
         <h1 id="siteMotosTitulo">Conheça os modelos</h1>
@@ -366,13 +375,6 @@
         <p class="site-plano__consulta">Existem outras opções de planos sob consulta.</p>
       </article>
     </template>
-
-    <section class="site-publico__hero" aria-hidden="true"></section>
-
-    <footer class="site-publico__rodape">
-      <p>Petrolina — PE · Grupo DK Empreendimentos</p>
-      <button type="button" class="site-publico__sistema" data-site-go="login">Entrar no sistema</button>
-    </footer>
   </div>
 
   <div id="view-home" class="view" role="region" aria-label="Início" aria-hidden="true">
@@ -6149,7 +6151,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
-  <script src="home-unit-nav.js?v=20261018motos" defer></script>
+  <script src="home-unit-nav.js?v=20261018rolar" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260922lucelina-del" defer></script>

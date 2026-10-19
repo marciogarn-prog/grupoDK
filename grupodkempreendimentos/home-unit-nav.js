@@ -106,29 +106,52 @@
     box.hidden = false;
   }
 
-  function siteMostrarDetalhe(nome) {
-    const planos = document.getElementById("sitePlanos");
-    const motos = document.getElementById("siteMotos");
-    const hero = document.querySelector("#view-site .site-publico__hero");
-    const aberto = nome === "planos" || nome === "motos";
-    if (planos) planos.hidden = nome !== "planos";
-    if (motos) motos.hidden = nome !== "motos";
-    if (hero) hero.hidden = aberto;
-    if (nome !== "motos") siteFecharJanelasMoto();
+  function siteMedirTopo() {
+    const topo = document.querySelector("#view-site .site-publico__topo");
+    const h = topo ? topo.offsetHeight : 0;
+    if (h) document.documentElement.style.setProperty("--site-topo", h + "px");
+    return h;
+  }
+
+  function siteMarcarDetalhe(nome) {
     document.querySelectorAll("[data-site-detalhe]").forEach((btn) => {
       const on = (btn.getAttribute("data-site-detalhe") || "") === nome;
       btn.classList.toggle("site-publico__nav-atual", on);
       if (on) btn.setAttribute("aria-current", "page");
       else btn.removeAttribute("aria-current");
     });
-    if (aberto) {
-      try {
-        history.replaceState(null, "", `${location.pathname}${location.search}#${nome}`);
-      } catch {
-        /* ignore */
-      }
-      window.scrollTo(0, 0);
+  }
+
+  function siteRolarPara(id, suave) {
+    const alvo = document.getElementById(id);
+    if (!alvo) return;
+    const h = siteMedirTopo();
+    let y = 0;
+    let el = alvo;
+    while (el) {
+      y += el.offsetTop;
+      el = el.offsetParent;
     }
+    window.scrollTo({ top: Math.max(0, y - h), behavior: suave ? "smooth" : "auto" });
+  }
+
+  function siteIrPara(nome, suave) {
+    const view = document.getElementById("view-site");
+    if (view && !view.classList.contains("view--active")) mostrarView("view-site");
+    if (nome !== "motos") siteFecharJanelasMoto();
+    siteMarcarDetalhe(nome);
+    siteRolarPara(nome === "motos" ? "siteMotos" : "sitePlanos", suave);
+    try {
+      history.replaceState(null, "", `${location.pathname}${location.search}#${nome}`);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function siteVoltarAoTopo() {
+    siteFecharJanelasMoto();
+    siteMarcarDetalhe(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   document.addEventListener("click", (e) => {
@@ -137,8 +160,7 @@
     const detalhe = detalheBtn.getAttribute("data-site-detalhe") || "";
     if (detalhe !== "planos" && detalhe !== "motos") return;
     e.preventDefault();
-    mostrarView("view-site");
-    siteMostrarDetalhe(detalhe);
+    siteIrPara(detalhe, true);
   });
 
   document.addEventListener("click", (e) => {
@@ -170,12 +192,12 @@
     const destino = siteBtn.getAttribute("data-site-go") || "";
     if (destino === "sistema") {
       e.preventDefault();
-      siteMostrarDetalhe(null);
+      siteVoltarAoTopo();
       mostrarView("view-home");
     } else if (destino === "site") {
       e.preventDefault();
-      siteMostrarDetalhe(null);
       mostrarView("view-site");
+      siteVoltarAoTopo();
     } else if (destino === "cliente") {
       e.preventDefault();
       if (typeof window.__DK_siteAbrirCliente === "function") window.__DK_siteAbrirCliente();
@@ -196,9 +218,28 @@
 
   window.__DK_homeOpenUnit = openFromGo;
 
+  let siteSpy = false;
+  window.addEventListener("scroll", () => {
+    if (siteSpy) return;
+    siteSpy = true;
+    requestAnimationFrame(() => {
+      siteSpy = false;
+      const view = document.getElementById("view-site");
+      if (!view || !view.classList.contains("view--active")) return;
+      const linha = siteMedirTopo() + 12;
+      const motos = document.getElementById("siteMotos");
+      const planos = document.getElementById("sitePlanos");
+      const passou = (el) => el && el.getBoundingClientRect().top <= linha;
+      if (passou(motos)) siteMarcarDetalhe("motos");
+      else if (passou(planos)) siteMarcarDetalhe("planos");
+      else siteMarcarDetalhe(null);
+    });
+  }, { passive: true });
+
+  siteMedirTopo();
   const hashSite = (location.hash || "").toLowerCase();
   if (hashSite === "#planos" || hashSite === "#motos") {
     mostrarView("view-site");
-    siteMostrarDetalhe(hashSite.slice(1));
+    siteIrPara(hashSite.slice(1), false);
   }
 })();

@@ -15841,6 +15841,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   padding: 0;
   min-height: 100vh;
   color: #f5f5f5;
+  background-color: transparent;
+  background-image: none;
+}
+
+.site-publico__fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-color: #050505;
   background-image:
     linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.08) 22%, rgba(0, 0, 0, 0.08) 72%, rgba(0, 0, 0, 0.45) 100%),
@@ -15851,13 +15860,16 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__topo {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
   padding: 0.85rem clamp(1rem, 4vw, 3rem);
-  background: rgba(0, 0, 0, 0.28);
+  background: #2b2b2b;
   color: #f5f5f5;
 }
 
@@ -16147,6 +16159,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   position: relative;
   z-index: 2;
   flex: 1;
+  min-height: calc(100vh - var(--site-topo, 5.5rem));
   padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2.5rem;
   background: #14110e;
 }
@@ -16427,6 +16440,24 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 .site-publico__sistema {
   font: inherit;
   cursor: pointer;
+}
+
+.site-publico__abertura,
+.site-planos,
+.site-motos {
+  position: relative;
+  z-index: 1;
+}
+
+.site-publico__abertura {
+  min-height: calc(100vh - var(--site-topo, 5.5rem));
+  display: flex;
+  flex-direction: column;
+}
+
+#sitePlanos,
+#siteMotos {
+  scroll-margin-top: var(--site-topo, 5.5rem);
 }
 
 .site-publico__hero {
