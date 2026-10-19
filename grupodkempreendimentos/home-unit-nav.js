@@ -180,6 +180,10 @@
     if (!quero) return;
     e.preventDefault();
     const card = quero.closest(".site-plano");
+    if (quero.hasAttribute("data-site-atendente") || card?.getAttribute("data-plano-id") === "sob-consulta") {
+      siteAbrirWhatsApp("OLÁ, QUERO SABER MAIS SOBRE OS OUTROS PLANOS DK");
+      return;
+    }
     const nome = String(card?.getAttribute("aria-label") || card?.querySelector(".site-plano__nome")?.textContent || "um plano DK").trim();
     siteAbrirWhatsApp(`Olá! Quero o plano ${nome} e falar com um atendente.`);
   });
