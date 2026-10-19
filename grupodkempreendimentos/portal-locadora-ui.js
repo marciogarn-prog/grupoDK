@@ -4320,6 +4320,7 @@
       return;
     }
     f.senha = nova;
+    f.updatedAt = new Date().toISOString();
     f.mustChangePassword = false;
     if (typeof saveFuncionariosAccess === "function") saveFuncionariosAccess();
     if (typeof window.__DK_pushToCloudAfterSave === "function") {
@@ -11470,6 +11471,7 @@
       return;
     }
     f.senha = senhaIni;
+    f.updatedAt = new Date().toISOString();
     f.mustChangePassword = true;
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();
@@ -16868,7 +16870,9 @@
           saveCadastro(PORTAL_CLIENTES_KEY, unified, { allowShrink: true });
         } else if (typeof localStorage !== "undefined") {
           try {
-            localStorage.setItem("dk_portal_clientes_cadastro", JSON.stringify(unified));
+            const disco =
+              typeof window.__DK_copiaListaSemSenha === "function" ? window.__DK_copiaListaSemSenha(unified) : unified;
+            localStorage.setItem("dk_portal_clientes_cadastro", JSON.stringify(disco));
           } catch {
             /* ignore */
           }
@@ -17097,7 +17101,9 @@
         saveCadastro(PORTAL_CLIENTES_KEY, unified, { allowShrink: true });
       } else if (typeof localStorage !== "undefined") {
         try {
-          localStorage.setItem("dk_portal_clientes_cadastro", JSON.stringify(unified));
+          const disco =
+            typeof window.__DK_copiaListaSemSenha === "function" ? window.__DK_copiaListaSemSenha(unified) : unified;
+          localStorage.setItem("dk_portal_clientes_cadastro", JSON.stringify(disco));
         } catch {
           /* ignore */
         }

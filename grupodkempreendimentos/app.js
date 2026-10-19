@@ -1672,13 +1672,46 @@ function refreshFuncionarioAccessInputsByRole() {
   });
 }
 
+function copiaListaSemSenha(list) {
+  if (!Array.isArray(list)) return list;
+  return list.map((row) => {
+    if (!row || typeof row !== "object") return row;
+    if (!Object.prototype.hasOwnProperty.call(row, "senha") && !Object.prototype.hasOwnProperty.call(row, "senhaHash")) {
+      return row;
+    }
+    const copy = { ...row };
+    delete copy.senha;
+    delete copy.senhaHash;
+    return copy;
+  });
+}
+
+function apagarSenhasSalvasNoNavegador() {
+  ["dk_funcionarios_access", "dk_clientes_cadastro", "dk_portal_clientes_cadastro"].forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw || raw.indexOf("senha") < 0) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const json = JSON.stringify(copiaListaSemSenha(arr));
+      if (json === raw) return;
+      localStorage.setItem(key, json);
+      invalidateCadastroParseCache(key);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+window.__DK_copiaListaSemSenha = copiaListaSemSenha;
+
 function saveFuncionariosAccess() {
-  localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
+  localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(copiaListaSemSenha(funcionariosAccess)));
 }
 
 function persistFuncionariosAccessLocalOnly() {
   try {
-    localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
+    localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(copiaListaSemSenha(funcionariosAccess)));
   } catch {
     /* ignore */
   }
@@ -1756,7 +1789,7 @@ function hydrateFuncionariosAccess() {
   const normalized = merged
     .map((f) => ({
       cpf: onlyDigits(String(f?.cpf || "")),
-      senha: String(f?.senha || "").trim(),
+      senha: "",
       nome: String(f?.nome || "").trim(),
       role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
       blocked: Boolean(f?.blocked),
@@ -1847,6 +1880,7 @@ function getMaxClienteCodigoFromBundledSnapshots() {
   return max;
 }
 
+apagarSenhasSalvasNoNavegador();
 hydrateFuncionariosAccess();
 try {
   window.__DK_hydrateFuncionariosAccess = hydrateFuncionariosAccess;
@@ -3521,7 +3555,9 @@ function saveCadastro(key, list, opts) {
     }
     toStore = applyClienteCodigoPadraoNaLista(key, toStore);
   }
-  const json = JSON.stringify(toStore);
+  const paraDisco =
+    key === CAD_CLIENTES_KEY || key === PORTAL_CLIENTES_KEY ? copiaListaSemSenha(toStore) : toStore;
+  const json = JSON.stringify(paraDisco);
   localStorage.setItem(key, json);
   __dkCadastroParseCache[key] = { raw: json, arr: toStore };
   if (key === CAD_LOCACOES_KEY || key === CAD_CLIENTES_KEY) {
@@ -14592,6 +14628,7 @@ loginAdminForm.addEventListener("submit", (event) => {
       return;
     }
     funcionario.senha = novaSenhaTrim;
+    funcionario.updatedAt = new Date().toISOString();
     funcionario.mustChangePassword = false;
     saveFuncionariosAccess();
     addAuditLog(

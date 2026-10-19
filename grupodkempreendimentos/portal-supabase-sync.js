@@ -1325,7 +1325,11 @@
             typeof mergeCadastroHistoricoImutavel === "function"
               ? mergeCadastroHistoricoImutavel(k, localArr, cloudArr)
               : [...(localArr || []), ...cloudArr];
-          localStorage.setItem(k, JSON.stringify(mergedCli));
+          const gravado =
+            k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro"
+              ? listaSemSenhaDisco(mergedCli)
+              : mergedCli;
+          localStorage.setItem(k, JSON.stringify(gravado));
         }
         continue;
       }
@@ -1357,7 +1361,7 @@
                 (Array.isArray(inc) ? inc : []).forEach(put);
                 return Array.from(byCpf.values());
               };
-        localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
+        localStorage.setItem(k, JSON.stringify(listaSemSenhaDisco(mergeFn(localArr, cloudArr))));
         continue;
       }
       if (k === "dk_comprovantes_cliente_pendentes") {
@@ -5231,6 +5235,64 @@
     });
   }
 
+  function listaSemSenhaDisco(list) {
+    if (typeof window.__DK_copiaListaSemSenha === "function") return window.__DK_copiaListaSemSenha(list);
+    if (!Array.isArray(list)) return list;
+    return list.map((row) => {
+      if (!row || typeof row !== "object") return row;
+      if (!Object.prototype.hasOwnProperty.call(row, "senha") && !Object.prototype.hasOwnProperty.call(row, "senhaHash")) {
+        return row;
+      }
+      const copy = { ...row };
+      delete copy.senha;
+      delete copy.senhaHash;
+      return copy;
+    });
+  }
+
+  function anexarSenhaDaMemoria(payload) {
+    if (!payload || typeof payload !== "object") return payload;
+    const porCpf = (list) => {
+      const map = new Map();
+      (Array.isArray(list) ? list : []).forEach((row) => {
+        if (!row || typeof row !== "object") return;
+        const cpf = String(row.cpf || "").replace(/\D/g, "").slice(0, 11);
+        const senha = String(row.senha || "").trim();
+        const senhaHash = String(row.senhaHash || "").trim();
+        if (cpf.length === 11 && (senha || senhaHash)) map.set(cpf, { senha, senhaHash });
+      });
+      return map;
+    };
+    const aplicar = (key, list) => {
+      const mem = porCpf(list);
+      if (!mem.size || !Array.isArray(payload[key])) return;
+      payload[key] = payload[key].map((row) => {
+        if (!row || typeof row !== "object") return row;
+        const cpf = String(row.cpf || "").replace(/\D/g, "").slice(0, 11);
+        const cred = mem.get(cpf);
+        if (!cred) return row;
+        const next = { ...row };
+        if (cred.senha) next.senha = cred.senha;
+        if (cred.senhaHash) next.senhaHash = cred.senhaHash;
+        return next;
+      });
+    };
+    try {
+      if (typeof funcionariosAccess !== "undefined") aplicar("dk_funcionarios_access", funcionariosAccess);
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof loadCadastro === "function") {
+        aplicar("dk_clientes_cadastro", loadCadastro("dk_clientes_cadastro"));
+        aplicar("dk_portal_clientes_cadastro", loadCadastro("dk_portal_clientes_cadastro"));
+      }
+    } catch {
+      /* ignore */
+    }
+    return payload;
+  }
+
   async function upsertSnapshotRow(showUserMessages, opts) {
     if (cloudSyncIsHalted()) return { ok: false, error: "session_revoked" };
     if (!hasUsableCloudToken()) {
@@ -5278,6 +5340,7 @@
       payload.dk_patrimonio_fotos_excluidas_v1 =
         payload.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [];
     }
+    payload = anexarSenhaDaMemoria(payload);
     const updatedAt = new Date().toISOString();
     let supaOk = false;
     let redisOk = false;
@@ -5788,7 +5851,7 @@
     if (typeof saveCadastro === "function") {
       saveCadastro("dk_clientes_cadastro", local);
     } else {
-      localStorage.setItem("dk_clientes_cadastro", JSON.stringify(local));
+      localStorage.setItem("dk_clientes_cadastro", JSON.stringify(listaSemSenhaDisco(local)));
     }
     const locs = filterCloudLocacoesForCliente(
       dig,
