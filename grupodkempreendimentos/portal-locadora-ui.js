@@ -1165,7 +1165,7 @@
     }
     const s = String((local || rec)?.senha || "").trim();
     if (s) return s;
-    return portalClienteSenhaInicial();
+    return "";
   }
 
   function portalResetClienteSenhaApp(cpfDigits, rec) {
@@ -1229,7 +1229,7 @@
     const digits = onlyDigits(String(cpfDigits || "")).slice(0, 11);
     const senha = portalResolveClienteSenhaApp(rec, digits);
     if (inp) inp.value = senha;
-    if (label) label.textContent = `senha=${senha}`;
+    if (label) label.textContent = senha ? `senha=${senha}` : "senha não fica salva neste computador";
     const resetBtn = document.getElementById("operacaoClienteSenhaResetBtn");
     if (resetBtn) {
       resetBtn.disabled = digits.length !== 11;
