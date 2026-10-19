@@ -140,7 +140,10 @@
     if (view && !view.classList.contains("view--active")) mostrarView("view-site");
     if (nome !== "motos") siteFecharJanelasMoto();
     siteMarcarDetalhe(nome);
-    siteRolarPara(nome === "motos" ? "siteMotos" : "sitePlanos", suave);
+    siteRolarPara(
+      nome === "motos" ? "siteMotos" : nome === "como-funciona" ? "siteComo" : "sitePlanos",
+      suave
+    );
     try {
       history.replaceState(null, "", `${location.pathname}${location.search}#${nome}`);
     } catch {
@@ -170,16 +173,20 @@
       siteAbrirWhatsApp("Olá! Quero alugar uma moto na DK e falar com um atendente.");
       return;
     }
-    if (detalhe !== "planos" && detalhe !== "motos") return;
+    if (detalhe !== "planos" && detalhe !== "motos" && detalhe !== "como-funciona") return;
     e.preventDefault();
     siteIrPara(detalhe, true);
   });
 
   document.addEventListener("click", (e) => {
-    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero, [data-site-atendente]") : null;
+    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero, [data-site-atendente], [data-site-contato]") : null;
     if (!quero) return;
     e.preventDefault();
     const card = quero.closest(".site-plano");
+    if (quero.hasAttribute("data-site-contato")) {
+      siteAbrirWhatsApp("OLÁ, QUERO ENTRAR EM CONTATO COM UM ATENDENTE DA DK");
+      return;
+    }
     if (quero.hasAttribute("data-site-atendente") || card?.getAttribute("data-plano-id") === "sob-consulta") {
       siteAbrirWhatsApp("OLÁ, QUERO SABER MAIS SOBRE OS OUTROS PLANOS DK");
       return;
@@ -252,10 +259,12 @@
       const view = document.getElementById("view-site");
       if (!view || !view.classList.contains("view--active")) return;
       const linha = siteMedirTopo() + 12;
+      const como = document.getElementById("siteComo");
       const motos = document.getElementById("siteMotos");
       const planos = document.getElementById("sitePlanos");
       const passou = (el) => el && el.getBoundingClientRect().top <= linha;
-      if (passou(motos)) siteMarcarDetalhe("motos");
+      if (passou(como)) siteMarcarDetalhe("como-funciona");
+      else if (passou(motos)) siteMarcarDetalhe("motos");
       else if (passou(planos)) siteMarcarDetalhe("planos");
       else siteMarcarDetalhe(null);
     });
@@ -263,7 +272,7 @@
 
   siteMedirTopo();
   const hashSite = (location.hash || "").toLowerCase();
-  if (hashSite === "#planos" || hashSite === "#motos") {
+  if (hashSite === "#planos" || hashSite === "#motos" || hashSite === "#como-funciona") {
     mostrarView("view-site");
     siteIrPara(hashSite.slice(1), false);
   }
