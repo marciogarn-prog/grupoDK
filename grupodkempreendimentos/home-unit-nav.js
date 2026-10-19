@@ -154,6 +154,32 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function siteAbrirWhatsApp(texto) {
+    const url = `https://wa.me/5581981037414?text=${encodeURIComponent(texto)}`;
+    window.open(url, "_blank", "noopener");
+  }
+
+  document.addEventListener("click", (e) => {
+    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero") : null;
+    if (quero) {
+      e.preventDefault();
+      const card = quero.closest(".site-plano");
+      const tipo = (card && card.querySelector(".site-plano__tipo")?.textContent || "").trim();
+      const nome = (card && card.querySelector(".site-plano__nome")?.textContent || "").trim();
+      const plano = [tipo, nome].filter(Boolean).join(" ");
+      siteAbrirWhatsApp(
+        plano
+          ? `Olá, quero o plano ${plano} e falar com um atendente.`
+          : "Olá, quero falar com um atendente sobre um plano da DK."
+      );
+      return;
+    }
+    const alugar = e.target && e.target.closest ? e.target.closest('[data-site-detalhe="alugar"]') : null;
+    if (!alugar) return;
+    e.preventDefault();
+    siteAbrirWhatsApp("Olá, quero alugar uma moto e falar com um atendente.");
+  });
+
   document.addEventListener("click", (e) => {
     const detalheBtn = e.target && e.target.closest ? e.target.closest("[data-site-detalhe]") : null;
     if (!detalheBtn) return;
