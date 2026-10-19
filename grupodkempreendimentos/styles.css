@@ -15922,7 +15922,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   z-index: 2;
   flex: 1;
   padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2.5rem;
-  background: #14110e;
+  background: transparent;
 }
 
 .site-planos__intro {
@@ -15938,13 +15938,16 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 .site-planos__intro h1 {
   margin: 0;
+  color: #fff;
   font-size: clamp(1.45rem, 3vw, 2.1rem);
   line-height: 1.15;
   text-transform: uppercase;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 1px 2px #000;
 }
 
 .site-planos__intro p {
@@ -16161,7 +16164,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   flex: 1;
   min-height: calc(100vh - var(--site-topo, 5.5rem));
   padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2.5rem;
-  background: #14110e;
+  background: transparent;
 }
 
 .site-motos__marca {
@@ -16176,6 +16179,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
 }
 
 .site-motos__grade {
