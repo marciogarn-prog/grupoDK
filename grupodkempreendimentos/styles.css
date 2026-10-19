@@ -16146,6 +16146,32 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   color: #dc2626;
 }
 
+.site-planos__obs li:first-child {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.85rem;
+}
+
+.site-planos__outros {
+  border: 0;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.42rem 0.9rem;
+  cursor: pointer;
+}
+
+.site-planos__outros:hover,
+.site-planos__outros:focus-visible {
+  background: #b91c1c;
+}
+
 @media (max-width: 1100px) {
   .site-planos__grade {
     grid-template-columns: repeat(2, minmax(0, 1fr));

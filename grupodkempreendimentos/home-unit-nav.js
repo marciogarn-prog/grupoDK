@@ -176,7 +176,7 @@
   });
 
   document.addEventListener("click", (e) => {
-    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero") : null;
+    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero, [data-site-atendente]") : null;
     if (!quero) return;
     e.preventDefault();
     const card = quero.closest(".site-plano");
