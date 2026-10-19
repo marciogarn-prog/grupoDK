@@ -154,39 +154,34 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  const SITE_WHATSAPP = "5581989037417";
+
   function siteAbrirWhatsApp(texto) {
-    const url = `https://wa.me/5581981037414?text=${encodeURIComponent(texto)}`;
+    const url = `https://wa.me/${SITE_WHATSAPP}?text=${encodeURIComponent(texto)}`;
     window.open(url, "_blank", "noopener");
   }
-
-  document.addEventListener("click", (e) => {
-    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero") : null;
-    if (quero) {
-      e.preventDefault();
-      const card = quero.closest(".site-plano");
-      const tipo = (card && card.querySelector(".site-plano__tipo")?.textContent || "").trim();
-      const nome = (card && card.querySelector(".site-plano__nome")?.textContent || "").trim();
-      const plano = [tipo, nome].filter(Boolean).join(" ");
-      siteAbrirWhatsApp(
-        plano
-          ? `Olá, quero o plano ${plano} e falar com um atendente.`
-          : "Olá, quero falar com um atendente sobre um plano da DK."
-      );
-      return;
-    }
-    const alugar = e.target && e.target.closest ? e.target.closest('[data-site-detalhe="alugar"]') : null;
-    if (!alugar) return;
-    e.preventDefault();
-    siteAbrirWhatsApp("Olá, quero alugar uma moto e falar com um atendente.");
-  });
 
   document.addEventListener("click", (e) => {
     const detalheBtn = e.target && e.target.closest ? e.target.closest("[data-site-detalhe]") : null;
     if (!detalheBtn) return;
     const detalhe = detalheBtn.getAttribute("data-site-detalhe") || "";
+    if (detalhe === "alugar") {
+      e.preventDefault();
+      siteAbrirWhatsApp("Olá! Quero alugar uma moto na DK e falar com um atendente.");
+      return;
+    }
     if (detalhe !== "planos" && detalhe !== "motos") return;
     e.preventDefault();
     siteIrPara(detalhe, true);
+  });
+
+  document.addEventListener("click", (e) => {
+    const quero = e.target && e.target.closest ? e.target.closest(".site-plano__quero") : null;
+    if (!quero) return;
+    e.preventDefault();
+    const card = quero.closest(".site-plano");
+    const nome = String(card?.getAttribute("aria-label") || card?.querySelector(".site-plano__nome")?.textContent || "um plano DK").trim();
+    siteAbrirWhatsApp(`Olá! Quero o plano ${nome} e falar com um atendente.`);
   });
 
   document.addEventListener("click", (e) => {
