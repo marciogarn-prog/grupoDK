@@ -16040,6 +16040,13 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 800;
 }
 
+.site-plano__conta-cliente {
+  color: #1d4ed8;
+  font-style: italic;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
 .site-plano__sub {
   display: block;
   margin-top: 0.12rem;
