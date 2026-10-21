@@ -4,11 +4,14 @@ const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs")
 const {
   isSupabaseDoormanConfigured,
   fetchSnapshotByLabel,
+  upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("./dk-supabase-doorman.cjs");
 const {
   CANONICAL_SNAPSHOT_KEY,
   LOCACOES_INTEGRITY_KEY,
+  acquireLocacoesWriteLock,
+  releaseLocacoesWriteLock,
   findActivePlateConflicts,
   canonicalLocacoesDigest,
 } = require("./dk-locacoes-integrity.cjs");
@@ -74,6 +77,72 @@ function diffLocacoesByProtocol(canonicalList, mirrorList) {
   };
 }
 
+function freshnessOfLocacao(loc) {
+  let best = 0;
+  const stamp = Number(loc?.updatedAt);
+  if (Number.isFinite(stamp) && stamp > 0) best = stamp;
+  const parsed = Date.parse(String(loc?.updatedAt || loc?.updated_at || ""));
+  if (Number.isFinite(parsed) && parsed > best) best = parsed;
+  const lists = [loc?.portalLancamentosAluguel, loc?.portalLancamentosAluguelRemovidos];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const row of list) {
+      const created = Number(row?.createdAt || 0);
+      const removed = Number(row?.removedAt || 0);
+      if (created > best) best = created;
+      if (removed > best) best = removed;
+    }
+  }
+  return best;
+}
+
+/**
+ * Mesmo protocolo nos dois lados: fica o registo mais recente.
+ * Empate fica com o Redis (fonte oficial).
+ */
+function mergeLocacoesPorAtualidade(redisList, mirrorList) {
+  const map = new Map();
+  const put = (loc, replaceOnTie) => {
+    if (!loc || typeof loc !== "object") return;
+    const nc = normalizeProtocolKey(loc.numeroContrato || loc.protocolo);
+    if (!nc) return;
+    const prev = map.get(nc);
+    if (!prev) {
+      map.set(nc, loc);
+      return;
+    }
+    const nextFresh = freshnessOfLocacao(loc);
+    const prevFresh = freshnessOfLocacao(prev);
+    if (nextFresh > prevFresh || (nextFresh === prevFresh && replaceOnTie)) map.set(nc, loc);
+  };
+  for (const loc of Array.isArray(mirrorList) ? mirrorList : []) put(loc, false);
+  for (const loc of Array.isArray(redisList) ? redisList : []) put(loc, true);
+  return [...map.values()];
+}
+
+async function gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirrorPayload, list) {
+  const storedAt = new Date().toISOString();
+  const mirrorNext = { ...(mirrorPayload || {}), dk_locacoes_cadastro: list };
+  const saved = await withDoormanTimeout(
+    upsertSnapshotByLabel("default", mirrorNext, storedAt),
+    20000,
+    "supabase_timeout"
+  );
+  if (!saved || saved.ok !== true) {
+    return { ok: false, reason: String(saved?.reason || "supabase_falhou") };
+  }
+  const canonicalNext = { ...(canonicalPayload || {}), dk_locacoes_cadastro: list };
+  const envelope = {
+    ...(row && typeof row === "object" ? row : {}),
+    label: "default",
+    payload: canonicalNext,
+    updated_at: storedAt,
+  };
+  await redis.set(CANONICAL_SNAPSHOT_KEY, JSON.stringify(envelope));
+  await redis.set(`${CANONICAL_SNAPSHOT_KEY}:rev`, storedAt);
+  return { ok: true, storedAt };
+}
+
 async function runLocacoesIntegrityAudit() {
   const checkedAt = new Date().toISOString();
   if (!isRedisKvConfigured()) {
@@ -113,30 +182,68 @@ async function runLocacoesIntegrityAudit() {
         onlySupabaseCount: 0,
         sampleLimit: 40,
       };
-  const ok = Boolean(canonicalPayload) && conflicts.length === 0 && channelsEqual;
+  let locacoesFinais = canonicalLocacoes;
+  let hashFinal = canonicalHash;
+  let mirrorHashFinal = mirrorHash;
+  let channelsEqualFinal = channelsEqual;
+  let aligned = false;
+  let alignReason = "";
+  if (canonicalPayload && mirrorAvailable && conflicts.length === 0 && !channelsEqual) {
+    let list = mergeLocacoesPorAtualidade(canonicalLocacoes, mirrorLocacoes);
+    if (findActivePlateConflicts(list).length) list = canonicalLocacoes;
+    const hash = canonicalLocacoesDigest(list);
+    if (!findActivePlateConflicts(list).length && hash) {
+      const token = await acquireLocacoesWriteLock(redis, { attempts: 8, waitMs: 40, ttlSec: 20 });
+      if (!token) {
+        alignReason = "locacoes_write_busy";
+      } else {
+        try {
+          const gravou = await gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirror.payload, list);
+          if (gravou.ok) {
+            locacoesFinais = list;
+            hashFinal = hash;
+            mirrorHashFinal = hash;
+            channelsEqualFinal = true;
+            aligned = true;
+          } else {
+            alignReason = gravou.reason || "align_failed";
+          }
+        } catch (error) {
+          alignReason = String(error?.message || error);
+        } finally {
+          await releaseLocacoesWriteLock(redis, token);
+        }
+      }
+    }
+  }
+  const conflictsFinais = findActivePlateConflicts(locacoesFinais);
+  const ok = Boolean(canonicalPayload) && conflictsFinais.length === 0 && channelsEqualFinal;
   let reason = "";
   if (!canonicalPayload) reason = "canonical_missing";
-  else if (conflicts.length) reason = "active_plate_conflict";
+  else if (conflictsFinais.length) reason = "active_plate_conflict";
   else if (!mirrorAvailable) reason = "mirror_unavailable";
-  else if (!channelsEqual) reason = "channels_diverged";
+  else if (!channelsEqualFinal) reason = alignReason || "channels_diverged";
   const result = {
     ok,
     checkedAt,
+    aligned,
     canonical: {
       source: "redis:dk-cloud-snapshot/default",
-      count: canonicalLocacoes.length,
-      hash: canonicalHash,
+      count: locacoesFinais.length,
+      hash: hashFinal,
     },
     mirror: {
       source: "supabase:default",
       available: mirrorAvailable,
-      count: mirrorLocacoes.length,
-      hash: mirrorHash,
+      count: channelsEqualFinal ? locacoesFinais.length : mirrorLocacoes.length,
+      hash: mirrorHashFinal,
       reason: mirrorAvailable ? "" : String(mirror?.reason || "mirror_unavailable"),
     },
-    channelsEqual,
-    activePlateConflicts: conflicts,
-    protocolDiff,
+    channelsEqual: channelsEqualFinal,
+    activePlateConflicts: conflictsFinais,
+    protocolDiff: channelsEqualFinal
+      ? { onlyRedis: [], onlySupabase: [], onlyRedisCount: 0, onlySupabaseCount: 0, sampleLimit: 40 }
+      : protocolDiff,
     reason,
   };
   await redis.set(LOCACOES_INTEGRITY_KEY, JSON.stringify(result), { ex: 7 * 24 * 60 * 60 });
@@ -145,4 +252,6 @@ async function runLocacoesIntegrityAudit() {
 
 module.exports = {
   runLocacoesIntegrityAudit,
+  mergeLocacoesPorAtualidade,
+  freshnessOfLocacao,
 };

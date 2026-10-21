@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
 const integrity = require(path.join(root, "lib", "dk-locacoes-integrity.cjs"));
+const audit = require(path.join(root, "lib", "dk-locacoes-integrity-audit.cjs"));
 const snapshotApi = fs.readFileSync(path.join(root, "api", "dk-cloud-snapshot.js"), "utf8");
 const locacoesApi = fs.readFileSync(path.join(root, "api", "cadastro-locacoes.js"), "utf8");
 const portalUi = fs.readFileSync(path.join(root, "portal-locadora-ui.js"), "utf8");
@@ -123,6 +124,27 @@ assert.equal(
   "caução com o mesmo valor do aluguel no mesmo dia não é duplicidade"
 );
 
+const redisLoc = {
+  numeroContrato: "2026102101",
+  placa: "ABC1D23",
+  updatedAt: 100,
+  portalLancamentosAluguel: [{ data: "21/10/2026", valor: 10, createdAt: 100 }],
+};
+const mirrorLoc = {
+  numeroContrato: "2026102101",
+  placa: "ABC1D23",
+  updatedAt: 50,
+  portalLancamentosAluguel: [{ data: "21/10/2026", valor: 375, createdAt: 500 }],
+};
+const merged = audit.mergeLocacoesPorAtualidade([redisLoc], [mirrorLoc]);
+assert.equal(merged.length, 1);
+assert.equal(merged[0].portalLancamentosAluguel[0].valor, 375);
+const empate = audit.mergeLocacoesPorAtualidade(
+  [{ numeroContrato: "2026102102", placa: "XYZ1A23", updatedAt: 10, origem: "redis" }],
+  [{ numeroContrato: "2026102102", placa: "XYZ1A23", updatedAt: 10, origem: "espelho" }]
+);
+assert.equal(empate[0].origem, "redis");
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],
@@ -136,6 +158,7 @@ const checks = [
   ["detecção de pull compara cópia canônica exata", appJs.includes("locações são cópia exata da fonte canônica") && syncJs.includes('hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")')],
   ["alerta automático existe no banner", html.includes('id="portalLocacoesIntegridadeAlerta"') && syncJs.includes("refreshLocacoesIntegrityAlert")],
   ["auditoria roda diariamente com o backup", cron.includes("runLocacoesIntegrityAudit") && cron.includes("locacoesIntegrity.ok === true")],
+  ["auditoria alinha Redis e Supabase quando o conteúdo diverge", fs.readFileSync(path.join(root, "lib", "dk-locacoes-integrity-audit.cjs"), "utf8").includes("gravarLocacoesAlinhadas")],
   ["cache de integridade atualizado", /portal-supabase-sync\.js\?v=[^"'<>]+/.test(html) && /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)],
 ];
 

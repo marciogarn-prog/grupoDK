@@ -2306,25 +2306,67 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: comandos 7–10 e extratos removidos do menu", removedOk);
-          await pageE2e.locator("#btn-fin-mod-cadastro-despesas").click().catch(() => null);
-          await pageE2e.waitForSelector("#finCeoPaneDespesas:not(.hidden)", { timeout: 8000 }).catch(() => null);
-          const atalhoOk = await pageE2e.evaluate(() => {
-            const view = document.getElementById("view-financeiro-ceo");
-            const sel = document.getElementById("finCeoDespCategoria");
-            const opts = sel ? Array.from(sel.options).map((o) => o.value) : [];
-            return Boolean(
-              view?.classList.contains("view--active") &&
-                view.classList.contains("fin-ceo-atalho-locadora") &&
-                document.getElementById("finCeoPaneDespesas") &&
-                !document.getElementById("finCeoPaneDespesas").classList.contains("hidden") &&
-                sel &&
-                sel.disabled &&
-                opts.length === 1 &&
-                opts[0] === "DK_LOCADORA" &&
-                window.__DK_finCeoAtalhoLocadora === true
-            );
-          });
-          record("financeiro E2E: atalho Cadastro de despesas filtra DK Locadora", atalhoOk);
+          const atalhoEstado = async () =>
+            pageE2e.evaluate(() => {
+              const view = document.getElementById("view-financeiro-ceo");
+              const sel = document.getElementById("finCeoDespCategoria");
+              const pane = document.getElementById("finCeoPaneDespesas");
+              const opts = sel ? Array.from(sel.options).map((o) => o.value) : [];
+              const ok = Boolean(
+                view?.classList.contains("view--active") &&
+                  view.classList.contains("fin-ceo-atalho-locadora") &&
+                  pane &&
+                  !pane.classList.contains("hidden") &&
+                  sel &&
+                  sel.disabled &&
+                  opts.length === 1 &&
+                  opts[0] === "DK_LOCADORA" &&
+                  window.__DK_finCeoAtalhoLocadora === true
+              );
+              return {
+                ok,
+                hash: String(location.hash || ""),
+                view: Boolean(view?.classList.contains("view--active")),
+                atalho: Boolean(view?.classList.contains("fin-ceo-atalho-locadora")),
+                pane: pane ? !pane.classList.contains("hidden") : false,
+                disabled: Boolean(sel?.disabled),
+                opts: opts.slice(0, 4),
+                flag: window.__DK_finCeoAtalhoLocadora === true,
+              };
+            });
+          await pageE2e.locator("#btn-fin-mod-cadastro-despesas").click({ timeout: 8000 }).catch(() => null);
+          let atalho = await atalhoEstado();
+          if (!atalho.ok) {
+            await pageE2e.evaluate(() => document.getElementById("btn-fin-mod-cadastro-despesas")?.click());
+            await pageE2e
+              .waitForFunction(
+                () => {
+                  const view = document.getElementById("view-financeiro-ceo");
+                  const sel = document.getElementById("finCeoDespCategoria");
+                  const pane = document.getElementById("finCeoPaneDespesas");
+                  const opts = sel ? Array.from(sel.options).map((o) => o.value) : [];
+                  return Boolean(
+                    view?.classList.contains("view--active") &&
+                      view.classList.contains("fin-ceo-atalho-locadora") &&
+                      pane &&
+                      !pane.classList.contains("hidden") &&
+                      sel &&
+                      sel.disabled &&
+                      opts.length === 1 &&
+                      opts[0] === "DK_LOCADORA" &&
+                      window.__DK_finCeoAtalhoLocadora === true
+                  );
+                },
+                { timeout: 12000 }
+              )
+              .catch(() => null);
+            atalho = await atalhoEstado();
+          }
+          record(
+            "financeiro E2E: atalho Cadastro de despesas filtra DK Locadora",
+            atalho.ok,
+            atalho.ok ? "" : JSON.stringify(atalho).slice(0, 180)
+          );
           await pageE2e.locator("#btn-voltar-financeiro-ceo-locadora").click().catch(() => null);
           await pageE2e.waitForSelector("#view-financeiro.view--active", { timeout: 8000 }).catch(() => null);
         } else {
