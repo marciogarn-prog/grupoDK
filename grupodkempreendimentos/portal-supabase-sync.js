@@ -5970,7 +5970,7 @@
     return snapshot;
   }
 
-  function pullFromCloudOnScreenChange() {
+  function pullFromCloudOnScreenChangeAgora() {
     if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
     const now = Date.now();
     void SCREEN_PULL_MIN_INTERVAL_MS;
@@ -5979,7 +5979,7 @@
       return screenPullInFlight.then(() => {
         if (!screenPullAgain) return { ok: true, skipped: true, reason: "ja_em_curso" };
         screenPullAgain = false;
-        return pullFromCloudOnScreenChange();
+        return pullFromCloudOnScreenChangeAgora();
       });
     }
     screenPullLastAt = now;
@@ -5994,6 +5994,26 @@
     return screenPullInFlight;
   }
 
+  let screenPullDebounceTimer = 0;
+  let screenPullDebounceResolve = null;
+  function pullFromCloudOnScreenChange() {
+    if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
+    if (screenPullDebounceResolve) {
+      screenPullDebounceResolve({ ok: true, skipped: true, reason: "adiado" });
+      screenPullDebounceResolve = null;
+    }
+    if (screenPullDebounceTimer) clearTimeout(screenPullDebounceTimer);
+    return new Promise((resolve) => {
+      screenPullDebounceResolve = resolve;
+      screenPullDebounceTimer = window.setTimeout(() => {
+        screenPullDebounceTimer = 0;
+        const done = screenPullDebounceResolve;
+        screenPullDebounceResolve = null;
+        Promise.resolve(pullFromCloudOnScreenChangeAgora()).then(done, (e) => done({ ok: false, error: e }));
+      }, 45000);
+    });
+  }
+
   /** Enquanto a lista de pagamentos está aberta, compara o ID (data e hora) sem baixar o cadastro inteiro. */
   async function compararRevisaoPagamentosAgora() {
     if (cloudSyncIsHalted()) return { ok: false, reason: "session_revoked" };
@@ -6002,7 +6022,7 @@
     if (revNuvem && revLocal && revNuvem === revLocal) {
       return { ok: true, unchanged: true, revision: revNuvem, mesmaRevisao: true };
     }
-    return pullFromCloudOnScreenChange();
+    return pullFromCloudOnScreenChangeAgora();
   }
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */

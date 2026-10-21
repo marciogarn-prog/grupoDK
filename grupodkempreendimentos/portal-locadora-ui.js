@@ -28099,6 +28099,20 @@
     wrap.innerHTML = html;
     wrap.classList.remove("hidden");
     wrap.removeAttribute("hidden");
+    portalCompararPagamentosDaListaAberta();
+  }
+
+  let portalPagamentosComparadoEm = 0;
+  function portalCompararPagamentosDaListaAberta() {
+    const agora = Date.now();
+    if (agora - portalPagamentosComparadoEm < 15000) return;
+    portalPagamentosComparadoEm = agora;
+    if (typeof window.__DK_compararRevisaoPagamentos !== "function") return;
+    void Promise.resolve(window.__DK_compararRevisaoPagamentos())
+      .then((r) => {
+        if (r && r.ok !== false && (r.applied || r.changed)) portalRepintarPagamentosAbertos();
+      })
+      .catch(() => {});
   }
 
   function onOperacaoLancAluguelHistoricoClick(e) {
