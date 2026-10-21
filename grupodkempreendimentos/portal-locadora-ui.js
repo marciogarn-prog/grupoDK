@@ -1429,8 +1429,14 @@
     portalAdminAlteracaoConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
     if (tituloEl) tituloEl.textContent = String(titulo || "Confirmar alteração");
     corpo.innerHTML = htmlCorpo || "";
+    modal.style.zIndex = "10240";
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    try {
+      document.getElementById("portalAdminAlteracaoConfirmSimBtn")?.focus();
+    } catch {
+      /* ignore */
+    }
   }
 
   function closePortalAdminAlteracaoConfirmModal() {

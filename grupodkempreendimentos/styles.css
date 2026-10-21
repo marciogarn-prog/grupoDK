@@ -10707,6 +10707,12 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   z-index: 10120;
 }
 
+/* Confirmação do administrador abre por cima do editar pagamento.
+   Sem isto o Guardar parece travado: o diálogo fica atrás do modal. */
+#portalAdminAlteracaoConfirmModal.portal-modal {
+  z-index: 10240;
+}
+
 .portal-lanc-cal-modal__card {
   position: relative;
   max-width: min(96vw, 920px);
