@@ -20486,7 +20486,51 @@
    * Trocar de tela: puxa a última atualização da nuvem em fundo.
    * Não mostra o overlay preto — o operador continua a trabalhar.
    */
+  function portalRepintarPagamentosAbertos() {
+    try {
+      if (typeof renderOperacaoLancAluguelHistorico === "function") renderOperacaoLancAluguelHistorico();
+    } catch (e) {
+      console.warn("[DK portal] repintar lançamentos", e);
+    }
+    try {
+      if (typeof refreshOperacaoLancAluguelSaldosHoje === "function") refreshOperacaoLancAluguelSaldosHoje();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const loc = typeof getPortalLocacaoLancAluguelAtual === "function" ? getPortalLocacaoLancAluguelAtual() : null;
+      if (!loc) return;
+      const cpf = String(loc.cpf || loc.cpfCliente || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
+      const nc = normPortalNumeroContrato(loc.numeroContrato);
+      if (typeof refreshOperacaoLocacaoLancamentosHistorico === "function") {
+        refreshOperacaoLocacaoLancamentosHistorico(cpf, nc);
+      }
+      if (typeof refreshOperacaoLocacaoTotaisPortalLancamentoUi === "function") {
+        refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpf, nc);
+      }
+    } catch (e) {
+      console.warn("[DK portal] repintar totais", e);
+    }
+  }
+
   let portalScreenPullGen = 0;
+  let portalPagamentosRevisaoTimer = 0;
+  function portalVigiarRevisaoPagamentosAberta() {
+    if (portalPagamentosRevisaoTimer) return;
+    portalPagamentosRevisaoTimer = window.setInterval(() => {
+      const wrap = document.getElementById("operacaoLancAluguelHistorico");
+      if (!wrap || wrap.classList.contains("hidden") || wrap.hasAttribute("hidden")) return;
+      if (typeof window.__DK_compararRevisaoPagamentos !== "function") return;
+      void Promise.resolve(window.__DK_compararRevisaoPagamentos())
+        .then((r) => {
+          if (r && r.ok !== false && (r.applied || r.changed)) portalRepintarPagamentosAbertos();
+        })
+        .catch(() => {});
+    }, 20000);
+  }
+  portalVigiarRevisaoPagamentosAberta();
   async function portalOperacaoOnScreenChange() {
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
@@ -20505,7 +20549,8 @@
           return;
         }
         portalRefreshOperacaoLocal();
-        if (r && (r.applied || r.changed)) {
+        portalRepintarPagamentosAbertos();
+        if (r && (r.applied || r.changed || r.mesmaRevisao)) {
           portalRefreshOperacaoDeferred();
         }
         refreshOperacaoClienteCodigoEditavel();
@@ -20517,6 +20562,7 @@
   try {
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
     window.__DK_portalOperacaoOnScreenChange = portalOperacaoOnScreenChange;
+    window.__DK_portalRepintarPagamentosAbertos = portalRepintarPagamentosAbertos;
     window.__DK_portalSyncFluxoVeiculoNuvem = portalSyncFluxoVeiculoNuvem;
     window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
     window.__DK_portalNuvemGarantirNaNuvem = portalNuvemGarantirNaNuvem;

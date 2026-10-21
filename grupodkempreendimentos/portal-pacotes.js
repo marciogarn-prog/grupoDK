@@ -177,6 +177,22 @@
         return;
       }
       const prev = by.get(id);
+      if (
+        prev &&
+        chave === "dk_locacoes_cadastro" &&
+        typeof window !== "undefined" &&
+        typeof window.__DK_anexarLancamentosMergeNaLocacao === "function"
+      ) {
+        const paysA = Array.isArray(prev.portalLancamentosAluguel) ? prev.portalLancamentosAluguel : [];
+        const paysB = Array.isArray(r.portalLancamentosAluguel) ? r.portalLancamentosAluguel : [];
+        const mergeFn = window.__DK_mergePortalLancamentosAluguelEmbutidos;
+        const mergedPl = typeof mergeFn === "function" ? mergeFn([paysA, paysB]) : paysA.concat(paysB);
+        const score = (l) => Number((l && (l.updatedAt || l.createdAt || l.id)) || 0);
+        const base = score(r) >= score(prev) ? { ...prev, ...r } : { ...r, ...prev };
+        window.__DK_anexarLancamentosMergeNaLocacao(base, prev, r, mergedPl);
+        by.set(id, manterBinario(prev, base));
+        return;
+      }
       by.set(id, prev ? manterBinario(prev, { ...prev, ...r }) : r);
     });
     return [...by.values(), ...semId];

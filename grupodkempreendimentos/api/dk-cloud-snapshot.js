@@ -1463,22 +1463,34 @@ async function handler(req, res) {
         if (!nc) {
           return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
         }
-        const oficialAtualLoc = isSupabaseDoormanConfigured()
+        let gravarLocSoRedis = false;
+        let oficialAtualLoc = isSupabaseDoormanConfigured()
           ? await consultarSupabase(() => fetchSnapshotByLabel(LABEL))
           : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
         if (
           !oficialAtualLoc ||
           oficialAtualLoc.reason === "supabase_timeout" ||
+          oficialAtualLoc.reason === "supabase_circuit_open" ||
           oficialAtualLoc.reason === "doorman_key_missing" ||
           oficialAtualLoc.reason === "cloud_budget" ||
           (oficialAtualLoc.reason && String(oficialAtualLoc.reason).startsWith("supabase_http"))
         ) {
-          return res.status(503).json({
-            ok: false,
-            success: false,
-            reason: (oficialAtualLoc && oficialAtualLoc.reason) || "supabase_indisponivel",
-            message: "A nuvem não respondeu. Tente cadastrar de novo.",
-          });
+          const cachedLoc = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+          if (!cachedLoc || !cachedLoc.payload) {
+            return res.status(503).json({
+              ok: false,
+              success: false,
+              reason: (oficialAtualLoc && oficialAtualLoc.reason) || "supabase_indisponivel",
+              message: "A nuvem não respondeu. Tente cadastrar de novo.",
+            });
+          }
+          gravarLocSoRedis = true;
+          oficialAtualLoc = {
+            ok: true,
+            reason: "redis",
+            payload: cachedLoc.payload,
+            updatedAt: cachedLoc.updated_at || null,
+          };
         }
         const existingLocPayload =
           oficialAtualLoc.payload && typeof oficialAtualLoc.payload === "object" ? oficialAtualLoc.payload : null;
@@ -1504,32 +1516,40 @@ async function handler(req, res) {
           });
         }
         const storedAtLoc = new Date().toISOString();
-        let supabaseLoc;
-        try {
-          supabaseLoc = await withDoormanTimeout(
-            upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
-            8000,
-            "supabase_timeout"
-          );
-        } catch (err) {
-          supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
+        let supabaseLoc = { ok: false, reason: "supabase_pendente" };
+        if (!gravarLocSoRedis) {
+          try {
+            supabaseLoc = await withDoormanTimeout(
+              upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
+              8000,
+              "supabase_timeout"
+            );
+          } catch (err) {
+            supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
+          }
+          if (!supabaseLoc || supabaseLoc.ok !== true) {
+            const cachedDepois = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+            if (!cachedDepois || !cachedDepois.payload || !redis) {
+              return res.status(502).json({
+                ok: false,
+                success: false,
+                reason: (supabaseLoc && supabaseLoc.reason) || "supabase_falhou",
+                message: "A nuvem não confirmou a locação. Tente de novo.",
+              });
+            }
+            gravarLocSoRedis = true;
+          }
         }
-        if (!supabaseLoc || supabaseLoc.ok !== true) {
-          return res.status(502).json({
-            ok: false,
-            success: false,
-            reason: (supabaseLoc && supabaseLoc.reason) || "supabase_falhou",
-            message: "A nuvem não confirmou a locação. Tente de novo.",
-          });
-        }
-        const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
-        if (confirmedLoc !== true) {
-          return res.status(409).json({
-            ok: false,
-            success: false,
-            reason: "locacao_nao_confirmada",
-            message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
-          });
+        if (!gravarLocSoRedis) {
+          const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
+          if (confirmedLoc !== true) {
+            return res.status(409).json({
+              ok: false,
+              success: false,
+              reason: "locacao_nao_confirmada",
+              message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+            });
+          }
         }
         let redisLocOk = false;
         let redisLocErr = "";
@@ -1542,17 +1562,26 @@ async function handler(req, res) {
             redisLocErr = String(err && err.message ? err.message : err);
           }
         }
+        if (gravarLocSoRedis && !redisLocOk) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: redisLocErr || "redis_indisponivel",
+            message: "A nuvem não respondeu. Tente cadastrar de novo.",
+          });
+        }
         return res.status(200).json({
           ok: true,
           success: true,
           label: LABEL,
           revision: storedAtLoc,
           updated_at: storedAtLoc,
-          source: redisLocOk ? "both" : "supabase",
-          persistencia: redisLocOk ? "supabase+redis" : "supabase",
-          supabase: { ok: true },
+          source: gravarLocSoRedis ? "redis" : redisLocOk ? "both" : "supabase",
+          persistencia: gravarLocSoRedis ? "redis" : redisLocOk ? "supabase+redis" : "supabase",
+          supabase: gravarLocSoRedis ? { ok: false, reason: "supabase_pendente" } : { ok: true },
+          supabasePendente: gravarLocSoRedis,
           redis: redisLocOk ? { ok: true } : { ok: false, reason: redisLocErr || "redis_indisponivel" },
-          confirmed: confirmedLoc === true,
+          confirmed: !gravarLocSoRedis,
           locacao: nc,
         });
       }

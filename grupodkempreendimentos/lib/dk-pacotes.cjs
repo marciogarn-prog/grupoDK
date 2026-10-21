@@ -177,6 +177,17 @@
         return;
       }
       const prev = by.get(id);
+      if (prev && chave === "dk_locacoes_cadastro") {
+        try {
+          const { mergeLocacoesCadastro } = require("./dk-append-only-merge.cjs");
+          const merged = mergeLocacoesCadastro([prev], [r]);
+          const row = merged && merged[0] ? merged[0] : { ...prev, ...r };
+          by.set(id, manterBinario(prev, row));
+          return;
+        } catch (e) {
+          /* segue a fusão simples */
+        }
+      }
       by.set(id, prev ? manterBinario(prev, { ...prev, ...r }) : r);
     });
     return [...by.values(), ...semId];

@@ -2571,8 +2571,9 @@
   }
 
   /**
-   * A nuvem traz a lista. Neste PC, apagar ou editar mais recente que a cópia
-   * da nuvem fica. Pagamento que só existe aqui, sem par na nuvem, não entra.
+   * A nuvem e este PC entram na mesma lista. Lançamento parecido (mesmo dia e
+   * mesmo valor) fica com a data/hora mais recente. Pagamento que só existe
+   * num dos computadores permanece, para os dois mostrarem o mesmo histórico.
    */
   function fundirPagamentosLocaisAusentesNaNuvem(cloudArr) {
     const cloud = Array.isArray(cloudArr) ? cloudArr : [];
@@ -2592,19 +2593,9 @@
       if (!localLoc) return loc;
       const cloudPays = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
       const localPays = Array.isArray(localLoc.portalLancamentosAluguel) ? localLoc.portalLancamentosAluguel : [];
-      const cloudKeys = new Set();
-      for (const row of cloudPays) {
-        for (const k of chavesLancamentoSimilar(row)) cloudKeys.add(k);
-      }
       const mergedPl = mergeLancamentosAluguelLocacaoPar([cloudPays, localPays]);
       const row = { ...loc };
       window.__DK_anexarLancamentosMergeNaLocacao(row, localLoc, loc, mergedPl);
-      const pays = Array.isArray(row.portalLancamentosAluguel) ? row.portalLancamentosAluguel : [];
-      row.portalLancamentosAluguel = pays.filter((p) => {
-        const keys = chavesLancamentoSimilar(p);
-        if (!keys.length) return true;
-        return keys.some((k) => cloudKeys.has(k));
-      });
       const antes = cloudPays.map((p) => String(p?.protocoloLancamento || "") + "|" + Number(p?.valor) + "|" + String(p?.data || "")).sort().join(";");
       const depois = row.portalLancamentosAluguel
         .map((p) => String(p?.protocoloLancamento || "") + "|" + Number(p?.valor) + "|" + String(p?.data || ""))
@@ -2635,7 +2626,8 @@
       seen.add(nc);
       pend.push(loc);
     }
-    window.__DK_locacoesRegravar = pend.slice(0, 12);
+    pend.sort((a, b) => Number(b?.updatedAt || b?.createdAt || 0) - Number(a?.updatedAt || a?.createdAt || 0));
+    window.__DK_locacoesRegravar = pend.slice(0, 24);
     if (regravacaoLocacoesTimer) return;
     regravacaoLocacoesTimer = window.setTimeout(() => {
       regravacaoLocacoesTimer = 0;
@@ -5816,7 +5808,7 @@
     }
     if (!mergeNeeded) {
       noteCloudPullAppliedTimestamp(data.updated_at);
-      return { ok: true, unchanged: true };
+      return { ok: true, unchanged: true, revision: String(data.updated_at || data.revision || "") };
     }
     suppressCloudHook = true;
     try {
@@ -5877,13 +5869,71 @@
     } catch {
       /* ignore */
     }
-    return { ok: true, applied: true, source: data.source || "cloud" };
+    return {
+      ok: true,
+      applied: true,
+      source: data.source || "cloud",
+      revision: String(data.updated_at || data.revision || ""),
+    };
+  }
+
+  const DK_SYNC_REVISAO_PAGAMENTOS_KEY = "dk_sync_revisao_pagamentos_v1";
+
+  function lerRevisaoPagamentosLocal() {
+    try {
+      return String(localStorage.getItem(DK_SYNC_REVISAO_PAGAMENTOS_KEY) || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function gravarRevisaoPagamentosLocal(id) {
+    const rev = String(id || "").trim();
+    if (!rev) return;
+    try {
+      localStorage.setItem(DK_SYNC_REVISAO_PAGAMENTOS_KEY, rev);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** ID da nuvem: data e hora da última gravação (Redis quando o Supabase não responde). */
+  async function lerRevisaoSyncNuvem() {
+    if (cloudSyncIsHalted() || !hasUsableCloudToken()) return "";
+    const urls = resolveRedundantSnapshotApiUrls();
+    for (let i = 0; i < urls.length; i += 1) {
+      try {
+        const base = urls[i];
+        const join = base.includes("?") ? "&" : "?";
+        const res = await fetchWithCloudTimeout(
+          base + join + "meta=1&nocache=" + Date.now(),
+          { method: "GET", headers: dkCloudGetHeaders() },
+          8000
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data?.success !== true) continue;
+        const rev = String(data.revision || data.updated_at || "").trim();
+        if (rev) {
+          try {
+            window.__DK_CLOUD_REVISION = rev;
+          } catch {
+            /* ignore */
+          }
+          return rev;
+        }
+      } catch {
+        /* tenta a próxima origem */
+      }
+    }
+    return "";
   }
 
   /**
    * Download da nuvem ao trocar de ecrã na Operação (ex.: cliente → veículo).
    * Neste PC: só após o upload automático (se houver) terminar com sucesso —
    * evita carregar snapshot antigo por cima do lançamento ainda a subir.
+   * O ID (data e hora) da nuvem é comparado com o deste computador. Se mudou,
+   * baixa o cadastro inteiro e une os pagamentos pela alteração mais recente.
    */
   async function pullFromCloudOnScreenChangeCore() {
     const gate = await Promise.race([
@@ -5903,7 +5953,19 @@
             console.warn("[DK cloud] pull cadastro API ao mudar ecrã", e);
           })
         : Promise.resolve();
-    const snapshot = await pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true });
+    const revNuvem = await lerRevisaoSyncNuvem();
+    const revLocal = lerRevisaoPagamentosLocal();
+    if (revNuvem && revLocal && revNuvem === revLocal) {
+      await Promise.race([cadastro, new Promise((resolve) => setTimeout(resolve, 4000))]);
+      return { ok: true, unchanged: true, revision: revNuvem, mesmaRevisao: true };
+    }
+    const snapshot = await pullCloudSnapshotSilentMerge({
+      force: true,
+      bypassLocalAuthority: true,
+      completo: true,
+    });
+    const aplicada = String((snapshot && snapshot.revision) || revNuvem || "").trim();
+    if (snapshot && snapshot.ok !== false && aplicada) gravarRevisaoPagamentosLocal(aplicada);
     await Promise.race([cadastro, new Promise((resolve) => setTimeout(resolve, 4000))]);
     return snapshot;
   }
@@ -5930,6 +5992,17 @@
         screenPullInFlight = null;
       });
     return screenPullInFlight;
+  }
+
+  /** Enquanto a lista de pagamentos está aberta, compara o ID (data e hora) sem baixar o cadastro inteiro. */
+  async function compararRevisaoPagamentosAgora() {
+    if (cloudSyncIsHalted()) return { ok: false, reason: "session_revoked" };
+    const revNuvem = await lerRevisaoSyncNuvem();
+    const revLocal = lerRevisaoPagamentosLocal();
+    if (revNuvem && revLocal && revNuvem === revLocal) {
+      return { ok: true, unchanged: true, revision: revNuvem, mesmaRevisao: true };
+    }
+    return pullFromCloudOnScreenChange();
   }
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
@@ -6024,6 +6097,7 @@
     window.__DK_ensurePortalCadastrosFromCloud = ensurePortalCadastrosFromCloud;
     window.__DK_trimClienteLocacoesLocal = trimLocalLocacoesToClienteCpf;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
+    window.__DK_compararRevisaoPagamentos = compararRevisaoPagamentosAgora;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
     window.__DK_awaitAutoCloudPushConfirmed = awaitAutoCloudPushConfirmed;

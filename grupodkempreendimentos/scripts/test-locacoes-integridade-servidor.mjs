@@ -188,6 +188,71 @@ const parecido = mergeCadastro.filtrarPortalLancamentosPorRemovidos(
 );
 assert.equal(parecido.length, 0);
 
+const pacotes = require(path.join(root, "lib", "dk-pacotes.cjs"));
+const unido = pacotes.fundirPacoteDia(
+  {
+    dk_locacoes_cadastro: [
+      {
+        numeroContrato: "2026040802",
+        cpf: "75020840459",
+        placa: "UHN2G97",
+        updatedAt: criadoEm,
+        portalLancamentosAluguel: [pagamento6650],
+      },
+    ],
+  },
+  "2026-10-21",
+  {
+    dk_locacoes_cadastro: [
+      {
+        numeroContrato: "2026040802",
+        cpf: "75020840459",
+        placa: "UHN2G97",
+        updatedAt: Date.parse("2026-10-21T12:51:00Z"),
+        portalLancamentosAluguel: [
+          {
+            protocoloLancamento: "20261021101010-001",
+            data: "21/10/2026",
+            valor: 320,
+            createdAt: Date.parse("2026-10-21T12:51:00Z"),
+          },
+        ],
+      },
+    ],
+  }
+);
+assert.equal(unido.dk_locacoes_cadastro[0].portalLancamentosAluguel.length, 2);
+const semelhante = mergeCadastro.mergeLocacoesCadastro(
+  [
+    {
+      numeroContrato: "2026040802",
+      cpf: "75020840459",
+      updatedAt: 1,
+      portalLancamentosAluguel: [
+        { data: "21/10/2026", valor: 320, createdAt: 1000, protocoloLancamento: "20261021095000-001" },
+      ],
+    },
+  ],
+  [
+    {
+      numeroContrato: "2026040802",
+      cpf: "75020840459",
+      updatedAt: 2,
+      portalLancamentosAluguel: [
+        {
+          data: "21/10/2026",
+          valor: 320,
+          createdAt: 2000,
+          updatedAt: 2000,
+          protocoloLancamento: "20261021095100-002",
+        },
+      ],
+    },
+  ]
+);
+assert.equal(semelhante[0].portalLancamentosAluguel.length, 1);
+assert.equal(semelhante[0].portalLancamentosAluguel[0].protocoloLancamento, "20261021095100-002");
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],
@@ -203,6 +268,8 @@ const checks = [
   ["auditoria roda diariamente com o backup", cron.includes("runLocacoesIntegrityAudit") && cron.includes("locacoesIntegrity.ok === true")],
   ["auditoria alinha Redis e Supabase quando o conteúdo diverge", fs.readFileSync(path.join(root, "lib", "dk-locacoes-integrity-audit.cjs"), "utf8").includes("gravarLocacoesAlinhadas")],
   ["cache de integridade atualizado", /portal-supabase-sync\.js\?v=[^"'<>]+/.test(html) && /portal-locadora-ui\.js\?v=[^"'<>]+/.test(html)],
+  ["troca de tela compara o ID data/hora e baixa o cadastro inteiro", syncJs.includes("dk_sync_revisao_pagamentos_v1") && syncJs.includes("completo: true")],
+  ["locação grava no Redis quando o Supabase não responde", snapshotApi.includes("gravarLocSoRedis")],
 ];
 
 for (const [label, ok] of checks) console.log(`${ok ? "OK" : "FALHOU"} — ${label}`);

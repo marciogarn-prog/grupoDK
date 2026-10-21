@@ -367,13 +367,47 @@ function mergePagamentosAuditoria(arrays) {
   return Array.from(byId.values()).sort((a, b) => Number(a.at || 0) - Number(b.at || 0));
 }
 
+function momentoLancamentoAluguel(row) {
+  return Math.max(Number(row?.updatedAt || 0), Number(row?.createdAt || 0), Number(row?.id || 0));
+}
+
+/** Mesmo dia e mesmo valor de aluguel: fica o lançamento com a data/hora mais recente. */
+function escolherLancamentoAluguelMaisRecente(list) {
+  const by = new Map();
+  const outros = [];
+  for (const row of list || []) {
+    if (!row || typeof row !== "object") continue;
+    const tipo = String(row.tipoMovimento || "").trim().toUpperCase();
+    const valor = Number(row.valor);
+    const especial =
+      tipo === "DEVOLUCAO_INVESTIMENTO" ||
+      tipo === "CREDITO_MANUTENCAO" ||
+      tipo === "CREDITO_DE_MANUTENCAO" ||
+      tipo === "CAUCAO" ||
+      tipo === "CAUÇÃO" ||
+      tipo === "CAUÇAO" ||
+      !(valor > 0);
+    const data = portalLancamentoDataChave(row.data || row.dataPagamento);
+    if (especial || !data) {
+      outros.push(row);
+      continue;
+    }
+    const chave = data + "|" + valor.toFixed(2);
+    const prev = by.get(chave);
+    if (!prev || momentoLancamentoAluguel(row) >= momentoLancamentoAluguel(prev)) by.set(chave, row);
+  }
+  return [...by.values(), ...outros];
+}
+
 function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
   if (!target || typeof target !== "object") return target;
   const mergedRem = mergePortalLancamentosRemovidos([
     ex?.portalLancamentosAluguelRemovidos,
     incoming?.portalLancamentosAluguelRemovidos,
   ]);
-  target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
+  target.portalLancamentosAluguel = escolherLancamentoAluguelMaisRecente(
+    filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem)
+  );
   if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
   const mergedAud = mergePagamentosAuditoria([
     ex?.portalPagamentosAuditoria,
