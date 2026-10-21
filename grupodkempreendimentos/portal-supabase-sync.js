@@ -691,6 +691,7 @@
         payload.dk_patrimonio_fotos_excluidas_v1
       );
     }
+    if (window.__DK_LOCACAO_PG === true) delete payload.dk_locacoes_cadastro;
     return payload;
   }
 
@@ -1218,6 +1219,7 @@
     ]);
 
     for (const k of DK_STORAGE_KEYS) {
+      if (k === "dk_locacoes_cadastro" && window.__DK_LOCACAO_PG === true) continue;
       if (clientePage && !CLIENTE_CLOUD_PULL_KEYS.has(k)) continue;
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
         if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace && !oficialFrotaPlanilha) continue;
