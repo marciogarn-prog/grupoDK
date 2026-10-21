@@ -154,6 +154,9 @@
     if (data && Number.isFinite(abs) && abs > 0 && rp.length === 11) {
       keys.push("g:" + data + "|" + abs.toFixed(2) + "|" + rp);
     }
+    if (data && Number.isFinite(abs) && abs > 0) {
+      keys.push("s:" + data + "|" + abs.toFixed(2) + "|" + (Number(valor) < 0 ? "DEV" : "PAG"));
+    }
     return keys;
   }
 
@@ -174,7 +177,8 @@
           removedAt: Number(raw.removedAt || 0) || Date.now(),
         };
         const id = keys.join("|");
-        if (!byId.has(id)) byId.set(id, row);
+        const prev = byId.get(id);
+        if (!prev || Number(row.removedAt || 0) >= Number(prev.removedAt || 0)) byId.set(id, row);
       }
     }
     return Array.from(byId.values());
@@ -185,29 +189,23 @@
     if (!list.length) return list;
     const rem = Array.isArray(removidos) ? removidos : [];
     if (!rem.length) return list;
-    const tombExact = new Set();
-    const tombGroupUntil = new Map();
+    const tombUntil = new Map();
     for (const t of rem) {
       const remAt = Number(t?.removedAt || 0);
       for (const k of portalLancamentoRemocaoKeys(t)) {
-        if (String(k).startsWith("g:")) {
-          const prev = Number(tombGroupUntil.get(k) || 0);
-          tombGroupUntil.set(k, Math.max(prev, remAt));
-        } else {
-          tombExact.add(k);
-        }
+        const prev = Number(tombUntil.get(k) || 0);
+        tombUntil.set(k, Math.max(prev, remAt));
       }
     }
     return list.filter((row) => {
-      const keys = portalLancamentoRemocaoKeys(row);
-      for (const k of keys) {
-        if (tombExact.has(k)) return false;
-        if (String(k).startsWith("g:") && tombGroupUntil.has(k)) {
-          const remAt = Number(tombGroupUntil.get(k) || 0);
-          const ca = Number(row.createdAt || row.id || 0);
-          /* Gémeo antigo / pull da nuvem: createdAt anterior ou igual ao apagar. */
-          if (!remAt || !ca || ca <= remAt) return false;
-        }
+      const ca = Number(row.createdAt || row.id || 0);
+      const editado = Number(row.updatedAt || 0);
+      for (const k of portalLancamentoRemocaoKeys(row)) {
+        if (!tombUntil.has(k)) continue;
+        const remAt = Number(tombUntil.get(k) || 0);
+        if (editado > remAt) continue;
+        /* Gémeo antigo / pull da nuvem: createdAt anterior ou igual ao apagar. */
+        if (!remAt || !ca || ca <= remAt) return false;
       }
       return true;
     });

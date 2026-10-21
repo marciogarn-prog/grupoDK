@@ -2510,9 +2510,157 @@
   let reporLocacoesOficiaisFlight = null;
   let pagamentosLocaisReanexados = 0;
 
-  /** A lista oficial manda. Pagamento que só existe neste PC não entra na nuvem. */
+  function lerApagadosDoDiaParaSync() {
+    try {
+      const state = JSON.parse(localStorage.getItem("dk_lanc_aluguel_pagamentos_dia_v1") || "null");
+      const hoje = new Date();
+      const dia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+      if (!state || state.dia !== dia || !Array.isArray(state.itens)) return [];
+      return state.itens.filter((item) => item && (item.apagado || Number(item.valor) < 0 || String(item.comentario || "").toUpperCase().includes("APAGADO PELO ADMINISTRADOR")));
+    } catch {
+      return [];
+    }
+  }
+
+  function localComApagadosDoDia(localLoc, cloudLoc, log) {
+    const base = localLoc && typeof localLoc === "object" ? localLoc : cloudLoc;
+    if (!base || !Array.isArray(log) || !log.length) return localLoc || null;
+    const nc = ncLocacaoSync(base);
+    const extra = [];
+    for (const item of log) {
+      if (String(item.protocolo || "").replace(/\D/g, "") !== nc) continue;
+      const chave = String(item.chave || "");
+      const resto = chave.startsWith("apagado|") ? chave.slice("apagado|".length) : "";
+      const proto = /^\d{14}-\d{3}$/.test(resto) ? resto : "";
+      extra.push({
+        protocoloLancamento: proto,
+        data: String(item.dataPagamento || "").trim(),
+        valor: Math.abs(Number(item.valor) || 0),
+        removedAt: Number(item.ts) || Date.now(),
+      });
+    }
+    if (!extra.length) return localLoc || null;
+    return {
+      ...base,
+      portalLancamentosAluguelRemovidos: [
+        ...(Array.isArray(base.portalLancamentosAluguelRemovidos) ? base.portalLancamentosAluguelRemovidos : []),
+        ...extra,
+      ],
+    };
+  }
+
+  function ncLocacaoSync(loc) {
+    return String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
+  }
+
+  function chavesLancamentoSimilar(row) {
+    const keys = [];
+    const proto = String(row?.protocoloLancamento || row?.protocolo || "").trim();
+    if (/^\d{14}-\d{3}$/.test(proto)) keys.push("p:" + proto);
+    const data = String(row?.data || row?.dataPagamento || "").trim();
+    const br = data.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const iso = data.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const dia = br
+      ? `${String(Number(br[1])).padStart(2, "0")}/${String(Number(br[2])).padStart(2, "0")}/${br[3]}`
+      : iso
+        ? `${iso[3]}/${iso[2]}/${iso[1]}`
+        : data;
+    const abs = Math.abs(Number(row?.valor) || 0);
+    if (dia && abs > 0) keys.push("s:" + dia + "|" + abs.toFixed(2) + "|" + (Number(row?.valor) < 0 ? "DEV" : "PAG"));
+    return keys;
+  }
+
+  /**
+   * A nuvem traz a lista. Neste PC, apagar ou editar mais recente que a cópia
+   * da nuvem fica. Pagamento que só existe aqui, sem par na nuvem, não entra.
+   */
   function fundirPagamentosLocaisAusentesNaNuvem(cloudArr) {
-    return Array.isArray(cloudArr) ? cloudArr : [];
+    const cloud = Array.isArray(cloudArr) ? cloudArr : [];
+    if (isClienteAppPage() || window.__DK_IS_DEMO_DEPLOY__ === true) return cloud;
+    const local = readLocalJsonArray("dk_locacoes_cadastro");
+    const logApagados = lerApagadosDoDiaParaSync();
+    if ((!local.length && !logApagados.length) || typeof window.__DK_anexarLancamentosMergeNaLocacao !== "function") return cloud;
+    const localPorNc = new Map();
+    for (const loc of local) {
+      const nc = ncLocacaoSync(loc);
+      if (nc && !localPorNc.has(nc)) localPorNc.set(nc, loc);
+    }
+    const alterados = [];
+    const out = cloud.map((loc) => {
+      if (!loc || typeof loc !== "object") return loc;
+      const localLoc = localComApagadosDoDia(localPorNc.get(ncLocacaoSync(loc)), loc, logApagados);
+      if (!localLoc) return loc;
+      const cloudPays = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      const localPays = Array.isArray(localLoc.portalLancamentosAluguel) ? localLoc.portalLancamentosAluguel : [];
+      const cloudKeys = new Set();
+      for (const row of cloudPays) {
+        for (const k of chavesLancamentoSimilar(row)) cloudKeys.add(k);
+      }
+      const mergedPl = mergeLancamentosAluguelLocacaoPar([cloudPays, localPays]);
+      const row = { ...loc };
+      window.__DK_anexarLancamentosMergeNaLocacao(row, localLoc, loc, mergedPl);
+      const pays = Array.isArray(row.portalLancamentosAluguel) ? row.portalLancamentosAluguel : [];
+      row.portalLancamentosAluguel = pays.filter((p) => {
+        const keys = chavesLancamentoSimilar(p);
+        if (!keys.length) return true;
+        return keys.some((k) => cloudKeys.has(k));
+      });
+      const antes = cloudPays.map((p) => String(p?.protocoloLancamento || "") + "|" + Number(p?.valor) + "|" + String(p?.data || "")).sort().join(";");
+      const depois = row.portalLancamentosAluguel
+        .map((p) => String(p?.protocoloLancamento || "") + "|" + Number(p?.valor) + "|" + String(p?.data || ""))
+        .sort()
+        .join(";");
+      const remAntes = (Array.isArray(loc.portalLancamentosAluguelRemovidos) ? loc.portalLancamentosAluguelRemovidos : [])
+        .map((p) => Number(p?.removedAt || 0))
+        .sort()
+        .join(",");
+      const remDepois = (Array.isArray(row.portalLancamentosAluguelRemovidos) ? row.portalLancamentosAluguelRemovidos : [])
+        .map((p) => Number(p?.removedAt || 0))
+        .sort()
+        .join(",");
+      if (antes !== depois || remAntes !== remDepois) alterados.push(row);
+      return row;
+    });
+    if (alterados.length) agendarRegravacaoLocacoesMaisRecentes(alterados);
+    return out;
+  }
+
+  let regravacaoLocacoesTimer = 0;
+  function agendarRegravacaoLocacoesMaisRecentes(locs) {
+    const pend = Array.isArray(window.__DK_locacoesRegravar) ? window.__DK_locacoesRegravar : [];
+    const seen = new Set(pend.map((l) => ncLocacaoSync(l)));
+    for (const loc of locs) {
+      const nc = ncLocacaoSync(loc);
+      if (!nc || seen.has(nc)) continue;
+      seen.add(nc);
+      pend.push(loc);
+    }
+    window.__DK_locacoesRegravar = pend.slice(0, 12);
+    if (regravacaoLocacoesTimer) return;
+    regravacaoLocacoesTimer = window.setTimeout(() => {
+      regravacaoLocacoesTimer = 0;
+      const fila = Array.isArray(window.__DK_locacoesRegravar) ? window.__DK_locacoesRegravar.splice(0, 4) : [];
+      for (const loc of fila) {
+        void enviarLocacaoMaisRecenteNaNuvem(loc);
+      }
+      if (window.__DK_locacoesRegravar && window.__DK_locacoesRegravar.length) agendarRegravacaoLocacoesMaisRecentes([]);
+    }, 800);
+  }
+
+  async function enviarLocacaoMaisRecenteNaNuvem(loc) {
+    const nc = ncLocacaoSync(loc);
+    if (!nc || !hasUsableCloudToken()) return;
+    const headers = dkCloudFetchHeaders();
+    try {
+      await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
+        method: "POST",
+        cache: "no-store",
+        headers: { Accept: "application/json", "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ locacao: loc, confirm: { kind: "locacao", value: nc } }),
+      });
+    } catch (e) {
+      console.warn("[DK cloud] regravar locação mais recente", e);
+    }
   }
 
   function enviarPagamentosReanexadosSeHouver() {

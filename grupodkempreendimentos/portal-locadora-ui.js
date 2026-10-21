@@ -24651,6 +24651,8 @@
       if (!Number.isFinite(valor) || valor <= 0) return null;
     }
     const out = { data, valor, createdAt, registradoPorCpf, registradoPorNome };
+    const editadoEm = Number(x.updatedAt || 0);
+    if (Number.isFinite(editadoEm) && editadoEm > 0) out.updatedAt = editadoEm;
     if (ehDevolucao) out.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (ehCreditoManut) out.tipoMovimento = PORTAL_LANC_TIPO_CREDITO_MANUTENCAO;
     if (ehCaucao) out.tipoMovimento = PORTAL_LANC_TIPO_CAUCAO;
@@ -27314,6 +27316,8 @@
         registradoPorNome: String(x.registradoPorNome || "").trim(),
         protocoloLancamento: String(x.protocoloLancamento || "").trim(),
       };
+      const editadoEm = Number(x.updatedAt || 0);
+      if (Number.isFinite(editadoEm) && editadoEm > 0) row.updatedAt = editadoEm;
       if (!row.protocoloLancamento && typeof window.__DK_gerarProtocoloLancamento === "function") {
         row.protocoloLancamento = String(
           window.__DK_gerarProtocoloLancamento(row.registradoPorCpf, row.createdAt) || ""
@@ -27369,7 +27373,10 @@
       console.error(err);
       return false;
     }
-    if (!opts?.adiarNuvem && !opts?.semFilaNuvem) portalPushCloudSnapshotAfterPersist();
+    if (!opts?.adiarNuvem && !opts?.semFilaNuvem) {
+      portalPushCloudSnapshotAfterPersist();
+      void portalNuvemConfirmarLocacaoDireta(ncNorm);
+    }
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLocacaoLancamentosHistorico(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
@@ -27983,6 +27990,7 @@
       registradoPorCpf: String(prev?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
       registradoPorNome: String(prev?.registradoPorNome || "").trim(),
       protocoloLancamento: String(prev?.protocoloLancamento || portalProtocoloLancamentoKey(prev) || "").trim(),
+      updatedAt: Date.now(),
       ...(ehDevolucao
         ? { tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO }
         : ehCreditoManut

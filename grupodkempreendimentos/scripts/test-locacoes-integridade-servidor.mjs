@@ -145,6 +145,49 @@ const empate = audit.mergeLocacoesPorAtualidade(
 );
 assert.equal(empate[0].origem, "redis");
 
+const mergeCadastro = require(path.join(root, "lib", "dk-append-only-merge.cjs"));
+const criadoEm = Date.parse("2026-08-24T12:57:51Z");
+const apagadoEm = Date.parse("2026-10-21T12:20:00Z");
+const pagamento6650 = {
+  data: "24/08/2026",
+  valor: 6650,
+  createdAt: criadoEm,
+  protocoloLancamento: "20260824095751-098",
+  registradoPorCpf: "11111111111",
+};
+const comApagado = mergeCadastro.mergeLocacoesCadastro(
+  [
+    {
+      numeroContrato: "2026040802",
+      cpf: "11111111111",
+      placa: "UHN2G97",
+      updatedAt: criadoEm,
+      portalLancamentosAluguel: [pagamento6650],
+    },
+  ],
+  [
+    {
+      numeroContrato: "2026040802",
+      cpf: "11111111111",
+      placa: "UHN2G97",
+      updatedAt: apagadoEm,
+      portalLancamentosAluguel: [],
+      portalLancamentosAluguelRemovidos: [{ ...pagamento6650, removedAt: apagadoEm }],
+    },
+  ]
+);
+assert.equal(comApagado[0].portalLancamentosAluguel.length, 0);
+const editadoDepois = mergeCadastro.filtrarPortalLancamentosPorRemovidos(
+  [{ ...pagamento6650, updatedAt: apagadoEm + 60000 }],
+  [{ ...pagamento6650, removedAt: apagadoEm }]
+);
+assert.equal(editadoDepois.length, 1);
+const parecido = mergeCadastro.filtrarPortalLancamentosPorRemovidos(
+  [{ data: "24/08/2026", valor: 6650, createdAt: criadoEm, protocoloLancamento: "20260824095751-099" }],
+  [{ data: "24/08/2026", valor: 6650, createdAt: criadoEm, removedAt: apagadoEm }]
+);
+assert.equal(parecido.length, 0);
+
 const checks = [
   ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
   ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],

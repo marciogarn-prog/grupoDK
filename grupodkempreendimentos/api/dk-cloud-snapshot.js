@@ -1531,16 +1531,27 @@ async function handler(req, res) {
             message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
           });
         }
+        let redisLocOk = false;
+        let redisLocErr = "";
+        if (redis) {
+          try {
+            await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload: payloadLoc, updated_at: storedAtLoc }));
+            await redis.set(`${REDIS_KEY}:rev`, storedAtLoc);
+            redisLocOk = true;
+          } catch (err) {
+            redisLocErr = String(err && err.message ? err.message : err);
+          }
+        }
         return res.status(200).json({
           ok: true,
           success: true,
           label: LABEL,
           revision: storedAtLoc,
           updated_at: storedAtLoc,
-          source: "supabase",
-          persistencia: "supabase",
+          source: redisLocOk ? "both" : "supabase",
+          persistencia: redisLocOk ? "supabase+redis" : "supabase",
           supabase: { ok: true },
-          redis: { ok: false, reason: "cache_adiado" },
+          redis: redisLocOk ? { ok: true } : { ok: false, reason: redisLocErr || "redis_indisponivel" },
           confirmed: confirmedLoc === true,
           locacao: nc,
         });
