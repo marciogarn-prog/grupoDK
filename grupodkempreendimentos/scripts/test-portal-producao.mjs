@@ -2357,7 +2357,7 @@ async function runSuite() {
                       window.__DK_finCeoAtalhoLocadora === true
                   );
                 },
-                { timeout: 12000 }
+                { timeout: 20000 }
               )
               .catch(() => null);
             atalho = await atalhoEstado();

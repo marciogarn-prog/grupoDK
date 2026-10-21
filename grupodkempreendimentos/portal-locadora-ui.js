@@ -3240,27 +3240,39 @@
     }, 40000);
   }
 
+  function portalEsperar(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function portalRespostaAreaTransitoria(status) {
+    return status === 403 || status === 408 || status === 429 || status >= 500;
+  }
+
   async function portalEntrarAreaExclusiva(area) {
     const id = portalAreaLockId(area);
     if (!id) return true;
     if (portalAreaLockIdAtual === id) return true;
-    try {
-      const marca = Date.now();
-      const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
-      if (res.status === 409 || data?.ocupada) {
-        portalRegistrarOcupacaoVista(id, data?.nome);
-        return false;
+    for (let tentativa = 0; tentativa < 4; tentativa++) {
+      if (portalAreaLockIdAtual === id) return true;
+      try {
+        const marca = Date.now();
+        const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
+        if (res.status === 409 || data?.ocupada) {
+          portalRegistrarOcupacaoVista(id, data?.nome);
+          return false;
+        }
+        if (res.ok) {
+          portalIniciarRenovacaoArea(id, data?.marca || marca);
+          return true;
+        }
+        if (!portalRespostaAreaTransitoria(res.status)) break;
+      } catch {
+        /* a nuvem recusou o pedido; tenta outra vez antes de avisar */
       }
-      if (!res.ok) {
-        window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
-        return false;
-      }
-      portalIniciarRenovacaoArea(id, data?.marca || marca);
-      return true;
-    } catch {
-      window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
-      return false;
+      if (tentativa < 3) await portalEsperar(1200 * (tentativa + 1));
     }
+    window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
+    return false;
   }
 
   function portalSairAreaExclusiva() {
