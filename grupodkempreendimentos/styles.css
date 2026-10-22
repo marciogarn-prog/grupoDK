@@ -15875,11 +15875,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   padding: 6px 1.15rem 6px 8px;
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0) 20%,
-    rgba(0, 0, 0, 0.4) 36%,
-    rgba(0, 0, 0, 0.82) 52%,
-    #000 66%,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.86) 28%,
+    rgba(0, 0, 0, 0.95) 55%,
+    #000 78%,
     #000 100%
   );
   color: #f5f5f5;
@@ -16607,7 +16606,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__sistema {
   position: fixed;
-  right: clamp(1rem, 4vw, 3rem);
+  right: 0.7rem;
   bottom: 1rem;
   z-index: 20;
   border: 1px solid rgba(255, 255, 255, 0.55);
