@@ -16610,9 +16610,13 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__hero-foto {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
-  width: 100%;
+  width: 128%;
   height: 100%;
+  max-width: none;
   object-fit: cover;
   object-position: center top;
 }
