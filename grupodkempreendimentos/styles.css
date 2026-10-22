@@ -15872,8 +15872,16 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
-  padding: 8px 1.15rem 8px 10px;
-  background: #000;
+  padding: 6px 1.15rem 6px 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 20%,
+    rgba(0, 0, 0, 0.4) 36%,
+    rgba(0, 0, 0, 0.82) 52%,
+    #000 66%,
+    #000 100%
+  );
   color: #f5f5f5;
 }
 
@@ -15886,7 +15894,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__marca img {
   display: block;
-  height: 80px;
+  height: 64px;
   width: auto;
 }
 
@@ -16549,11 +16557,12 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__abertura {
-  height: calc(100vh - var(--site-topo, 5.5rem));
-  min-height: calc(100vh - var(--site-topo, 5.5rem));
+  margin-top: calc(-1 * var(--site-topo, 4.75rem));
+  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #111;
+  background: transparent;
 }
 
 #sitePlanos,
