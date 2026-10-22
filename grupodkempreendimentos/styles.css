@@ -16604,7 +16604,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   flex: 0 0 auto;
   position: relative;
   height: auto;
-  min-height: 0;
+  min-height: clamp(34rem, calc(100vh - 24rem), 52rem);
   padding: 0;
   max-width: none;
   overflow: hidden;
@@ -16612,13 +16612,21 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__hero-foto {
   position: absolute;
-  top: 40px;
+  top: 0;
   left: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 58%;
+  object-position: center top;
+  transform: scale(1.05);
+  transform-origin: 100% top;
+}
+
+@media (max-height: 820px) {
+  .site-publico__hero-foto {
+    transform: scale(1.12);
+  }
 }
 
 .site-publico__hero-sombra {
@@ -16700,19 +16708,19 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   width: fit-content;
   max-width: 100%;
   margin: 1.05rem 0 0;
-  padding: 0.38rem 0.95rem 0.38rem 0.7rem;
+  padding: 0.42rem 1.15rem 0.42rem 0.42rem;
   border-radius: 999px;
   background: #c41218;
   color: #fff;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.2;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .site-hero-copy__plano-ico {
-  width: 3.6rem;
-  height: 3.6rem;
-  flex: 0 0 3.6rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 1.85rem;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -16721,8 +16729,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-hero-copy__plano img {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 1.35rem;
+  height: 1.35rem;
   object-fit: contain;
   background: transparent;
 }
@@ -16867,11 +16875,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-hero-lado__ico {
-  width: 1.65rem;
-  height: 1.65rem;
-  flex: 0 0 auto;
-  margin-top: 0.1rem;
-  color: #e10600;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 2.45rem;
+  margin-top: 0.05rem;
+  padding: 0.28rem;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: contain;
 }
 
 .site-publico__faixa {
