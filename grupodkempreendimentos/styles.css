@@ -16707,9 +16707,9 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   line-height: 1.2;
 }
 
-.site-hero-copy__plano svg {
-  width: 1.15rem;
-  height: 1.15rem;
+.site-hero-copy__plano img {
+  width: auto;
+  height: 1.55rem;
   flex: 0 0 auto;
 }
 
@@ -16768,9 +16768,9 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   line-height: 1.15;
 }
 
-.site-hero-copy__selos svg {
-  width: 1.7rem;
-  height: 1.7rem;
+.site-hero-copy__selos img {
+  width: auto;
+  height: 2.15rem;
   flex: 0 0 auto;
   margin-top: 0.05rem;
 }
