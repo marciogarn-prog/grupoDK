@@ -16611,13 +16611,13 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__hero-foto {
   position: absolute;
-  top: 0;
+  top: 40px;
   left: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center center;
+  object-position: center top;
 }
 
 .site-publico__hero-sombra {
