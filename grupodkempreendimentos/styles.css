@@ -15859,13 +15859,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: #050505;
-  background-image:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.05) 28%, rgba(0, 0, 0, 0.05) 70%, rgba(0, 0, 0, 0.35) 100%),
-    url("/images/dk-hero-entrega.jpg?v=20261022hero");
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
+  background-color: #111;
+  background-image: none;
 }
 
 .site-publico__topo {
@@ -16549,9 +16544,11 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__abertura {
+  height: calc(100vh - var(--site-topo, 5.5rem));
   min-height: calc(100vh - var(--site-topo, 5.5rem));
   display: flex;
   flex-direction: column;
+  background: #111;
 }
 
 #sitePlanos,
@@ -16560,11 +16557,22 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__hero {
-  flex: 1;
+  flex: 1 1 auto;
   position: static;
   min-height: 0;
   padding: 0;
   max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.site-publico__hero-foto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
 }
 
 
