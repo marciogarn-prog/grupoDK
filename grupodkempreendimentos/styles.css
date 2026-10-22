@@ -15861,8 +15861,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   pointer-events: none;
   background-color: #050505;
   background-image:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.08) 22%, rgba(0, 0, 0, 0.08) 72%, rgba(0, 0, 0, 0.45) 100%),
-    url("/images/dk-petrolina-ponte.jpg?v=20261018ponte2");
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.05) 28%, rgba(0, 0, 0, 0.05) 70%, rgba(0, 0, 0, 0.35) 100%),
+    url("/images/dk-hero-entrega.jpg?v=20261022hero");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
