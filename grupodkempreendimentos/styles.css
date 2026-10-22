@@ -16617,7 +16617,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: left top;
+  object-position: center center;
 }
 
 .site-publico__hero-sombra {
