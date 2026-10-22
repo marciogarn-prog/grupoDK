@@ -263,9 +263,9 @@
       const motos = document.getElementById("siteMotos");
       const planos = document.getElementById("sitePlanos");
       const passou = (el) => el && el.getBoundingClientRect().top <= linha;
-      if (passou(como)) siteMarcarDetalhe("como-funciona");
+      if (passou(planos)) siteMarcarDetalhe("planos");
+      else if (passou(como)) siteMarcarDetalhe("como-funciona");
       else if (passou(motos)) siteMarcarDetalhe("motos");
-      else if (passou(planos)) siteMarcarDetalhe("planos");
       else siteMarcarDetalhe(null);
     });
   }, { passive: true });

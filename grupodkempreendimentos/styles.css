@@ -16588,8 +16588,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__abertura {
   margin-top: calc(-1 * var(--site-topo, 4.75rem));
-  height: 100vh;
-  min-height: 100vh;
+  height: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
@@ -16601,9 +16601,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__hero {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   position: relative;
-  min-height: 0;
+  height: calc(100vh - 16.5rem);
+  min-height: 28rem;
   padding: 0;
   max-width: none;
   overflow: hidden;
@@ -16611,13 +16612,13 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-publico__hero-foto {
   position: absolute;
-  top: 40px;
+  top: 0;
   left: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  object-position: center 42%;
 }
 
 .site-publico__hero-sombra {
@@ -16708,15 +16709,22 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   line-height: 1.2;
 }
 
-.site-hero-copy__plano img {
-  width: 1.85rem;
-  height: 1.85rem;
-  flex: 0 0 1.85rem;
-  padding: 0.2rem;
-  box-sizing: border-box;
-  object-fit: contain;
-  background: #fff;
+.site-hero-copy__plano-ico {
+  width: 3.6rem;
+  height: 3.6rem;
+  flex: 0 0 3.6rem;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
+  background: #fff;
+  overflow: hidden;
+}
+
+.site-hero-copy__plano img {
+  width: 2.4rem;
+  height: 2.4rem;
+  object-fit: contain;
+  background: transparent;
 }
 
 .site-hero-copy__ctas {
@@ -16795,7 +16803,9 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.45rem 1.15rem 0.55rem;
+  margin-top: 0;
+  padding: 0.85rem 1.15rem;
+  background: #000;
   font-size: 0.92rem;
   color: #e7e5e4;
 }
@@ -16879,15 +16889,20 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 .site-publico__faixa-trilho {
   display: flex;
   width: max-content;
-  animation: site-faixa-corre 28s linear infinite;
+  animation: site-faixa-corre 48s linear infinite;
 }
 
-.site-publico__faixa-trilho p {
+.site-publico__faixa-grupo {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.site-publico__faixa-item {
   display: flex;
   align-items: center;
   gap: 0.65rem;
   margin: 0;
-  padding: 0.62rem 1.6rem;
+  padding: 0.62rem 1.35rem;
   white-space: nowrap;
 }
 
@@ -16898,8 +16913,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 @keyframes site-faixa-corre {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
 
 .site-publico__sistema {
