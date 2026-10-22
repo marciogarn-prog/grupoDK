@@ -15867,12 +15867,11 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   position: sticky;
   top: 0;
   z-index: 6;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  padding: 6px 1.15rem 6px 8px;
+  gap: 0.75rem 1.25rem;
+  padding: 6px clamp(1.25rem, 2.4vw, 2.15rem) 6px clamp(2.6rem, 4.5vw, 4.75rem);
   background: linear-gradient(
     90deg,
     rgba(0, 0, 0, 0.75) 0%,
@@ -15887,6 +15886,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 .site-publico__marca {
   display: flex;
   align-items: center;
+  justify-self: start;
+  width: max-content;
   color: inherit;
   text-decoration: none;
 }
@@ -15911,9 +15912,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 .site-publico__nav {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
+  gap: clamp(1.15rem, 2.1vw, 2.15rem);
   min-width: 0;
 }
 
@@ -15922,9 +15922,22 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   cursor: pointer;
   border: 0;
   background: transparent;
-  color: #f5f5f5;
-  font-size: 0.92rem;
-  padding: 0.28rem 0.12rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.28rem 0.05rem;
+  white-space: nowrap;
+}
+
+.site-publico__carros {
+  cursor: default;
+}
+
+.site-publico__acoes {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 0.7rem;
 }
 
 .site-publico__nav-atual {
@@ -16456,12 +16469,16 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-publico__cliente {
-  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  font: inherit;
+  cursor: pointer;
+  color: #fff;
+  background: transparent;
+  border: 1.5px solid #fff !important;
   border-radius: 999px;
-  padding: 0.32rem 0.7rem !important;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  padding: 0.48rem 1.05rem !important;
+  font-size: 0.98rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .site-publico__login {
@@ -16542,6 +16559,20 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 700;
 }
 
+.site-publico__acoes .site-publico__alugar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  background: #e10600 !important;
+  padding: 0.52rem 1.15rem !important;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .home-site-link,
 .site-publico__sistema {
   font: inherit;
@@ -16586,6 +16617,161 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   object-position: center top;
 }
 
+.site-publico__hero-sombra {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.62) 24%, rgba(0, 0, 0, 0.28) 46%, rgba(0, 0, 0, 0) 64%),
+    radial-gradient(ellipse 70% 90% at 18% 52%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0) 70%);
+}
+
+.site-publico__hero-copy {
+  position: absolute;
+  z-index: 2;
+  left: clamp(2.6rem, 4.5vw, 4.75rem);
+  top: 0;
+  bottom: 0;
+  width: min(44rem, 54%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: calc(var(--site-topo, 4.75rem) + 0.6rem) 1rem 1.1rem 0;
+  color: #fff;
+}
+
+.site-hero-copy__olho {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.85rem;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.site-hero-copy__olho i {
+  display: block;
+  width: 1.55rem;
+  height: 3px;
+  border-radius: 2px;
+  background: #e10600;
+}
+
+.site-hero-copy__titulo {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2.35rem, 4.05vw, 4.05rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+}
+
+.site-hero-copy__titulo span {
+  display: block;
+  margin-top: 0.08em;
+  color: #f0121c;
+  font-style: italic;
+  font-weight: 800;
+}
+
+.site-hero-copy__lead {
+  max-width: 32rem;
+  margin: 0.95rem 0 0;
+  color: #f5f5f5;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.site-hero-copy__plano {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 1.05rem 0 0;
+  padding: 0.38rem 0.95rem 0.38rem 0.7rem;
+  border-radius: 999px;
+  background: #c41218;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.site-hero-copy__plano svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+}
+
+.site-hero-copy__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.05rem;
+}
+
+.site-hero-copy__escolher,
+.site-hero-copy__ver {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.site-hero-copy__escolher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  background: #e10600;
+  color: #fff;
+  padding: 0.82rem 1.25rem;
+  font-weight: 700;
+}
+
+.site-hero-copy__ver {
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  background: transparent;
+  color: #fff;
+  padding: 0.78rem 1.25rem;
+  font-weight: 600;
+}
+
+.site-hero-copy__selos {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, max-content));
+  gap: 0.85rem 1.15rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-hero-copy__selos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.site-hero-copy__selos svg {
+  width: 1.7rem;
+  height: 1.7rem;
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+}
+
 
 .site-publico__rodape {
   position: relative;
@@ -16627,10 +16813,24 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   margin-top: 0.6rem;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1100px) {
   .site-publico__topo {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr auto;
+    padding-left: 1.25rem;
   }
 
+  .site-publico__nav {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.15rem;
+  }
+
+  .site-publico__hero-copy {
+    width: min(40rem, 92%);
+  }
+
+  .site-hero-copy__titulo {
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
 }

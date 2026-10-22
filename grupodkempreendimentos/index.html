@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261022faixa75">
+  <link rel="stylesheet" href="styles.css?v=20261022hero-esq">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -96,12 +96,15 @@
         <img src="/images/dk-grupo-empreendimentos.png?v=20261022degrade" alt="Grupo DK Empreendimentos" width="2482" height="1218" decoding="async">
       </a>
       <nav class="site-publico__nav" aria-label="Site">
-        <button type="button" class="site-publico__cliente" data-site-go="cliente">Já sou cliente</button>
-        <button type="button" data-site-detalhe="planos">Planos</button>
+        <button type="button" data-site-detalhe="como-funciona">Como funciona</button>
         <button type="button" data-site-detalhe="motos">Motos</button>
-        <button type="button" data-site-detalhe="como-funciona">Como funciona?</button>
-        <button type="button" class="site-publico__alugar" data-site-detalhe="alugar">Alugar agora</button>
+        <button type="button" class="site-publico__carros">Carros</button>
+        <button type="button" data-site-detalhe="planos">Planos</button>
       </nav>
+      <div class="site-publico__acoes">
+        <button type="button" class="site-publico__cliente" data-site-go="cliente">Já sou cliente</button>
+        <button type="button" class="site-publico__alugar" data-site-detalhe="alugar">Alugar agora <span aria-hidden="true">→</span></button>
+      </div>
     </header>
 
     <section id="siteLoginEquipa" class="site-publico__login hidden" hidden aria-label="Login do funcionário">
@@ -127,6 +130,38 @@
     <div class="site-publico__abertura">
       <section class="site-publico__hero">
         <img class="site-publico__hero-foto" src="/images/dk-hero-entrega.png?v=20261022nitida" alt="Entregador da DK Locadora com a moto vermelha no pôr do sol, em frente à ponte de Petrolina" width="1672" height="941" decoding="async">
+        <div class="site-publico__hero-sombra" aria-hidden="true"></div>
+        <div class="site-publico__hero-copy">
+          <p class="site-hero-copy__olho"><i aria-hidden="true"></i> Locadora de motos • Petrolina e Juazeiro</p>
+          <h2 class="site-hero-copy__titulo">Sua moto para<br>trabalhar. <span>Sem complicação.</span></h2>
+          <p class="site-hero-copy__lead">Escolha o modelo ideal para você e conte com seguro, IPVA e manutenção preventiva inclusos.</p>
+          <p class="site-hero-copy__plano">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.2 15.2a2.3 2.3 0 1 0 .2 2.6h1.7l1.4-3.2H6.2zm9.2 0 1.5-3.4h2.3l-1.2 2.2h1.8a2.3 2.3 0 1 1-2.2 2.9h-2.2v-1.7zm-6.5-1.2 1.2-2.6h2.4l1.6 2.6H8.9zm3.3-3.6h2.2l.8 1.4h-2.2l-.8-1.4z"/></svg>
+            DK Minha Moto • plano de aquisição em 150 semanas
+          </p>
+          <div class="site-hero-copy__ctas">
+            <button type="button" class="site-hero-copy__escolher" data-site-detalhe="motos">Escolher minha moto <span aria-hidden="true">→</span></button>
+            <button type="button" class="site-hero-copy__ver" data-site-detalhe="planos">Ver planos</button>
+          </div>
+          <ul class="site-hero-copy__selos">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7.4 16.6 16.6 7.4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+              <span>Sem consulta<br>SPC/Serasa</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="7" rx="6.2" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.8 7v3.6c0 1.4 2.8 2.5 6.2 2.5s6.2-1.1 6.2-2.5V7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.8 10.6v3.6c0 1.4 2.8 2.5 6.2 2.5s6.2-1.1 6.2-2.5v-3.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+              <span>Caução<br>acessível</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.2 5.2a2.2 2.2 0 0 1 3.1 3.1L9.4 16.2 6 17.2l1-3.4 7.2-8.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.2 6.4 16.8 10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+              <span>Oficina<br>própria DK</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.8h7.2L18.5 8v11.2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.8a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 3.8V8h4.4M8.6 13.2h6.2M8.6 16.4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              <span>Aquisição ao<br>fim do plano</span>
+            </li>
+          </ul>
+        </div>
       </section>
       <footer class="site-publico__rodape">
         <p>Petrolina — PE · Grupo DK Empreendimentos</p>
