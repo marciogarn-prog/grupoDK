@@ -16643,7 +16643,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   flex-direction: column;
   justify-content: flex-start;
   box-sizing: border-box;
-  padding: min(23.5rem, calc(100vh - 40rem)) 1rem 2.75rem 0;
+  padding: 23.5rem 1rem 2.75rem 0;
   color: #fff;
 }
 
