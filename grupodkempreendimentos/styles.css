@@ -16760,8 +16760,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
 .site-hero-copy__selos li {
   display: flex;
-  align-items: flex-start;
-  gap: 0.45rem;
+  align-items: center;
+  gap: 0.5rem;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 650;
@@ -16769,10 +16769,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 .site-hero-copy__selos img {
-  width: auto;
-  height: 2.15rem;
-  flex: 0 0 auto;
-  margin-top: 0.05rem;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 2.65rem;
+  margin-top: 0;
+  padding: 0.32rem;
+  box-sizing: border-box;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 50%;
 }
 
 
