@@ -267,10 +267,22 @@
       else if (passou(como)) siteMarcarDetalhe("como-funciona");
       else if (passou(motos)) siteMarcarDetalhe("motos");
       else siteMarcarDetalhe(null);
+      const inicio = document.querySelector("#view-site .site-publico__sistema");
+      const hero = document.querySelector("#view-site .site-publico__hero");
+      if (inicio && hero) {
+        inicio.classList.toggle("is-depois-hero", hero.getBoundingClientRect().bottom < linha);
+      }
     });
   }, { passive: true });
 
   siteMedirTopo();
+  {
+    const inicio = document.querySelector("#view-site .site-publico__sistema");
+    const hero = document.querySelector("#view-site .site-publico__hero");
+    if (inicio && hero) {
+      inicio.classList.toggle("is-depois-hero", hero.getBoundingClientRect().bottom < siteMedirTopo() + 12);
+    }
+  }
   const hashSite = (location.hash || "").toLowerCase();
   if (hashSite === "#planos" || hashSite === "#motos" || hashSite === "#como-funciona") {
     mostrarView("view-site");

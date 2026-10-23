@@ -16782,7 +16782,8 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   font-weight: 800;
 }
 
-.site-hero-copy__titulo .site-hero-copy__ponto {
+.site-hero-copy__titulo .site-hero-copy__ponto,
+.site-hero-copy__titulo .site-hero-copy__trabalhar {
   display: inline;
   margin: 0;
   color: inherit;
@@ -17368,13 +17369,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     zoom: 1;
     align-items: stretch;
     box-sizing: border-box;
-    padding: 1.2rem 1.15rem 1.45rem;
+    padding: 0.7rem 1rem 4.8rem;
     color: #111;
     text-align: center;
     background: linear-gradient(
       180deg,
       #fff 0%,
-      #fff calc(100% - 1.45rem),
+      #fff calc(100% - 5.2rem),
+      rgba(255, 255, 255, 0.92) calc(100% - 3.8rem),
+      rgba(255, 255, 255, 0.45) calc(100% - 2rem),
       rgba(255, 255, 255, 0) 100%
     );
   }
@@ -17384,12 +17387,13 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     justify-content: center;
     flex-wrap: wrap;
     gap: 0.35rem;
-    margin: 0 0 0.75rem;
+    margin: 0 auto 1.15rem;
+    max-width: 18rem;
     color: #e10600;
-    font-size: 0.74rem;
+    font-size: 0.9rem;
     font-weight: 800;
-    letter-spacing: 0.11em;
-    line-height: 1.35;
+    letter-spacing: 0.07em;
+    line-height: 1.3;
     text-align: center;
     text-shadow: none;
   }
@@ -17403,44 +17407,62 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     max-width: 100%;
     margin: 0 auto;
     color: #111;
-    font-size: clamp(2.05rem, 8.6vw, 2.7rem);
+    font-size: clamp(2.625rem, 11.5vw, 3rem);
     font-weight: 800;
-    line-height: 1.02;
+    line-height: 0.98;
     letter-spacing: -0.03em;
     text-align: center;
     text-shadow: none;
   }
 
-  .site-hero-copy__titulo span,
+  .site-hero-copy__titulo span:not(.site-hero-copy__trabalhar),
   .site-hero-copy__titulo .site-hero-copy__ponto {
     display: none;
   }
 
+  .site-hero-copy__titulo .site-hero-copy__trabalhar {
+    display: inline;
+    color: #e10600;
+    font-style: normal;
+    font-weight: 800;
+  }
+
   .site-hero-copy__plano {
     order: 3;
-    width: 100%;
-    max-width: 28rem;
-    margin: 1.05rem auto 0;
+    width: 90%;
+    max-width: none;
+    margin: 1.35rem auto 0;
     box-sizing: border-box;
     justify-content: flex-start;
     align-items: center;
-    gap: 0.65rem;
-    padding: 0.62rem 0.9rem 0.62rem 0.5rem;
-    border-radius: 1.15rem;
-    border: 1px solid rgba(255, 186, 186, 0.7);
-    background: linear-gradient(180deg, rgba(225, 6, 0, 0.9) 0%, rgba(176, 8, 16, 0.76) 100%);
+    gap: 0.45rem;
+    padding: 0.32rem 0.85rem 0.32rem 0.32rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 186, 186, 0.65);
+    background: linear-gradient(180deg, rgba(225, 6, 0, 0.9) 0%, rgba(176, 8, 16, 0.78) 100%);
     box-shadow:
-      0 8px 20px rgba(225, 6, 0, 0.22),
+      0 6px 14px rgba(225, 6, 0, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.32);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #fff;
-    font-size: 0.95rem;
+    font-size: 0.84rem;
     font-weight: 600;
-    line-height: 1.28;
+    line-height: 1.2;
     text-align: left;
     white-space: normal;
     text-shadow: none;
+  }
+
+  .site-hero-copy__plano-ico {
+    width: 1.45rem;
+    height: 1.45rem;
+    flex-basis: 1.45rem;
+  }
+
+  .site-hero-copy__plano img {
+    width: 1.05rem;
+    height: 1.05rem;
   }
 
   .site-hero-copy__plano-nome,
@@ -17449,53 +17471,56 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   }
 
   .site-hero-copy__plano-prazo::before {
-    content: "";
-    display: block;
+    content: none;
+    display: none;
   }
 
   .site-hero-copy__lead {
     order: 4;
-    max-width: 26rem;
-    margin: 0.95rem auto 0;
+    width: 88%;
+    max-width: none;
+    margin: 1.3rem auto 0;
     color: #1c1917;
-    font-size: 1.02rem;
+    font-size: 1.15rem;
     font-weight: 500;
-    line-height: 1.45;
+    line-height: 1.35;
     text-align: center;
     text-shadow: none;
   }
 
   .site-hero-copy__ctas {
     order: 5;
-    width: 100%;
-    max-width: 28rem;
-    margin: 1.15rem auto 0;
+    width: 84%;
+    max-width: none;
+    margin: 1.35rem auto 0;
     gap: 0;
   }
 
   .site-hero-copy__escolher {
     width: 100%;
-    min-height: 3.15rem;
+    min-height: 3.5rem;
+    height: 3.75rem;
     justify-content: center;
     box-sizing: border-box;
-    padding: 0.85rem 1.1rem;
+    padding: 0.7rem 1.15rem;
     border: 1px solid rgba(255, 196, 196, 0.55);
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(225, 6, 0, 0.94) 0%, rgba(168, 6, 12, 0.84) 100%);
+    background: linear-gradient(180deg, rgba(225, 6, 0, 0.94) 0%, rgba(168, 6, 12, 0.86) 100%);
     box-shadow:
-      0 10px 22px rgba(225, 6, 0, 0.28),
-      inset 0 1px 0 rgba(255, 255, 255, 0.32);
+      0 6px 14px rgba(225, 6, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #fff;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     font-weight: 800;
-    letter-spacing: 0.045em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
   .site-hero-copy__escolher span {
-    display: none;
+    display: inline;
+    margin-left: 0.35rem;
   }
 
   .site-hero-copy__ver,
@@ -17512,10 +17537,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     z-index: 1;
     display: block;
     width: 100%;
-    height: clamp(11.25rem, 46vw, 18.5rem);
-    margin: -1.25rem 0 0;
+    height: clamp(18.75rem, 86vw, 25rem);
+    margin: -4.45rem 0 0;
     object-fit: cover;
-    object-position: center 36%;
+    object-position: 50% 18%;
     transform: none;
   }
 
@@ -17526,18 +17551,32 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     bottom: 0;
     left: 0;
     z-index: 2;
-    height: clamp(11.25rem, 46vw, 18.5rem);
+    height: clamp(18.75rem, 86vw, 25rem);
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0.55) 0.55rem,
-      rgba(255, 255, 255, 0) 1.35rem
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0.55) 1.1rem,
+      rgba(255, 255, 255, 0.16) 2.4rem,
+      rgba(255, 255, 255, 0) 3.6rem
     );
+  }
+
+  .site-publico__sistema {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .site-publico__sistema.is-depois-hero {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .site-publico__faixa {
     width: 100%;
     max-width: 100%;
+    margin-top: 0;
   }
 
   .site-publico__faixa-item {
