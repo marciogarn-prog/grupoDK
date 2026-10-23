@@ -276,4 +276,39 @@
     mostrarView("view-site");
     siteIrPara(hashSite.slice(1), false);
   }
+
+  function siteMenuDefinir(aberto) {
+    const topo = document.querySelector("#view-site .site-publico__topo");
+    const btn = document.querySelector("#view-site .site-publico__menu");
+    const painel = document.getElementById("siteMenuMobile");
+    if (topo) topo.classList.toggle("is-menu-aberto", aberto);
+    if (btn) {
+      btn.setAttribute("aria-expanded", aberto ? "true" : "false");
+      btn.setAttribute("aria-label", aberto ? "Fechar menu" : "Abrir menu");
+    }
+    if (painel) painel.setAttribute("aria-hidden", aberto ? "false" : "true");
+  }
+
+  document.addEventListener("click", (e) => {
+    const toggle = e.target && e.target.closest ? e.target.closest("#view-site .site-publico__menu") : null;
+    if (toggle) {
+      e.preventDefault();
+      const topo = toggle.closest(".site-publico__topo");
+      siteMenuDefinir(!(topo && topo.classList.contains("is-menu-aberto")));
+      return;
+    }
+    const item = e.target && e.target.closest ? e.target.closest("#siteMenuMobile button") : null;
+    if (item) {
+      siteMenuDefinir(false);
+      return;
+    }
+    const topo = document.querySelector("#view-site .site-publico__topo.is-menu-aberto");
+    if (topo && !(e.target && e.target.closest && e.target.closest("#siteMenuMobile"))) siteMenuDefinir(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const topo = document.querySelector("#view-site .site-publico__topo.is-menu-aberto");
+    if (topo) siteMenuDefinir(false);
+  });
 })();
