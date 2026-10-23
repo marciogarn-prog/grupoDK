@@ -94,7 +94,12 @@
     const icon = ICON[scope] || ICON.grupodk;
     setLinkHref("icon", icon);
     setLinkHref("apple-touch-icon", icon);
-    const theme = THEME[scope] || THEME.grupodk;
+    let theme = THEME[scope] || THEME.grupodk;
+    try {
+      if (scope === "grupodk" && w.matchMedia && w.matchMedia("(max-width: 768px)").matches) theme = "#e10600";
+    } catch {
+      /* ignore */
+    }
     try {
       const themeMeta =
         (typeof document.getElementById === "function" && document.getElementById("dk-theme-color")) ||
@@ -126,4 +131,10 @@
     syncAppManifest();
   }
   syncAppManifest();
+  try {
+    const temaLargura = w.matchMedia && w.matchMedia("(max-width: 768px)");
+    if (temaLargura && temaLargura.addEventListener) temaLargura.addEventListener("change", syncAppManifest);
+  } catch {
+    /* ignore */
+  }
 })(window);
