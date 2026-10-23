@@ -389,19 +389,25 @@
     },
     {
       "id": "lanc-aluguel-relatorio-2-5-semanas-pagas",
-      "descricao": "No relatório 2.5, cada protocolo mostra SEMANAS PAGAS (valor pago total ÷ valor semanal do contrato, parte inteira) e a terceira caixa da linha 1: SALDO DO PLANO ou DÉBITO DO PLANO, calculado por valor pago do plano menos valor utilizado do plano. Ex.: R$ 17.850,00 pagos − R$ 17.600,00 utilizados = R$ 250,00.",
+      "descricao": "No relatório 2.5, cada protocolo mostra SEMANAS PAGAS (valor pago total ÷ valor semanal do contrato, parte inteira) e, quando sobra valor, o extra em reais: 3 semanas pagas e R$ 50,00. A terceira caixa da linha 1 é SALDO DO PLANO ou DÉBITO DO PLANO. No topo, depois de Pagamentos e na mesma faixa, entram Quantidade utilizada (semanas utilizadas e os dias) e o valor do plano.",
       "ficheiros": {
         "index.html": [
           "SEMANAS PAGAS",
           "SALDO DO PLANO",
-          "R$ 1.100,00"
+          "R$ 1.100,00",
+          "Quantidade utilizada",
+          "semanas utilizadas"
         ],
         "portal-locadora-ui.js": [
           "semanasPagas",
+          "extraSemanas",
           "saldoSemanas",
           "computePortalRelClienteSaldoPositivoPlano",
           "SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR UTILIZADO DO PLANO",
           "SEMANAS PAGAS",
+          "semanas pagas e",
+          "semanas utilizadas",
+          "Quantidade utilizada",
           "SALDO POSITIVO"
         ],
         "styles.css": [

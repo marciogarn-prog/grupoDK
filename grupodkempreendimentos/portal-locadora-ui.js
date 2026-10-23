@@ -18728,9 +18728,12 @@
     const pagoNum = Number.isFinite(pago) ? pago : 0;
     const caucaoNum = Number.isFinite(caucao) ? caucao : 0;
     let semanasPagas = 0;
+    let extraSemanas = 0;
     let saldoSemanas = 0;
     if (semanal > 0.009) {
       semanasPagas = Math.floor((pagoNum + 1e-9) / semanal);
+      extraSemanas = Math.round((pagoNum - semanasPagas * semanal) * 100) / 100;
+      if (extraSemanas < 0.009) extraSemanas = 0;
     }
     /* SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR UTILIZADO DO PLANO. */
     saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano);
@@ -18748,6 +18751,8 @@
       planoLabel: planoNeg ? "DÉBITO DO PLANO" : "SALDO DO PLANO",
       valorSemanal: semanal,
       semanasPagas,
+      extraSemanas,
+      dias: computePortalDiasAteHoje(loc),
       saldoSemanas,
     };
   }
@@ -18760,6 +18765,53 @@
 
   function portalRelClienteFmtSemana(n) {
     return `Semana ${String(n).padStart(2, "0")}`;
+  }
+
+  function portalRelClienteTextoSemanasPagas(resumo, fmt) {
+    const n = Number(resumo?.semanasPagas) || 0;
+    const extra = Number(resumo?.extraSemanas) || 0;
+    const base = `${n} ${n === 1 ? "semana paga" : "semanas pagas"}`;
+    /* semanas pagas e o valor que sobrou do plano semanal, quando existe extra. */
+    if (extra > 0.009) return `${base} e ${fmt(extra)}`;
+    return base;
+  }
+
+  function portalRelClienteTextoSemanasUtilizadas(dias) {
+    const total = Math.max(0, Math.round(Number(dias) || 0));
+    const semanas = Math.floor(total / 7);
+    const resto = total % 7;
+    const base = `${semanas} ${semanas === 1 ? "semana utilizada" : "semanas utilizadas"}`;
+    if (resto <= 0) return base;
+    return `${base} e ${resto} ${resto === 1 ? "dia" : "dias"}`;
+  }
+
+  function portalRelClienteSecoesDoUso(sections) {
+    const lista = Array.isArray(sections) ? sections : [];
+    const ativas = lista.filter((sec) => sec?.status === "ativo");
+    return ativas.length ? ativas : lista;
+  }
+
+  function portalRelClienteTextoQuantidadeUtilizada(sections) {
+    const lista = portalRelClienteSecoesDoUso(sections);
+    if (!lista.length) return "—";
+    return lista
+      .map((sec) => {
+        const txt = portalRelClienteTextoSemanasUtilizadas(sec?.resumo?.dias);
+        return lista.length > 1 ? `${txt} (${sec.placa || sec.proto || "—"})` : txt;
+      })
+      .join(" · ");
+  }
+
+  function portalRelClienteTextoValorPlano(sections, fmt) {
+    const lista = portalRelClienteSecoesDoUso(sections);
+    if (!lista.length) return "—";
+    return lista
+      .map((sec) => {
+        const semanal = Number(sec?.resumo?.valorSemanal) || 0;
+        const valor = semanal > 0.009 ? fmt(semanal) : "—";
+        return lista.length > 1 ? `${valor} (${sec.placa || sec.proto || "—"})` : valor;
+      })
+      .join(" · ");
   }
 
   /**
@@ -18922,7 +18974,7 @@
           body += `<tr><td><span class="lbl">${eh(lbl)}</span><br /><span class="val"${neg}>${eh(val)}</span></td></tr>`;
         }
         body += `</tbody></table>`;
-        body += `<p class="meta">${eh(`SEMANAS PAGAS: ${r.semanasPagas ?? 0}`)} · ${eh(`VALOR SEMANAL DO CONTRATO: ${r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—"}`)}</p>`;
+        body += `<p class="meta">${eh(`SEMANAS PAGAS: ${portalRelClienteTextoSemanasPagas(r, fmt)}`)} · ${eh(`VALOR SEMANAL DO CONTRATO: ${r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—"}`)}</p>`;
         if (sec.status !== "ativo") {
           body += `<p class="sum-title">${eh("Linha 2 — fim de contrato")}</p>`;
           body += `<table class="resumo"><tbody>`;
@@ -18984,7 +19036,7 @@
         html += `<tr><td>VALOR UTILIZADO DO PLANO</td><td>${eh(fmt(r.devidoPlano))}</td></tr>`;
         html += `<tr><td>VALOR PAGO DO PLANO</td><td>${eh(fmt(r.pago))}</td></tr>`;
         html += `<tr><td>${eh(r.planoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldoSemanas))}</td></tr>`;
-        html += `<tr><td>SEMANAS PAGAS</td><td>${eh(String(r.semanasPagas ?? 0))}</td></tr>`;
+        html += `<tr><td>SEMANAS PAGAS</td><td>${eh(portalRelClienteTextoSemanasPagas(r, fmt))}</td></tr>`;
         html += `<tr><td>VALOR SEMANAL DO CONTRATO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</td></tr>`;
         html += `</tbody></table>`;
         if (sec.status !== "ativo") {
@@ -19008,7 +19060,13 @@
       rows: [],
       ok: agg.ok,
       stats: { protocolos: agg.sections.length, pagamentos: qtdPag },
-      headerSubtitleLines: [`Cliente: ${agg.nome}`, `CPF: ${agg.cpfExib}`, `Emitido em: ${agg.emitidoEm}`],
+      headerSubtitleLines: [
+        `Cliente: ${agg.nome}`,
+        `CPF: ${agg.cpfExib}`,
+        `Emitido em: ${agg.emitidoEm}`,
+        `Quantidade utilizada: ${portalRelClienteTextoQuantidadeUtilizada(agg.sections)}`,
+        `Valor do plano: ${portalRelClienteTextoValorPlano(agg.sections, fmt)}`,
+      ],
       sections: agg.sections,
       nome: agg.nome,
       cpfExib: agg.cpfExib,
@@ -19036,7 +19094,7 @@
     if (kpis) {
       kpis.classList.remove("hidden");
       kpis.innerHTML = `
-        <div class="portal-rel-pag-agg-kpis__grid" role="list">
+        <div class="portal-rel-pag-agg-kpis__grid portal-rel-pag-agg-kpis__grid--vida" role="list">
           <div class="portal-rel-pag-agg-kpi" role="listitem">
             <span class="portal-rel-pag-agg-kpi__lab">Cliente</span>
             <strong>${portalEscapeHtml(ctx.nome || "—")}</strong>
@@ -19048,6 +19106,14 @@
           <div class="portal-rel-pag-agg-kpi" role="listitem">
             <span class="portal-rel-pag-agg-kpi__lab">Pagamentos</span>
             <strong>${portalEscapeHtml(String(ctx.stats?.pagamentos || 0))}</strong>
+          </div>
+          <div class="portal-rel-pag-agg-kpi" role="listitem">
+            <span class="portal-rel-pag-agg-kpi__lab">Quantidade utilizada</span>
+            <strong>${portalEscapeHtml(portalRelClienteTextoQuantidadeUtilizada(ctx.sections))}</strong>
+          </div>
+          <div class="portal-rel-pag-agg-kpi" role="listitem">
+            <span class="portal-rel-pag-agg-kpi__lab">Valor do plano</span>
+            <strong>${portalEscapeHtml(portalRelClienteTextoValorPlano(ctx.sections, fmt))}</strong>
           </div>
         </div>`;
     }
@@ -19109,7 +19175,7 @@
             ${finalizarHojeHtml}
             ${linha2Html}
             <div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--extra" role="list">
-              <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--semanas" role="listitem"><span>SEMANAS PAGAS</span><strong>${portalEscapeHtml(String(r.semanasPagas ?? 0))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--semanas" role="listitem"><span>SEMANAS PAGAS</span><strong>${portalEscapeHtml(portalRelClienteTextoSemanasPagas(r, fmt))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR SEMANAL DO CONTRATO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</strong></div>
             </div>
           </article>`;
