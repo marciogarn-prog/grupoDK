@@ -360,7 +360,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-2-5-por-cliente",
-      "descricao": "Em Lançamento de aluguel: 2.5 Relatório de pagamento por cliente. Linha 1 em todo protocolo: valor utilizado do plano, valor pago do plano e saldo do plano ou débito do plano. Linha 2 só com fim de contrato: valor pago de caução, total pago de prestação, total pago, valor utilizado só de aluguel sem investimento e saldo a devolver ou débito do cliente.",
+      "descricao": "Em Lançamento de aluguel: 2.5 Relatório de pagamento por cliente. Linha 1 em todo protocolo: valor utilizado do plano, valor pago do plano e saldo do plano ou débito do plano. Linha 2 no fim de contrato, ou ao marcar se finalizar hoje sem encerrar o contrato: valor pago de caução, total pago de prestação, total pago, valor utilizado só de aluguel sem investimento e saldo a devolver ou débito do cliente. As cinco caixas ficam na mesma linha.",
       "ficheiros": {
         "index.html": [
           "btn-lanc-aluguel-rel-cliente",
@@ -368,6 +368,7 @@
           "portalRelClienteVidaBusca",
           "2.5 — Relatório de pagamento por cliente",
           "DÉBITO DO CLIENTE",
+          "se finalizar hoje",
           "rel-cliente"
         ],
         "portal-locadora-ui.js": [
@@ -376,7 +377,13 @@
           "atualizarPortalRelClienteVidaTela",
           "VALOR UTILIZADO SÓ DE ALUGUEL",
           "saldoLabel",
+          "se finalizar hoje",
+          "data-rel-cli-finalizar-hoje",
           "rel-cliente"
+        ],
+        "styles.css": [
+          "portal-rel-cli-vida__kpis--fim",
+          "portal-rel-cli-vida__finalizar"
         ]
       }
     },

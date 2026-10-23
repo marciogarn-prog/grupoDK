@@ -3242,15 +3242,54 @@ body.portal-body--admin-ceo {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.portal-rel-cli-vida__kpis--fim > .portal-rel-cli-vida__kpi {
+  min-width: 0;
+  padding: 0.32rem 0.38rem;
+}
+
+.portal-rel-cli-vida__kpis--fim > .portal-rel-cli-vida__kpi span {
+  font-size: 0.58rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.portal-rel-cli-vida__kpis--fim > .portal-rel-cli-vida__kpi strong {
+  font-size: 0.82rem;
+  line-height: 1.15;
+}
+
+.portal-rel-cli-vida__finalizar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #f5c518;
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-rel-cli-vida__finalizar input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  accent-color: #eab308;
+  cursor: pointer;
+}
+
 .portal-rel-cli-vida__kpis--extra {
   grid-template-columns: repeat(2, minmax(10rem, 16rem));
 }
 
 @media (max-width: 1100px) {
   .portal-rel-cli-vida__kpis--plano,
-  .portal-rel-cli-vida__kpis--fim,
   .portal-rel-cli-vida__kpis--extra {
     grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+  }
+
+  .portal-rel-cli-vida__kpis--fim {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

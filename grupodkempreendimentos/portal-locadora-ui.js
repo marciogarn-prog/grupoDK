@@ -19077,15 +19077,16 @@
                 )
                 .join("")
             : `<tr><td colspan="4" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
-          const fimHtml = sec.status === "ativo"
-            ? ""
-            : `<div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--fim" role="list">
+          const linha2Html = `<div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--fim${sec.status === "ativo" ? " hidden" : ""}" data-rel-cli-linha2 role="list">
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO DE CAUÇÃO</span><strong>${portalEscapeHtml(fmt(r.caucao))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO DE PRESTAÇÃO</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO</span><strong>${portalEscapeHtml(fmt(r.totalPago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO SÓ DE ALUGUEL SEM INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
               <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
             </div>`;
+          const finalizarHojeHtml = sec.status === "ativo"
+            ? `<label class="portal-rel-cli-vida__finalizar"><input type="checkbox" data-rel-cli-finalizar-hoje> se finalizar hoje</label>`
+            : "";
           return `<article class="portal-rel-cli-vida__card">
             <p class="portal-rel-cli-vida__card-head">
               <strong>Protocolo ${portalEscapeHtml(sec.proto)}</strong>
@@ -19105,7 +19106,8 @@
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi ${planoCls}" role="listitem"><span>${portalEscapeHtml(r.planoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldoSemanas))}</strong></div>
             </div>
-            ${fimHtml}
+            ${finalizarHojeHtml}
+            ${linha2Html}
             <div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--extra" role="list">
               <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--semanas" role="listitem"><span>SEMANAS PAGAS</span><strong>${portalEscapeHtml(String(r.semanasPagas ?? 0))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR SEMANAL DO CONTRATO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</strong></div>
@@ -19113,7 +19115,21 @@
           </article>`;
         })
         .join("");
+      bindPortalRelClienteFinalizarHoje();
     }
+  }
+
+  function bindPortalRelClienteFinalizarHoje() {
+    const pane = document.getElementById("operacaoLancAluguelPaneRelCliente");
+    if (!pane || pane.dataset.finalizarHojeBound === "1") return;
+    pane.dataset.finalizarHojeBound = "1";
+    pane.addEventListener("change", (ev) => {
+      const inp = ev.target;
+      if (!(inp instanceof HTMLInputElement) || !inp.hasAttribute("data-rel-cli-finalizar-hoje")) return;
+      const card = inp.closest(".portal-rel-cli-vida__card");
+      const linha = card ? card.querySelector("[data-rel-cli-linha2]") : null;
+      if (linha) linha.classList.toggle("hidden", !inp.checked);
+    });
   }
 
   function atualizarPortalRelClienteVidaTela(opts = {}) {
