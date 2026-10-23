@@ -17346,3 +17346,53 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     z-index: 2;
   }
 }
+
+@media (min-width: 769px) {
+  .site-publico__hero-foto {
+    object-position: 50% 8%;
+    transform: translateY(1.4%) scale(1);
+    transform-origin: center top;
+  }
+
+  .site-publico__hero-sombra {
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.58) 16%, rgba(0, 0, 0, 0.28) 34%, rgba(0, 0, 0, 0) 52%),
+      linear-gradient(270deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.12) 14%, rgba(0, 0, 0, 0) 28%);
+  }
+
+  .site-hero-copy__lead {
+    max-width: 27rem;
+    font-size: 1.2rem;
+    line-height: 1.38;
+  }
+
+  .site-hero-copy__plano {
+    background: linear-gradient(180deg, rgba(225, 6, 0, 0.72) 0%, rgba(156, 10, 16, 0.58) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    box-shadow:
+      0 10px 24px rgba(0, 0, 0, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+
+  .site-hero-copy__selos li {
+    padding: 0.22rem 0.55rem 0.22rem 0.22rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+}
+
+@media (min-width: 769px) and (max-height: 820px) {
+  .site-publico__hero-foto {
+    object-position: 50% 10%;
+    transform: translateY(1%) scale(1);
+    transform-origin: center top;
+  }
+}
