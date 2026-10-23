@@ -17361,7 +17361,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     justify-content: flex-start;
     height: auto;
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
     background: #fff;
   }
 
@@ -17376,15 +17376,14 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     zoom: 1;
     align-items: stretch;
     box-sizing: border-box;
-    padding: 0.4rem 0.55rem 2.8rem;
+    padding: 0.4rem 0.55rem 1.2rem;
     color: #111;
     text-align: center;
     background: linear-gradient(
       180deg,
       #fff 0%,
-      #fff calc(100% - 3.4rem),
-      rgba(255, 255, 255, 0.72) calc(100% - 2.2rem),
-      rgba(255, 255, 255, 0.2) calc(100% - 1rem),
+      #fff calc(100% - 1.2rem),
+      rgba(255, 255, 255, 0.28) calc(100% - 0.5rem),
       rgba(255, 255, 255, 0) 100%
     );
   }
@@ -17453,11 +17452,15 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     gap: 0.38rem;
     padding: 0.22rem 0.72rem 0.22rem 0.22rem;
     border-radius: 999px;
-    border: 1px solid #ff5a5a;
-    background: #e10600;
-    box-shadow: 0 6px 14px rgba(225, 6, 0, 0.28);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(255, 214, 214, 0.9);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 46%),
+      linear-gradient(180deg, rgba(225, 6, 0, 0.94) 0%, rgba(176, 8, 16, 0.9) 100%);
+    box-shadow:
+      0 8px 16px rgba(225, 6, 0, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #fff;
     font-size: clamp(0.7rem, 2.95vw, 0.84rem);
     font-weight: 600;
@@ -17554,11 +17557,12 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     z-index: 1;
     display: block;
     width: 100%;
-    height: clamp(7.6rem, 33vw, 9.6rem);
-    margin: -1.6rem 0 0;
+    height: clamp(9.5rem, 41.25vw, 12rem);
+    margin: -1.2rem 0 0;
     object-fit: cover;
-    object-position: 46% 28%;
-    transform: none;
+    object-position: 44% 36%;
+    transform: scale(1.25);
+    transform-origin: 44% 28%;
   }
 
   .site-publico__hero-sombra {
@@ -17568,11 +17572,12 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     bottom: 0;
     left: 0;
     z-index: 2;
-    height: clamp(7.6rem, 33vw, 9.6rem);
+    height: clamp(9.5rem, 41.25vw, 12rem);
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0) 0.85rem
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.06) 0.4rem,
+      rgba(255, 255, 255, 0) 0.8rem
     );
   }
 
