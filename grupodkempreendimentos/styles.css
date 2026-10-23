@@ -16765,6 +16765,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   background: #e10600;
 }
 
+.site-hero-copy__olho-mob {
+  display: none;
+}
+
 .site-hero-copy__titulo {
   margin: 0;
   color: #fff;
@@ -17376,14 +17380,18 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     zoom: 1;
     align-items: stretch;
     box-sizing: border-box;
-    padding: 0.4rem 0.55rem 1.2rem;
+    padding: 0.4rem 0.55rem 3.35rem;
     color: #111;
     text-align: center;
     background: linear-gradient(
       180deg,
       #fff 0%,
-      #fff calc(100% - 1.2rem),
-      rgba(255, 255, 255, 0.28) calc(100% - 0.5rem),
+      #fff calc(100% - 3.35rem),
+      rgba(255, 255, 255, 0.95) calc(100% - 2.7rem),
+      rgba(255, 255, 255, 0.8) calc(100% - 2.1rem),
+      rgba(255, 255, 255, 0.58) calc(100% - 1.45rem),
+      rgba(255, 255, 255, 0.32) calc(100% - 0.85rem),
+      rgba(255, 255, 255, 0.12) calc(100% - 0.3rem),
       rgba(255, 255, 255, 0) 100%
     );
   }
@@ -17397,13 +17405,21 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     max-width: none;
     margin: 0 auto 0.5rem;
     color: #e10600;
-    font-size: clamp(0.68rem, 3.05vw, 0.82rem);
+    font-size: clamp(0.84rem, 3.7vw, 1rem);
     font-weight: 800;
-    letter-spacing: 0.015em;
+    letter-spacing: 0.01em;
     line-height: 1.15;
     text-align: center;
     text-shadow: none;
     white-space: nowrap;
+  }
+
+  .site-hero-copy__olho-desk {
+    display: none;
+  }
+
+  .site-hero-copy__olho-mob {
+    display: inline;
   }
 
   .site-hero-copy__olho i {
@@ -17510,10 +17526,11 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 
   .site-hero-copy__ctas {
     order: 5;
-    width: 74%;
+    width: 92%;
     max-width: 22rem;
     margin: 0.68rem auto 0;
     gap: 0;
+    flex-wrap: nowrap;
   }
 
   .site-hero-copy__escolher {
@@ -17521,8 +17538,9 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     min-height: 3.15rem;
     height: 3.35rem;
     justify-content: center;
+    flex-wrap: nowrap;
     box-sizing: border-box;
-    padding: 0.55rem 1.05rem;
+    padding: 0.5rem 0.95rem;
     border: 1px solid rgba(255, 196, 196, 0.55);
     border-radius: 999px;
     background: linear-gradient(180deg, rgba(225, 6, 0, 0.94) 0%, rgba(168, 6, 12, 0.86) 100%);
@@ -17532,15 +17550,19 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #fff;
-    font-size: 0.92rem;
+    font-size: clamp(0.78rem, 3.35vw, 0.9rem);
     font-weight: 800;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.015em;
+    line-height: 1;
     text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .site-hero-copy__escolher span {
     display: inline;
+    flex: 0 0 auto;
     margin-left: 0.35rem;
+    white-space: nowrap;
   }
 
   .site-hero-copy__ver,
@@ -17558,7 +17580,7 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     display: block;
     width: 100%;
     height: clamp(9.5rem, 41.25vw, 12rem);
-    margin: -1.2rem 0 0;
+    margin: -3.05rem 0 0;
     object-fit: cover;
     object-position: 44% 36%;
     transform: scale(1.25);
@@ -17575,9 +17597,10 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
     height: clamp(9.5rem, 41.25vw, 12rem);
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.22) 0%,
-      rgba(255, 255, 255, 0.06) 0.4rem,
-      rgba(255, 255, 255, 0) 0.8rem
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0.4) 0.85rem,
+      rgba(255, 255, 255, 0.16) 1.8rem,
+      rgba(255, 255, 255, 0) 2.9rem
     );
   }
 
