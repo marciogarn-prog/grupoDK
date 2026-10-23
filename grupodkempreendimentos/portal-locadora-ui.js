@@ -18753,6 +18753,50 @@
     return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
   }
 
+  function portalRelClienteFmtSemana(n) {
+    return `Semana ${String(n).padStart(2, "0")}`;
+  }
+
+  /**
+   * Coluna Prestação: semanas fechadas por este pagamento, na ordem da data.
+   * Caução e crédito de manutenção não fecham semana.
+   * O que não completa o valor semanal fica na coluna Saldo e entra no pagamento seguinte.
+   * Plano R$ 350: R$ 350 = Semana 01. Caução não conta. R$ 400 = Semana 02 e saldo R$ 50,00.
+   */
+  function anotarPortalRelClientePrestacaoLinhas(pagamentos, valorSemanal) {
+    const semanalCent = Math.round(Number(valorSemanal || 0) * 100);
+    let saldoCent = 0;
+    let semana = 0;
+    return (pagamentos || []).map((lan) => {
+      const valorCent = Math.round(Math.abs(Number(lan?.valor || 0)) * 100);
+      if (portalLancamentoEhCaucao(lan)) {
+        return Object.assign({}, lan, { prestacao: "Caução", saldoTexto: "—" });
+      }
+      if (portalLancamentoEhCreditoManutencao(lan)) {
+        return Object.assign({}, lan, { prestacao: "Crédito de manutenção", saldoTexto: "—" });
+      }
+      if (!(semanalCent > 0) || !(valorCent > 0)) {
+        return Object.assign({}, lan, { prestacao: "—", saldoTexto: "—" });
+      }
+      saldoCent += valorCent;
+      const inicio = semana + 1;
+      while (saldoCent + 1 >= semanalCent) {
+        saldoCent -= semanalCent;
+        semana += 1;
+      }
+      if (saldoCent < 0) saldoCent = 0;
+      let prestacao = "—";
+      if (semana >= inicio) {
+        prestacao =
+          inicio === semana
+            ? portalRelClienteFmtSemana(inicio)
+            : `${portalRelClienteFmtSemana(inicio)} a ${String(semana).padStart(2, "0")}`;
+      }
+      const saldoTexto = saldoCent > 0 ? portalRelClienteVidaFmtBrl(saldoCent / 100) : "—";
+      return Object.assign({}, lan, { prestacao, saldoTexto });
+    });
+  }
+
   /** Ativos no topo. Inativos abaixo, do encerramento mais recente para o mais antigo. */
   function sortPortalRelClienteVidaSections(sections) {
     const ativos = [];
@@ -18807,7 +18851,9 @@
           if (ta !== tb) return ta - tb;
           return Number(a.createdAt || 0) - Number(b.createdAt || 0);
         });
-      const pagamentos = lancs.filter((lan) => !portalLancamentoEhDevolucaoInvestimento(lan));
+      const pagamentosBase = lancs.filter((lan) => !portalLancamentoEhDevolucaoInvestimento(lan));
+      const resumo = computePortalRelClienteVidaResumoNum(loc);
+      const pagamentos = anotarPortalRelClientePrestacaoLinhas(pagamentosBase, resumo.valorSemanal);
       const cancelada = isPortalLocacaoCancelada(loc);
       const ativa = !cancelada && isPortalLocacaoAtiva(loc);
       return {
@@ -18817,7 +18863,7 @@
         fim: String(loc.fim || loc.dataFim || loc.dataFinalizacao || "").trim() || "—",
         status: cancelada ? "cancelado" : ativa ? "ativo" : "inativo",
         pagamentos,
-        resumo: computePortalRelClienteVidaResumoNum(loc),
+        resumo,
       };
     }));
     return {
@@ -18849,12 +18895,12 @@
         body += `<h2>${eh(`Protocolo ${sec.proto} · Placa ${sec.placa} · ${String(sec.status).toUpperCase()}`)}</h2>`;
         body += `<p class="meta">${eh(`Início: ${sec.inicio} · Fim: ${sec.fim}`)}</p>`;
         body += `<p class="meta">${eh("Pagamentos do protocolo")}</p>`;
-        body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
+        body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Prestação")}</th><th>${eh("Saldo")}</th></tr></thead><tbody>`;
         if (!sec.pagamentos.length) {
-          body += `<tr><td colspan="2">${eh("Nenhum pagamento registado neste protocolo.")}</td></tr>`;
+          body += `<tr><td colspan="4">${eh("Nenhum pagamento registado neste protocolo.")}</td></tr>`;
         } else {
           for (const lan of sec.pagamentos) {
-            body += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td></tr>`;
+            body += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td><td class="prestacao">${eh(String(lan.prestacao || "—"))}</td><td class="saldo">${eh(String(lan.saldoTexto || "—"))}</td></tr>`;
           }
         }
         body += `</tbody></table>`;
@@ -18884,6 +18930,8 @@
         table{width:100%;border-collapse:collapse;margin:0.35rem 0 0.7rem}
         th,td{border:1px solid #333;padding:5px 7px;text-align:left}
         th{background:#eee}
+        td.prestacao{background:#e8f8ee;font-weight:700}
+        td.saldo{background:#fff6d8;font-weight:700}
         .sum-title{font-weight:700;margin:0.7rem 0 0.25rem;text-transform:uppercase;font-size:11px}
         table.resumo td{background:#f7f7f7}
         .lbl{font-size:10px;color:#444;font-weight:700}
@@ -18904,12 +18952,12 @@
       for (const sec of agg.sections) {
         const r = sec.resumo;
         html += `<h2>Protocolo ${eh(sec.proto)} · Placa ${eh(sec.placa)}</h2>`;
-        html += `<table border="1"><thead><tr><th>Data do pagamento</th><th>Valor</th></tr></thead><tbody>`;
+        html += `<table border="1"><thead><tr><th>Data do pagamento</th><th>Valor</th><th>Prestação</th><th>Saldo</th></tr></thead><tbody>`;
         if (!sec.pagamentos.length) {
-          html += `<tr><td colspan="2">Nenhum pagamento</td></tr>`;
+          html += `<tr><td colspan="4">Nenhum pagamento</td></tr>`;
         } else {
           for (const lan of sec.pagamentos) {
-            html += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td></tr>`;
+            html += `<tr><td>${eh(String(lan.data || "—"))}</td><td>${eh(fmt(lan.valor))}</td><td>${eh(String(lan.prestacao || "—"))}</td><td>${eh(String(lan.saldoTexto || "—"))}</td></tr>`;
           }
         }
         html += `</tbody></table>`;
@@ -18931,7 +18979,7 @@
       title,
       fileSlug: "relatorio-pagamento-por-cliente",
       relatorioClienteCpfDigits: agg.cpf,
-      headers: ["Data do pagamento", "Valor"],
+      headers: ["Data do pagamento", "Valor", "Prestação", "Saldo"],
       rows: [],
       ok: agg.ok,
       stats: { protocolos: agg.sections.length, pagamentos: qtdPag },
@@ -18997,10 +19045,10 @@
             ? sec.pagamentos
                 .map(
                   (lan) =>
-                    `<tr><td>${portalEscapeHtml(String(lan.data || "—"))}</td><td>${portalEscapeHtml(fmt(lan.valor))}</td></tr>`
+                    `<tr><td>${portalEscapeHtml(String(lan.data || "—"))}</td><td>${portalEscapeHtml(fmt(lan.valor))}</td><td class="portal-rel-cli-vida__prestacao">${portalEscapeHtml(String(lan.prestacao || "—"))}</td><td class="portal-rel-cli-vida__saldo">${portalEscapeHtml(String(lan.saldoTexto || "—"))}</td></tr>`
                 )
                 .join("")
-            : `<tr><td colspan="2" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
+            : `<tr><td colspan="4" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
           return `<article class="portal-rel-cli-vida__card">
             <p class="portal-rel-cli-vida__card-head">
               <strong>Protocolo ${portalEscapeHtml(sec.proto)}</strong>
@@ -19011,7 +19059,7 @@
             </p>
             <div class="fin-table-wrap">
               <table class="fin-table portal-rel-pag-agg__table">
-                <thead><tr><th>Data do pagamento</th><th>Valor</th></tr></thead>
+                <thead><tr><th>Data do pagamento</th><th>Valor</th><th class="portal-rel-cli-vida__prestacao">Prestação</th><th class="portal-rel-cli-vida__saldo">Saldo</th></tr></thead>
                 <tbody>${pagRows}</tbody>
               </table>
             </div>

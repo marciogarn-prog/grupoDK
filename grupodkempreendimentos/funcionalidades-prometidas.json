@@ -404,6 +404,27 @@
       }
     },
     {
+      "id": "lanc-aluguel-relatorio-2-5-prestacao-saldo",
+      "descricao": "No relatório 2.5, cada pagamento mostra a coluna Prestação (semana fechada pelo valor semanal do plano, em ordem) e a coluna Saldo (o que sobrou e entra no próximo pagamento). Caução não fecha semana. Plano de R$ 350: R$ 350 = Semana 01; o pagamento seguinte de R$ 400 = Semana 02 e saldo de R$ 50,00.",
+      "ficheiros": {
+        "index.html": [
+          "Prestação",
+          "Semana 01",
+          "Semana 02 e saldo de R$ 50,00"
+        ],
+        "portal-locadora-ui.js": [
+          "anotarPortalRelClientePrestacaoLinhas",
+          "portalRelClienteFmtSemana",
+          "Caução não conta",
+          "Semana 02 e saldo R$ 50,00"
+        ],
+        "styles.css": [
+          "portal-rel-cli-vida__prestacao",
+          "portal-rel-cli-vida__saldo"
+        ]
+      }
+    },
+    {
       "id": "controle-estoque-area-equipa",
       "descricao": "Na Área da equipa existe o botão Controle de Estoque, entre Operação e Manutenção. Abre o painel com Cadastro de material, Estoque, Saída e Entrada; o controlo dos itens é pelo código de barras.",
       "ficheiros": {

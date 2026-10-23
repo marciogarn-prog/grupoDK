@@ -3269,6 +3269,18 @@ body.portal-body--admin-ceo {
   color: #86efac;
 }
 
+.portal-rel-pag-agg__table .portal-rel-cli-vida__prestacao {
+  color: #86efac;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.portal-rel-pag-agg__table .portal-rel-cli-vida__saldo {
+  color: #f5c518;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .portal-rel-cli-vida__vazio {
   color: #9aa0aa;
   margin: 0.4rem 0 0;
