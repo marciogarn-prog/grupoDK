@@ -18731,7 +18731,7 @@
     if (semanal > 0.009) {
       semanasPagas = Math.floor((pagoNum + 1e-9) / semanal);
     }
-    /* SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR DEVIDO DO PLANO. */
+    /* SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR UTILIZADO DO PLANO. */
     saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano);
     return {
       devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
@@ -18907,8 +18907,8 @@
         body += `<p class="sum-title">${eh("Resumo do protocolo")} · ${eh(`valores no dia ${agg.emitidoEm}`)}</p>`;
         body += `<table class="resumo"><tbody>`;
         const pares = [
-          ["VALOR DEVIDO SÓ DE ALUGUEL", fmt(r.devidoAluguel)],
-          ["VALOR DEVIDO DO PLANO", fmt(r.devidoPlano)],
+          ["VALOR UTILIZADO SÓ DE ALUGUEL", fmt(r.devidoAluguel)],
+          ["VALOR UTILIZADO DO PLANO", fmt(r.devidoPlano)],
           ["VALOR DE INVESTIMENTO", fmt(r.investimento)],
           ["VALOR PAGO TOTAL", fmt(r.pago)],
           [r.saldoLabel, formatPortalSaldoDevolucaoBrl(r.saldo)],
@@ -18962,8 +18962,8 @@
         }
         html += `</tbody></table>`;
         html += `<table border="1"><tbody>`;
-        html += `<tr><td>VALOR DEVIDO SÓ DE ALUGUEL</td><td>${eh(fmt(r.devidoAluguel))}</td></tr>`;
-        html += `<tr><td>VALOR DEVIDO DO PLANO</td><td>${eh(fmt(r.devidoPlano))}</td></tr>`;
+        html += `<tr><td>VALOR UTILIZADO SÓ DE ALUGUEL</td><td>${eh(fmt(r.devidoAluguel))}</td></tr>`;
+        html += `<tr><td>VALOR UTILIZADO DO PLANO</td><td>${eh(fmt(r.devidoPlano))}</td></tr>`;
         html += `<tr><td>VALOR DE INVESTIMENTO</td><td>${eh(fmt(r.investimento))}</td></tr>`;
         html += `<tr><td>VALOR PAGO TOTAL</td><td>${eh(fmt(r.pago))}</td></tr>`;
         html += `<tr><td>${eh(r.saldoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldo))}</td></tr>`;
@@ -19064,8 +19064,8 @@
               </table>
             </div>
             <div class="portal-rel-cli-vida__kpis" role="list">
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DEVIDO SÓ DE ALUGUEL</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DEVIDO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.devidoPlano))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO SÓ DE ALUGUEL</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.devidoPlano))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DE INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.investimento))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO TOTAL</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
