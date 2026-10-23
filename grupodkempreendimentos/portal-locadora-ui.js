@@ -18693,6 +18693,7 @@
   });
 
   let portalRelClienteVidaCpfSel = "";
+  const portalRelClienteFinalizarHoje = new Set();
 
   function portalRelClienteVidaFmtBrl(n) {
     return typeof currencyBRL === "function"
@@ -19143,7 +19144,8 @@
                 )
                 .join("")
             : `<tr><td colspan="4" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
-          const linha2Html = `<div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--fim${sec.status === "ativo" ? " hidden" : ""}" data-rel-cli-linha2 role="list">
+          const simularHoje = sec.status === "ativo" && portalRelClienteFinalizarHoje.has(String(sec.proto));
+          const linha2Html = `<div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--fim${sec.status === "ativo" && !simularHoje ? " hidden" : ""}" data-rel-cli-linha2 role="list">
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO DE CAUÇÃO</span><strong>${portalEscapeHtml(fmt(r.caucao))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO DE PRESTAÇÃO</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO</span><strong>${portalEscapeHtml(fmt(r.totalPago))}</strong></div>
@@ -19151,7 +19153,7 @@
               <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
             </div>`;
           const finalizarHojeHtml = sec.status === "ativo"
-            ? `<label class="portal-rel-cli-vida__finalizar"><input type="checkbox" data-rel-cli-finalizar-hoje> se finalizar hoje</label>`
+            ? `<label class="portal-rel-cli-vida__finalizar"><input type="checkbox" data-rel-cli-finalizar-hoje data-rel-cli-proto="${portalEscapeHtml(String(sec.proto))}"${simularHoje ? " checked" : ""}> se finalizar hoje</label>`
             : "";
           return `<article class="portal-rel-cli-vida__card">
             <p class="portal-rel-cli-vida__card-head">
@@ -19192,6 +19194,11 @@
     pane.addEventListener("change", (ev) => {
       const inp = ev.target;
       if (!(inp instanceof HTMLInputElement) || !inp.hasAttribute("data-rel-cli-finalizar-hoje")) return;
+      const proto = String(inp.getAttribute("data-rel-cli-proto") || "");
+      if (proto) {
+        if (inp.checked) portalRelClienteFinalizarHoje.add(proto);
+        else portalRelClienteFinalizarHoje.delete(proto);
+      }
       const card = inp.closest(".portal-rel-cli-vida__card");
       const linha = card ? card.querySelector("[data-rel-cli-linha2]") : null;
       if (linha) linha.classList.toggle("hidden", !inp.checked);
