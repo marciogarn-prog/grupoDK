@@ -18726,6 +18726,7 @@
     const negativo = Number.isFinite(saldo) && saldo < -0.009;
     const semanal = Number(plano) > 0.009 ? Number(plano) : Number(valLoc) > 0.009 ? Number(valLoc) : 0;
     const pagoNum = Number.isFinite(pago) ? pago : 0;
+    const caucaoNum = Number.isFinite(caucao) ? caucao : 0;
     let semanasPagas = 0;
     let saldoSemanas = 0;
     if (semanal > 0.009) {
@@ -18733,14 +18734,18 @@
     }
     /* SALDO POSITIVO do relatório 2.5 = VALOR PAGO TOTAL − VALOR UTILIZADO DO PLANO. */
     saldoSemanas = computePortalRelClienteSaldoPositivoPlano(pagoNum, devidoPlano);
+    const planoNeg = Number.isFinite(saldoSemanas) && saldoSemanas < -0.009;
     return {
       devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
       devidoPlano: Number.isFinite(devidoPlano) ? devidoPlano : 0,
       investimento: Number.isFinite(investimento) ? investimento : 0,
       pago: pagoNum,
+      caucao: caucaoNum,
+      totalPago: Math.round((pagoNum + caucaoNum) * 100) / 100,
       saldo: Number.isFinite(saldo) ? saldo : 0,
       negativo,
-      saldoLabel: negativo ? "VALOR EM ATRASO SÓ DE ALUGUEL" : "SALDO A DEVOLVER",
+      saldoLabel: negativo ? "DÉBITO DO CLIENTE" : "SALDO A DEVOLVER",
+      planoLabel: planoNeg ? "DÉBITO DO PLANO" : "SALDO DO PLANO",
       valorSemanal: semanal,
       semanasPagas,
       saldoSemanas,
@@ -18905,22 +18910,36 @@
         }
         body += `</tbody></table>`;
         body += `<p class="sum-title">${eh("Resumo do protocolo")} · ${eh(`valores no dia ${agg.emitidoEm}`)}</p>`;
+        body += `<p class="sum-title">${eh("Linha 1 — plano")}</p>`;
         body += `<table class="resumo"><tbody>`;
-        const pares = [
-          ["VALOR UTILIZADO SÓ DE ALUGUEL", fmt(r.devidoAluguel)],
+        const linhaPlano = [
           ["VALOR UTILIZADO DO PLANO", fmt(r.devidoPlano)],
-          ["VALOR DE INVESTIMENTO", fmt(r.investimento)],
-          ["VALOR PAGO TOTAL", fmt(r.pago)],
-          [r.saldoLabel, formatPortalSaldoDevolucaoBrl(r.saldo)],
-          ["VALOR SEMANAL DO CONTRATO", r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—"],
-          ["SEMANAS PAGAS", String(r.semanasPagas ?? 0)],
-          ["SALDO POSITIVO", r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—"],
+          ["VALOR PAGO DO PLANO", fmt(r.pago)],
+          [r.planoLabel, formatPortalSaldoDevolucaoBrl(r.saldoSemanas)],
         ];
-        for (const [lbl, val] of pares) {
-          const neg = r.negativo && lbl === r.saldoLabel ? ' class="neg"' : "";
+        for (const [lbl, val] of linhaPlano) {
+          const neg = lbl === "DÉBITO DO PLANO" ? ' class="neg"' : "";
           body += `<tr><td><span class="lbl">${eh(lbl)}</span><br /><span class="val"${neg}>${eh(val)}</span></td></tr>`;
         }
-        body += `</tbody></table><hr />`;
+        body += `</tbody></table>`;
+        body += `<p class="meta">${eh(`SEMANAS PAGAS: ${r.semanasPagas ?? 0}`)} · ${eh(`VALOR SEMANAL DO CONTRATO: ${r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—"}`)}</p>`;
+        if (sec.status !== "ativo") {
+          body += `<p class="sum-title">${eh("Linha 2 — fim de contrato")}</p>`;
+          body += `<table class="resumo"><tbody>`;
+          const linhaFim = [
+            ["VALOR PAGO DE CAUÇÃO", fmt(r.caucao)],
+            ["TOTAL PAGO DE PRESTAÇÃO", fmt(r.pago)],
+            ["TOTAL PAGO", fmt(r.totalPago)],
+            ["VALOR UTILIZADO SÓ DE ALUGUEL SEM INVESTIMENTO", fmt(r.devidoAluguel)],
+            [r.saldoLabel, formatPortalSaldoDevolucaoBrl(r.saldo)],
+          ];
+          for (const [lbl, val] of linhaFim) {
+            const neg = lbl === "DÉBITO DO CLIENTE" ? ' class="neg"' : "";
+            body += `<tr><td><span class="lbl">${eh(lbl)}</span><br /><span class="val"${neg}>${eh(val)}</span></td></tr>`;
+          }
+          body += `</tbody></table>`;
+        }
+        body += `<hr />`;
       }
       return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
         body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
@@ -18961,16 +18980,22 @@
           }
         }
         html += `</tbody></table>`;
-        html += `<table border="1"><tbody>`;
-        html += `<tr><td>VALOR UTILIZADO SÓ DE ALUGUEL</td><td>${eh(fmt(r.devidoAluguel))}</td></tr>`;
+        html += `<p>Linha 1 — plano</p><table border="1"><tbody>`;
         html += `<tr><td>VALOR UTILIZADO DO PLANO</td><td>${eh(fmt(r.devidoPlano))}</td></tr>`;
-        html += `<tr><td>VALOR DE INVESTIMENTO</td><td>${eh(fmt(r.investimento))}</td></tr>`;
-        html += `<tr><td>VALOR PAGO TOTAL</td><td>${eh(fmt(r.pago))}</td></tr>`;
-        html += `<tr><td>${eh(r.saldoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldo))}</td></tr>`;
-        html += `<tr><td>VALOR SEMANAL DO CONTRATO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</td></tr>`;
+        html += `<tr><td>VALOR PAGO DO PLANO</td><td>${eh(fmt(r.pago))}</td></tr>`;
+        html += `<tr><td>${eh(r.planoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldoSemanas))}</td></tr>`;
         html += `<tr><td>SEMANAS PAGAS</td><td>${eh(String(r.semanasPagas ?? 0))}</td></tr>`;
-        html += `<tr><td>SALDO POSITIVO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—")}</td></tr>`;
+        html += `<tr><td>VALOR SEMANAL DO CONTRATO</td><td>${eh(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</td></tr>`;
         html += `</tbody></table>`;
+        if (sec.status !== "ativo") {
+          html += `<p>Linha 2 — fim de contrato</p><table border="1"><tbody>`;
+          html += `<tr><td>VALOR PAGO DE CAUÇÃO</td><td>${eh(fmt(r.caucao))}</td></tr>`;
+          html += `<tr><td>TOTAL PAGO DE PRESTAÇÃO</td><td>${eh(fmt(r.pago))}</td></tr>`;
+          html += `<tr><td>TOTAL PAGO</td><td>${eh(fmt(r.totalPago))}</td></tr>`;
+          html += `<tr><td>VALOR UTILIZADO SÓ DE ALUGUEL SEM INVESTIMENTO</td><td>${eh(fmt(r.devidoAluguel))}</td></tr>`;
+          html += `<tr><td>${eh(r.saldoLabel)}</td><td>${eh(formatPortalSaldoDevolucaoBrl(r.saldo))}</td></tr>`;
+          html += `</tbody></table>`;
+        }
       }
       html += `</body></html>`;
       return html;
@@ -19041,6 +19066,9 @@
           const statusCls =
             sec.status === "ativo" ? "portal-rel-cli-vida__status--ativo" : "portal-rel-cli-vida__status--inativo";
           const saldoCls = r.negativo ? "portal-rel-cli-vida__kpi--atraso" : "portal-rel-cli-vida__kpi--devolver";
+          const planoCls = String(r.planoLabel || "").indexOf("DÉBITO") === 0
+            ? "portal-rel-cli-vida__kpi--atraso"
+            : "portal-rel-cli-vida__kpi--saldo-semanas";
           const pagRows = sec.pagamentos.length
             ? sec.pagamentos
                 .map(
@@ -19049,6 +19077,15 @@
                 )
                 .join("")
             : `<tr><td colspan="4" class="subtext">Nenhum pagamento registado neste protocolo.</td></tr>`;
+          const fimHtml = sec.status === "ativo"
+            ? ""
+            : `<div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--fim" role="list">
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO DE CAUÇÃO</span><strong>${portalEscapeHtml(fmt(r.caucao))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO DE PRESTAÇÃO</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>TOTAL PAGO</span><strong>${portalEscapeHtml(fmt(r.totalPago))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO SÓ DE ALUGUEL SEM INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
+            </div>`;
           return `<article class="portal-rel-cli-vida__card">
             <p class="portal-rel-cli-vida__card-head">
               <strong>Protocolo ${portalEscapeHtml(sec.proto)}</strong>
@@ -19063,15 +19100,15 @@
                 <tbody>${pagRows}</tbody>
               </table>
             </div>
-            <div class="portal-rel-cli-vida__kpis" role="list">
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO SÓ DE ALUGUEL</span><strong>${portalEscapeHtml(fmt(r.devidoAluguel))}</strong></div>
+            <div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--plano" role="list">
               <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR UTILIZADO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.devidoPlano))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR DE INVESTIMENTO</span><strong>${portalEscapeHtml(fmt(r.investimento))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO TOTAL</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi ${saldoCls}" role="listitem"><span>${portalEscapeHtml(r.saldoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldo))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR SEMANAL DO CONTRATO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR PAGO DO PLANO</span><strong>${portalEscapeHtml(fmt(r.pago))}</strong></div>
+              <div class="portal-rel-cli-vida__kpi ${planoCls}" role="listitem"><span>${portalEscapeHtml(r.planoLabel)}</span><strong>${portalEscapeHtml(formatPortalSaldoDevolucaoBrl(r.saldoSemanas))}</strong></div>
+            </div>
+            ${fimHtml}
+            <div class="portal-rel-cli-vida__kpis portal-rel-cli-vida__kpis--extra" role="list">
               <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--semanas" role="listitem"><span>SEMANAS PAGAS</span><strong>${portalEscapeHtml(String(r.semanasPagas ?? 0))}</strong></div>
-              <div class="portal-rel-cli-vida__kpi portal-rel-cli-vida__kpi--saldo-semanas" role="listitem"><span>SALDO POSITIVO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.saldoSemanas) : "—")}</strong></div>
+              <div class="portal-rel-cli-vida__kpi" role="listitem"><span>VALOR SEMANAL DO CONTRATO</span><strong>${portalEscapeHtml(r.valorSemanal > 0 ? fmt(r.valorSemanal) : "—")}</strong></div>
             </div>
           </article>`;
         })
