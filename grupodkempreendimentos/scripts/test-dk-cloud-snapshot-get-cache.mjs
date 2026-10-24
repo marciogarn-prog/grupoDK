@@ -34,7 +34,7 @@ const payload = {
 
 ok("GET pede a revisão antes do payload", getSrc.indexOf("fetchSnapshotRevisionByLabel") !== -1 && getSrc.indexOf("fetchSnapshotRevisionByLabel") < getSrc.indexOf("fetchSnapshotByLabel"));
 ok("GET lê o payload do Supabase uma vez", getSrc.split("fetchSnapshotByLabel").length === 2);
-ok("POST continua lendo o payload", postSrc.includes("fetchSnapshotByLabel"));
+ok("POST lê o payload só quando a base pede", fonte.includes("fetchSnapshotByLabel(label)") && postSrc.includes("lerBaseOficialParaPost"));
 ok("pacote=dia usa o corpo já resolvido", getSrc.includes("corpoDaConsulta") && !getSrc.includes("extrairPacoteDia"));
 
 const vazio = api.decidirLeituraSnapshot(null, { ok: true, updatedAt: rev1 });
