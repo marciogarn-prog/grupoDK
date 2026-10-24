@@ -5,6 +5,8 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
+const { presencaRelacionalAtiva, atenderPresencaRelacional } = require("../lib/dk-equipa-presenca-pg.cjs");
+const { diskIoSafeModeAtivo } = require("../lib/dk-disk-io-safe-mode.cjs");
 const {
   applyApiCors,
   enforceRateLimit,
@@ -141,6 +143,44 @@ function listFromStore(store) {
   return { operadores, cpfs: operadores.map((o) => o.cpf) };
 }
 
+function corpoPresencaModoSeguro() {
+  return {
+    ok: true,
+    success: true,
+    source: "suspenso",
+    suspenso: true,
+    operadores: [],
+    cpfs: [],
+  };
+}
+
+function corpoGetPresencaRelacional(revision, store) {
+  const rev = revision || null;
+  return {
+    ok: true,
+    success: true,
+    source: "supabase",
+    revision: rev,
+    updated_at: rev,
+    ...listFromStore(store),
+  };
+}
+
+function corpoPostPresencaRelacional(revision, store, redisOk, redisErr) {
+  const rev = revision || null;
+  return {
+    ok: true,
+    success: true,
+    revision: rev,
+    updated_at: rev,
+    persistencia: redisOk ? "supabase+redis" : "supabase",
+    source: "supabase",
+    supabase: { ok: true },
+    redis: { ok: Boolean(redisOk), reason: redisErr || "" },
+    ...listFromStore(store),
+  };
+}
+
 module.exports = async function handler(req, res) {
   applyApiCors(res);
   res.setHeader("Content-Type", "application/json");
@@ -157,6 +197,21 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      if (diskIoSafeModeAtivo()) {
+        return res.status(200).json(corpoPresencaModoSeguro());
+      }
+      if (presencaRelacionalAtiva()) {
+        const rel = await atenderPresencaRelacional({ method: "GET" }, { lerOrigem: () => io.ler() });
+        if (!rel.fallback) {
+          if (rel.status !== 200) return res.status(rel.status).json(rel.body);
+          try {
+            await cachePresencaRedis(rel.store);
+          } catch (err) {
+            console.error("[DK presenca] cache redis apos leitura", err && err.message ? err.message : err);
+          }
+          return res.status(200).json(corpoGetPresencaRelacional(rel.revision, rel.store));
+        }
+      }
       const lido = await lerEquipaPresencaComIo(io);
       if (lido.status === 200) {
         try {
@@ -175,6 +230,42 @@ module.exports = async function handler(req, res) {
       }
       const body = parseBody(req);
       const vivo = body.vivo !== false && body.vivo !== 0 && String(body.vivo || "true") !== "false";
+      if (diskIoSafeModeAtivo()) {
+        if (!vivo) {
+          try {
+            await clearSessaoAtivaSeDona(cpf, gate.sid);
+          } catch (err) {
+            console.error("[DK presenca] limpar sessao apos supabase", err && err.message ? err.message : err);
+          }
+        }
+        return res.status(200).json(corpoPresencaModoSeguro());
+      }
+      if (presencaRelacionalAtiva()) {
+        const rel = await atenderPresencaRelacional(
+          { method: "POST", entrada: { cpf, vivo, nome: gate.nome, at: Date.now() } },
+          { lerOrigem: () => io.ler() }
+        );
+        if (!rel.fallback) {
+          if (rel.status !== 200) return res.status(rel.status).json(rel.body);
+          let redisOk = true;
+          let redisErr = "";
+          try {
+            await cachePresencaRedis(rel.store);
+          } catch (err) {
+            redisOk = false;
+            redisErr = String(err && err.message ? err.message : err);
+            console.error("[DK presenca] cache redis apos gravacao", redisErr);
+          }
+          if (!vivo) {
+            try {
+              await clearSessaoAtivaSeDona(cpf, gate.sid);
+            } catch (err) {
+              console.error("[DK presenca] limpar sessao apos supabase", err && err.message ? err.message : err);
+            }
+          }
+          return res.status(200).json(corpoPostPresencaRelacional(rel.revision, rel.store, redisOk, redisErr));
+        }
+      }
       const central = await gravarEquipaPresencaComIo(
         io,
         {
@@ -208,3 +299,7 @@ module.exports = async function handler(req, res) {
 module.exports.aplicarEquipaPresenca = aplicarEquipaPresenca;
 module.exports.lerEquipaPresencaComIo = lerEquipaPresencaComIo;
 module.exports.gravarEquipaPresencaComIo = gravarEquipaPresencaComIo;
+module.exports.listFromStore = listFromStore;
+module.exports.corpoPresencaModoSeguro = corpoPresencaModoSeguro;
+module.exports.corpoGetPresencaRelacional = corpoGetPresencaRelacional;
+module.exports.corpoPostPresencaRelacional = corpoPostPresencaRelacional;

@@ -634,15 +634,17 @@
     }
   }
 
-  async function pushManutencoesParaNuvem(list) {
+  async function pushManutencoesParaNuvem(list, opts) {
     try {
+      const envio = {
+        data: Array.isArray(list) ? list : loadArr(STORAGE_KEY),
+        base_revision: window.__DK_CLOUD_REVISION || "",
+      };
+      if (opts && opts.automatico === true) envio.automatico = true;
       const r = await fetch("/api/cadastro-manutencoes-rapidas", {
         method: "POST",
         headers: { ...apiHeadersManut(), "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: Array.isArray(list) ? list : loadArr(STORAGE_KEY),
-          base_revision: window.__DK_CLOUD_REVISION || "",
-        }),
+        body: JSON.stringify(envio),
         cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
@@ -661,7 +663,7 @@
 
   async function syncManutencoesComNuvem() {
     await pullManutencoesDaNuvem();
-    await pushManutencoesParaNuvem(persistOsBackfill());
+    await pushManutencoesParaNuvem(persistOsBackfill(), { automatico: true });
     renderDia();
     if (typeof window.__DK_financeiroCeoRefreshReceita === "function") {
       try {
