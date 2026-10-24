@@ -3,27 +3,18 @@
  * POST /api/dk-cliente-geo — body { cpf, lat, lng, ... }
  * GET  /api/dk-cliente-geo — lista últimas posições (admin mapa)
  *
+ * A fonte oficial é public.dk_cliente_geo. Redis só guarda a lista já lida.
  * Web Push (mensagens DK): GET/POST /api/dk-cliente-geo?push=1
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { handleClientePush } = require("../lib/dk-cliente-push-handler.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
-const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
+const { listarPosicoes, gravarPosicao, linhaParaCliente } = require("../lib/dk-cliente-geo-pg.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
-const SNAPSHOT_FIELD = "dk_cliente_geo_v1";
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_CLIENTES = 800;
 
 function onlyDigits(s) {
   return String(s ?? "").replace(/\D/g, "");
-}
-
-function normPlaca(s) {
-  return String(s ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
 }
 
 function parseBody(req) {
@@ -38,6 +29,26 @@ function parseBody(req) {
   return body && typeof body === "object" ? body : {};
 }
 
+function applyCors(res) {
+  applyApiCors(res);
+}
+
+function storeDeClientes(clientes) {
+  const byCpf = {};
+  for (const row of clientes || []) {
+    if (!row || !row.cpf) continue;
+    byCpf[row.cpf] = row;
+  }
+  return { byCpf, updatedAt: Date.now() };
+}
+
+async function cacheGeoRedis(clientes) {
+  if (!isRedisKvConfigured()) return { ok: false, reason: "redis_indisponivel" };
+  const redis = createRedisClient();
+  await redis.set(REDIS_KEY, JSON.stringify(storeDeClientes(clientes)));
+  return { ok: true };
+}
+
 function parseStore(raw) {
   if (raw == null) return { byCpf: {} };
   let data = raw;
@@ -48,112 +59,44 @@ function parseStore(raw) {
       return { byCpf: {} };
     }
   }
-  if (!data || typeof data !== "object") return { byCpf: {} };
-  if (!data.byCpf || typeof data.byCpf !== "object") return { byCpf: {} };
+  if (!data || typeof data !== "object" || !data.byCpf || typeof data.byCpf !== "object") return { byCpf: {} };
   return data;
 }
 
-function pruneStore(store) {
-  const now = Date.now();
-  const entries = Object.entries(store.byCpf || {});
-  const kept = entries.filter(([, v]) => {
-    const ts = Number(v?.ts || v?.updatedAt || 0);
-    return ts > now - MAX_AGE_MS;
-  });
-  kept.sort((a, b) => Number(b[1]?.ts || 0) - Number(a[1]?.ts || 0));
-  const byCpf = {};
-  kept.slice(0, MAX_CLIENTES).forEach(([k, v]) => {
-    byCpf[k] = v;
-  });
-  return { byCpf, updatedAt: now };
-}
+let semeaduraTentada = false;
 
-function applyCors(res) {
-  applyApiCors(res);
-}
-
-function aplicarClienteGeo(payload, entrada) {
-  const store = parseStore(payload[SNAPSHOT_FIELD]);
-  const prev = store.byCpf[entrada.cpf] || {};
-  store.byCpf[entrada.cpf] = {
-    cpf: entrada.cpf,
-    nome: String(entrada.nome || prev.nome || "").trim(),
-    placa: normPlaca(entrada.placa || prev.placa || ""),
-    protocolo: String(entrada.protocolo || prev.protocolo || "").trim(),
-    lat: entrada.lat,
-    lng: entrada.lng,
-    accuracy: Number.isFinite(Number(entrada.accuracy)) ? Number(entrada.accuracy) : null,
-    heading: Number.isFinite(Number(entrada.heading)) ? Number(entrada.heading) : null,
-    speed: Number.isFinite(Number(entrada.speed)) ? Number(entrada.speed) : null,
-    ts: entrada.ts,
-    updatedAt: entrada.ts,
-  };
-  payload[SNAPSHOT_FIELD] = pruneStore(store);
-  return payload;
-}
-
-function clientesDoStore(store) {
-  return Object.values(store.byCpf || {}).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
-}
-
-async function lerClienteGeoComIo(io) {
-  const atual = await io.ler();
-  if (!atual || atual.indisponivel) {
-    return {
-      status: 503,
-      body: {
-        ok: false,
-        success: false,
-        reason: (atual && atual.reason) || "supabase_indisponivel",
-      },
-    };
+async function semearDoCacheSeVazio(lista) {
+  if (lista.clientes.length || semeaduraTentada || !isRedisKvConfigured()) return lista;
+  semeaduraTentada = true;
+  let raw = null;
+  try {
+    raw = await createRedisClient().get(REDIS_KEY);
+  } catch (err) {
+    console.error("[DK geo] cache redis na semeadura", err && err.message ? err.message : err);
+    return lista;
   }
-  const store = pruneStore(parseStore(atual.payload && atual.payload[SNAPSHOT_FIELD]));
-  const clientes = clientesDoStore(store);
+  const entradas = Object.values(parseStore(raw).byCpf || {});
+  if (!entradas.length) return lista;
+  for (const entrada of entradas) {
+    const gravou = await gravarPosicao(entrada);
+    if (gravou.status !== 200) return lista;
+  }
+  return listarPosicoes();
+}
+
+function respostaLista(lista, redis) {
   return {
-    status: 200,
-    store,
-    body: {
-      ok: true,
-      success: true,
-      source: "supabase",
-      revision: atual.updatedAt || null,
-      updated_at: atual.updatedAt || null,
-      updatedAt: store.updatedAt || Date.now(),
-      total: clientes.length,
-      clientes,
-    },
+    ok: true,
+    success: true,
+    source: "supabase",
+    revision: lista.revision,
+    updated_at: lista.revision,
+    updatedAt: lista.updatedAt || Date.now(),
+    total: lista.clientes.length,
+    clientes: lista.clientes,
+    persistencia: redis && redis.ok ? "supabase+redis" : "supabase",
+    redis: redis && redis.ok ? { ok: true } : { ok: false, reason: (redis && redis.reason) || "redis_indisponivel" },
   };
-}
-
-async function gravarClienteGeoComIo(io, entrada, cache) {
-  const atual = await io.ler();
-  if (!atual || atual.indisponivel) {
-    return {
-      status: 503,
-      body: {
-        ok: false,
-        success: false,
-        reason: (atual && atual.reason) || "supabase_indisponivel",
-      },
-    };
-  }
-  const informado = String(entrada.baseRevision || "");
-  return executarGravacaoCentral({
-    ler: io.ler,
-    gravar: io.gravar,
-    cache,
-    baseRevision: informado || atual.updatedAt || "",
-    mutar(payload) {
-      aplicarClienteGeo(payload, entrada);
-    },
-  });
-}
-
-async function cacheGeoRedis(store) {
-  if (!isRedisKvConfigured()) throw new Error("redis_indisponivel");
-  const redis = createRedisClient();
-  await redis.set(REDIS_KEY, JSON.stringify(store));
 }
 
 module.exports = async function handler(req, res) {
@@ -185,18 +128,19 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const io = ioSnapshotOficial("default");
-
     if (req.method === "GET") {
-      const lido = await lerClienteGeoComIo(io);
-      if (lido.status === 200) {
-        try {
-          await cacheGeoRedis(lido.store);
-        } catch (err) {
-          console.error("[DK geo] cache redis apos leitura", err && err.message ? err.message : err);
-        }
+      let lista = await listarPosicoes();
+      if (!lista.ok) return res.status(lista.status).json(lista.body);
+      lista = await semearDoCacheSeVazio(lista);
+      if (!lista.ok) return res.status(lista.status).json(lista.body);
+      let redis = { ok: false, reason: "redis_indisponivel" };
+      try {
+        redis = await cacheGeoRedis(lista.clientes);
+      } catch (err) {
+        console.error("[DK geo] cache redis apos leitura", err && err.message ? err.message : err);
+        redis = { ok: false, reason: "redis_indisponivel" };
       }
-      return res.status(lido.status).json(lido.body);
+      return res.status(200).json(respostaLista(lista, redis));
     }
 
     if (req.method !== "POST") {
@@ -223,28 +167,35 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ ok: false, msg: "Coordenadas fora do intervalo." });
     }
 
-    const ts = Number(body.ts) || Date.now();
-    const central = await gravarClienteGeoComIo(
-      io,
-      {
-        cpf,
-        nome: body.nome,
-        placa: body.placa,
-        protocolo: body.protocolo,
-        lat,
-        lng,
-        accuracy: body.accuracy,
-        heading: body.heading,
-        speed: body.speed,
-        ts,
-        baseRevision: body.base_revision || body.revision || "",
-      },
-      async (payload) => {
-        await cacheGeoRedis(payload[SNAPSHOT_FIELD]);
-      }
-    );
+    const central = await gravarPosicao({
+      cpf,
+      nome: body.nome,
+      placa: body.placa,
+      protocolo: body.protocolo,
+      lat,
+      lng,
+      accuracy: body.accuracy,
+      heading: body.heading,
+      speed: body.speed,
+      ts: Number(body.ts) || Date.now(),
+    });
     if (central.status !== 200) return res.status(central.status).json(central.body);
-    return res.status(200).json({ ...central.body, cpf, ts });
+    let redis = { ok: true, skipped: true };
+    if (!central.inalterado) {
+      try {
+        const lista = await listarPosicoes();
+        if (lista.ok) redis = await cacheGeoRedis(lista.clientes);
+        else redis = { ok: false, reason: "lista_indisponivel" };
+      } catch (err) {
+        console.error("[DK geo] cache redis apos gravacao", err && err.message ? err.message : err);
+        redis = { ok: false, reason: "redis_indisponivel" };
+      }
+    }
+    return res.status(200).json({
+      ...central.body,
+      persistencia: redis.ok && !redis.skipped ? "supabase+redis" : "supabase",
+      redis,
+    });
   } catch (e) {
     return res.status(500).json({
       ok: false,
@@ -255,6 +206,4 @@ module.exports = async function handler(req, res) {
   }
 };
 
-module.exports.aplicarClienteGeo = aplicarClienteGeo;
-module.exports.lerClienteGeoComIo = lerClienteGeoComIo;
-module.exports.gravarClienteGeoComIo = gravarClienteGeoComIo;
+module.exports.linhaParaCliente = linhaParaCliente;

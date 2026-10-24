@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { gravarClienteGeoComIo, lerClienteGeoComIo } = require("../api/dk-cliente-geo.js");
 const { gravarEquipaPresencaComIo, lerEquipaPresencaComIo } = require("../api/dk-equipa-presenca.js");
 
 let falhas = 0;
@@ -46,7 +45,6 @@ function memoria(updatedAt) {
   return { mem, io, cache };
 }
 
-const cpfGeo = "00000000000";
 const cpfPresenca = "00000000000";
 
 async function provarRota(nome, gravar, ler, entrada, campo, conferir) {
@@ -99,15 +97,6 @@ async function provarRota(nome, gravar, ler, entrada, campo, conferir) {
   const e = await gravar(conflito.io, { ...entrada, baseRevision: "2026-10-06T11:00:00.000Z" }, conflito.cache);
   ok(`${nome} revisao antiga`, e.status === 409 && e.body.success === false && e.body.reason === "revisao_conflito" && conflito.mem.updatedAt === antes && conflito.mem.cacheChamadas === 0);
 }
-
-await provarRota(
-  "geo",
-  gravarClienteGeoComIo,
-  lerClienteGeoComIo,
-  { cpf: cpfGeo, lat: -23.5, lng: -46.6, nome: "TESTE TECNICO", ts: Date.now() },
-  "dk_cliente_geo_v1",
-  (body) => body.clientes && body.clientes[0] && body.clientes[0].lat === -23.5
-);
 
 await provarRota(
   "presenca",
