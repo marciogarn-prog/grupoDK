@@ -62,6 +62,14 @@ module.exports = async function handler(req, res) {
           body = {};
         }
       }
+      if (body && body.corrigirPlaca) {
+        if (String(gate.role || "") !== "owner") {
+          return res.status(403).json({ ok: false, reason: "forbidden" });
+        }
+        const corrigir = require("./dk-corrigir-placa");
+        const out = await corrigir.executarCorrecaoPlaca(body.corrigirPlaca);
+        return res.status(out.status).json(out.body);
+      }
       const incoming = Array.isArray(body?.data) ? body.data : [];
       let merged = incoming;
       const central = await executarGravacaoCentral({

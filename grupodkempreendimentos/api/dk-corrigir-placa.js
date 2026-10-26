@@ -148,30 +148,15 @@ async function gravarRelacionais(lido) {
   };
 }
 
-module.exports = async function handler(req, res) {
-  applyApiCors(res);
-  if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
-  if (await enforceRateLimit(req, res, "corrigir-placa", 6)) return;
-  const gate = await requireCeoEmergencyLock(req);
-  if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
-
-  let body = req.body;
-  if (typeof body === "string") {
-    try {
-      body = JSON.parse(body);
-    } catch {
-      body = {};
-    }
-  }
+async function executarCorrecaoPlaca(body) {
   if (norm(body && body.errada) !== ERRADA || norm(body && body.certa) !== CERTA) {
-    return res.status(400).json({ ok: false, reason: "placa_nao_autorizada" });
+    return { status: 400, body: { ok: false, reason: "placa_nao_autorizada" } };
   }
 
   const io = ioSnapshotOficial("default");
   const atual = await io.ler();
   if (!atual || atual.indisponivel) {
-    return res.status(503).json({ ok: false, reason: (atual && atual.reason) || "supabase_indisponivel" });
+    return { status: 503, body: { ok: false, reason: (atual && atual.reason) || "supabase_indisponivel" } };
   }
   const payload = atual.payload && typeof atual.payload === "object" ? atual.payload : {};
   const caminhosErrada = [];
@@ -183,27 +168,33 @@ module.exports = async function handler(req, res) {
     caminhosCerta.length === 2 &&
     caminhosCerta.every(placaDeCadastro)
   ) {
-    return res.status(200).json({
-      ok: true,
-      jaCorrigido: true,
-      certa: CHAVES.map((k) => achar(payload[k], CERTA)),
-      updated_at: atual.updatedAt || null,
-    });
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        jaCorrigido: true,
+        certa: CHAVES.map((k) => achar(payload[k], CERTA)),
+        updated_at: atual.updatedAt || null,
+      },
+    };
   }
   if (caminhosCerta.length || caminhosErrada.length !== 2 || !caminhosErrada.every(placaDeCadastro)) {
-    return res.status(409).json({
-      ok: false,
-      reason: "contagem_inesperada",
-      errada: caminhosErrada,
-      certa: caminhosCerta,
-    });
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        reason: "contagem_inesperada",
+        errada: caminhosErrada,
+        certa: caminhosCerta,
+      },
+    };
   }
   const relLido = await lerRelacionais();
   if (Array.isArray(relLido.locCerta.data) && relLido.locCerta.data.length) {
-    return res.status(409).json({ ok: false, reason: "placa_certa_ja_em_locacao" });
+    return { status: 409, body: { ok: false, reason: "placa_certa_ja_em_locacao" } };
   }
   if (Array.isArray(relLido.geoCerta.data) && relLido.geoCerta.data.length) {
-    return res.status(409).json({ ok: false, reason: "placa_certa_ja_em_geo" });
+    return { status: 409, body: { ok: false, reason: "placa_certa_ja_em_geo" } };
   }
 
   let trocas = {};
@@ -237,22 +228,51 @@ module.exports = async function handler(req, res) {
       },
     });
   } catch (err) {
-    return res.status(409).json({ ok: false, reason: String(err && err.message ? err.message : err) });
+    return { status: 409, body: { ok: false, reason: String(err && err.message ? err.message : err) } };
   }
   if (!central || central.status !== 200) {
-    return res.status(central && central.status ? central.status : 502).json(central && central.body ? central.body : { ok: false });
+    return {
+      status: central && central.status ? central.status : 502,
+      body: central && central.body ? central.body : { ok: false },
+    };
   }
 
   const rel = await gravarRelacionais(relLido);
   const confirmado = CHAVES.map((k) => achar((central.payload && central.payload[k]) || [], CERTA));
-  return res.status(200).json({
-    ok: true,
-    jaCorrigido: false,
-    updated_at: central.body.updated_at,
-    persistencia: central.body.persistencia,
-    trocas,
-    cadastro: confirmado,
-    relacional: rel,
-    redis: central.body.redis || null,
-  });
-};
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      jaCorrigido: false,
+      updated_at: central.body.updated_at,
+      persistencia: central.body.persistencia,
+      trocas,
+      cadastro: confirmado,
+      relacional: rel,
+      redis: central.body.redis || null,
+    },
+  };
+}
+
+async function handler(req, res) {
+  applyApiCors(res);
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
+  if (await enforceRateLimit(req, res, "corrigir-placa", 6)) return;
+  const gate = await requireCeoEmergencyLock(req);
+  if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
+
+  let body = req.body;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
+  const out = await executarCorrecaoPlaca(body);
+  return res.status(out.status).json(out.body);
+}
+
+handler.executarCorrecaoPlaca = executarCorrecaoPlaca;
+module.exports = handler;
