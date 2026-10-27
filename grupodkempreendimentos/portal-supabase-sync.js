@@ -2631,7 +2631,10 @@
       if (antes !== depois || remAntes !== remDepois) alterados.push(row);
       return row;
     });
-    if (alterados.length) agendarRegravacaoLocacoesMaisRecentes(alterados);
+    /* Não regravar o snapshot a partir daqui. A diferença fica neste PC
+       até um Guardar explícito. O reenvio automático reescrevia o JSON
+       inteiro de default sem um salvamento novo. */
+    void alterados;
     return out;
   }
 
