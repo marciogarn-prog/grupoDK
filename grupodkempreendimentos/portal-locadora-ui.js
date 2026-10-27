@@ -24257,6 +24257,40 @@
       proprietarioCpfCnpj: portalNormDiffVal(v?.proprietarioCpfCnpj),
       local: portalNormDiffVal(v?.local),
     });
+    async function portalEnviarUmVeiculoParaNuvem(veiculo) {
+      const post = async (body) => {
+        const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+        const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+        const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+        const url = `/api/cadastro-veiculos${q || ""}${sep}nocache=${Date.now()}`;
+        const res = await fetch(url, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        return {
+          status: res.status,
+          ok: res.ok && data?.ok !== false && data?.success !== false,
+          reason: String(data?.reason || ""),
+          revision: String(data?.revision || data?.updated_at || ""),
+        };
+      };
+      let revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
+      let ultimo = null;
+      for (let i = 0; i < 3; i += 1) {
+        ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao });
+        if (ultimo.revision) window.__DK_VEICULO_REVISAO = ultimo.revision;
+        if (ultimo.status === 409 && ultimo.reason === "revisao_conflito" && ultimo.revision && i < 2) {
+          revisao = ultimo.revision;
+          continue;
+        }
+        return ultimo;
+      }
+      return ultimo;
+    }
+
     const doSaveVeiculo = () => {
       try {
         if (typeof upsertPortalVeiculoByPlaca === "function") {
@@ -24283,11 +24317,20 @@
         console.error(err);
         return;
       }
-      portalPushCloudSnapshotAfterPersist();
-      if (msg) {
-        msg.textContent = existenteVeiculo
-          ? "Veículo atualizado. Enviando para a nuvem."
-          : "Veículo cadastrado. Enviando para a nuvem.";
+      if (window.__DK_VEICULOS_PG === true) {
+        void portalEnviarUmVeiculoParaNuvem(novo).then((envio) => {
+          if (!msg) return;
+          msg.textContent = envio && envio.ok
+            ? "Veículo gravado na nuvem."
+            : "Não foi possível gravar o veículo na nuvem. O cadastro ficou neste PC.";
+        });
+      } else {
+        portalPushCloudSnapshotAfterPersist();
+        if (msg) {
+          msg.textContent = existenteVeiculo
+            ? "Veículo atualizado. Enviando para a nuvem."
+            : "Veículo cadastrado. Enviando para a nuvem.";
+        }
       }
       portalApplyAmbienteVisualForm("Veiculo", novo);
       refreshOperacaoVeiculoApagarBtn(plate);
@@ -29974,6 +30017,36 @@
     })();
     });
   });
+  async function portalAlinharVeiculosAoEntrarNaTela() {
+    const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+    const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+    const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+    const url = `/api/cadastro-veiculos${q || ""}${sep}nocache=${Date.now()}`;
+    let data = {};
+    let res;
+    try {
+      res = await fetch(url, { cache: "no-store", headers });
+      data = await res.json().catch(() => ({}));
+    } catch {
+      return { ok: false };
+    }
+    window.__DK_VEICULOS_PG = data?.source === "dk_veiculos";
+    if (!res.ok || !Array.isArray(data.data)) return { ok: false, source: data?.source || "" };
+    const prev = window.__DK_suppressPortalCadastroPush;
+    window.__DK_suppressPortalCadastroPush = true;
+    try {
+      if (typeof saveCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+        saveCadastro(CAD_VEICULOS_KEY, data.data, { allowShrink: true, bypassImmutabilidadeCadastro: true });
+      }
+    } finally {
+      window.__DK_suppressPortalCadastroPush = prev;
+    }
+    try { refreshOperacaoVeiculoPlacasCache(); } catch { /* ignore */ }
+    try { renderOperacaoVeiculoResumoFrota(); } catch { /* ignore */ }
+    try { refreshOperacaoVeiculoTotalCadastrados(); } catch { /* ignore */ }
+    return { ok: true, n: data.data.length, source: data.source || "" };
+  }
+
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     portalAbrirTelaOperacao("operacao-cadastro-veiculo", () => {
     portalOperacaoOnScreenChange();
@@ -29985,6 +30058,7 @@
     refreshOperacaoVeiculoTagPreview();
     renderOperacaoVeiculoResumoFrota();
     refreshOperacaoVeiculoTotalCadastrados();
+    void portalAlinharVeiculosAoEntrarNaTela();
     });
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
@@ -32197,7 +32271,7 @@
       if (!isDemo || clientesArr.length) {
         apiTasks.push(dkPortalPushToApi("cadastro-clientes", clientesArr));
       }
-      if (!isDemo || veiculosArr.length) {
+      if (window.__DK_VEICULOS_PG !== true && (!isDemo || veiculosArr.length)) {
         apiTasks.push(dkPortalPushToApi("cadastro-veiculos", veiculosArr));
       }
       // Locações têm uma única fonte oficial: dk-cloud-snapshot/default.
@@ -32252,6 +32326,7 @@
             },
           });
           const j = await r.json().catch(() => ({}));
+          if (apiFile === "cadastro-veiculos") window.__DK_VEICULOS_PG = j?.source === "dk_veiculos";
           if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
           const local = loadCadastro(storageKey);
           if (!j.data.length && Array.isArray(local) && local.length) {
