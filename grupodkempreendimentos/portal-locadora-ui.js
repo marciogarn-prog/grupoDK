@@ -17075,6 +17075,10 @@
     if (!res.ok || data?.ok === false || !Array.isArray(data?.data)) {
       return { ok: false, reason: data?.reason || "sem_clientes_nuvem", lista: [] };
     }
+    if (data.source === "dk_clientes") {
+      window.__DK_CLIENTES_PG = true;
+      try { localStorage.setItem("dk_clientes_fonte_oficial", "dk_clientes"); } catch { /* ignore */ }
+    }
     return { ok: true, lista: data.data };
   }
 

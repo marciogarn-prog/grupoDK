@@ -8,6 +8,19 @@
 (function portalSupabaseSync() {
   const REDUNDANT_SNAPSHOT_API = "dk-cloud-snapshot";
 
+  function dkClientesPgAtiva() {
+    if (window.__DK_CLIENTES_PG === true) return true;
+    try {
+      if (localStorage.getItem("dk_clientes_fonte_oficial") === "dk_clientes") {
+        window.__DK_CLIENTES_PG = true;
+        return true;
+      }
+    } catch (e) {
+      return false;
+    }
+    return false;
+  }
+
   function dkSnapshotLabel() {
     if (typeof window.__DK_deploySnapshotLabel === "function") {
       return window.__DK_deploySnapshotLabel();
@@ -1189,6 +1202,10 @@
 
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
+    if (dkClientesPgAtiva()) {
+      delete payload.dk_clientes_cadastro;
+      delete payload.dk_portal_clientes_cadastro;
+    }
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
       payload = window.__DK_sanitizeOficialCloudPayload(payload);
     }
