@@ -104,7 +104,7 @@ function falhaLeitura(res) {
 
 async function listar(ioRest) {
   const pedido = ioRest || rest;
-  const res = await pedido(TABELA + "?deleted_at=is.null&select=id,placa,payload&order=id.asc&limit=2000");
+  const res = await pedido(TABELA + "?deleted_at=is.null&select=id,placa,payload&order=id.asc&limit=2000", { ms: 45000 });
   if (!res.ok) return { ok: false, ...falhaLeitura(res), data: res.data, veiculos: [] };
   const linhas = Array.isArray(res.data) ? res.data : [];
   return {

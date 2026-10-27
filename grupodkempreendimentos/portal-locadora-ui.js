@@ -30018,6 +30018,7 @@
     });
   });
   async function portalAlinharVeiculosAoEntrarNaTela() {
+    try {
     const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
     const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
     const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
@@ -30045,9 +30046,18 @@
     try { renderOperacaoVeiculoResumoFrota(); } catch { /* ignore */ }
     try { refreshOperacaoVeiculoTotalCadastrados(); } catch { /* ignore */ }
     return { ok: true, n: data.data.length, source: data.source || "" };
+    } finally {
+      window.__DK_VEICULO_TELA = false;
+    }
   }
 
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+    window.__DK_VEICULO_TELA = true;
+    const geracao = Date.now();
+    window.__DK_VEICULO_TELA_EM = geracao;
+    setTimeout(() => {
+      if (window.__DK_VEICULO_TELA_EM === geracao) window.__DK_VEICULO_TELA = false;
+    }, 70000);
     portalAbrirTelaOperacao("operacao-cadastro-veiculo", () => {
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
@@ -32315,6 +32325,7 @@
     }
 
     async function dkPortalPullOne(apiFile, storageKey, mergeFn) {
+      if (apiFile === "cadastro-veiculos" && window.__DK_VEICULO_TELA) return;
       const urls = dkPortalSyncApiUrlsFor(apiFile);
       for (let i = 0; i < urls.length; i += 1) {
         const url = urls[i];
