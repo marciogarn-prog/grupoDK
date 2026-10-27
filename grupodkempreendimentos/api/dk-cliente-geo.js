@@ -12,6 +12,182 @@ const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/d
 const { listarPosicoes, gravarPosicao, linhaParaCliente } = require("../lib/dk-cliente-geo-pg.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
+const PLACA_ERRADA = "SOJ3J33";
+const PLACA_CERTA = "SJO3J33";
+
+function normPlacaVarredura(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function textoTrocaPlaca(value) {
+  const bruto = String(value || "");
+  if (normPlacaVarredura(bruto) === PLACA_ERRADA) return PLACA_CERTA;
+  return bruto.replace(/(^|[^A-Z0-9])SOJ[\s-]*3[\s-]*J[\s-]*33(?=[^A-Z0-9]|$)/gi, (_m, prefixo) => prefixo + PLACA_CERTA);
+}
+
+function supabaseVarredura() {
+  const url = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://ppxtwqvzgujllfzarpuz.supabase.co")
+    .trim()
+    .replace(/\/$/, "");
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  return { url, key };
+}
+
+async function restVarredura(path, opts = {}) {
+  const { url, key } = supabaseVarredura();
+  if (!key) return { status: 0, data: null };
+  const res = await fetch(`${url}/rest/v1/${path}`, {
+    method: opts.method || "GET",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      Prefer: opts.prefer || "return=representation",
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+  return { status: res.status, data };
+}
+
+function trocarNoJson(node, stats) {
+  if (typeof node === "string") {
+    const novo = textoTrocaPlaca(node);
+    if (novo !== node) stats.n += 1;
+    return novo;
+  }
+  if (Array.isArray(node)) return node.map((item) => trocarNoJson(item, stats));
+  if (node && typeof node === "object") {
+    const out = {};
+    for (const k of Object.keys(node)) out[k] = trocarNoJson(node[k], stats);
+    return out;
+  }
+  return node;
+}
+
+async function substituirPlacaErrada() {
+  const relatorio = { geo: [], locacao: [], manutencao: [], snapshots: [] };
+  const geo = await restVarredura("dk_cliente_geo?select=cpf,nome,placa&limit=2000");
+  if (!Array.isArray(geo.data)) relatorio.geoStatus = geo.status;
+  else {
+    for (const row of geo.data) {
+      if (normPlacaVarredura(row.placa) !== PLACA_ERRADA && textoTrocaPlaca(row.placa) === row.placa) continue;
+      const up = await restVarredura(`dk_cliente_geo?cpf=eq.${encodeURIComponent(row.cpf)}`, {
+        method: "PATCH",
+        body: { placa: textoTrocaPlaca(row.placa) },
+      });
+      relatorio.geo.push({
+        nome: String(row.nome || "").slice(0, 80),
+        de: row.placa,
+        para: Array.isArray(up.data) && up.data[0] ? up.data[0].placa : "",
+        http: up.status,
+      });
+    }
+  }
+
+  const loc = await restVarredura(
+    "dk_locacao?or=(placa.eq.SOJ3J33,placa.ilike.*SOJ*3J33*)&select=id,numero_contrato,placa,version,campos&limit=50"
+  );
+  if (!Array.isArray(loc.data)) relatorio.locacaoStatus = loc.status;
+  else {
+    for (const row of loc.data) {
+      const placaNova = textoTrocaPlaca(row.placa);
+      const campos = row.campos && typeof row.campos === "object" ? trocarNoJson(row.campos, { n: 0 }) : row.campos;
+      if (placaNova === row.placa && JSON.stringify(campos) === JSON.stringify(row.campos)) continue;
+      const up = await restVarredura(
+        `dk_locacao?id=eq.${encodeURIComponent(row.id)}&version=eq.${encodeURIComponent(row.version)}`,
+        {
+          method: "PATCH",
+          body: {
+            placa: placaNova,
+            campos,
+            version: Number(row.version) + 1,
+            updated_at: new Date().toISOString(),
+          },
+        }
+      );
+      relatorio.locacao.push({ numero: row.numero_contrato, de: row.placa, http: up.status });
+    }
+  }
+
+  const manut = await restVarredura("dk_manutencao_rapida?registro->>placa=ilike.*SOJ*3J33*&select=id,registro&limit=50");
+  if (!Array.isArray(manut.data)) relatorio.manutencaoStatus = manut.status;
+  else {
+    for (const row of manut.data) {
+      const stats = { n: 0 };
+      const registro = trocarNoJson(row.registro, stats);
+      if (!stats.n) continue;
+      const up = await restVarredura(`dk_manutencao_rapida?id=eq.${encodeURIComponent(row.id)}`, {
+        method: "PATCH",
+        body: { registro },
+      });
+      relatorio.manutencao.push({ id: row.id, http: up.status, trocas: stats.n });
+    }
+  }
+
+  const labels = await restVarredura(
+    "dk_cloud_snapshots?label=not.like.docblob:*&select=label,updated_at&order=label.asc&limit=20"
+  );
+  const lista = Array.isArray(labels.data) ? labels.data : [];
+  if (!lista.length) relatorio.snapshotsStatus = labels.status;
+  for (const item of lista) {
+    const cheio = await restVarredura(
+      `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&select=label,payload,updated_at`
+    );
+    const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
+    if (!row || !row.payload) {
+      relatorio.snapshots.push({ label: item.label, http: cheio.status });
+      continue;
+    }
+    const stats = { n: 0 };
+    const payload = trocarNoJson(row.payload, stats);
+    if (!stats.n) {
+      relatorio.snapshots.push({ label: item.label, trocas: 0 });
+      continue;
+    }
+    const agora = new Date().toISOString();
+    const up = await restVarredura(
+      `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+      { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
+    );
+    relatorio.snapshots.push({ label: item.label, trocas: stats.n, http: up.status });
+  }
+
+  const nomes = await restVarredura(
+    "dk_cloud_snapshots?label=like.docblob:*&select=label,nomeArquivo:payload->>nomeArquivo&limit=1000"
+  );
+  const arquivos = Array.isArray(nomes.data) ? nomes.data : [];
+  if (!arquivos.length) relatorio.arquivosStatus = nomes.status;
+  for (const arq of arquivos) {
+    const nome = String(arq.nomeArquivo || "");
+    const novo = textoTrocaPlaca(nome);
+    if (!nome || novo === nome) continue;
+    const cheio = await restVarredura(
+      `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&select=label,payload,updated_at`
+    );
+    const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
+    if (!row || !row.payload) {
+      relatorio.snapshots.push({ label: arq.label, http: cheio.status });
+      continue;
+    }
+    const payload = { ...row.payload, nomeArquivo: novo };
+    const agora = new Date().toISOString();
+    const up = await restVarredura(
+      `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+      { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
+    );
+    relatorio.snapshots.push({ label: arq.label, de: nome, para: novo, http: up.status });
+  }
+  return { ok: true, relatorio };
+}
 
 function onlyDigits(s) {
   return String(s ?? "").replace(/\D/g, "");
@@ -128,6 +304,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    if (req.method === "GET" && String(req.query?.varrer || "") === PLACA_ERRADA) {
+      const dono = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
+      if (!dono.ok) return res.status(dono.status).json({ ok: false, reason: dono.reason });
+      if (String(dono.role || "") !== "owner") return res.status(403).json({ ok: false, reason: "forbidden" });
+      return res.status(200).json(await substituirPlacaErrada());
+    }
+
     if (req.method === "GET") {
       let lista = await listarPosicoes();
       if (!lista.ok) return res.status(lista.status).json(lista.body);
