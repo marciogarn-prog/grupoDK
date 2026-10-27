@@ -102,8 +102,8 @@ function restErro() {
   const migrar = fs.readFileSync(path.join(__dirname, "../api/dk-clientes-migrar.js"), "utf8");
   assert.ok(!migrar.includes("upsertSnapshotByLabel"));
   assert.ok(!migrar.includes("fetchSnapshotByLabel"));
-  assert.ok(migrar.includes("fetchSnapshotRevisionByLabel"));
   assert.ok(migrar.includes("payload->dk_clientes_cadastro"));
+  assert.ok(migrar.includes("dk:portal:cloud_snapshot:v1"));
   console.log("OK clientes pg");
 })().catch((e) => {
   console.error(e);

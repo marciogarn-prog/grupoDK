@@ -5,7 +5,6 @@
 const { applyApiCors, requireLiveSession, TITULAR_CEO_CPF } = require("../lib/dk-portal-auth.cjs");
 const { onlyDigits } = require("../lib/dk-deploy-channel-api.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { fetchSnapshotRevisionByLabel } = require("../lib/dk-supabase-doorman.cjs");
 const clientesPg = require("../lib/dk-clientes-pg.cjs");
 
 async function lerColecaoClientes() {
@@ -20,7 +19,7 @@ async function lerColecaoClientes() {
   try {
     res = await fetch(url, {
       headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(4000),
     });
   } catch {
     return { ok: false, reason: "snapshot_leitura_lenta" };
@@ -46,19 +45,14 @@ function hashInventario(lista) {
   return clientesPg.sha256(hashes.join("\n"));
 }
 
-async function lerCacheIgualAoSnapshot(redis) {
-  const raw = await redis.get("dk:portal:clientes_cadastro:v1");
-  let lista = raw;
+async function lerEspelhoRedis(redis) {
+  const raw = await redis.get("dk:portal:cloud_snapshot:v1");
+  let row = raw;
   if (typeof raw === "string") {
-    try { lista = JSON.parse(raw); } catch { lista = []; }
+    try { row = JSON.parse(raw); } catch { return null; }
   }
-  if (!Array.isArray(lista)) return { ok: false, quantidade: 0, hashConfere: false };
-  return {
-    ok: lista.length === 437 && hashInventario(lista) === HASH_SNAPSHOT_ANTES,
-    quantidade: lista.length,
-    hashConfere: hashInventario(lista) === HASH_SNAPSHOT_ANTES,
-    lista,
-  };
+  if (!row || typeof row !== "object" || !row.payload) return null;
+  return row;
 }
 
 function detalheSeguro(valor) {
@@ -78,24 +72,30 @@ module.exports = async function handler(req, res) {
   if (!isRedisKvConfigured()) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   const redis = createRedisClient();
 
-  const antes = await fetchSnapshotRevisionByLabel("default");
-  if (!antes || !antes.ok) return res.status(503).json({ ok: false, reason: antes && antes.reason || "revisao" });
-  let snap = await lerColecaoClientes();
+  const snapDireto = await lerColecaoClientes();
+  let snap = snapDireto;
   let fonteLida = "dk_clientes_cadastro";
+  let antesUpdated = null;
   if (!snap || !snap.ok) {
-    const cache = await lerCacheIgualAoSnapshot(redis);
-    if (!cache.ok) {
+    const espelhoRedis = await lerEspelhoRedis(redis);
+    const payload = espelhoRedis && espelhoRedis.payload;
+    const origemRedis = payload && Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
+    const espelhoChave = payload && Array.isArray(payload.dk_portal_clientes_cadastro) ? payload.dk_portal_clientes_cadastro : [];
+    const hashConfere = origemRedis.length === 437 && hashInventario(origemRedis) === HASH_SNAPSHOT_ANTES;
+    if (!hashConfere) {
       return res.status(503).json({
         ok: false,
-        reason: (snap && snap.reason) || "snapshot",
-        cache_quantidade: cache.quantidade,
+        reason: (snapDireto && snapDireto.reason) || "snapshot",
+        cache_quantidade: origemRedis.length,
         cache_igual_ao_snapshot: false,
         fonte_ligada: false,
       });
     }
-    snap = { ok: true, origem: cache.lista, espelho: cache.lista };
-    fonteLida = "redis_conferido_com_snapshot";
+    snap = { ok: true, origem: origemRedis, espelho: espelhoChave };
+    antesUpdated = (espelhoRedis && espelhoRedis.updated_at) || antesUpdated;
+    fonteLida = "redis_espelho_do_snapshot_default";
   }
+  const antes = { updatedAt: antesUpdated };
   const origem = snap.origem;
   const espelho = snap.espelho;
   const resumoOrigem = clientesPg.resumirLista(origem);
@@ -125,15 +125,16 @@ module.exports = async function handler(req, res) {
   const lido = await clientesPg.listarClientes();
   if (!lido.ok) return res.status(502).json({ ok: false, reason: "leitura_tabela", fonte_ligada: false });
   const comparacao = clientesPg.compararListas(origem, lido.clientes);
-  const depois = await fetchSnapshotRevisionByLabel("default");
-  const snapshotIgual = Boolean(depois && depois.ok && String(depois.updatedAt) === String(antes.updatedAt));
+  const depoisEspelho = await lerEspelhoRedis(redis);
+  const depoisUpdated = depoisEspelho && depoisEspelho.updated_at;
+  const snapshotIgual = String(depoisUpdated || "") === String(antes.updatedAt || "");
   if (!comparacao.ok || !snapshotIgual) {
     return res.status(409).json({
       ok: false,
       reason: comparacao.ok ? "snapshot_mudou" : "divergencia",
       comparacao,
       snapshot_antes: antes.updatedAt,
-      snapshot_depois: depois && depois.updatedAt,
+      snapshot_depois: depoisUpdated,
       fonte_ligada: false,
     });
   }
@@ -152,7 +153,7 @@ module.exports = async function handler(req, res) {
       ? { id: String(cursor.id || ""), cpf: "90000000175", nome: String(cursor.nome || ""), recado2: String(cursor.recado2 || "") }
       : null,
     snapshot_antes: antes.updatedAt,
-    snapshot_depois: depois.updatedAt,
+    snapshot_depois: depoisUpdated,
     snapshot_alterado: false,
     fonte_ligada: true,
     bytes_clientes: Buffer.byteLength(JSON.stringify(origem)),
