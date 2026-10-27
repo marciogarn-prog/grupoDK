@@ -253,16 +253,18 @@
   function persistPending(cpfRaw) {
     const cpf = onlyDig(cpfRaw).slice(0, 11);
     if (cpf.length !== 11) return;
+    let enviouDocumento = false;
     TIPOS.forEach((tipo) => {
       if (!pending[tipo]) return;
       const rec = { ...pending[tipo], updatedAt: Date.now(), cpf, tipo };
       setDocCpf(cpf, tipo, rec);
       pending[tipo] = null;
+      enviouDocumento = true;
       if (typeof window.__DK_enviarFicheiro === "function") {
         void window.__DK_enviarFicheiro("dk_cliente_docs_v1", rec);
       }
     });
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+    if (enviouDocumento && typeof portalPushCloudSnapshotAfterPersist === "function") {
       try {
         portalPushCloudSnapshotAfterPersist();
       } catch {

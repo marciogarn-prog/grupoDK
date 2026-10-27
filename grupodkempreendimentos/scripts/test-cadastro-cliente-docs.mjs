@@ -26,6 +26,11 @@ record("modal Salvar e Atualizar", html.includes("portalClienteConfirmSalvarBtn"
 record("corte 04/09/2026", docs.includes("2026-09-04"));
 record("exigência telefone e recados no novo cadastro", ui.includes("informe o telefone do cliente") && ui.includes("Recados 01"));
 record("confirmação unificada", ui.includes("iniciarConfirmacaoCliente") && ui.includes("portalAbrirClienteConfirmModal"));
+const persist = docs.slice(docs.indexOf("function persistPending"), docs.indexOf("function clearPending"));
+record(
+  "sem documento novo não empurra o snapshot",
+  persist.includes("enviouDocumento && typeof portalPushCloudSnapshotAfterPersist")
+);
 
 const chk = spawnSync(process.execPath, ["--check", path.join(ROOT, "portal-cliente-docs.js")], { encoding: "utf8" });
 record("portal-cliente-docs.js sintaxe", chk.status === 0, (chk.stderr || "").trim().slice(0, 120));
