@@ -1,5 +1,6 @@
 "use strict";
 
+const { obterFonteLocacoes, FONTE_LOCACAO } = require("./dk-locacao-pg.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
 const {
   isSupabaseDoormanConfigured,
@@ -143,12 +144,23 @@ async function gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirrorPaylo
   return { ok: true, storedAt };
 }
 
-async function runLocacoesIntegrityAudit() {
+async function runLocacoesIntegrityAudit(opts) {
   const checkedAt = new Date().toISOString();
-  if (!isRedisKvConfigured()) {
+  const fonte = await obterFonteLocacoes(opts);
+  if (fonte === FONTE_LOCACAO) {
+    return {
+      ok: true,
+      checkedAt,
+      skipped: true,
+      reason: "skipped_pg_active",
+      fonte,
+      message: "Locações não são auditadas no snapshot. A fonte oficial é o PostgreSQL.",
+    };
+  }
+  if (!(opts && opts.redis) && !isRedisKvConfigured()) {
     return { ok: false, checkedAt, reason: "redis_not_configured" };
   }
-  const redis = createRedisClient();
+  const redis = (opts && opts.redis) || createRedisClient();
   const row = parseStoredRow(await redis.get(CANONICAL_SNAPSHOT_KEY));
   const canonicalPayload = row?.payload && typeof row.payload === "object" ? row.payload : null;
   const canonicalLocacoes = Array.isArray(canonicalPayload?.dk_locacoes_cadastro)
@@ -158,7 +170,9 @@ async function runLocacoesIntegrityAudit() {
   const canonicalHash = canonicalLocacoesDigest(canonicalLocacoes);
 
   let mirror = { ok: false, reason: "supabase_not_configured", payload: null };
-  if (isSupabaseDoormanConfigured()) {
+  if (opts && Object.prototype.hasOwnProperty.call(opts, "espelho")) {
+    mirror = opts.espelho;
+  } else if (isSupabaseDoormanConfigured()) {
     try {
       mirror = await withDoormanTimeout(fetchSnapshotByLabel("default"), 12000, "supabase_timeout");
     } catch (error) {
@@ -198,7 +212,8 @@ async function runLocacoesIntegrityAudit() {
         alignReason = "locacoes_write_busy";
       } else {
         try {
-          const gravou = await gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirror.payload, list);
+          const gravar = (opts && opts.gravar) || gravarLocacoesAlinhadas;
+          const gravou = await gravar(redis, row, canonicalPayload, mirror.payload, list);
           if (gravou.ok) {
             locacoesFinais = list;
             hashFinal = hash;

@@ -6,6 +6,12 @@
  */
 const { isSupabaseDoormanConfigured, fetchSnapshotByLabel } = require("./dk-supabase-doorman.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
+const {
+  acquireLocacoesWriteLock,
+  releaseLocacoesWriteLock,
+  findActivePlateConflicts,
+  activePlateConflictMessage,
+} = require("./dk-locacoes-integrity.cjs");
 
 const FLAG_LOCACAO = "dk:portal:locacoes_fonte:v1";
 const FONTE_LOCACAO = "dk_locacao";
@@ -31,6 +37,10 @@ function respostaInativa() {
 async function flagDoPedido(opts) {
   if (opts && Object.prototype.hasOwnProperty.call(opts, "flag")) return opts.flag;
   return lerFlagLocacao(opts && opts.redis);
+}
+
+async function obterFonteLocacoes(opts) {
+  return moduloPedido(await flagDoPedido(opts)) ? FONTE_LOCACAO : "snapshot";
 }
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
@@ -428,6 +438,95 @@ function linhaUnica(res) {
   return res && Array.isArray(res.data) ? res.data[0] : null;
 }
 
+function locacaoConfirmada(loc) {
+  const inicio = String((loc && (loc.inicio || loc.dataInicio)) || "").trim();
+  const cpf = digitos(loc && loc.cpf);
+  const nome = String((loc && (loc.nome || loc.cliente)) || "").trim();
+  const placa = String((loc && loc.placa) || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return Boolean(inicio && cpf.length === 11 && nome && placa.length >= 7);
+}
+
+function locacaoParaConflito(row) {
+  const campos = row && row.campos && typeof row.campos === "object" && !Array.isArray(row.campos) ? row.campos : {};
+  return {
+    ...campos,
+    numeroContrato: campos.numeroContrato || campos.protocolo || (row && row.numero_contrato) || "",
+    placa: campos.placa || (row && row.placa) || "",
+    statusLocacao: campos.statusLocacao || campos.status || (row && row.status_locacao) || "",
+  };
+}
+
+function listaComLocacao(rows, locacao, nc) {
+  const lista = [];
+  let achou = false;
+  for (const row of rows || []) {
+    if (!row || row.deleted_at) continue;
+    const protocolo = digitos((row && row.numero_contrato) || "");
+    if (protocolo === nc) {
+      achou = true;
+      lista.push({ ...locacao, numeroContrato: nc });
+    } else {
+      lista.push(locacaoParaConflito(row));
+    }
+  }
+  if (!achou) lista.push({ ...locacao, numeroContrato: nc });
+  return lista;
+}
+
+function respostaPlaca(conflict) {
+  return {
+    ok: false,
+    success: false,
+    status: 409,
+    conflict: true,
+    reason: "active_plate_conflict",
+    placa: conflict.placa,
+    protocolos: conflict.contratos.map((item) => item.protocolo),
+    message: activePlateConflictMessage(conflict),
+    ativado: true,
+  };
+}
+
+async function comTrava(pedido, trabalho) {
+  const redis = pedido && Object.prototype.hasOwnProperty.call(pedido, "redis")
+    ? pedido.redis
+    : isRedisKvConfigured()
+      ? (() => {
+          try {
+            return createRedisClient();
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+  let token = "sem-redis";
+  if (redis) {
+    try {
+      token = await acquireLocacoesWriteLock(redis, { attempts: 5, waitMs: 100, ttlSec: 30 });
+    } catch {
+      token = "sem-redis";
+    }
+  }
+  if (!token) {
+    return {
+      ok: false,
+      success: false,
+      status: 409,
+      reason: "locacoes_write_busy",
+      message: "Outra gravação de locação está em andamento. Aguarde e tente novamente.",
+      ativado: true,
+    };
+  }
+  try {
+    return await trabalho();
+  } finally {
+    if (redis && token !== "sem-redis") await releaseLocacoesWriteLock(redis, token);
+  }
+}
+
 async function gravarUma(pedido) {
   if (!moduloPedido(await flagDoPedido(pedido))) {
     return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
@@ -439,11 +538,29 @@ async function gravarUma(pedido) {
   }
   const nc = digitos((pedido && pedido.numero) || locacao.numeroContrato || locacao.protocolo);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
+  return comTrava(pedido, async () => {
   const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at`);
   if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
   if (!atual || !atual.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
   const row = linhaUnica(atual);
   if (row && row.deleted_at) return { ok: false, status: 409, conflict: true, reason: "excluida", ativado: true };
+  const placas = await io(
+    "dk_locacao?deleted_at=is.null&select=numero_contrato,placa,status_locacao,campos"
+  );
+  if (schemaSumiu(placas)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  if (!placas || !placas.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
+  const conflitos = findActivePlateConflicts(listaComLocacao(placas.data, locacao, nc));
+  if (conflitos.length) return respostaPlaca(conflitos[0]);
+  if (!locacaoConfirmada(locacao)) {
+    return {
+      ok: false,
+      success: false,
+      status: 409,
+      reason: "locacao_nao_confirmada",
+      message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+      ativado: true,
+    };
+  }
   const autor = String((pedido && pedido.by) || "").slice(0, 80);
   const corpo = projetarColunas(locacao, nc);
   if (!row) {
@@ -489,6 +606,7 @@ async function gravarUma(pedido) {
     version: Number(gravada.version) || Number(row.version) + 1,
     locacao: locacaoCanonica(gravada),
   };
+  });
 }
 
 async function excluirUma(pedido) {
@@ -498,6 +616,7 @@ async function excluirUma(pedido) {
   const io = (pedido && pedido.rest) || rest;
   const nc = digitos(pedido && pedido.numero);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
+  return comTrava(pedido, async () => {
   const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at`);
   if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
   if (!atual || !atual.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
@@ -521,6 +640,7 @@ async function excluirUma(pedido) {
   const gravada = linhaUnica(patch);
   if (!patch || !patch.ok || !gravada) return { ok: false, status: 409, conflict: true, reason: "version", ativado: true };
   return { ok: true, schema: true, ativado: true, version: Number(gravada.version), deleted_at: gravada.deleted_at, linhas_afetadas: 1 };
+  });
 }
 
 async function migrarSnapshotOficial() {
@@ -531,6 +651,7 @@ module.exports = {
   FLAG_LOCACAO,
   FONTE_LOCACAO,
   moduloPedido,
+  obterFonteLocacoes,
   TIPOS,
   stripCampos,
   protocoloDe,
