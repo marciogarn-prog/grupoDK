@@ -7,6 +7,8 @@
   "trailingSlash": false,
   "functions": {
     "api/dk-pre-migracao-selo.js": { "maxDuration": 60 },
+    "api/dk-clientes-migrar.js": { "maxDuration": 60 },
+    "api/cadastro-clientes.js": { "maxDuration": 60 },
     "api/cadastro-financeiro-ceo.js": {
       "includeFiles": "lib/dk-financeiro-ceo-linha.cjs"
     }
