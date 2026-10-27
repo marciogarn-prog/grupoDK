@@ -5,8 +5,30 @@
 const { applyApiCors, requireLiveSession, TITULAR_CEO_CPF } = require("../lib/dk-portal-auth.cjs");
 const { onlyDigits } = require("../lib/dk-deploy-channel-api.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { fetchSnapshotByLabel, fetchSnapshotRevisionByLabel } = require("../lib/dk-supabase-doorman.cjs");
+const { fetchSnapshotRevisionByLabel } = require("../lib/dk-supabase-doorman.cjs");
 const clientesPg = require("../lib/dk-clientes-pg.cjs");
+
+async function lerColecaoClientes() {
+  const urlBase = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://ppxtwqvzgujllfzarpuz.supabase.co")
+    .trim()
+    .replace(/\/$/, "");
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!key) return { ok: false, reason: "doorman_key_missing" };
+  const select = "clientes:payload->dk_clientes_cadastro,espelho:payload->dk_portal_clientes_cadastro";
+  const url = `${urlBase}/rest/v1/dk_cloud_snapshots?label=eq.default&select=${encodeURIComponent(select)}`;
+  const res = await fetch(url, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
+  });
+  if (!res.ok) return { ok: false, reason: `supabase_http_${res.status}` };
+  const rows = await res.json().catch(() => null);
+  const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+  if (!row) return { ok: false, reason: "snapshot" };
+  return {
+    ok: true,
+    origem: Array.isArray(row.clientes) ? row.clientes : [],
+    espelho: Array.isArray(row.espelho) ? row.espelho : [],
+  };
+}
 
 function detalheSeguro(valor) {
   const texto = JSON.stringify(valor || "").slice(0, 240);
@@ -26,12 +48,12 @@ module.exports = async function handler(req, res) {
 
   const antes = await fetchSnapshotRevisionByLabel("default");
   if (!antes || !antes.ok) return res.status(503).json({ ok: false, reason: antes && antes.reason || "revisao" });
-  const snap = await fetchSnapshotByLabel("default");
-  if (!snap || !snap.ok || !snap.payload) {
+  const snap = await lerColecaoClientes();
+  if (!snap || !snap.ok) {
     return res.status(503).json({ ok: false, reason: (snap && snap.reason) || "snapshot" });
   }
-  const origem = Array.isArray(snap.payload.dk_clientes_cadastro) ? snap.payload.dk_clientes_cadastro : [];
-  const espelho = Array.isArray(snap.payload.dk_portal_clientes_cadastro) ? snap.payload.dk_portal_clientes_cadastro : [];
+  const origem = snap.origem;
+  const espelho = snap.espelho;
   const resumoOrigem = clientesPg.resumirLista(origem);
   const cursor = origem.find((item) => clientesPg.onlyDigits(item && item.cpf).slice(0, 11) === "90000000175") || null;
   const tabela = await clientesPg.garantirTabela();

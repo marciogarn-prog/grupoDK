@@ -101,7 +101,9 @@ function restErro() {
   assert.ok(!api.includes("DK_DISK_IO_SAFE_MODE"));
   const migrar = fs.readFileSync(path.join(__dirname, "../api/dk-clientes-migrar.js"), "utf8");
   assert.ok(!migrar.includes("upsertSnapshotByLabel"));
+  assert.ok(!migrar.includes("fetchSnapshotByLabel"));
   assert.ok(migrar.includes("fetchSnapshotRevisionByLabel"));
+  assert.ok(migrar.includes("payload->dk_clientes_cadastro"));
   console.log("OK clientes pg");
 })().catch((e) => {
   console.error(e);
