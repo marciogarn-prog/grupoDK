@@ -57,7 +57,9 @@ module.exports = async function handler(req, res) {
       if (modo.modo === "pg") {
         const t0 = Date.now();
         const lido = await veiculosPg.listar();
-        if (!lido.ok) return res.status(502).json({ ok: false, reason: "leitura", source: veiculosPg.FONTE });
+        if (!lido.ok) {
+          return res.status(lido.status || 502).json({ ok: false, reason: lido.reason || "leitura", source: veiculosPg.FONTE });
+        }
         return res.status(200).json({
           ok: true,
           data: lido.veiculos,

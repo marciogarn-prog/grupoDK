@@ -93,10 +93,19 @@ async function tabelaExiste(ioRest) {
   return { ok: false, existe: false, status: res.status, data: res.data };
 }
 
+function falhaLeitura(res) {
+  if (schemaAusente(res)) return { status: 503, reason: "tabela_ausente" };
+  const data = res && res.data;
+  const reason = String((data && data.reason) || "");
+  if ((res && res.status === 522) || reason === "leitura_lenta") return { status: 503, reason: "leitura_lenta" };
+  if (reason === "doorman_key_missing") return { status: 503, reason: "doorman_key_missing" };
+  return { status: 502, reason: "leitura" };
+}
+
 async function listar(ioRest) {
   const pedido = ioRest || rest;
   const res = await pedido(TABELA + "?deleted_at=is.null&select=id,placa,payload&order=id.asc&limit=2000");
-  if (!res.ok) return { ok: false, status: res.status, data: res.data, veiculos: [] };
+  if (!res.ok) return { ok: false, ...falhaLeitura(res), data: res.data, veiculos: [] };
   const linhas = Array.isArray(res.data) ? res.data : [];
   return {
     ok: true,
@@ -137,15 +146,13 @@ async function upsertUm(veiculo, baseRevision, ioRest) {
   }
   const atual = await lerPorId(id, pedido);
   if (!atual.ok) {
-    return {
-      ok: false,
-      status: schemaAusente(atual) ? 503 : 502,
-      body: { ok: false, success: false, reason: schemaAusente(atual) ? "tabela_ausente" : "leitura", source: FONTE },
-    };
+    const falha = falhaLeitura(atual);
+    return { ok: false, status: falha.status, body: { ok: false, success: false, reason: falha.reason, source: FONTE } };
   }
   const placaOcupada = await lerPorPlaca(placa, pedido);
   if (!placaOcupada.ok) {
-    return { ok: false, status: 502, body: { ok: false, success: false, reason: "leitura", source: FONTE } };
+    const falha = falhaLeitura(placaOcupada);
+    return { ok: false, status: falha.status, body: { ok: false, success: false, reason: falha.reason, source: FONTE } };
   }
   if (placaOcupada.linhas.some((row) => String(row && row.id) !== id)) {
     return { ok: false, status: 409, body: { ok: false, success: false, reason: "placa_duplicada", source: FONTE } };
@@ -173,13 +180,15 @@ async function upsertUm(veiculo, baseRevision, ioRest) {
     body: { id, placa, payload, updated_at: agora, deleted_at: null },
   });
   if (!gravado.ok || placaDuplicada(gravado)) {
+    const falha = falhaLeitura(gravado);
+    const explicita = falha.reason === "tabela_ausente" || falha.reason === "leitura_lenta" || falha.reason === "doorman_key_missing";
     return {
       ok: false,
-      status: placaDuplicada(gravado) ? 409 : gravado.status || 502,
+      status: placaDuplicada(gravado) ? 409 : explicita ? falha.status : gravado.status || 502,
       body: {
         ok: false,
         success: false,
-        reason: placaDuplicada(gravado) ? "placa_duplicada" : "gravacao",
+        reason: placaDuplicada(gravado) ? "placa_duplicada" : explicita ? falha.reason : "gravacao",
         source: FONTE,
       },
     };
@@ -213,8 +222,6 @@ async function modoOperacional(redis, ioRest) {
     flag = "";
   }
   if (flag !== FONTE) return { modo: "snapshot", flag };
-  const existe = await tabelaExiste(ioRest);
-  if (!existe.ok || !existe.existe) return { modo: "erro", flag, reason: existe.existe === false ? "tabela_ausente" : "leitura" };
   return { modo: "pg", flag };
 }
 
@@ -224,6 +231,7 @@ module.exports = {
   TABELA,
   pedidoUm,
   tabelaExiste,
+  falhaLeitura,
   listar,
   upsertUm,
   modoOperacional,
