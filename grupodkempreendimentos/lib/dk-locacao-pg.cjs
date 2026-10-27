@@ -1,10 +1,37 @@
 /**
  * Locações e pagamentos no PostgreSQL.
- * O navegador não fala com o banco. Redis não entra aqui.
+ * A flag Redis decide se o módulo está ativo. Sem ela, a tabela não vira fonte.
  * Cada gravação é uma locação, com a versão que o terminal leu.
  * Movimento financeiro só é inserido; a chave de idempotência impede repetir o mesmo fato.
  */
 const { isSupabaseDoormanConfigured, fetchSnapshotByLabel } = require("./dk-supabase-doorman.cjs");
+const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
+
+const FLAG_LOCACAO = "dk:portal:locacoes_fonte:v1";
+const FONTE_LOCACAO = "dk_locacao";
+
+function moduloPedido(flag) {
+  return String(flag || "") === FONTE_LOCACAO;
+}
+
+async function lerFlagLocacao(redis) {
+  try {
+    if (redis && typeof redis.get === "function") return String((await redis.get(FLAG_LOCACAO)) || "");
+    if (!isRedisKvConfigured()) return "";
+    return String((await createRedisClient().get(FLAG_LOCACAO)) || "");
+  } catch {
+    return "";
+  }
+}
+
+function respostaInativa() {
+  return { ok: true, schema: true, ativado: false, migracao: "inativo", locacoes: [] };
+}
+
+async function flagDoPedido(opts) {
+  if (opts && Object.prototype.hasOwnProperty.call(opts, "flag")) return opts.flag;
+  return lerFlagLocacao(opts && opts.redis);
+}
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 
@@ -336,7 +363,8 @@ function montarTerminais(rows, movimentos, cpf) {
     .map((row) => locacaoParaTerminal(row, porLoc.get(String(row.id)) || []));
 }
 
-async function listar(cpf) {
+async function listar(cpf, opts) {
+  if (!moduloPedido(await flagDoPedido(opts))) return respostaInativa();
   const rows = await lerLocacoesAbertas(cpf);
   if (schemaSumiu(rows)) return { ok: false, schema: false, reason: "schema_ausente" };
   if (!rows.ok) return { ok: false, schema: true, reason: "leitura", status: rows.status };
@@ -367,7 +395,8 @@ async function listar(cpf) {
   return { ok: true, schema: true, locacoes: montarTerminais(rows.data, movs.data, cpf), migracao: "pronta" };
 }
 
-async function relogio() {
+async function relogio(opts) {
+  if (!moduloPedido(await flagDoPedido(opts))) return { ok: true, schema: true, ativado: false, selo: "inativo" };
   const topo = await rest(
     "dk_locacao?deleted_at=is.null&select=updated_at&order=updated_at.desc&limit=1"
   );
@@ -381,7 +410,11 @@ async function relogio() {
   return { ok: true, schema: true, selo: `${updated}|${total}` };
 }
 
-async function gravarUma({ numero, version, locacao, by, criar }) {
+async function gravarUma(pedido) {
+  if (!moduloPedido(await flagDoPedido(pedido))) {
+    return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
+  }
+  const { numero, version, locacao, by, criar } = pedido || {};
   const campos = stripCampos(locacao);
   const nc = digitos(numero || campos.numeroContrato);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio" };
@@ -432,7 +465,11 @@ async function gravarUma({ numero, version, locacao, by, criar }) {
   };
 }
 
-async function excluirUma({ numero, version, by }) {
+async function excluirUma(pedido) {
+  if (!moduloPedido(await flagDoPedido(pedido))) {
+    return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
+  }
+  const { numero, version, by } = pedido || {};
   const nc = digitos(numero);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio" };
   const rpc = await rest("rpc/dk_locacao_excluir", {
@@ -501,6 +538,9 @@ async function migrarSnapshotOficial(by) {
 }
 
 module.exports = {
+  FLAG_LOCACAO,
+  FONTE_LOCACAO,
+  moduloPedido,
   TIPOS,
   stripCampos,
   protocoloDe,

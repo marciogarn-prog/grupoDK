@@ -10,6 +10,7 @@
     "api/dk-clientes-migrar.js": { "maxDuration": 60 },
     "api/dk-clientes-copiar.js": { "maxDuration": 60 },
     "api/dk-veiculos-copiar.js": { "maxDuration": 60 },
+    "api/dk-locacoes-copiar.js": { "maxDuration": 60 },
     "api/cadastro-clientes.js": { "maxDuration": 60 },
     "api/cadastro-veiculos.js": { "maxDuration": 60 },
     "api/cadastro-financeiro-ceo.js": {

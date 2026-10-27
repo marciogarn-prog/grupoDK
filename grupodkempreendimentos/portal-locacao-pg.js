@@ -1,7 +1,7 @@
 /**
  * Terminal de locações e pagamentos.
- * A tela pede e grava uma locação por vez no PostgreSQL.
- * Não usa localStorage, Redis nem a foto do cadastro como fonte.
+ * A tela só adota o PostgreSQL quando a API devolve ativado=true.
+ * Sem essa marca, o cadastro continua no snapshot.
  */
 (function portalLocacaoPg() {
   if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
@@ -86,7 +86,7 @@
     if (res.status === 401 || res.status === 403) return data;
     if (!data || data.schema === false) return data;
     if (data.migracao === "supabase_indisponivel" || data.migracao === "falhou") return data;
-    if (data.ok && (data.migracao === "pronta" || data.migracao === "semeada" || data.migracao === "vazio")) {
+    if (data.ok && data.ativado === true && (data.migracao === "pronta" || data.migracao === "semeada" || data.migracao === "vazio")) {
       aplicarCache(data.locacoes || []);
       refrescarTela();
     }
