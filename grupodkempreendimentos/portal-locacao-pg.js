@@ -167,7 +167,7 @@
     const ler = loadCadastro;
     loadCadastro = function dkLoadCadastroPg(key) {
       if (key === CHAVE && window.__DK_LOCACAO_PG === true && Array.isArray(window.__DK_locacoesPgCache)) {
-        return window.__DK_locacoesPgCache;
+        return window.__DK_locacoesPgCache.slice();
       }
       return ler.apply(this, arguments);
     };
