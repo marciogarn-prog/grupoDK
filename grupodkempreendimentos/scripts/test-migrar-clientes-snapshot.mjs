@@ -113,9 +113,30 @@ const estranho = await copiar.executarCopia(
 assert.strictEqual(estranho.motivo, "linhas_inesperadas");
 assert.strictEqual(estranho.aprovada, false);
 
+posts = 0;
+let sqlNaAusencia = 0;
+const ausente = await copiar.executarCopia({
+  ...base({
+    lerRevisao: async () => ({ ok: true, updated_at: "2026-10-27T14:05:28.832+00:00" }),
+  }),
+  rest: async () => ({ ok: false, status: 404, data: { code: "PGRST205", message: "Could not find the table" } }),
+  sql: async () => {
+    sqlNaAusencia += 1;
+    return { ok: false, status: 404, data: { reason: "nao_chamar" } };
+  },
+});
+assert.strictEqual(ausente.motivo, "tabela_ausente");
+assert.strictEqual(ausente.aprovada, false);
+assert.strictEqual(ausente.tabela.criada, false);
+assert.strictEqual(sqlNaAusencia, 0);
+assert.strictEqual(posts, 0);
+
 const fonte = require("fs").readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../lib/dk-clientes-copiar.cjs"), "utf8");
 assert.ok(!fonte.includes("FLAG_REDIS"));
 assert.ok(!fonte.includes("upsertSnapshotByLabel"));
 assert.ok(!fonte.includes("redis.set"));
-assert.strictEqual(sql > 0, true);
+assert.ok(!fonte.includes("/pg/query"));
+assert.ok(!fonte.includes("/pg-meta/"));
+assert.ok(!fonte.includes("garantirTabela"));
+assert.strictEqual(sql, 0);
 console.log("OK migrar clientes");
