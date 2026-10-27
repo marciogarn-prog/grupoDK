@@ -29,7 +29,7 @@ function autor(gate) {
 }
 
 module.exports = async function handler(req, res) {
-  if (applyApiCors(req, res)) return;
+  applyApiCors(res);
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ ok: false, reason: "method" });
