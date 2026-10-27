@@ -78,6 +78,7 @@ async function substituirPlacaErrada() {
   const geo = await restVarredura("dk_cliente_geo?select=cpf,nome,placa&limit=2000");
   if (!Array.isArray(geo.data)) relatorio.geoStatus = geo.status;
   else {
+    relatorio.geoLidos = geo.data.length;
     for (const row of geo.data) {
       if (normPlacaVarredura(row.placa) !== PLACA_ERRADA && textoTrocaPlaca(row.placa) === row.placa) continue;
       const up = await restVarredura(`dk_cliente_geo?cpf=eq.${encodeURIComponent(row.cpf)}`, {
@@ -133,59 +134,80 @@ async function substituirPlacaErrada() {
     }
   }
 
-  const labels = await restVarredura(
-    "dk_cloud_snapshots?label=not.like.docblob:*&select=label,updated_at&order=label.asc&limit=20"
-  );
-  const lista = Array.isArray(labels.data) ? labels.data : [];
-  if (!lista.length) relatorio.snapshotsStatus = labels.status;
-  for (const item of lista) {
-    const cheio = await restVarredura(
-      `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&select=label,payload,updated_at`
+  const alterados = [];
+  let vistos = 0;
+  let offset = 0;
+  for (;;) {
+    const labels = await restVarredura(
+      `dk_cloud_snapshots?label=not.like.docblob:*&select=label,updated_at&order=label.asc&limit=40&offset=${offset}`
     );
-    const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
-    if (!row || !row.payload) {
-      relatorio.snapshots.push({ label: item.label, http: cheio.status });
-      continue;
+    const lista = Array.isArray(labels.data) ? labels.data : [];
+    if (!lista.length) {
+      if (!vistos) relatorio.snapshotsStatus = labels.status;
+      break;
     }
-    const stats = { n: 0 };
-    const payload = trocarNoJson(row.payload, stats);
-    if (!stats.n) {
-      relatorio.snapshots.push({ label: item.label, trocas: 0 });
-      continue;
+    for (const item of lista) {
+      vistos += 1;
+      const cheio = await restVarredura(
+        `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&select=label,payload,updated_at`
+      );
+      const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
+      if (!row || !row.payload) {
+        alterados.push({ label: item.label, http: cheio.status });
+        continue;
+      }
+      const stats = { n: 0 };
+      const payload = trocarNoJson(row.payload, stats);
+      if (!stats.n) continue;
+      const agora = new Date().toISOString();
+      const up = await restVarredura(
+        `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+        { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
+      );
+      alterados.push({ label: item.label, trocas: stats.n, http: up.status });
     }
-    const agora = new Date().toISOString();
-    const up = await restVarredura(
-      `dk_cloud_snapshots?label=eq.${encodeURIComponent(item.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-      { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
-    );
-    relatorio.snapshots.push({ label: item.label, trocas: stats.n, http: up.status });
+    if (lista.length < 40 || vistos >= 400) break;
+    offset += 40;
   }
+  relatorio.snapshotsVistos = vistos;
+  relatorio.snapshots = alterados;
 
-  const nomes = await restVarredura(
-    "dk_cloud_snapshots?label=like.docblob:*&select=label,nomeArquivo:payload->>nomeArquivo&limit=1000"
-  );
-  const arquivos = Array.isArray(nomes.data) ? nomes.data : [];
-  if (!arquivos.length) relatorio.arquivosStatus = nomes.status;
-  for (const arq of arquivos) {
-    const nome = String(arq.nomeArquivo || "");
-    const novo = textoTrocaPlaca(nome);
-    if (!nome || novo === nome) continue;
-    const cheio = await restVarredura(
-      `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&select=label,payload,updated_at`
+  let arquivosVistos = 0;
+  let arquivoOffset = 0;
+  for (;;) {
+    const nomes = await restVarredura(
+      `dk_cloud_snapshots?label=like.docblob:*&select=label,nomeArquivo:payload->>nomeArquivo&order=label.asc&limit=1000&offset=${arquivoOffset}`
     );
-    const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
-    if (!row || !row.payload) {
-      relatorio.snapshots.push({ label: arq.label, http: cheio.status });
-      continue;
+    const arquivos = Array.isArray(nomes.data) ? nomes.data : [];
+    if (!arquivos.length) {
+      if (!arquivosVistos) relatorio.arquivosStatus = nomes.status;
+      break;
     }
-    const payload = { ...row.payload, nomeArquivo: novo };
-    const agora = new Date().toISOString();
-    const up = await restVarredura(
-      `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-      { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
-    );
-    relatorio.snapshots.push({ label: arq.label, de: nome, para: novo, http: up.status });
+    arquivosVistos += arquivos.length;
+    for (const arq of arquivos) {
+      const nome = String(arq.nomeArquivo || "");
+      const novo = textoTrocaPlaca(nome);
+      if (!nome || novo === nome) continue;
+      const cheio = await restVarredura(
+        `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&select=label,payload,updated_at`
+      );
+      const row = Array.isArray(cheio.data) ? cheio.data[0] : null;
+      if (!row || !row.payload) {
+        alterados.push({ label: arq.label, http: cheio.status });
+        continue;
+      }
+      const payload = { ...row.payload, nomeArquivo: novo };
+      const agora = new Date().toISOString();
+      const up = await restVarredura(
+        `dk_cloud_snapshots?label=eq.${encodeURIComponent(arq.label)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+        { method: "PATCH", prefer: "return=minimal", body: { payload, updated_at: agora } }
+      );
+      alterados.push({ label: arq.label, de: nome, para: novo, http: up.status });
+    }
+    if (arquivos.length < 1000 || arquivosVistos >= 5000) break;
+    arquivoOffset += 1000;
   }
+  relatorio.arquivosVistos = arquivosVistos;
   return { ok: true, relatorio };
 }
 
