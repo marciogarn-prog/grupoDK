@@ -11,7 +11,9 @@ const {
   releaseLocacoesWriteLock,
   findActivePlateConflicts,
   activePlateConflictMessage,
+  findNewDuplicatePayments,
 } = require("./dk-locacoes-integrity.cjs");
+const { normalizeOperacaoAccess } = require("./dk-portal-module-access.cjs");
 
 const FLAG_LOCACAO = "dk:portal:locacoes_fonte:v1";
 const FONTE_LOCACAO = "dk_locacao";
@@ -41,6 +43,37 @@ async function flagDoPedido(opts) {
 
 async function obterFonteLocacoes(opts) {
   return moduloPedido(await flagDoPedido(opts)) ? FONTE_LOCACAO : "snapshot";
+}
+
+function decidirAcessoLocacao(gate, funcionarios) {
+  if (!gate || gate.ok === false) {
+    return {
+      ok: false,
+      status: Number(gate && gate.status) || 401,
+      reason: (gate && gate.reason) || "unauthorized",
+    };
+  }
+  if (gate.typ === "cliente") {
+    return { ok: false, status: 403, reason: "module_forbidden", modulo: "locacao" };
+  }
+  if (gate.service || String(gate.role || "").trim() === "owner") return { ok: true };
+  let role = String(gate.role || "operacao").trim();
+  let acessos = gate.acessos;
+  if (Array.isArray(funcionarios)) {
+    const cpf = digitos(gate.cpf).slice(0, 11);
+    const funcionario = funcionarios.find((item) => digitos(item && item.cpf).slice(0, 11) === cpf) || null;
+    role = String((funcionario && funcionario.role) || gate.role || "operacao").trim();
+    if (role === "owner") return { ok: true };
+    acessos = normalizeOperacaoAccess(funcionario && funcionario.acessos, role);
+  } else if (!acessos) {
+    acessos = normalizeOperacaoAccess(null, role);
+  } else {
+    acessos = normalizeOperacaoAccess(acessos, role);
+  }
+  if (!acessos.locacao) {
+    return { ok: false, status: 403, reason: "module_forbidden", modulo: "locacao" };
+  }
+  return { ok: true };
 }
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
@@ -476,6 +509,23 @@ function listaComLocacao(rows, locacao, nc) {
   return lista;
 }
 
+function respostaDuplicado(duplicados) {
+  const duplicate = duplicados[0];
+  return {
+    ok: false,
+    status: 409,
+    conflict: true,
+    reason: "duplicate_payment_same_day_value",
+    protocolo: duplicate.protocoloContrato,
+    data: duplicate.data,
+    valor: duplicate.valor,
+    duplicates: duplicados,
+    message:
+      `JÁ EXISTE UM PAGAMENTO DE R$ ${Number(duplicate.valor).toFixed(2).replace(".", ",")} ` +
+      `EM ${duplicate.data} PARA O PROTOCOLO ${duplicate.protocoloContrato}.`,
+    ativado: true,
+  };
+}
 function respostaPlaca(conflict) {
   return {
     ok: false,
@@ -531,6 +581,8 @@ async function gravarUma(pedido) {
   if (!moduloPedido(await flagDoPedido(pedido))) {
     return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
   }
+  const acesso = decidirAcessoLocacao(pedido && pedido.acesso, pedido && pedido.funcionarios);
+  if (!acesso.ok) return { ...acesso, ativado: true };
   const io = (pedido && pedido.rest) || rest;
   const locacao = pedido && pedido.locacao;
   if (!locacao || typeof locacao !== "object" || Array.isArray(locacao)) {
@@ -539,7 +591,7 @@ async function gravarUma(pedido) {
   const nc = digitos((pedido && pedido.numero) || locacao.numeroContrato || locacao.protocolo);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
   return comTrava(pedido, async () => {
-  const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at`);
+  const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at,campos`);
   if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
   if (!atual || !atual.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
   const row = linhaUnica(atual);
@@ -561,6 +613,9 @@ async function gravarUma(pedido) {
       ativado: true,
     };
   }
+  const anteriores = row && row.campos ? [{ ...row.campos, numeroContrato: nc }] : [];
+  const duplicados = findNewDuplicatePayments(anteriores, [{ ...locacao, numeroContrato: nc }]);
+  if (duplicados.length) return respostaDuplicado(duplicados);
   const autor = String((pedido && pedido.by) || "").slice(0, 80);
   const corpo = projetarColunas(locacao, nc);
   if (!row) {
@@ -613,6 +668,8 @@ async function excluirUma(pedido) {
   if (!moduloPedido(await flagDoPedido(pedido))) {
     return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
   }
+  const acesso = decidirAcessoLocacao(pedido && pedido.acesso, pedido && pedido.funcionarios);
+  if (!acesso.ok) return { ...acesso, ativado: true };
   const io = (pedido && pedido.rest) || rest;
   const nc = digitos(pedido && pedido.numero);
   if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
@@ -652,6 +709,7 @@ module.exports = {
   FONTE_LOCACAO,
   moduloPedido,
   obterFonteLocacoes,
+  decidirAcessoLocacao,
   TIPOS,
   stripCampos,
   protocoloDe,

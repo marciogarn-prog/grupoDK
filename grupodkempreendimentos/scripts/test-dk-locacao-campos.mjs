@@ -26,6 +26,11 @@ const locB = {
   portalLancamentosAluguel: [pagamento, { protocoloLancamento: "p2", valor: 50 }],
 };
 const semRedis = null;
+const dono = { ok: true, role: "owner" };
+const gravarOriginal = pg.gravarUma.bind(pg);
+const excluirOriginal = pg.excluirUma.bind(pg);
+pg.gravarUma = (pedido) => gravarOriginal({ acesso: dono, redis: semRedis, ...pedido });
+pg.excluirUma = (pedido) => excluirOriginal({ acesso: dono, redis: semRedis, ...pedido });
 
 function banco() {
   const linhas = new Map();
@@ -363,5 +368,135 @@ assert.strictEqual(await pg.obterFonteLocacoes({ flag: "" }), "snapshot");
 assert.strictEqual(await pg.obterFonteLocacoes({ flag: "dk_locacao" }), "dk_locacao");
 const fonteAudit = fs.readFileSync(path.join(dir, "../lib/dk-locacoes-integrity-audit.cjs"), "utf8");
 assert.ok(!fonteAudit.includes("moduloAtivo"));
+
+const basePagamento = {
+  numeroContrato: "2099010110",
+  cpf: "11111111111",
+  nome: "Fixture",
+  inicio: "01/09/2026",
+  placa: "TST9Z91",
+  statusLocacao: "ATIVO",
+};
+function pagamentoDe(protocolo, data, valor, tipo) {
+  return { protocoloLancamento: protocolo, data, valor, tipoMovimento: tipo || "ALUGUEL" };
+}
+const pagos = banco();
+const original = {
+  ...basePagamento,
+  portalLancamentosAluguel: [pagamentoDe("p-a", "01/10/2026", 100)],
+};
+const gravouOriginal = await pg.gravarUma({ flag: "dk_locacao", rest: pagos.rest, numero: original.numeroContrato, locacao: original });
+assert.strictEqual(gravouOriginal.ok, true);
+const repetido = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 1,
+  locacao: {
+    ...original,
+    portalLancamentosAluguel: [pagamentoDe("p-a", "01/10/2026", 100), pagamentoDe("p-b", "2026-10-01", 100)],
+  },
+});
+assert.strictEqual(repetido.status, 409);
+assert.strictEqual(repetido.reason, "duplicate_payment_same_day_value");
+assert.strictEqual(repetido.message, "JÁ EXISTE UM PAGAMENTO DE R$ 100,00 EM 01/10/2026 PARA O PROTOCOLO 2099010110.");
+assert.strictEqual(pagos.linhas.get(original.numeroContrato).version, 1);
+assert.strictEqual(pagos.linhas.get(original.numeroContrato).campos.portalLancamentosAluguel.length, 1);
+const outroValor = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 1,
+  locacao: { ...original, portalLancamentosAluguel: [pagamentoDe("p-a", "01/10/2026", 100), pagamentoDe("p-c", "01/10/2026", 80)] },
+});
+assert.strictEqual(outroValor.ok, true);
+const outroDia = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 2,
+  locacao: {
+    ...original,
+    portalLancamentosAluguel: [pagamentoDe("p-a", "01/10/2026", 100), pagamentoDe("p-d", "02/10/2026", 100)],
+  },
+});
+assert.strictEqual(outroDia.ok, true);
+const caucao = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 3,
+  locacao: {
+    ...original,
+    portalLancamentosAluguel: [
+      pagamentoDe("p-a", "01/10/2026", 100),
+      pagamentoDe("c-1", "01/10/2026", 100, "CAUCAO"),
+      pagamentoDe("c-2", "01/10/2026", 100, "CAUÇÃO"),
+    ],
+  },
+});
+assert.strictEqual(caucao.ok, true);
+const proprio = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 4,
+  locacao: {
+    ...original,
+    nome: "Fixture editada",
+    portalLancamentosAluguel: [pagamentoDe("p-a", "01/10/2026", 100)],
+    portalLancamentosAluguelRemovidos: [pagamentoDe("removido", "01/10/2026", 100)],
+  },
+});
+assert.strictEqual(proprio.ok, true);
+assert.strictEqual(proprio.version, 5);
+const linha = pagos.linhas.get(original.numeroContrato);
+linha.campos.portalLancamentosAluguel = [pagamentoDe("p-a", "01/10/2026", 100), pagamentoDe("p-b", "01/10/2026", 100)];
+linha.version = 5;
+const jaDuplicado = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  numero: original.numeroContrato,
+  version: 5,
+  locacao: linha.campos,
+});
+assert.strictEqual(jaDuplicado.ok, true);
+
+const semModulo = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  acesso: { ok: true, typ: "equipa", role: "operacao", acessos: { locacao: false } },
+  numero: "2099010111",
+  locacao: { ...basePagamento, numeroContrato: "2099010111", placa: "TST9Z92", portalLancamentosAluguel: [] },
+});
+assert.strictEqual(semModulo.status, 403);
+assert.strictEqual(semModulo.reason, "module_forbidden");
+assert.strictEqual(semModulo.modulo, "locacao");
+assert.strictEqual(pagos.linhas.has("2099010111"), false);
+const comModulo = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  acesso: { ok: true, typ: "equipa", role: "operacao", cpf: "22222222222" },
+  funcionarios: [{ cpf: "22222222222", role: "operacao", acessos: { locacao: true } }],
+  numero: "2099010111",
+  locacao: { ...basePagamento, numeroContrato: "2099010111", placa: "TST9Z92", portalLancamentosAluguel: [] },
+});
+assert.strictEqual(comModulo.ok, true);
+const semSessao = await pg.gravarUma({
+  flag: "dk_locacao",
+  rest: pagos.rest,
+  acesso: { ok: false, status: 401, reason: "unauthorized" },
+  numero: "2099010112",
+  locacao: { ...basePagamento, numeroContrato: "2099010112", placa: "TST9Z93" },
+});
+assert.strictEqual(semSessao.status, 401);
+assert.strictEqual(semSessao.reason, "unauthorized");
+const tinhaSegredo = Boolean(process.env.DK_PORTAL_API_SECRET || process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET);
+if (!tinhaSegredo) process.env.DK_PORTAL_API_SECRET = "segredo-de-teste";
+const auth = require(path.join(dir, "../lib/dk-portal-auth.cjs"));
+const sessao = auth.requirePortalAuth({ headers: {} }, { allowCliente: true, allowEquipa: true });
+assert.strictEqual(sessao.status, 401);
+assert.strictEqual(sessao.reason, "unauthorized");
+if (!tinhaSegredo) delete process.env.DK_PORTAL_API_SECRET;
 
 console.log("OK caminho locacao");

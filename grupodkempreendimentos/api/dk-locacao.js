@@ -8,6 +8,7 @@ const {
   requirePortalAuth,
   assertEquipaClientProtocol,
   onlyDigits,
+  loadOfficialSnapshotPayload,
 } = require("../lib/dk-portal-auth.cjs");
 const pg = require("../lib/dk-locacao-pg.cjs");
 
@@ -57,11 +58,34 @@ module.exports = async function handler(req, res) {
       return res.status(lista.ok ? 200 : 502).json(lista);
     }
 
-    if (cpfCliente) return res.status(403).json({ ok: false, reason: "somente_leitura" });
+    const fonte = await pg.obterFonteLocacoes();
+    if (cpfCliente && fonte !== pg.FONTE_LOCACAO) {
+      return res.status(403).json({ ok: false, reason: "somente_leitura" });
+    }
+    let acesso = { ok: true, role: "owner", service: true };
+    if (fonte === pg.FONTE_LOCACAO) {
+      let funcionarios = null;
+      if (!(gate.service || String(gate.role || "").trim() === "owner" || cpfCliente)) {
+        const payload = await loadOfficialSnapshotPayload();
+        funcionarios = payload && Array.isArray(payload.dk_funcionarios_access) ? payload.dk_funcionarios_access : [];
+      }
+      acesso = pg.decidirAcessoLocacao(
+        { ok: true, typ: gate.typ, role: gate.role, service: gate.service, cpf: gate.cpf },
+        funcionarios
+      );
+      if (!acesso.ok) {
+        return res.status(acesso.status || 403).json({ ok: false, reason: acesso.reason, modulo: acesso.modulo });
+      }
+    }
     const body = parseBody(req);
     const acao = String(body.op || op || "").trim();
     if (acao === "excluir") {
-      const out = await pg.excluirUma({ numero: body.numero || body.numeroContrato, version: body.version, by: autor(gate) });
+      const out = await pg.excluirUma({
+        numero: body.numero || body.numeroContrato,
+        version: body.version,
+        by: autor(gate),
+        acesso,
+      });
       if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
       if (out.conflict) return res.status(409).json(out);
       return res.status(out.ok ? 200 : out.status || 400).json(out);
@@ -75,6 +99,7 @@ module.exports = async function handler(req, res) {
         locacao,
         by: autor(gate),
         criar: acao === "criar" || !locacao.pgId,
+        acesso,
       });
       if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
       if (out.conflict) return res.status(409).json(out);
