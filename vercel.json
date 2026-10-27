@@ -9,6 +9,7 @@
     "api/dk-pre-migracao-selo.js": { "maxDuration": 60 },
     "api/dk-clientes-migrar.js": { "maxDuration": 60 },
     "api/dk-clientes-copiar.js": { "maxDuration": 60 },
+    "api/dk-veiculos-copiar.js": { "maxDuration": 60 },
     "api/cadastro-clientes.js": { "maxDuration": 60 },
     "api/cadastro-financeiro-ceo.js": {
       "includeFiles": "lib/dk-financeiro-ceo-linha.cjs"
