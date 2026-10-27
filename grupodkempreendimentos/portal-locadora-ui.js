@@ -12515,7 +12515,7 @@
         () => {
           const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
           if (!ok) return;
-          portalAgendarEnvioClienteParaNuvem();
+          portalAgendarEnvioClienteParaNuvem(digits);
         }
       );
     }
@@ -17133,14 +17133,78 @@
     return unified.length;
   }
 
-  async function portalAgendarEnvioClienteParaNuvem() {
+  async function portalEnviarUmClienteParaNuvem(cliente) {
+    const post = async (body) => {
+      const headers = typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+      const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
+      const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
+      const url = `/api/cadastro-clientes${q || ""}${sep}nocache=${Date.now()}`;
+      const res = await fetch(url, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      const revision = String(data?.revision || data?.updated_at || "");
+      if (revision) {
+        try {
+          window.__DK_CLOUD_REVISION = revision;
+        } catch {
+          /* ignore */
+        }
+      }
+      return {
+        status: res.status,
+        ok: res.ok && data?.ok !== false && data?.success !== false,
+        success: data?.success !== false && res.ok,
+        reason: String(data?.reason || data?.error || ""),
+        message: String(data?.message || ""),
+        revision,
+        count: data?.count,
+        snapshot_gravacoes: Number(data?.snapshot_gravacoes || 0),
+        cliente: data?.cliente || null,
+      };
+    };
+    let revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
+    let ultimo = null;
+    for (let i = 0; i < 3; i += 1) {
+      ultimo = await post({ operacao: "upsert", cliente, base_revision: revisao });
+      const nova = String((ultimo && ultimo.revision) || "");
+      if (ultimo && ultimo.status === 409 && ultimo.reason === "revisao_conflito" && nova && i < 2) {
+        revisao = nova;
+        continue;
+      }
+      return ultimo;
+    }
+    return ultimo;
+  }
+
+  async function portalAgendarEnvioClienteParaNuvem(cpfDigits) {
     const geracao = ++portalClienteMsgGeracao;
     portalMsgCliente(DK_MSG_ENVIANDO_CLIENTE, geracao);
+    const dig =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(cpfDigits || ""))
+        : String(cpfDigits || "").replace(/\D/g, "");
+    const cliente = portalLerClientesLocais().find((item) => {
+      const cpf =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(item && item.cpf || ""))
+          : String((item && item.cpf) || "").replace(/\D/g, "");
+      return cpf === dig;
+    });
     let envio = null;
-    try {
-      envio = await portalPushCloudSnapshotAfterPersist();
-    } catch (e) {
-      envio = { ok: false, reason: String(e?.message || e || "erro") };
+    if (dig.length !== 11 || !cliente) {
+      envio = { ok: false, success: false, reason: "cliente_local_ausente" };
+    } else {
+      const um = { ...cliente };
+      delete um.senha;
+      try {
+        envio = await portalEnviarUmClienteParaNuvem(um);
+      } catch (e) {
+        envio = { ok: false, success: false, reason: String(e?.message || e || "erro") };
+      }
     }
     if (geracao !== portalClienteMsgGeracao) return;
     portalMsgCliente(

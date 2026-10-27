@@ -30,6 +30,27 @@ function parseRedisArray(raw) {
   return [];
 }
 
+function aplicarUpsertCliente(base, cliente) {
+  const cpf = onlyDigits(cliente && cliente.cpf).slice(0, 11);
+  const lista = (Array.isArray(base) ? base : []).map((item) => ({ ...item }));
+  const idx = lista.findIndex((item) => onlyDigits(item && item.cpf).slice(0, 11) === cpf);
+  const recebido = { ...cliente, cpf };
+  delete recebido.senha;
+  if (idx === -1) {
+    lista.push(recebido);
+    return lista;
+  }
+  const prev = lista[idx];
+  lista[idx] = {
+    ...prev,
+    ...recebido,
+    cpf,
+    id: prev.id || recebido.id,
+  };
+  if (prev.senha && !lista[idx].senha) lista[idx].senha = prev.senha;
+  return lista;
+}
+
 module.exports = async function handler(req, res) {
   applyApiCors(res);
 
@@ -101,23 +122,54 @@ module.exports = async function handler(req, res) {
           body = {};
         }
       }
-      const incoming = Array.isArray(body?.data) ? body.data : [];
+      const operacao = String(body?.operacao || body?.operação || "")
+        .trim()
+        .toLowerCase();
+      const umCliente =
+        operacao === "upsert" && body?.cliente && typeof body.cliente === "object" && !Array.isArray(body.cliente);
+      if (umCliente && onlyDigits(body.cliente.cpf).slice(0, 11).length !== 11) {
+        return res.status(400).json({ ok: false, success: false, reason: "cpf" });
+      }
+      if (umCliente && !dropClientesCpfExcluidos([body.cliente]).length) {
+        return res.status(400).json({ ok: false, success: false, reason: "cliente_rejeitado" });
+      }
+      const incoming = umCliente ? [body.cliente] : Array.isArray(body?.data) ? body.data : [];
       let merged = incoming;
+      let guardado = null;
       const central = await executarGravacaoCentral({
         ...ioSnapshotOficial(channel === "demo" ? "demo" : "default"),
         baseRevision: body.base_revision || body.revision || "",
         mutar(payload) {
           const base = Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
-          merged = dropClientesCpfExcluidos(mergeClientesCadastro(base, incoming));
+          merged = umCliente
+            ? dropClientesCpfExcluidos(aplicarUpsertCliente(base, body.cliente))
+            : dropClientesCpfExcluidos(mergeClientesCadastro(base, incoming));
           payload.dk_clientes_cadastro = merged;
           payload.dk_portal_clientes_cadastro = merged;
+          if (umCliente) {
+            const cpfUm = onlyDigits(body.cliente.cpf).slice(0, 11);
+            guardado = merged.find((item) => onlyDigits(item && item.cpf).slice(0, 11) === cpfUm) || null;
+          }
         },
         cache: async () => {
           await redis.set(STORAGE_KEY, JSON.stringify(merged));
         },
       });
       if (central.status !== 200) return res.status(central.status).json(central.body);
-      return res.status(200).json({ ...central.body, count: merged.length });
+      const eco = guardado
+        ? {
+            id: String(guardado.id || ""),
+            cpf: onlyDigits(guardado.cpf).slice(0, 11),
+            nome: String(guardado.nome || ""),
+            recado2: String(guardado.recado2 || ""),
+          }
+        : null;
+      return res.status(200).json({
+        ...central.body,
+        count: merged.length,
+        snapshot_gravacoes: 1,
+        ...(eco ? { cliente: eco } : {}),
+      });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

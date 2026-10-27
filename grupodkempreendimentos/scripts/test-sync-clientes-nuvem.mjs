@@ -64,6 +64,13 @@ const align = ui.slice(inicio, fim);
 assert(align.includes("portalEnviarClientesCadastroNaNuvem"), "a comparação envia o cadastro de clientes");
 assert(!align.includes("portalPushCloudSnapshotAfterPersist"), "a comparação não empurra o pacote inteiro");
 assert(ui.includes('"/api/cadastro-clientes"') || ui.includes("`/api/cadastro-clientes"), "o envio usa a rota de clientes");
+const gravarCliente = ui.slice(
+  ui.indexOf("async function portalEnviarUmClienteParaNuvem"),
+  ui.indexOf("async function portalAlinharClientesAoEntrarNaTela")
+);
+assert(gravarCliente.includes('operacao: "upsert"'), "guardar cliente envia um upsert");
+assert(gravarCliente.includes("portalEnviarUmClienteParaNuvem"), "guardar cliente usa o envio de um cliente");
+assert(!gravarCliente.includes("portalPushCloudSnapshotAfterPersist"), "guardar cliente não empurra o snapshot inteiro");
 
 const api = fs.readFileSync(new URL("../api/dk-cloud-snapshot.js", import.meta.url), "utf8");
 assert(api.includes('require("../lib/dk-pacotes.cjs")'), "o snapshot carrega os pacotes dentro de lib");
