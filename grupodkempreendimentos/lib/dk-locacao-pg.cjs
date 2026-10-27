@@ -363,105 +363,131 @@ function montarTerminais(rows, movimentos, cpf) {
     .map((row) => locacaoParaTerminal(row, porLoc.get(String(row.id)) || []));
 }
 
+function locacaoCanonica(row) {
+  const campos = row && row.campos && typeof row.campos === "object" && !Array.isArray(row.campos) ? row.campos : null;
+  return campos || {};
+}
+
+function idLegadoDe(loc) {
+  if (!loc || loc.id == null) return null;
+  const id = String(loc.id).trim();
+  return id || null;
+}
+
+function projetarColunas(loc, nc) {
+  const cpf = digitos(loc && loc.cpf);
+  const placa = loc && loc.placa != null ? String(loc.placa) : "";
+  const status = String((loc && (loc.statusLocacao || loc.status)) || "").trim();
+  return {
+    numero_contrato: nc,
+    id_legado: idLegadoDe(loc),
+    cpf: cpf || null,
+    placa: placa || null,
+    status_locacao: status || null,
+    campos: loc,
+  };
+}
+
 async function listar(cpf, opts) {
   if (!moduloPedido(await flagDoPedido(opts))) return respostaInativa();
-  const rows = await lerLocacoesAbertas(cpf);
-  if (schemaSumiu(rows)) return { ok: false, schema: false, reason: "schema_ausente" };
-  if (!rows.ok) return { ok: false, schema: true, reason: "leitura", status: rows.status };
-  if (!(rows.data || []).length) {
-    if (digitos(cpf)) {
-      return { ok: true, schema: true, locacoes: [], migracao: "aguardar" };
-    }
-    const semeada = await migrarSnapshotOficial("sistema");
-    if (semeada && semeada.schema === false) return { ok: false, schema: false, reason: "schema_ausente" };
-    if (semeada && semeada.reason === "supabase_indisponivel") {
-      return { ok: true, schema: true, locacoes: [], migracao: "supabase_indisponivel" };
-    }
-    const deNovo = await lerLocacoesAbertas(cpf);
-    if (!deNovo.ok) return { ok: false, schema: true, reason: "leitura" };
-    const movs = await lerMovimentos((deNovo.data || []).map((r) => r.id));
-    if (!movs.ok) return { ok: false, schema: true, reason: "leitura" };
-    const locacoes = montarTerminais(deNovo.data, movs.data, cpf);
-    return {
-      ok: true,
-      schema: true,
-      locacoes,
-      migracao: locacoes.length ? "semeada" : semeada && semeada.lidas > 0 ? "falhou" : "vazio",
-    };
+  const io = (opts && opts.rest) || restAll;
+  let path =
+    "dk_locacao?deleted_at=is.null&select=id,numero_contrato,id_legado,cpf,placa,status_locacao,campos,version,updated_at&order=numero_contrato.asc";
+  const c = digitos(cpf).slice(0, 11);
+  if (c.length === 11) path += `&cpf=eq.${encodeURIComponent(c)}`;
+  const rows = await io(path);
+  if (schemaSumiu(rows)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true, locacoes: [] };
+  if (!rows || !rows.ok) {
+    return { ok: false, schema: true, ativado: true, reason: "leitura", status: rows && rows.status, locacoes: [] };
   }
-  const movs = await lerMovimentos((rows.data || []).map((r) => r.id));
-  if (schemaSumiu(movs)) return { ok: false, schema: false, reason: "schema_ausente" };
-  if (!movs.ok) return { ok: false, schema: true, reason: "leitura" };
-  return { ok: true, schema: true, locacoes: montarTerminais(rows.data, movs.data, cpf), migracao: "pronta" };
+  const locacoes = (rows.data || []).filter((row) => row && !row.deleted_at).map(locacaoCanonica);
+  return { ok: true, schema: true, ativado: true, migracao: "pronta", locacoes };
 }
 
 async function relogio(opts) {
   if (!moduloPedido(await flagDoPedido(opts))) return { ok: true, schema: true, ativado: false, selo: "inativo" };
-  const topo = await rest(
-    "dk_locacao?deleted_at=is.null&select=updated_at&order=updated_at.desc&limit=1"
-  );
-  if (schemaSumiu(topo)) return { ok: false, schema: false };
-  if (!topo.ok) return { ok: false, schema: true };
-  const conta = await rest("dk_locacao_movimento?select=id&limit=1", {
+  const io = (opts && opts.rest) || rest;
+  const topo = await io("dk_locacao?deleted_at=is.null&select=updated_at&order=updated_at.desc&limit=1");
+  if (schemaSumiu(topo)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  if (!topo || !topo.ok) return { ok: false, schema: true, ativado: true, reason: "leitura", status: topo && topo.status };
+  const conta = await io("dk_locacao?deleted_at=is.null&select=id&limit=1", {
     headers: { Range: "0-0", Prefer: "count=exact" },
   });
+  if (schemaSumiu(conta) || !conta || !conta.ok) return { ok: false, schema: true, ativado: true, reason: "leitura" };
   const total = String(conta.contentRange || "").split("/")[1] || "0";
   const updated = Array.isArray(topo.data) && topo.data[0] ? topo.data[0].updated_at : "";
-  return { ok: true, schema: true, selo: `${updated}|${total}` };
+  return { ok: true, schema: true, ativado: true, selo: `${updated}|${total}` };
+}
+
+function conflitoVersao(row, version) {
+  const lida = Number(version);
+  return !Number.isInteger(lida) || lida < 1 || lida !== Number(row && row.version);
+}
+
+function linhaUnica(res) {
+  return res && Array.isArray(res.data) ? res.data[0] : null;
 }
 
 async function gravarUma(pedido) {
   if (!moduloPedido(await flagDoPedido(pedido))) {
     return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
   }
-  const { numero, version, locacao, by, criar } = pedido || {};
-  const campos = stripCampos(locacao);
-  const nc = digitos(numero || campos.numeroContrato);
-  if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio" };
-  const atual = await rest(
-    `dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at,campos`
-  );
-  if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente" };
-  const row = Array.isArray(atual.data) ? atual.data[0] : null;
-  if (row?.deleted_at) return { ok: false, status: 409, conflict: true, reason: "excluida" };
-  let movimentos = [];
-  if (row?.id) {
-    const movs = await lerMovimentos([row.id]);
-    if (!movs.ok) return { ok: false, status: 502, reason: "leitura" };
-    movimentos = movs.data || [];
+  const io = (pedido && pedido.rest) || rest;
+  const locacao = pedido && pedido.locacao;
+  if (!locacao || typeof locacao !== "object" || Array.isArray(locacao)) {
+    return { ok: false, status: 400, reason: "locacao_obrigatoria", ativado: true };
   }
-  const novos = movimentosNovos(movimentos, locacao);
-  const rpc = await rest("rpc/dk_locacao_gravar", {
-    method: "POST",
-    prefer: "return=representation",
-    body: {
-      p_numero: nc,
-      p_version: row ? Number(version) || 0 : null,
-      p_campos: campos,
-      p_novos: novos,
-      p_by: String(by || "").slice(0, 80),
-      p_criar: !row || Boolean(criar),
-    },
-  });
-  if (schemaSumiu(rpc)) return { ok: false, schema: false, reason: "schema_ausente" };
-  const body = rpc.data && typeof rpc.data === "object" && !Array.isArray(rpc.data) ? rpc.data : null;
-  if (!rpc.ok || !body || body.ok !== true) {
-    if (body && body.conflict) {
-      return { ok: false, status: 409, conflict: true, reason: body.reason || "version", version: body.version || null };
+  const nc = digitos((pedido && pedido.numero) || locacao.numeroContrato || locacao.protocolo);
+  if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
+  const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at`);
+  if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  if (!atual || !atual.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
+  const row = linhaUnica(atual);
+  if (row && row.deleted_at) return { ok: false, status: 409, conflict: true, reason: "excluida", ativado: true };
+  const autor = String((pedido && pedido.by) || "").slice(0, 80);
+  const corpo = projetarColunas(locacao, nc);
+  if (!row) {
+    const ins = await io("dk_locacao", {
+      method: "POST",
+      prefer: "return=representation",
+      body: { ...corpo, created_by: autor, updated_by: autor },
+    });
+    if (schemaSumiu(ins)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+    const duplicada = ins && ins.data && (ins.data.code === "23505" || /duplicate key/i.test(String(ins.data.message || "")));
+    if (!ins || !ins.ok || duplicada) {
+      return { ok: false, status: duplicada ? 409 : ins && ins.status || 502, conflict: Boolean(duplicada), reason: duplicada ? "protocolo" : "gravacao", ativado: true };
     }
-    return { ok: false, status: rpc.status || 502, reason: "gravacao", detalhe: body || rpc.data };
+    const gravada = linhaUnica(ins);
+    return {
+      ok: true,
+      schema: true,
+      ativado: true,
+      linhas_afetadas: 1,
+      id: gravada && gravada.id,
+      version: Number(gravada && gravada.version) || 1,
+      locacao: locacaoCanonica(gravada) && Object.keys(locacaoCanonica(gravada)).length ? locacaoCanonica(gravada) : locacao,
+    };
   }
-  const fresca = await rest(
-    `dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&deleted_at=is.null&select=id,numero_contrato,cpf,placa,status_locacao,campos,version,created_at,updated_at,deleted_at,created_by,updated_by`
-  );
-  const gravada = Array.isArray(fresca.data) ? fresca.data[0] : null;
-  if (!gravada) return { ok: true, schema: true, version: body.version };
-  const movs = await lerMovimentos([gravada.id]);
+  if (conflitoVersao(row, pedido && pedido.version)) {
+    return { ok: false, status: 409, conflict: true, reason: "version", version: Number(row.version) || null, ativado: true };
+  }
+  const patch = await io(`dk_locacao?id=eq.${encodeURIComponent(row.id)}&version=eq.${Number(row.version)}&deleted_at=is.null`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { ...corpo, version: Number(row.version) + 1, updated_at: new Date().toISOString(), updated_by: autor },
+  });
+  if (schemaSumiu(patch)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  if (!patch || !patch.ok) return { ok: false, status: 502, reason: "gravacao", ativado: true };
+  const gravada = linhaUnica(patch);
+  if (!gravada) return { ok: false, status: 409, conflict: true, reason: "version", version: Number(row.version) || null, ativado: true };
   return {
     ok: true,
     schema: true,
-    version: Number(gravada.version) || body.version,
-    locacao: locacaoParaTerminal(gravada, movs.data || []),
+    ativado: true,
+    linhas_afetadas: 1,
+    id: gravada.id,
+    version: Number(gravada.version) || Number(row.version) + 1,
+    locacao: locacaoCanonica(gravada),
   };
 }
 
@@ -469,72 +495,36 @@ async function excluirUma(pedido) {
   if (!moduloPedido(await flagDoPedido(pedido))) {
     return { ok: false, status: 409, conflict: true, reason: "modulo_inativo", ativado: false };
   }
-  const { numero, version, by } = pedido || {};
-  const nc = digitos(numero);
-  if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio" };
-  const rpc = await rest("rpc/dk_locacao_excluir", {
-    method: "POST",
-    prefer: "return=representation",
-    body: { p_numero: nc, p_version: Number(version) || 0, p_by: String(by || "").slice(0, 80) },
-  });
-  if (schemaSumiu(rpc)) return { ok: false, schema: false, reason: "schema_ausente" };
-  const body = rpc.data && typeof rpc.data === "object" ? rpc.data : null;
-  if (!rpc.ok || !body || body.ok !== true) {
-    return { ok: false, status: 409, conflict: true, reason: (body && body.reason) || "version" };
+  const io = (pedido && pedido.rest) || rest;
+  const nc = digitos(pedido && pedido.numero);
+  if (!nc) return { ok: false, status: 400, reason: "protocolo_obrigatorio", ativado: true };
+  const atual = await io(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,version,deleted_at`);
+  if (schemaSumiu(atual)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  if (!atual || !atual.ok) return { ok: false, status: 502, reason: "leitura", ativado: true };
+  const row = linhaUnica(atual);
+  if (!row) return { ok: false, status: 404, reason: "ausente", ativado: true };
+  if (row.deleted_at) return { ok: false, status: 409, conflict: true, reason: "excluida", ativado: true };
+  if (conflitoVersao(row, pedido && pedido.version)) {
+    return { ok: false, status: 409, conflict: true, reason: "version", version: Number(row.version) || null, ativado: true };
   }
-  return { ok: true, schema: true, version: body.version, deleted_at: body.deleted_at };
+  const patch = await io(`dk_locacao?id=eq.${encodeURIComponent(row.id)}&version=eq.${Number(row.version)}&deleted_at=is.null`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      deleted_at: new Date().toISOString(),
+      version: Number(row.version) + 1,
+      updated_at: new Date().toISOString(),
+      updated_by: String((pedido && pedido.by) || "").slice(0, 80),
+    },
+  });
+  if (schemaSumiu(patch)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true };
+  const gravada = linhaUnica(patch);
+  if (!patch || !patch.ok || !gravada) return { ok: false, status: 409, conflict: true, reason: "version", ativado: true };
+  return { ok: true, schema: true, ativado: true, version: Number(gravada.version), deleted_at: gravada.deleted_at, linhas_afetadas: 1 };
 }
 
-async function migrarSnapshotOficial(by) {
-  if (!isSupabaseDoormanConfigured()) return { ok: false, reason: "doorman_key_missing" };
-  const oficial = await fetchSnapshotByLabel("default");
-  if (!oficial || oficial.ok === false || !oficial.payload) {
-    return { ok: false, schema: true, reason: "supabase_indisponivel" };
-  }
-  const locs = Array.isArray(oficial.payload.dk_locacoes_cadastro) ? oficial.payload.dk_locacoes_cadastro : [];
-  let criadas = 0;
-  let movimentos = 0;
-  for (const loc of locs) {
-    if (!loc || typeof loc !== "object") continue;
-    const nc = digitos(loc.numeroContrato || loc.protocolo);
-    if (!nc) continue;
-    const campos = stripCampos(loc);
-    const ins = await rest("dk_locacao", {
-      method: "POST",
-      prefer: "return=representation,resolution=ignore-duplicates",
-      body: {
-        numero_contrato: nc,
-        cpf: digitos(campos.cpf).slice(0, 11),
-        placa: String(campos.placa || "").toUpperCase().slice(0, 12),
-        status_locacao: String(campos.statusLocacao || campos.status || "ATIVO").slice(0, 40),
-        campos,
-        created_by: String(by || "sistema").slice(0, 80),
-        updated_by: String(by || "sistema").slice(0, 80),
-      },
-    });
-    if (schemaSumiu(ins)) return { ok: false, schema: false, reason: "schema_ausente" };
-    const row = Array.isArray(ins.data) ? ins.data[0] : null;
-    let id = row && row.id;
-    if (!id) {
-      const ja = await rest(`dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}&select=id,deleted_at`);
-      const existente = Array.isArray(ja.data) ? ja.data[0] : null;
-      if (!existente || existente.deleted_at) continue;
-      id = existente.id;
-    } else {
-      criadas += 1;
-    }
-    const movs = await lerMovimentos([id]);
-    const novos = movimentosNovos(movs.ok ? movs.data : [], loc);
-    for (const m of novos) {
-      const gravou = await rest("dk_locacao_movimento", {
-        method: "POST",
-        prefer: "return=minimal,resolution=ignore-duplicates",
-        body: { ...m, locacao_id: id, created_by: String(by || "sistema").slice(0, 80) },
-      });
-      if (gravou.ok) movimentos += 1;
-    }
-  }
-  return { ok: true, schema: true, criadas, movimentos, lidas: locs.length };
+async function migrarSnapshotOficial() {
+  return { ok: false, schema: true, reason: "caminho_desligado", ativado: false };
 }
 
 module.exports = {
@@ -548,6 +538,7 @@ module.exports = {
   derivarVisao,
   assinaturaLocacao,
   locacaoParaTerminal,
+  locacaoCanonica,
   listar,
   relogio,
   gravarUma,
