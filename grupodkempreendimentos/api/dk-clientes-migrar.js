@@ -16,9 +16,15 @@ async function lerColecaoClientes() {
   if (!key) return { ok: false, reason: "doorman_key_missing" };
   const select = "clientes:payload->dk_clientes_cadastro,espelho:payload->dk_portal_clientes_cadastro";
   const url = `${urlBase}/rest/v1/dk_cloud_snapshots?label=eq.default&select=${encodeURIComponent(select)}`;
-  const res = await fetch(url, {
-    headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch {
+    return { ok: false, reason: "snapshot_leitura_lenta" };
+  }
   if (!res.ok) return { ok: false, reason: `supabase_http_${res.status}` };
   const rows = await res.json().catch(() => null);
   const row = Array.isArray(rows) && rows.length ? rows[0] : null;
@@ -27,6 +33,31 @@ async function lerColecaoClientes() {
     ok: true,
     origem: Array.isArray(row.clientes) ? row.clientes : [],
     espelho: Array.isArray(row.espelho) ? row.espelho : [],
+  };
+}
+
+const HASH_SNAPSHOT_ANTES = "f1895cadb4e918af0edf624f56463f8e1510eb8bf5afe47ab8d7f4e381f8a22f";
+
+function hashInventario(lista) {
+  const hashes = (Array.isArray(lista) ? lista : []).map((item) =>
+    clientesPg.sha256(JSON.stringify(item, Object.keys(item || {}).sort()))
+  );
+  hashes.sort();
+  return clientesPg.sha256(hashes.join("\n"));
+}
+
+async function lerCacheIgualAoSnapshot(redis) {
+  const raw = await redis.get("dk:portal:clientes_cadastro:v1");
+  let lista = raw;
+  if (typeof raw === "string") {
+    try { lista = JSON.parse(raw); } catch { lista = []; }
+  }
+  if (!Array.isArray(lista)) return { ok: false, quantidade: 0, hashConfere: false };
+  return {
+    ok: lista.length === 437 && hashInventario(lista) === HASH_SNAPSHOT_ANTES,
+    quantidade: lista.length,
+    hashConfere: hashInventario(lista) === HASH_SNAPSHOT_ANTES,
+    lista,
   };
 }
 
@@ -45,12 +76,25 @@ module.exports = async function handler(req, res) {
     return res.status(403).json({ ok: false, reason: "somente_titular" });
   }
   if (!isRedisKvConfigured()) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
+  const redis = createRedisClient();
 
   const antes = await fetchSnapshotRevisionByLabel("default");
   if (!antes || !antes.ok) return res.status(503).json({ ok: false, reason: antes && antes.reason || "revisao" });
-  const snap = await lerColecaoClientes();
+  let snap = await lerColecaoClientes();
+  let fonteLida = "dk_clientes_cadastro";
   if (!snap || !snap.ok) {
-    return res.status(503).json({ ok: false, reason: (snap && snap.reason) || "snapshot" });
+    const cache = await lerCacheIgualAoSnapshot(redis);
+    if (!cache.ok) {
+      return res.status(503).json({
+        ok: false,
+        reason: (snap && snap.reason) || "snapshot",
+        cache_quantidade: cache.quantidade,
+        cache_igual_ao_snapshot: false,
+        fonte_ligada: false,
+      });
+    }
+    snap = { ok: true, origem: cache.lista, espelho: cache.lista };
+    fonteLida = "redis_conferido_com_snapshot";
   }
   const origem = snap.origem;
   const espelho = snap.espelho;
@@ -93,11 +137,11 @@ module.exports = async function handler(req, res) {
       fonte_ligada: false,
     });
   }
-  const redis = createRedisClient();
   await redis.set(clientesPg.FLAG_REDIS, clientesPg.FONTE);
   return res.status(200).json({
     ok: true,
     fonte: "dk_clientes_cadastro",
+    fonte_lida: fonteLida,
     espelho_igual: clientesPg.canon(origem) === clientesPg.canon(espelho),
     tabela: "public.dk_clientes",
     tabela_criada: tabela.criada === true,
