@@ -6012,7 +6012,7 @@
         const done = screenPullDebounceResolve;
         screenPullDebounceResolve = null;
         Promise.resolve(pullFromCloudOnScreenChangeAgora()).then(done, (e) => done({ ok: false, error: e }));
-      }, 45000);
+      }, 0);
     });
   }
 
