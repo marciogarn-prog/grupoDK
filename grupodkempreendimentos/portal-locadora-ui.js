@@ -459,7 +459,6 @@
   }
 
   async function portalAdminPreviewPullLocacoesLight(ms = 10000) {
-    if (window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) return portalAdminPreviewTemLocacoesParaCores();
     if (portalAdminPreviewTemLocacoesParaCores()) return true;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return false;
     if (typeof CAD_LOCACOES_KEY === "undefined") return false;
@@ -16855,10 +16854,7 @@
       const res = await fetch(url, { cache: "no-store", headers });
       const data = await res.json().catch(() => ({}));
       const cloudCli = data?.payload?.dk_clientes_cadastro;
-      const cloudLoc =
-        window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()
-          ? null
-          : data?.payload?.dk_locacoes_cadastro;
+      const cloudLoc = data?.payload?.dk_locacoes_cadastro;
       if (!Array.isArray(cloudCli) || !cloudCli.length) {
         return { ok: false, reason: "sem_clientes_nuvem", total: 0 };
       }
@@ -20278,13 +20274,6 @@
     }
     if (kind === "locacao") {
       const want = portalNuvemNormProto(value);
-      if (window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) {
-        const oficiais = Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache : [];
-        if (!want) return false;
-        return oficiais.some(
-          (l) => portalNuvemNormProto(l?.numeroContrato) === want && portalLocacaoRegistroTemVinculo(l)
-        );
-      }
       const arr = payload.dk_locacoes_cadastro;
       if (!Array.isArray(arr) || !want) return false;
       return arr.some(
@@ -20375,16 +20364,7 @@
 
   function portalLancamentoProtocoloNaNuvem(payload, protocolo) {
     const want = String(protocolo || "").trim();
-    if (!want) return false;
-    if (window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) {
-      const oficiais = Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache : [];
-      return oficiais.some((loc) =>
-        (Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []).some(
-          (p) => String(p?.protocoloLancamento || "").trim() === want
-        )
-      );
-    }
-    if (!payload) return false;
+    if (!want || !payload) return false;
     const locs = payload.dk_locacoes_cadastro;
     if (!Array.isArray(locs)) return false;
     return locs.some((loc) =>
@@ -20526,9 +20506,6 @@
   }
 
   async function portalEnviarLocacaoLancamentoNaNuvem(loc, protocolo) {
-    if (window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) {
-      return { ok: true, status: 200, data: { ok: true, reason: "locacao_pg" } };
-    }
     const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
     const want = String(protocolo || "").trim();
     const pagamentos = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
@@ -23448,10 +23425,6 @@
   }
 
   async function portalTrazerLocacaoDaNuvemPorProtocolo(nc) {
-    if (window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) {
-      const oficiais = Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache : [];
-      return oficiais.find((l) => normPortalNumeroContrato(l?.numeroContrato) === nc) || null;
-    }
     const fetchFn = window.__DK_fetchCloudSnapshotPayload;
     if (typeof fetchFn !== "function" || !nc) return null;
     let data = null;
