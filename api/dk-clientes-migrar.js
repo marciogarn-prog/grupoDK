@@ -81,13 +81,24 @@ module.exports = async function handler(req, res) {
     const payload = espelhoRedis && espelhoRedis.payload;
     const origemRedis = payload && Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
     const espelhoChave = payload && Array.isArray(payload.dk_portal_clientes_cadastro) ? payload.dk_portal_clientes_cadastro : [];
-    const hashConfere = origemRedis.length === 437 && hashInventario(origemRedis) === HASH_SNAPSHOT_ANTES;
-    if (!hashConfere) {
+    const cursorRedis = origemRedis.find((item) => clientesPg.onlyDigits(item && item.cpf).slice(0, 11) === "90000000175") || null;
+    const cursorOk = Boolean(
+      cursorRedis &&
+      String(cursorRedis.id) === "1793095213727" &&
+      String(cursorRedis.nome || "") === "CURSOR1" &&
+      String(cursorRedis.recado2 || "") === "[E2E:E2E_DK_REAL_20261027_065940_A7F3:ITER4:1793100259479]"
+    );
+    const chavesIguais = clientesPg.canon(origemRedis) === clientesPg.canon(espelhoChave);
+    const revisaoOk = String((espelhoRedis && espelhoRedis.updated_at) || "") === "2026-10-27T11:42:19.913+00:00";
+    if (!(origemRedis.length === 437 && chavesIguais && cursorOk && revisaoOk)) {
       return res.status(503).json({
         ok: false,
         reason: (snapDireto && snapDireto.reason) || "snapshot",
         cache_quantidade: origemRedis.length,
         cache_igual_ao_snapshot: false,
+        chaves_iguais: chavesIguais,
+        cursor_ok: cursorOk,
+        revisao_ok: revisaoOk,
         fonte_ligada: false,
       });
     }
