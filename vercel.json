@@ -15,6 +15,10 @@
     "api/cadastro-veiculos.js": { "maxDuration": 60 },
     "api/cadastro-financeiro-ceo.js": {
       "includeFiles": "lib/dk-financeiro-ceo-linha.cjs"
+    },
+    "api/dk-pagamento-locacao.js": {
+      "maxDuration": 60,
+      "includeFiles": "lib/dk-pagamento-locacao-store.cjs"
     }
   },
   "env": {
