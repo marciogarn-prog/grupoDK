@@ -27192,9 +27192,6 @@
     preencherLancAluguelFormSimples();
     refreshOperacaoLancAluguelSaldosHoje(loc);
     refreshOperacaoLancAluguelAdminControlsVisibility();
-    if (window.__DK_PAGAMENTO_READ_CANARY__ === true && typeof window.__DK_pagamentoCanaryComparar === "function") {
-      void window.__DK_pagamentoCanaryComparar(loc);
-    }
   }
 
   function portalLancAluguelDiaPagamentoColIdx(raw, loc) {
