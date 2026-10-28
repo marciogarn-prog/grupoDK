@@ -114,11 +114,18 @@
     var panel = document.getElementById("panel-log-locadora");
     if (!panel || panel.dataset.logUi === "1") return;
     panel.dataset.logUi = "1";
+    var pendente = 0;
+    function agendar() {
+      if (!painelAberto()) return;
+      carregar();
+      clearTimeout(pendente);
+      pendente = setTimeout(carregar, 400);
+    }
     var obs = new MutationObserver(function () {
-      if (painelAberto()) carregar();
+      agendar();
     });
     obs.observe(panel, { attributes: true, attributeFilter: ["class"] });
-    if (painelAberto()) carregar();
+    if (painelAberto()) agendar();
   }
 
   if (typeof document !== "undefined") {
