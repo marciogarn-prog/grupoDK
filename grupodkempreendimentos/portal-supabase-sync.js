@@ -1781,6 +1781,7 @@
       }
     }
     if (
+      window.__DK_LOCACAO_PG !== true &&
       !isClienteAppPage() &&
       window.__DK_IS_DEMO_DEPLOY__ !== true &&
       Array.isArray(payload?.dk_locacoes_cadastro) &&
@@ -2833,6 +2834,7 @@
   }
 
   function marcarLocacoesConfirmadasNaNuvem(arr) {
+    if (window.__DK_LOCACAO_PG === true) return;
     const set = new Set();
     (Array.isArray(arr) ? arr : []).forEach((loc) => {
       const nc = String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
@@ -2847,6 +2849,7 @@
   }
 
   function recusarLocacoesSemNuvem() {
+    if (window.__DK_LOCACAO_PG === true) return;
     window.__DK_locacoesNuvemOk = false;
     window.__DK_locacoesNuvemProtocolos = new Set();
     if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
@@ -2863,6 +2866,7 @@
 
   /** Copia as locações da nuvem oficial para este PC e avisa a pesquisa. */
   function reporLocacoesOficiaisAgora() {
+    if (window.__DK_LOCACAO_PG === true) return Promise.resolve({ ok: true, fonte: "dk_locacao" });
     if (reporLocacoesOficiaisFlight) return reporLocacoesOficiaisFlight;
     reporLocacoesOficiaisFlight = (async () => {
       const gate = await awaitAutoCloudPushConfirmed();

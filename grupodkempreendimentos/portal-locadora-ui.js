@@ -26965,7 +26965,7 @@
     const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
       const nc = normPortalNumeroContrato(l.numeroContrato);
       if (!nc) return false;
-      if (window.__DK_IS_DEMO_DEPLOY__ === true) return true;
+      if (window.__DK_IS_DEMO_DEPLOY__ === true || window.__DK_LOCACAO_PG === true) return true;
       const digNc = String(nc).replace(/\D/g, "");
       return confirmados instanceof Set && confirmados.has(digNc);
     });
@@ -27054,10 +27054,34 @@
   }
 
   function confirmarOperacaoLancAluguelPesquisa() {
-    if (window.__DK_reporLocacoesOficiaisFlight) {
+    const apiSelecao = window.__DK_pesquisaLocacaoEstado;
+    const pedidoSelecao =
+      apiSelecao && typeof apiSelecao.pedir === "function"
+        ? apiSelecao.pedir(
+            window.__DK_selecaoLocacaoTicket,
+            document.getElementById("operacaoLancAluguelProtocoloBusca")?.value || ""
+          )
+        : null;
+    if (pedidoSelecao) window.__DK_selecaoLocacaoTicket = pedidoSelecao;
+    const seqSelecao = pedidoSelecao ? pedidoSelecao.seq : 0;
+    const selecaoAindaAtual = () =>
+      !apiSelecao ||
+      (window.__DK_selecaoLocacaoTicket && window.__DK_selecaoLocacaoTicket.seq === seqSelecao);
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_LOCACAO_PG !== true) {
+      const esperaPg = document.getElementById("operacaoLancAluguelInlineMsg");
+      if (esperaPg) esperaPg.textContent = "A receber as locações da nuvem oficial...";
+      const recarregarPg = window.__DK_locacaoPgRecarregar;
+      void Promise.resolve(typeof recarregarPg === "function" ? recarregarPg() : null).then(() => {
+        if (!selecaoAindaAtual() || window.__DK_LOCACAO_PG !== true) return;
+        confirmarOperacaoLancAluguelPesquisa();
+      });
+      return;
+    }
+    if (window.__DK_LOCACAO_PG !== true && window.__DK_reporLocacoesOficiaisFlight) {
       const espera = document.getElementById("operacaoLancAluguelInlineMsg");
       if (espera) espera.textContent = "A receber as locações da nuvem oficial...";
       void Promise.resolve(window.__DK_reporLocacoesOficiaisFlight).then(() => {
+        if (!selecaoAindaAtual()) return;
         if (espera && String(espera.textContent || "").startsWith("A receber as locações")) {
           espera.textContent = "";
         }

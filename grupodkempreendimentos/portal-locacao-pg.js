@@ -53,9 +53,27 @@
     return `${JSON.stringify(resto)}#${pays}#${rems}`;
   }
 
+  function publicarPesquisa(lista) {
+    const api = window.__DK_pesquisaLocacaoEstado;
+    if (api && typeof api.publicarProtocolosOficiais === "function") {
+      api.publicarProtocolosOficiais(lista);
+      return;
+    }
+    const set = new Set();
+    (Array.isArray(lista) ? lista : []).forEach((loc) => {
+      const nc = String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
+      if (nc) set.add(nc);
+    });
+    if (!set.size) return;
+    window.__DK_locacoesNuvemOk = true;
+    window.__DK_locacoesNuvemProtocolos = set;
+    window.__DK_locacoesPesquisaFonte = "dk_locacao";
+  }
+
   function aplicarCache(locacoes) {
     window.__DK_locacoesPgCache = Array.isArray(locacoes) ? locacoes : [];
     window.__DK_LOCACAO_PG = true;
+    publicarPesquisa(window.__DK_locacoesPgCache);
     try {
       localStorage.removeItem(CHAVE);
     } catch {
