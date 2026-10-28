@@ -1,77 +1,22 @@
 /**
- * Sincronização do cadastro de locações do portal (incl. lançamentos embutidos no registro).
- * API no root do projeto para Vercel.
- * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
+ * Rota antiga de locações. Desativada.
+ * A operação lê e grava somente /api/dk-locacao (public.dk_locacao).
+ * Esta rota não consulta e não grava snapshot nem Redis.
  */
-const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
-const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess } = require("../lib/dk-portal-auth.cjs");
-
-const STORAGE_KEY = "dk:portal:locacoes_cadastro:v1";
-
-function parseRedisArray(raw) {
-  if (raw == null) return [];
-  if (typeof raw === "string") {
-    try {
-      const p = JSON.parse(raw);
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return [];
-    }
-  }
-  if (Array.isArray(raw)) return raw;
-  return [];
-}
+const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
 
 module.exports = async function handler(req, res) {
   applyApiCors(res);
-
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (await enforceRateLimit(req, res, "cadastro-locacoes", 30)) return;
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
-  if (!gate.ok) {
-    return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ ok: false, reason: "method" });
   }
-
-  if (!isRedisKvConfigured()) {
-    return res.status(503).json({ ok: false, reason: "kv_not_configured" });
-  }
-
-  const redis = createRedisClient();
-
-  try {
-    if (req.method === "GET") {
-      const raw = await redis.get(STORAGE_KEY);
-      const data = parseRedisArray(raw);
-      return res.status(200).json({ ok: true, data });
-    }
-
-    if (req.method === "POST") {
-      const writeGate = await requireModuleAccess(req, "locacao");
-      if (!writeGate.ok) {
-        return res.status(writeGate.status).json({ ok: false, reason: writeGate.reason, modulo: writeGate.modulo });
-      }
-      let body = req.body;
-      if (typeof body === "string") {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
-      const incoming = Array.isArray(body?.data) ? body.data : [];
-      const existingRaw = await redis.get(STORAGE_KEY);
-      const existing = parseRedisArray(existingRaw);
-      const merged = mergeLocacoesCadastro(existing, incoming);
-      await redis.set(STORAGE_KEY, JSON.stringify(merged));
-      return res.status(200).json({ ok: true, count: merged.length });
-    }
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
-  }
-
-  return res.status(405).json({ ok: false, reason: "method" });
+  return res.status(410).json({
+    ok: false,
+    reason: "legacy_route_disabled",
+    message: "A rota antiga de locações está desativada. A fonte oficial é /api/dk-locacao.",
+  });
 };

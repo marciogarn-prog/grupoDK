@@ -1,7 +1,8 @@
 /**
  * Terminal de locações e pagamentos.
  * A tela só adota o PostgreSQL quando a API devolve ativado=true.
- * Sem essa marca, o cadastro continua no snapshot.
+ * Com o módulo ativo, localStorage dk_locacoes_cadastro é cache de apresentação:
+ * não vence o Postgres, não volta ao servidor e não substitui uma falha de leitura.
  */
 (function portalLocacaoPg() {
   if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
@@ -85,8 +86,14 @@
     const data = await res.json().catch(() => ({}));
     if (res.status === 401 || res.status === 403) return data;
     if (!data || data.schema === false) return data;
-    if (data.migracao === "supabase_indisponivel" || data.migracao === "falhou") return data;
+    if (data.ativado === true && data.ok !== true) {
+      window.__DK_LOCACAO_PG = true;
+      window.__DK_LOCACAO_PG_ERRO = data.reason || "leitura";
+      if (!Array.isArray(window.__DK_locacoesPgCache)) window.__DK_locacoesPgCache = [];
+      return data;
+    }
     if (data.ok && data.ativado === true && (data.migracao === "pronta" || data.migracao === "semeada" || data.migracao === "vazio")) {
+      window.__DK_LOCACAO_PG_ERRO = "";
       aplicarCache(data.locacoes || []);
       refrescarTela();
     }
@@ -166,14 +173,15 @@
     ganchos = true;
     const ler = loadCadastro;
     loadCadastro = function dkLoadCadastroPg(key) {
-      if (key === CHAVE && window.__DK_LOCACAO_PG === true && Array.isArray(window.__DK_locacoesPgCache)) {
-        return window.__DK_locacoesPgCache.slice();
+      if (key === CHAVE && window.__DK_LOCACAO_PG === true) {
+        return Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache.slice() : [];
       }
       return ler.apply(this, arguments);
     };
     const gravar = saveCadastro;
     saveCadastro = function dkSaveCadastroPg(key, list) {
       if (key === CHAVE && window.__DK_LOCACAO_PG === true) {
+        if (window.__DK_LOCACAO_PG_ERRO) return;
         salvarLista(list);
         return;
       }

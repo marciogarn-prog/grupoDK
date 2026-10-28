@@ -107,7 +107,7 @@ assert.strictEqual(criado.linhas_afetadas, 1);
 assert.strictEqual(criado.locacao.pgId, "uuid-novo");
 
 const tela = fs.readFileSync(path.join(dir, "../portal-locacao-pg.js"), "utf8");
-assert.ok(tela.includes("return window.__DK_locacoesPgCache.slice()"));
+assert.ok(tela.includes("window.__DK_locacoesPgCache.slice()"));
 const posts = [];
 const sandbox = {
   console,

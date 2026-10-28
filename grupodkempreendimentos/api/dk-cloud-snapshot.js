@@ -62,6 +62,17 @@ const {
   acquireLocacoesWriteLock,
   releaseLocacoesWriteLock,
 } = require("../lib/dk-locacoes-integrity.cjs");
+const { obterFonteLocacoes, FONTE_LOCACAO } = require("../lib/dk-locacao-pg.cjs");
+
+function reterLocacoesForaDoSnapshot(fonte, existingPayload, payload) {
+  if (fonte !== FONTE_LOCACAO || !payload || typeof payload !== "object") return payload;
+  if (existingPayload && Array.isArray(existingPayload.dk_locacoes_cadastro)) {
+    payload.dk_locacoes_cadastro = existingPayload.dk_locacoes_cadastro;
+  } else {
+    delete payload.dk_locacoes_cadastro;
+  }
+  return payload;
+}
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -1693,6 +1704,13 @@ async function handler(req, res) {
         if (gate.typ === "cliente") {
           return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
         }
+        if ((await obterFonteLocacoes()) === FONTE_LOCACAO) {
+          return res.status(409).json({
+            ok: false,
+            reason: "locacao_pg",
+            message: "Locação não é gravada no snapshot. A fonte oficial é /api/dk-locacao.",
+          });
+        }
         const locacao = body.locacao;
         const nc = String(locacao.numeroContrato || locacao.protocolo || "").replace(/\D/g, "");
         if (!nc) {
@@ -1967,6 +1985,7 @@ async function handler(req, res) {
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
+      payload = reterLocacoesForaDoSnapshot(await obterFonteLocacoes(), existingPayload, payload);
       const activePlateConflicts = findActivePlateConflicts(payload.dk_locacoes_cadastro);
       if (activePlateConflicts.length) {
         const conflict = activePlateConflicts[0];
@@ -2189,3 +2208,4 @@ module.exports.corpoDaConsulta = corpoDaConsulta;
 module.exports.lerBaseOficialParaPost = lerBaseOficialParaPost;
 module.exports.payloadSnapshotIgual = payloadSnapshotIgual;
 module.exports.enfileirarGravacaoSnapshot = enfileirarGravacaoSnapshot;
+module.exports.reterLocacoesForaDoSnapshot = reterLocacoesForaDoSnapshot;

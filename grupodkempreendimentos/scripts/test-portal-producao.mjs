@@ -914,10 +914,10 @@ async function runSuite() {
         }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
         record(
           "oficial: locações usam uma única fonte canônica",
-          locCanonicalApi.status === 200 &&
-            locCanonicalApi.j?.canonical === "dk-cloud-snapshot/default" &&
-            Array.isArray(locCanonicalApi.j?.data),
-          `status=${locCanonicalApi.status} fonte=${locCanonicalApi.j?.canonical || "?"}`
+          locCanonicalApi.status === 410 &&
+            locCanonicalApi.j?.reason === "legacy_route_disabled" &&
+            locCanonicalApi.j?.canonical !== "dk-cloud-snapshot/default",
+          `status=${locCanonicalApi.status} motivo=${locCanonicalApi.j?.reason || "?"}`
         );
         const locIntegrityApi = await fetch(`${BASE_URL}api/dk-locacoes-integridade?nocache=${Date.now()}`, {
           cache: "no-store",

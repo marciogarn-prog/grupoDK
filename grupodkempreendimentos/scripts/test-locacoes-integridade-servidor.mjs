@@ -254,8 +254,8 @@ assert.equal(semelhante[0].portalLancamentosAluguel.length, 1);
 assert.equal(semelhante[0].portalLancamentosAluguel[0].protocoloLancamento, "20261021095100-002");
 
 const checks = [
-  ["API antiga lê a fonte canônica", locacoesApi.includes("CANONICAL_SNAPSHOT_KEY") && locacoesApi.includes('canonical: "dk-cloud-snapshot/default"')],
-  ["API antiga recusa escrita paralela", locacoesApi.includes('reason: "canonical_snapshot_only"') && !locacoesApi.includes("mergeLocacoesCadastro(existing")],
+  ["API antiga não lê o snapshot", locacoesApi.includes('reason: "legacy_route_disabled"') && !locacoesApi.includes("CANONICAL_SNAPSHOT_KEY")],
+  ["API antiga não grava locação", locacoesApi.includes('reason: "legacy_route_disabled"') && !locacoesApi.includes("mergeLocacoesCadastro")],
   ["portal não lê nem escreve mais cadastro-locacoes", !portalUi.includes('dkPortalPushToApi("cadastro-locacoes"') && !portalUi.includes('dkPortalPullOne("cadastro-locacoes"')],
   ["wrapper preserva allowShrink da fonte canônica", portalUi.includes("function dkPortalSaveCadastroWrapped(key, list, opts)") && portalUi.includes("origSave(key, list, opts)")],
   ["snapshot usa lock distribuído", snapshotApi.includes("acquireLocacoesWriteLock(redis)") && snapshotApi.includes("releaseLocacoesWriteLock(redis, locacoesLockToken)")],
