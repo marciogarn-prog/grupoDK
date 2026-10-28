@@ -991,8 +991,11 @@ async function runSuite() {
           headers: dkCeoApiHeaders(tokCeo),
         }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
         record(
-          "oficial: contrato sem pagamento responde lista vazia",
-          pagVazio.status === 200 && pagVazio.j?.quantidade === 0 && pagVazio.j?.ok === true,
+          "oficial: contrato de teste tem o pagamento fracionado",
+          pagVazio.status === 200 &&
+            pagVazio.j?.quantidade === 1 &&
+            pagVazio.j?.ok === true &&
+            pagVazio.j?.source === "dk_pagamento_locacao",
           `status=${pagVazio.status} n=${pagVazio.j?.quantidade}`
         );
         const pagEscrita = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
@@ -1040,7 +1043,7 @@ async function runSuite() {
         record("oficial: leitura de pagamento exige um contrato", false, "sem token");
         record("oficial: leitura de pagamento não grava", false, "sem token");
         record("oficial: leitura fracionada do contrato histórico", false, "sem token");
-        record("oficial: contrato sem pagamento responde lista vazia", false, "sem token");
+        record("oficial: contrato de teste tem o pagamento fracionado", false, "sem token");
         record("oficial: criação real de pagamento continua fechada", false, "sem token");
         record("oficial: probe recusa payload de pagamento", false, "sem token");
         record("oficial: probe de upload não altera pagamentos", false, "sem token");
