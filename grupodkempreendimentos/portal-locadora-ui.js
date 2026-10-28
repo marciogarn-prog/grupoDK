@@ -26965,7 +26965,7 @@
     const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
       const nc = normPortalNumeroContrato(l.numeroContrato);
       if (!nc) return false;
-      if (window.__DK_IS_DEMO_DEPLOY__ === true || window.__DK_LOCACAO_PG === true) return true;
+      if (window.__DK_IS_DEMO_DEPLOY__ === true || (window.__DK_LOCACAO_PG === true && !window.__DK_LOCACAO_PG_ERRO && Array.isArray(window.__DK_locacoesPgCache) && window.__DK_locacoesPgCache.length > 0)) return true;
       const digNc = String(nc).replace(/\D/g, "");
       return confirmados instanceof Set && confirmados.has(digNc);
     });
@@ -27067,12 +27067,26 @@
     const selecaoAindaAtual = () =>
       !apiSelecao ||
       (window.__DK_selecaoLocacaoTicket && window.__DK_selecaoLocacaoTicket.seq === seqSelecao);
-    if (window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_LOCACAO_PG !== true) {
+    const pgListaPronta =
+      window.__DK_LOCACAO_PG === true &&
+      !window.__DK_LOCACAO_PG_ERRO &&
+      Array.isArray(window.__DK_locacoesPgCache) &&
+      window.__DK_locacoesPgCache.length > 0;
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true && !pgListaPronta) {
       const esperaPg = document.getElementById("operacaoLancAluguelInlineMsg");
+      if (window.__DK_LOCACAO_PG_ERRO) {
+        hideOperacaoLancAluguelDetalhePanels();
+        clearOperacaoLancAluguelPesquisaConfirmada();
+        if (esperaPg) {
+          esperaPg.textContent =
+            "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador. Nada deste PC entra na lista sem confirmação da nuvem.";
+        }
+        return;
+      }
       if (esperaPg) esperaPg.textContent = "A receber as locações da nuvem oficial...";
       const recarregarPg = window.__DK_locacaoPgRecarregar;
       void Promise.resolve(typeof recarregarPg === "function" ? recarregarPg() : null).then(() => {
-        if (!selecaoAindaAtual() || window.__DK_LOCACAO_PG !== true) return;
+        if (!selecaoAindaAtual() || window.__DK_LOCACAO_PG_ERRO || window.__DK_LOCACAO_PG !== true) return;
         confirmarOperacaoLancAluguelPesquisa();
       });
       return;
