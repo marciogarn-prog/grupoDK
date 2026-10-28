@@ -166,6 +166,34 @@ async function main() {
   assert.strictEqual(falhaProbe.mutated, false);
   assert.ok(!falhaProbe.pagamentos);
 
+  let patch = false;
+  const conflito = await store.atualizarE2eReal(1, {
+    fetch: async (url, init) => {
+      if (init && init.method === "PATCH") patch = true;
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify([
+            {
+              id: "e14c3cc2-ed23-409c-8e60-2cdfb65c6de9",
+              numero_contrato: "2026102701",
+              protocolo_lancamento: "20261028020219-030",
+              migration_key: "online:e14c3cc2-ed23-409c-8e60-2cdfb65c6de9",
+              valor: 1.02,
+              version: 2,
+              removido: false,
+              source_position: 1,
+              payload: { valor: 1.02 },
+            },
+          ]),
+      };
+    },
+  });
+  assert.strictEqual(conflito.status, 409);
+  assert.strictEqual(conflito.reason, "version_conflict");
+  assert.strictEqual(patch, false);
+
   console.log("leitura fracionada local ok");
 }
 
