@@ -220,109 +220,6 @@ function gravarUma() {
   return { ok: false, status: 405, reason: "write_not_active", mutated: false, inserted: 0, updated: 0, fallback: false };
 }
 
-const E2E_PAGAMENTO_ID = "e14c3cc2-ed23-409c-8e60-2cdfb65c6de9";
-const E2E_CONTRATO_UPDATE = "2026102701";
-const E2E_PROTOCOLO_UPDATE = "20261028020219-030";
-const E2E_CHAVE_UPDATE = "online:e14c3cc2-ed23-409c-8e60-2cdfb65c6de9";
-
-function centavos(valor) {
-  const n = Number(valor);
-  return Number.isFinite(n) ? Math.round(n * 100) : null;
-}
-
-async function atualizarE2eReal(expectedVersion, opts) {
-  const esperada = Number(expectedVersion);
-  if (!Number.isInteger(esperada)) {
-    return { ok: false, status: 400, reason: "version_obrigatoria", mutated: false, updated: 0, fallback: false };
-  }
-  const lido = await rest(
-    "dk_pagamento_locacao?select=id,numero_contrato,protocolo_lancamento,migration_key,valor,version,removido,source_position,payload,created_at,updated_at&id=eq." +
-      E2E_PAGAMENTO_ID +
-      "&limit=1",
-    opts
-  );
-  if (!lido.ok) {
-    return { ok: false, status: lido.status || 503, reason: (lido.data && lido.data.reason) || "postgres_indisponivel", mutated: false, updated: 0, fallback: false };
-  }
-  const row = Array.isArray(lido.data) ? lido.data[0] : null;
-  if (
-    !row ||
-    row.numero_contrato !== E2E_CONTRATO_UPDATE ||
-    row.protocolo_lancamento !== E2E_PROTOCOLO_UPDATE ||
-    row.migration_key !== E2E_CHAVE_UPDATE ||
-    row.removido !== false ||
-    Number(row.source_position) !== 1
-  ) {
-    return { ok: false, status: 409, reason: "pagamento_divergente", mutated: false, updated: 0, fallback: false };
-  }
-  if (Number(row.version) !== esperada) {
-    return {
-      ok: false,
-      status: 409,
-      reason: "version_conflict",
-      mutated: false,
-      updated: 0,
-      fallback: false,
-      version: Number(row.version),
-      valor: Number(row.valor),
-    };
-  }
-  if (esperada !== 1 || centavos(row.valor) !== 101) {
-    return { ok: false, status: 409, reason: "version_conflict", mutated: false, updated: 0, fallback: false, version: Number(row.version) };
-  }
-  const payload = { ...(row.payload || {}), valor: 1.02 };
-  const source_payload_hash = crypto.createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
-  const gravado = await rest(
-    "dk_pagamento_locacao?id=eq." +
-      E2E_PAGAMENTO_ID +
-      "&version=eq.1&numero_contrato=eq." +
-      E2E_CONTRATO_UPDATE +
-      "&protocolo_lancamento=eq." +
-      E2E_PROTOCOLO_UPDATE,
-    {
-      ...opts,
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify({
-        valor: 1.02,
-        payload,
-        source_payload_hash,
-        version: 2,
-        updated_at: new Date().toISOString(),
-      }),
-    }
-  );
-  const linha = gravado.ok && Array.isArray(gravado.data) ? gravado.data[0] : null;
-  if (!linha) {
-    return {
-      ok: false,
-      status: gravado.ok ? 409 : gravado.status || 503,
-      reason: gravado.ok ? "version_conflict" : (gravado.data && gravado.data.reason) || "postgres_indisponivel",
-      mutated: false,
-      updated: 0,
-      fallback: false,
-    };
-  }
-  return {
-    ok: true,
-    status: 200,
-    mutated: true,
-    updated: 1,
-    inserted: 0,
-    fallback: false,
-    source: FONTE,
-    id: linha.id,
-    protocolo: linha.protocolo_lancamento,
-    numeroContrato: linha.numero_contrato,
-    valor: Number(linha.valor),
-    version: linha.version,
-    sourcePosition: linha.source_position,
-    migrationKey: linha.migration_key,
-    createdAt: linha.created_at,
-    updatedAt: linha.updated_at,
-  };
-}
-
 function caminhoProbe() {
   const select = CAMPOS_LINHA.join(",");
   return (
@@ -424,7 +321,6 @@ module.exports = {
   decidirVersao,
   construirLinhaPagamento,
   gravarUma,
-  atualizarE2eReal,
   listarPorContrato,
   listarRemovidosPorContrato,
   probeEscrita,
