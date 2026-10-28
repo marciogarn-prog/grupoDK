@@ -27126,6 +27126,53 @@
       if (msg) msg.textContent = "Informe nome, CPF, protocolo ou placa válidos com locação cadastrada.";
       return;
     }
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true && window.__DK_LOCACAO_PG === true) {
+      hideOperacaoLancAluguelDetalhePanels();
+      clearOperacaoLancAluguelPesquisaConfirmada();
+      if (msg) msg.textContent = "A receber o contrato da nuvem oficial...";
+      if (window.__DK_locacaoDetalheAbort && typeof window.__DK_locacaoDetalheAbort.abort === "function") {
+        window.__DK_locacaoDetalheAbort.abort();
+      }
+      const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+      window.__DK_locacaoDetalheAbort = ctrl;
+      const pedir = window.__DK_locacaoPgDetalhe;
+      void Promise.resolve(typeof pedir === "function" ? pedir(hit.proto, ctrl && ctrl.signal) : null).then((det) => {
+        if (!selecaoAindaAtual()) return;
+        if (!det || det.ok !== true || !det.locacao || det.locacao.__dkResumo === true) {
+          hideOperacaoLancAluguelDetalhePanels();
+          clearOperacaoLancAluguelPesquisaConfirmada();
+          window.__DK_locacaoDetalheAtual = null;
+          if (msg) {
+            msg.textContent =
+              "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador. Nada deste PC entra na lista sem confirmação da nuvem.";
+          }
+          return;
+        }
+        const nc = normPortalNumeroContrato(det.locacao.numeroContrato);
+        if (nc !== hit.proto) return;
+        if (msg) msg.textContent = "";
+        aplicarOperacaoLancAluguelPesquisaLinha(
+          hit.cpfDigits,
+          resolveOperacaoLancAluguelNomePorCpf(hit.cpfDigits) || String(det.locacao.nome || det.locacao.cliente || "").trim(),
+          hit.proto,
+          det.locacao.placa
+        );
+        operacaoLancAluguelPesquisaConfirmada = { cpf: hit.cpfDigits, nc: hit.proto };
+        refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true, preserveNc: hit.proto });
+        setOperacaoLancAluguelDetalhePanelsVisible(true);
+        refreshOperacaoLancAluguelAdminControlsVisibility();
+      }).catch(() => {
+        if (!selecaoAindaAtual()) return;
+        hideOperacaoLancAluguelDetalhePanels();
+        clearOperacaoLancAluguelPesquisaConfirmada();
+        window.__DK_locacaoDetalheAtual = null;
+        if (msg) {
+          msg.textContent =
+            "A nuvem oficial não respondeu. A lista pode estar desatualizada neste computador. Nada deste PC entra na lista sem confirmação da nuvem.";
+        }
+      });
+      return;
+    }
     aplicarOperacaoLancAluguelPesquisaLinha(
       hit.cpfDigits,
       resolveOperacaoLancAluguelNomePorCpf(hit.cpfDigits) || String(hit.loc?.nome || hit.loc?.cliente || "").trim(),

@@ -1,8 +1,9 @@
 /**
  * Terminal de locações e pagamentos.
- * A tela só adota o PostgreSQL quando a API devolve ativado=true.
- * Com o módulo ativo, localStorage dk_locacoes_cadastro é cache de apresentação:
- * não vence o Postgres, não volta ao servidor e não substitui uma falha de leitura.
+ * A pesquisa guarda só o resumo da lista leve.
+ * A locação aberta é o detalhe de um contrato.
+ * Um resumo nunca volta ao servidor como se fosse a locação inteira.
+ * localStorage dk_locacoes_cadastro não vence o Postgres e não substitui uma falha de leitura.
  */
 (function portalLocacaoPg() {
   if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
@@ -67,7 +68,34 @@
     if (!set.size) return;
     window.__DK_locacoesNuvemOk = true;
     window.__DK_locacoesNuvemProtocolos = set;
-    window.__DK_locacoesPesquisaFonte = "dk_locacao";
+    window.__DK_locacoesPesquisaFonte = "dk_locacao_lista_leve";
+  }
+
+  function marcarResumo(lista) {
+    return (Array.isArray(lista) ? lista : []).map((loc) =>
+      loc && typeof loc === "object" ? { ...loc, __dkResumo: true } : loc
+    );
+  }
+
+  function ehResumo(loc) {
+    return !loc || loc.__dkResumo === true;
+  }
+
+  function semMarcador(loc) {
+    if (!loc || typeof loc !== "object") return loc;
+    const limpo = { ...loc };
+    delete limpo.__dkResumo;
+    return limpo;
+  }
+
+  function guardarDetalheAberto(loc) {
+    if (!loc || ehResumo(loc)) return;
+    window.__DK_locacaoDetalheAtual = loc;
+    const nc = digitos(loc.numeroContrato);
+    if (!nc || !Array.isArray(window.__DK_locacoesPgCache)) return;
+    window.__DK_locacoesPgCache = window.__DK_locacoesPgCache.map((item) =>
+      digitos(item && item.numeroContrato) === nc ? loc : item
+    );
   }
 
   function aplicarCache(locacoes) {
@@ -96,7 +124,7 @@
   }
 
   async function carregar() {
-    const res = await fetch("/api/dk-locacao?op=list&nocache=" + Date.now(), {
+    const res = await fetch("/api/dk-locacao-lista-leve?nocache=" + Date.now(), {
       method: "GET",
       cache: "no-store",
       headers: headers(),
@@ -107,18 +135,45 @@
     if (data.ativado === true && data.ok !== true) {
       window.__DK_LOCACAO_PG = true;
       window.__DK_LOCACAO_PG_ERRO = data.reason || "leitura";
-      if (!Array.isArray(window.__DK_locacoesPgCache)) window.__DK_locacoesPgCache = [];
+      window.__DK_locacoesPgCache = [];
+      window.__DK_locacaoDetalheAtual = null;
       return data;
     }
-    if (data.ok && data.ativado === true && (data.migracao === "pronta" || data.migracao === "semeada" || data.migracao === "vazio")) {
+    if (data.ok && data.ativado === true && Array.isArray(data.locacoes)) {
       window.__DK_LOCACAO_PG_ERRO = "";
-      aplicarCache(data.locacoes || []);
+      const resumos = marcarResumo(data.locacoes);
+      const aberta = window.__DK_locacaoDetalheAtual;
+      if (aberta && !ehResumo(aberta)) {
+        const nc = digitos(aberta.numeroContrato);
+        const i = resumos.findIndex((loc) => digitos(loc && loc.numeroContrato) === nc);
+        if (i >= 0) resumos[i] = aberta;
+      }
+      aplicarCache(resumos);
       refrescarTela();
     }
     return data;
   }
 
+  async function detalhe(numero, signal) {
+    const nc = digitos(numero);
+    if (!nc) return { ok: false, reason: "contrato_obrigatorio" };
+    const res = await fetch("/api/dk-locacao-detalhe?numeroContrato=" + encodeURIComponent(nc) + "&nocache=" + Date.now(), {
+      method: "GET",
+      cache: "no-store",
+      headers: headers(),
+      signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!(res.status >= 200 && res.status < 300) || !data || data.ok !== true || !data.locacao) {
+      return { ok: false, status: res.status, reason: (data && data.reason) || "leitura" };
+    }
+    const loc = semMarcador(data.locacao);
+    guardarDetalheAberto(loc);
+    return { ok: true, locacao: loc };
+  }
+
   async function enviarUma(loc) {
+    if (ehResumo(loc)) return { status: 400, data: { ok: false, reason: "resumo_nao_e_locacao" } };
     const res = await fetch("/api/dk-locacao?nocache=" + Date.now(), {
       method: "POST",
       cache: "no-store",
@@ -127,7 +182,7 @@
         op: loc.pgId ? "atualizar" : "criar",
         numero: digitos(loc.numeroContrato),
         version: Number(loc.pgVersion) || 0,
-        locacao: loc,
+        locacao: semMarcador(loc),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -152,6 +207,7 @@
         pgVersion: Number(loc.pgVersion || (velha && velha.pgVersion) || 0),
       };
       vista.push(atual);
+      if (ehResumo(atual)) continue;
       if (!velha || assinatura(velha) !== assinatura(atual)) tarefas.push(atual);
     }
     if (vista.length) window.__DK_locacoesPgCache = vista;
@@ -171,12 +227,7 @@
             avisoConflito = false;
             return;
           }
-          if (r.data && r.data.locacao) {
-            const nc = digitos(r.data.locacao.numeroContrato);
-            window.__DK_locacoesPgCache = (window.__DK_locacoesPgCache || []).map((item) =>
-              digitos(item.numeroContrato) === nc ? r.data.locacao : item
-            );
-          }
+          if (r.data && r.data.locacao) guardarDetalheAberto(semMarcador(r.data.locacao));
         }
         refrescarTela();
       })
@@ -237,6 +288,7 @@
   }
 
   window.__DK_locacaoPgRecarregar = carregar;
+  window.__DK_locacaoPgDetalhe = detalhe;
   window.setInterval(() => {
     if (window.__DK_LOCACAO_PG === true) void vigiar();
     else tentar();
