@@ -22,7 +22,9 @@ const fin = html.indexOf('id="btn-locadora-financeiro"');
 assert.ok(doc >= 0 && log > doc && fin > log);
 assert.ok(html.includes(">Log</button>"));
 assert.ok(html.includes('id="panel-log-locadora"'));
-assert.ok(html.includes("Infraestrutura de eventos em preparação"));
+assert.ok(html.includes("Log DK — eventos duráveis registrados no servidor"));
+assert.ok(!html.includes("nesta etapa não é consultada"));
+assert.ok(html.includes("portal-log-ui.js?v=20261028logevt"));
 assert.ok(html.includes('id="btn-voltar-log-locadora"'));
 assert.ok(!html.includes("dk_events_fake"));
 
@@ -50,7 +52,7 @@ assert.strictEqual(acesso.decidirAcessoLog({ ok: true, typ: "cliente", role: "ow
 assert.strictEqual(acesso.decidirAcessoLog({ ok: true, typ: "equipa", role: "owner", service: true }).status, 403);
 assert.strictEqual(acesso.decidirAcessoLog({ ok: false, status: 401, reason: "unauthorized" }).status, 401);
 const estado = acesso.estadoLog();
-assert.strictEqual(estado.estado, "Infraestrutura de eventos em preparação");
+assert.strictEqual(estado.estado, "Log DK — eventos duráveis registrados no servidor");
 assert.strictEqual(estado.fonte, "dk_events");
 assert.deepStrictEqual(estado.events, []);
 assert.deepStrictEqual(estado.eventos, []);
