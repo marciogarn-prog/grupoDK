@@ -995,6 +995,43 @@ async function runSuite() {
           pagVazio.status === 200 && pagVazio.j?.quantidade === 0 && pagVazio.j?.ok === true,
           `status=${pagVazio.status} n=${pagVazio.j?.quantidade}`
         );
+        const pagEscrita = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { ...dkCeoApiHeaders(tokCeo), "Content-Type": "application/json" },
+          body: JSON.stringify({ valor: 1, protocoloLancamento: "20261028010101-001" }),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: criação real de pagamento continua fechada",
+          pagEscrita.status === 405 && pagEscrita.j?.reason === "write_not_active",
+          `status=${pagEscrita.status}`
+        );
+        const pagArbitrario = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { ...dkCeoApiHeaders(tokCeo), "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "write_probe", valor: 1 }),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: probe recusa payload de pagamento",
+          pagArbitrario.status === 400 && pagArbitrario.j?.mutated === false,
+          `status=${pagArbitrario.status}`
+        );
+        const pagProbe = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { ...dkCeoApiHeaders(tokCeo), "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "write_probe" }),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: probe de upload não altera pagamentos",
+          pagProbe.status === 200 &&
+            pagProbe.j?.probe === true &&
+            pagProbe.j?.mutated === false &&
+            pagProbe.j?.inserted === 0 &&
+            pagProbe.j?.updated === 0,
+          `status=${pagProbe.status} inserted=${pagProbe.j?.inserted}`
+        );
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
         record("oficial: locações usam uma única fonte canônica", false, "sem token");
@@ -1004,6 +1041,9 @@ async function runSuite() {
         record("oficial: leitura de pagamento não grava", false, "sem token");
         record("oficial: leitura fracionada do contrato histórico", false, "sem token");
         record("oficial: contrato sem pagamento responde lista vazia", false, "sem token");
+        record("oficial: criação real de pagamento continua fechada", false, "sem token");
+        record("oficial: probe recusa payload de pagamento", false, "sem token");
+        record("oficial: probe de upload não altera pagamentos", false, "sem token");
       }
       const snapAuthH = tokCeo
         ? dkCeoApiHeaders(tokCeo)

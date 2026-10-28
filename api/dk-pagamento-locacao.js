@@ -12,10 +12,23 @@ const {
 const { decidirAcessoLocacao } = require("../lib/dk-locacao-pg.cjs");
 const store = require("../lib/dk-pagamento-locacao-store.cjs");
 
+function corpoJson(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string" && req.body.trim()) {
+    try {
+      const parsed = JSON.parse(req.body);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 module.exports = async function handler(req, res) {
   applyApiCors(res);
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ ok: false, reason: "method", fallback: false });
   }
   const gate = requirePortalAuth(req, { allowCliente: false, allowEquipa: true });
@@ -40,9 +53,29 @@ module.exports = async function handler(req, res) {
   }
 
   const q = req.query || {};
-  const numero = String(q.numeroContrato || q.numero || "").trim();
-  const removidos = String(q.scope || "").trim() === "removidos";
   try {
+    if (req.method === "POST") {
+      const body = corpoJson(req);
+      if (body.mode !== "write_probe") {
+        return res.status(405).json({ ok: false, reason: "write_not_active", fallback: false, mutated: false });
+      }
+      const chaves = Object.keys(body);
+      if (chaves.length !== 1) {
+        return res.status(400).json({
+          ok: false,
+          reason: "payload_rejeitado",
+          probe: true,
+          mutated: false,
+          inserted: 0,
+          updated: 0,
+          fallback: false,
+        });
+      }
+      const out = await store.probeEscrita();
+      return res.status(out.status || (out.ok ? 200 : 503)).json(out);
+    }
+    const numero = String(q.numeroContrato || q.numero || "").trim();
+    const removidos = String(q.scope || "").trim() === "removidos";
     const out = removidos
       ? await store.listarRemovidosPorContrato(numero)
       : await store.listarPorContrato(numero);
