@@ -125,6 +125,8 @@
   }
 
   async function carregar() {
+    if (typeof window.__DK_bgInterativaEntrar === "function") window.__DK_bgInterativaEntrar();
+    try {
     const res = await fetch("/api/dk-locacao-lista-leve?nocache=" + Date.now(), {
       method: "GET",
       cache: "no-store",
@@ -153,9 +155,14 @@
       refrescarTela();
     }
     return data;
+    } finally {
+      if (typeof window.__DK_bgInterativaSair === "function") window.__DK_bgInterativaSair();
+    }
   }
 
   async function detalhe(numero, signal) {
+    if (typeof window.__DK_bgInterativaEntrar === "function") window.__DK_bgInterativaEntrar();
+    try {
     const nc = digitos(numero);
     if (!nc) return { ok: false, reason: "contrato_obrigatorio" };
     const res = await fetch("/api/dk-locacao-detalhe?numeroContrato=" + encodeURIComponent(nc) + "&nocache=" + Date.now(), {
@@ -171,6 +178,9 @@
     const loc = semMarcador(data.locacao);
     guardarDetalheAberto(loc);
     return { ok: true, locacao: loc };
+    } finally {
+      if (typeof window.__DK_bgInterativaSair === "function") window.__DK_bgInterativaSair();
+    }
   }
 
   async function enviarUma(loc) {
@@ -266,6 +276,8 @@
 
   async function vigiar() {
     if (window.__DK_LOCACAO_PG !== true) return;
+    const travar = typeof window.__DK_bgTentarRelogio === "function";
+    if (travar && !window.__DK_bgTentarRelogio()) return;
     try {
       const res = await fetch("/api/dk-locacao?op=relogio&nocache=" + Date.now(), {
         method: "GET",
@@ -280,6 +292,8 @@
       }
     } catch {
       /* a tela continua com a última resposta do servidor */
+    } finally {
+      if (travar) window.__DK_bgSoltarRelogio();
     }
   }
 

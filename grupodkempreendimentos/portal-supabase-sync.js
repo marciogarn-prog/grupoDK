@@ -5998,6 +5998,9 @@
 
   function pullFromCloudOnScreenChangeAgora() {
     if (cloudSyncIsHalted()) return Promise.resolve({ ok: false, reason: "session_revoked" });
+    if (window.__DK_BG_READ_STATE && window.__DK_BG_READ_STATE.interactiveReads > 0) {
+      return Promise.resolve({ ok: true, skipped: true, reason: "leitura_interativa" });
+    }
     const now = Date.now();
     void SCREEN_PULL_MIN_INTERVAL_MS;
     if (screenPullInFlight) {
@@ -6008,6 +6011,10 @@
         return pullFromCloudOnScreenChangeAgora();
       });
     }
+    const segurouPull = typeof window.__DK_bgTentarPull === "function";
+    if (segurouPull && !window.__DK_bgTentarPull()) {
+      return Promise.resolve({ ok: true, skipped: true, reason: "pull_em_curso" });
+    }
     screenPullLastAt = now;
     screenPullInFlight = pullFromCloudOnScreenChangeCore()
       .catch((e) => {
@@ -6016,6 +6023,7 @@
       })
       .finally(() => {
         screenPullInFlight = null;
+        if (segurouPull) window.__DK_bgSoltarPull();
       });
     return screenPullInFlight;
   }
@@ -6620,6 +6628,8 @@
     if (isLocalDataAuthorityActive()) return;
     const startSilentPull = () => {
       window.setTimeout(() => {
+        const segurouPull = typeof window.__DK_bgTentarPull === "function";
+        if (segurouPull && !window.__DK_bgTentarPull()) return;
         pullCloudSnapshotSilentMerge({ force: true })
           .then((r) => {
             if (r && r.applied) {
@@ -6637,7 +6647,10 @@
               window.__DK_portalRefreshOperacaoLocal();
             }
           })
-          .catch((e) => console.warn("[DK cloud] arranque pull", e));
+          .catch((e) => console.warn("[DK cloud] arranque pull", e))
+          .finally(() => {
+            if (segurouPull) window.__DK_bgSoltarPull();
+          });
       }, window.__DK_IS_DEMO_DEPLOY__ === true ? 2000 : 1500);
     };
     if (window.__DK_IS_DEMO_DEPLOY__ === true) {

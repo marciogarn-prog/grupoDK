@@ -20765,11 +20765,16 @@
       const wrap = document.getElementById("operacaoLancAluguelHistorico");
       if (!wrap || wrap.classList.contains("hidden") || wrap.hasAttribute("hidden")) return;
       if (typeof window.__DK_compararRevisaoPagamentos !== "function") return;
+      const travar = typeof window.__DK_bgTentarRevisao === "function";
+      if (travar && !window.__DK_bgTentarRevisao()) return;
       void Promise.resolve(window.__DK_compararRevisaoPagamentos())
         .then((r) => {
           if (r && r.ok !== false && (r.applied || r.changed)) portalRepintarPagamentosAbertos();
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          if (travar) window.__DK_bgSoltarRevisao();
+        });
     }, 20000);
   }
   portalVigiarRevisaoPagamentosAberta();
@@ -28482,13 +28487,18 @@
   function portalCompararPagamentosDaListaAberta() {
     const agora = Date.now();
     if (agora - portalPagamentosComparadoEm < 15000) return;
-    portalPagamentosComparadoEm = agora;
     if (typeof window.__DK_compararRevisaoPagamentos !== "function") return;
+    const travar = typeof window.__DK_bgTentarRevisao === "function";
+    if (travar && !window.__DK_bgTentarRevisao()) return;
+    portalPagamentosComparadoEm = agora;
     void Promise.resolve(window.__DK_compararRevisaoPagamentos())
       .then((r) => {
         if (r && r.ok !== false && (r.applied || r.changed)) portalRepintarPagamentosAbertos();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (travar) window.__DK_bgSoltarRevisao();
+      });
   }
 
   function onOperacaoLancAluguelHistoricoClick(e) {
