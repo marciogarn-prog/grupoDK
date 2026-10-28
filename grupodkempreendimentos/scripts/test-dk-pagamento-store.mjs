@@ -105,14 +105,66 @@ assert.strictEqual(frAtivos.pagamentos[0].valor, 350);
 assert.ok(!Object.prototype.hasOwnProperty.call(frAtivos.pagamentos[0], "id"));
 assert.ok(!Object.prototype.hasOwnProperty.call(frAtivos.pagamentos[0], "version"));
 
+const records23 = vinteTres.map((_, i) => ({
+  id: `11111111-1111-4111-8111-${String(i).padStart(12, "0")}`,
+  version: 1 + (i % 3),
+  source_position: i + 1,
+}));
+const comRecords = lojaFractionated({
+  "/api/dk-pagamento-locacao?numeroContrato=2025111403": resposta({
+    ok: true,
+    pagamentos: vinteTres,
+    records: records23,
+    quantidade: 23,
+    fallback: false,
+  }),
+});
+const lidosRecords = await comRecords.loja.listarAtivos("2025111403");
+assert.strictEqual(lidosRecords.quantidade, 23);
+assert.strictEqual(hashDe(lidosRecords.pagamentos), hashDe(vinteTres));
+assert.strictEqual(lidosRecords.pagamentos.filter((_, i) => comRecords.loja.metaDe(lidosRecords.pagamentos[i])).length, 23);
+for (let i = 0; i < 23; i++) {
+  const meta = comRecords.loja.metaDe(lidosRecords.pagamentos[i]);
+  assert.strictEqual(meta.id, records23[i].id);
+  assert.strictEqual(meta.version, records23[i].version);
+  assert.strictEqual(meta.source_position, records23[i].source_position);
+  assert.strictEqual(JSON.stringify(lidosRecords.pagamentos[i]).includes(records23[i].id), false);
+}
+const dryMeta = await comRecords.loja.atualizar("2025111403", lidosRecords.pagamentos[0], records23[0].version, {
+  campos: { valor: 351 },
+});
+assert.strictEqual(dryMeta.enviado, false);
+assert.strictEqual(dryMeta.request.body.id, records23[0].id);
+assert.strictEqual(dryMeta.request.body.version, records23[0].version);
+const dryRemove = await comRecords.loja.remover("2025111403", lidosRecords.pagamentos[1], records23[1].version);
+assert.strictEqual(dryRemove.enviado, false);
+assert.strictEqual(dryRemove.request.body.removido, true);
+assert.strictEqual(dryRemove.request.body.id, records23[1].id);
+assert.ok(!comRecords.chamadas.some((c) => c.method === "POST"));
+const soPagamentos = lojaFractionated({
+  "/api/dk-pagamento-locacao?numeroContrato=2025111403": ativosDe(vinteTres),
+});
+const legadoSo = await soPagamentos.loja.listarAtivos("2025111403");
+assert.strictEqual(legadoSo.quantidade, 23);
+assert.strictEqual(hashDe(legadoSo.pagamentos), hashDe(lidosRecords.pagamentos));
+
 const vazioLegado = await legacy.listarAtivos("2025041602", { portalLancamentosAluguel: [semProtocolo] });
 const vazioFrac = lojaFractionated({
-  "/api/dk-pagamento-locacao?numeroContrato=2025041602": ativosDe([semProtocolo]),
+  "/api/dk-pagamento-locacao?numeroContrato=2025041602": resposta({
+    ok: true,
+    pagamentos: [semProtocolo],
+    records: [{ id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", version: 1, source_position: 4 }],
+    quantidade: 1,
+    fallback: false,
+  }),
 });
 const lidoVazio = await vazioFrac.loja.listarAtivos("2025041602");
 assert.strictEqual(lidoVazio.pagamentos[0].protocoloLancamento, "");
 assert.strictEqual(vazioLegado.pagamentos[0].protocoloLancamento, "");
 assert.strictEqual(hashDe(vazioLegado.pagamentos), hashDe(lidoVazio.pagamentos));
+assert.strictEqual(vazioFrac.loja.metaDe(lidoVazio.pagamentos[0]).id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+assert.strictEqual(vazioFrac.loja.metaDe(lidoVazio.pagamentos[0]).version, 1);
+assert.strictEqual(JSON.stringify(lidoVazio.pagamentos[0]).includes("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"), false);
 
 const tiposLoja = lojaFractionated({
   "/api/dk-pagamento-locacao?numeroContrato=2026060301": ativosDe(tipos),
@@ -230,8 +282,8 @@ const fonte = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.u
 const html = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 assert.strictEqual(fonte.includes("localStorage"), false);
 assert.strictEqual(fonte.includes('const MODO_PRODUCAO = "legacy"'), true);
-assert.strictEqual(html.includes("portal-pagamento-store.js?v=20261028pag"), true);
-assert.strictEqual(html.includes('app.js?v=20261028pag'), true);
+assert.strictEqual(html.includes("portal-pagamento-store.js?v=20261028meta"), true);
+assert.strictEqual(html.includes('app.js?v=20261028meta'), true);
 
 console.log("pagamento store ok");
 console.log(JSON.stringify({

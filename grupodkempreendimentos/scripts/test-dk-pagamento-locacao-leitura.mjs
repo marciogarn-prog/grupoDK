@@ -22,6 +22,8 @@ async function main() {
   assert.strictEqual(store.contratoValido("2025111403"), true);
   assert.ok(store.caminho("2025111403", false).includes("numero_contrato=eq.2025111403"));
   assert.ok(store.caminho("2025111403", false).includes("removido=eq.false"));
+  assert.ok(store.caminho("2025111403", false).includes("id,version"));
+  assert.ok(!store.caminho("2025111403", false).includes("migration_key"));
   assert.ok(!store.caminho("2025111403", false).includes("quarentena"));
 
   const semContrato = await store.listarPorContrato("");
@@ -30,24 +32,53 @@ async function main() {
 
   const original = { data: "31/03/2026", valor: 350, protocoloLancamento: "" };
   const lido = await store.listarPorContrato("2025041602", {
-    fetch: fetchJson([{ source_position: 1, payload: original }]),
+    fetch: fetchJson([{ id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", version: 2, source_position: 1, payload: original }]),
   });
   assert.strictEqual(lido.ok, true);
   assert.strictEqual(lido.source, "dk_pagamento_locacao");
   assert.strictEqual(lido.quantidade, 1);
   assert.deepStrictEqual(lido.pagamentos[0], original);
+  assert.deepStrictEqual(lido.records[0], {
+    id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    version: 2,
+    source_position: 1,
+  });
+  assert.strictEqual(JSON.stringify(lido.pagamentos[0]).includes("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"), false);
   assert.strictEqual(lido.fallback, false);
 
   const vazio = await store.listarPorContrato("2026102701", { fetch: fetchJson([]) });
   assert.strictEqual(vazio.ok, true);
   assert.strictEqual(vazio.quantidade, 0);
+  assert.strictEqual(vazio.records.length, 0);
 
   const removidos = await store.listarRemovidosPorContrato("2026092201", {
     fetch: fetchJson([
-      { source_position: 8, payload: { protocoloLancamento: "20260922171044-057", removedAt: "1790117195419" } },
+      {
+        id: "a",
+        version: 1,
+        source_position: 8,
+        protocolo_lancamento: "20260922171044-057",
+        valor: 350,
+        payload: { protocoloLancamento: "20260922171044-057", removedAt: "1790117195419", valor: 350 },
+      },
+      {
+        id: "b",
+        version: 4,
+        source_position: 9,
+        protocolo_lancamento: "20260922171044-057",
+        valor: 350,
+        payload: { protocoloLancamento: "20260922171044-057", removedAt: "1790117195420", valor: 350 },
+      },
     ]),
   });
   assert.strictEqual(removidos.removido, true);
+  assert.strictEqual(removidos.pagamentos.length, 2);
+  assert.strictEqual(removidos.records.length, 2);
+  assert.notStrictEqual(removidos.records[0].id, removidos.records[1].id);
+  assert.strictEqual(removidos.records[0].source_position, 8);
+  assert.strictEqual(removidos.records[1].version, 4);
+  assert.strictEqual(removidos.registros.length, 2);
+  assert.strictEqual(removidos.registros[0].valor, 350);
   assert.strictEqual(removidos.pagamentos[0].removedAt, "1790117195419");
 
   const falha = await store.listarPorContrato("2025111403", {

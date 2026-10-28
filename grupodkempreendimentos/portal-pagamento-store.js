@@ -27,11 +27,17 @@
     return saida;
   }
 
+  function numeroOuNulo(valor) {
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : null;
+  }
+
   function guardarMeta(pagamento, meta) {
     if (!pagamento || typeof pagamento !== "object") return;
     metas.set(pagamento, {
       id: meta && meta.id ? String(meta.id) : null,
-      version: meta && Number.isInteger(Number(meta.version)) ? Number(meta.version) : null,
+      version: numeroOuNulo(meta && meta.version),
+      source_position: numeroOuNulo(meta && meta.source_position),
       protocolo: meta && meta.protocolo != null ? meta.protocolo : pagamento.protocoloLancamento ?? null,
     });
   }
@@ -92,15 +98,20 @@
           fallback: false,
         };
       }
-      const registros = Array.isArray(data.registros) ? data.registros : [];
+      const fonteMeta = Array.isArray(data.records)
+        ? data.records
+        : Array.isArray(data.registros)
+          ? data.registros
+          : [];
       const pagamentos = (Array.isArray(data.pagamentos) ? data.pagamentos : [])
         .map(copiarNegocio)
         .filter(Boolean);
       pagamentos.forEach((pagamento, indice) => {
-        const registro = registros[indice] && typeof registros[indice] === "object" ? registros[indice] : {};
+        const registro = fonteMeta[indice] && typeof fonteMeta[indice] === "object" ? fonteMeta[indice] : {};
         guardarMeta(pagamento, {
           id: registro.id || null,
           version: registro.version,
+          source_position: registro.source_position,
           protocolo:
             pagamento.protocoloLancamento != null
               ? pagamento.protocoloLancamento
