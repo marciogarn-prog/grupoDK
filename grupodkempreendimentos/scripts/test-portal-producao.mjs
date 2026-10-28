@@ -948,10 +948,62 @@ async function runSuite() {
             mirrorBudget ? " (espelho cloud_budget; Redis oficial ok)" : ""
           }${pgAtivo ? " (locações no PostgreSQL)" : ""}`
         );
+        const pagAnon = await fetch(`${BASE_URL}api/dk-pagamento-locacao?numeroContrato=2025111403`, {
+          cache: "no-store",
+        });
+        record(
+          "oficial: leitura de pagamento sem sessão é recusada",
+          pagAnon.status === 401 || pagAnon.status === 403,
+          `status=${pagAnon.status}`
+        );
+        const pagSemContrato = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: leitura de pagamento exige um contrato",
+          pagSemContrato.status === 400 && pagSemContrato.j?.fallback === false,
+          `status=${pagSemContrato.status}`
+        );
+        const pagPost = await fetch(`${BASE_URL}api/dk-pagamento-locacao?numeroContrato=2025111403`, {
+          method: "POST",
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+          body: "{}",
+        });
+        record("oficial: leitura de pagamento não grava", pagPost.status === 405, `status=${pagPost.status}`);
+        const pagNovo = await fetch(`${BASE_URL}api/dk-pagamento-locacao?numeroContrato=2025111403`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})), bytes: 0 }));
+        const pagNovoBody = JSON.stringify(pagNovo.j || {});
+        record(
+          "oficial: leitura fracionada do contrato histórico",
+          pagNovo.status === 200 &&
+            pagNovo.j?.source === "dk_pagamento_locacao" &&
+            pagNovo.j?.quantidade === 23 &&
+            pagNovo.j?.fallback === false &&
+            !pagNovoBody.includes("quarentena"),
+          `status=${pagNovo.status} n=${pagNovo.j?.quantidade} fonte=${pagNovo.j?.source || "?"}`
+        );
+        const pagVazio = await fetch(`${BASE_URL}api/dk-pagamento-locacao?numeroContrato=2026102701`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        record(
+          "oficial: contrato sem pagamento responde lista vazia",
+          pagVazio.status === 200 && pagVazio.j?.quantidade === 0 && pagVazio.j?.ok === true,
+          `status=${pagVazio.status} n=${pagVazio.j?.quantidade}`
+        );
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
         record("oficial: locações usam uma única fonte canônica", false, "sem token");
         record("oficial: auditoria automática confirma canais e placas ativas", false, "sem token");
+        record("oficial: leitura de pagamento sem sessão é recusada", false, "sem token");
+        record("oficial: leitura de pagamento exige um contrato", false, "sem token");
+        record("oficial: leitura de pagamento não grava", false, "sem token");
+        record("oficial: leitura fracionada do contrato histórico", false, "sem token");
+        record("oficial: contrato sem pagamento responde lista vazia", false, "sem token");
       }
       const snapAuthH = tokCeo
         ? dkCeoApiHeaders(tokCeo)
