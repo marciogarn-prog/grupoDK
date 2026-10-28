@@ -22,6 +22,9 @@
   alvo.__DK_bgInterativaSair = function () {
     if (state.interactiveReads > 0) state.interactiveReads -= 1;
   };
+  alvo.__DK_bgLeituraInterativa = function () {
+    return state.interactiveReads > 0;
+  };
   alvo.__DK_bgTentarRelogio = function () {
     if (interativa() || state.relogioInFlight) return false;
     state.relogioInFlight = true;

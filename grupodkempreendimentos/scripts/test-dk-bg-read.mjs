@@ -52,19 +52,43 @@ assert.equal(lista.__DK_BG_READ_STATE.interactiveReads, 0, "finally nao deixa fl
 assert.equal(lista.__DK_bgTentarPull(), true);
 lista.__DK_bgSoltarPull();
 
+const fuga = novo();
+fuga.__DK_bgInterativaEntrar();
+assert.equal(fuga.__DK_bgLeituraInterativa(), true);
+assert.equal(fuga.__DK_bgTentarPull(), false, "startSilentPull nao inicia");
+let pulls = 0;
+function pullAutomatico() {
+  if (fuga.__DK_bgLeituraInterativa()) return "pulou";
+  if (!fuga.__DK_bgTentarPull()) return "ocupado";
+  pulls += 1;
+  return "iniciou";
+}
+assert.equal(pullAutomatico(), "pulou", "troca de ecra automatica nao inicia");
+fuga.__DK_bgInterativaSair();
+assert.equal(pullAutomatico(), "iniciou");
+assert.equal(pullAutomatico(), "ocupado", "segundo pull automatico nao inicia");
+assert.equal(pulls, 1);
+fuga.__DK_bgSoltarPull();
+assert.equal(pullAutomatico(), "iniciou", "proximo evento normal pode executar");
+fuga.__DK_bgSoltarPull();
+
 const raiz = path.join(dir, "..");
 const pg = fs.readFileSync(path.join(raiz, "portal-locacao-pg.js"), "utf8");
 const ui = fs.readFileSync(path.join(raiz, "portal-locadora-ui.js"), "utf8");
 const sync = fs.readFileSync(path.join(raiz, "portal-supabase-sync.js"), "utf8");
 const html = fs.readFileSync(path.join(raiz, "index.html"), "utf8");
 assert.match(pg, /setInterval\(\(\) => \{[\s\S]*?\}, 15000\)/);
-assert.match(ui, /}, 20000\)/);
 assert.equal(pg.includes("__DK_bgTentarRelogio"), true);
 assert.equal(pg.includes("__DK_bgInterativaEntrar"), true);
 assert.equal(pg.includes("__DK_bgInterativaSair"), true);
-assert.equal(ui.includes("__DK_bgTentarRevisao"), true);
+assert.equal(ui.includes("}, 20000);"), true);
 assert.equal(sync.includes("leitura_interativa"), true);
 assert.equal(sync.includes("__DK_bgTentarPull"), true);
+assert.equal(sync.includes("automatico: true"), true);
+assert.equal(sync.includes("screenPullAgain = true"), false);
+assert.equal(sync.includes("dkBgLeituraInterativa()"), true);
+assert.equal(html.includes("dk-bg-read.js?v=20261028bg2"), true);
+assert.equal(html.includes("portal-supabase-sync.js?v=20261028bg2"), true);
 assert.equal(html.includes("dk-bg-read.js?v=20261028bg"), true);
 assert.equal(pg.includes("/api/dk-locacao?op=list"), false);
 

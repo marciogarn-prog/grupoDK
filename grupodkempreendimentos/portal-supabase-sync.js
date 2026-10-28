@@ -118,7 +118,7 @@
     }
     hideSessionRevokedBanner();
     dkLoopTrace("cloud resume after remote login", { cloudSyncHalted, cloudHaltKind });
-    pullCloudSnapshotSilentMerge({ force: true }).catch((e) => {
+    pullCloudSnapshotSilentMerge({ force: true, automatico: true }).catch((e) => {
       console.warn("[DK cloud] pull no login", e);
     });
   }
@@ -5802,7 +5802,15 @@
     return { ok: true, changed, source: data.source || "cloud" };
   }
 
+  function dkBgLeituraInterativa() {
+    if (typeof window.__DK_bgLeituraInterativa === "function") return window.__DK_bgLeituraInterativa() === true;
+    return Boolean(window.__DK_BG_READ_STATE && window.__DK_BG_READ_STATE.interactiveReads > 0);
+  }
+
   async function pullCloudSnapshotSilentMerge(opts) {
+    if (opts && opts.automatico && dkBgLeituraInterativa()) {
+      return { ok: true, skipped: true, reason: "leitura_interativa" };
+    }
     if (basePacotesPronta() && !(opts && opts.completo)) {
       try {
         return await puxarPacoteDoDia(window.__DK_pacotes.hojeYmd());
@@ -5973,6 +5981,7 @@
     if (!gate.ok) {
       console.warn("[DK cloud] a tela baixa mesmo com um envio ainda pendente", gate.reason);
     }
+    if (dkBgLeituraInterativa()) return { ok: true, skipped: true, reason: "leitura_interativa" };
     const cadastro =
       typeof window.__DK_portalPullCadastroFromCloud === "function"
         ? Promise.resolve(window.__DK_portalPullCadastroFromCloud()).catch((e) => {
@@ -5985,10 +5994,12 @@
       await Promise.race([cadastro, new Promise((resolve) => setTimeout(resolve, 4000))]);
       return { ok: true, unchanged: true, revision: revNuvem, mesmaRevisao: true };
     }
+    if (dkBgLeituraInterativa()) return { ok: true, skipped: true, reason: "leitura_interativa" };
     const snapshot = await pullCloudSnapshotSilentMerge({
       force: true,
       bypassLocalAuthority: true,
       completo: true,
+      automatico: true,
     });
     const aplicada = String((snapshot && snapshot.revision) || revNuvem || "").trim();
     if (snapshot && snapshot.ok !== false && aplicada) gravarRevisaoPagamentosLocal(aplicada);
@@ -6004,12 +6015,7 @@
     const now = Date.now();
     void SCREEN_PULL_MIN_INTERVAL_MS;
     if (screenPullInFlight) {
-      screenPullAgain = true;
-      return screenPullInFlight.then(() => {
-        if (!screenPullAgain) return { ok: true, skipped: true, reason: "ja_em_curso" };
-        screenPullAgain = false;
-        return pullFromCloudOnScreenChangeAgora();
-      });
+      return Promise.resolve({ ok: true, skipped: true, reason: "pull_em_curso" });
     }
     const segurouPull = typeof window.__DK_bgTentarPull === "function";
     if (segurouPull && !window.__DK_bgTentarPull()) {
@@ -6630,7 +6636,7 @@
       window.setTimeout(() => {
         const segurouPull = typeof window.__DK_bgTentarPull === "function";
         if (segurouPull && !window.__DK_bgTentarPull()) return;
-        pullCloudSnapshotSilentMerge({ force: true })
+        pullCloudSnapshotSilentMerge({ force: true, automatico: true })
           .then((r) => {
             if (r && r.applied) {
               try {
