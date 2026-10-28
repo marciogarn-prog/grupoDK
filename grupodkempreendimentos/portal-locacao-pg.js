@@ -58,16 +58,17 @@
     const api = window.__DK_pesquisaLocacaoEstado;
     if (api && typeof api.publicarProtocolosOficiais === "function") {
       api.publicarProtocolosOficiais(lista);
-      return;
+    } else {
+      const set = new Set();
+      (Array.isArray(lista) ? lista : []).forEach((loc) => {
+        const nc = String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
+        if (nc) set.add(nc);
+      });
+      if (set.size) {
+        window.__DK_locacoesNuvemOk = true;
+        window.__DK_locacoesNuvemProtocolos = set;
+      }
     }
-    const set = new Set();
-    (Array.isArray(lista) ? lista : []).forEach((loc) => {
-      const nc = String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
-      if (nc) set.add(nc);
-    });
-    if (!set.size) return;
-    window.__DK_locacoesNuvemOk = true;
-    window.__DK_locacoesNuvemProtocolos = set;
     window.__DK_locacoesPesquisaFonte = "dk_locacao_lista_leve";
   }
 
