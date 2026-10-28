@@ -26962,7 +26962,13 @@
     const placaWant = np(String(inpPlaca?.value || "").trim());
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
     const confirmados = window.__DK_locacoesNuvemProtocolos;
-    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+    const pgPronta =
+      window.__DK_LOCACAO_PG === true &&
+      !window.__DK_LOCACAO_PG_ERRO &&
+      Array.isArray(window.__DK_locacoesPgCache) &&
+      window.__DK_locacoesPgCache.length > 0;
+    const baseLocs = pgPronta ? window.__DK_locacoesPgCache : loadCadastro(CAD_LOCACOES_KEY);
+    const locs = baseLocs.filter((l) => {
       const nc = normPortalNumeroContrato(l.numeroContrato);
       if (!nc) return false;
       if (window.__DK_IS_DEMO_DEPLOY__ === true || (window.__DK_LOCACAO_PG === true && !window.__DK_LOCACAO_PG_ERRO && Array.isArray(window.__DK_locacoesPgCache) && window.__DK_locacoesPgCache.length > 0)) return true;
@@ -27086,7 +27092,7 @@
       if (esperaPg) esperaPg.textContent = "A receber as locações da nuvem oficial...";
       const recarregarPg = window.__DK_locacaoPgRecarregar;
       void Promise.resolve(typeof recarregarPg === "function" ? recarregarPg() : null).then(() => {
-        if (!selecaoAindaAtual() || window.__DK_LOCACAO_PG_ERRO || window.__DK_LOCACAO_PG !== true) return;
+        if (!selecaoAindaAtual() || window.__DK_LOCACAO_PG_ERRO || !(Array.isArray(window.__DK_locacoesPgCache) && window.__DK_locacoesPgCache.length > 0)) return;
         confirmarOperacaoLancAluguelPesquisa();
       });
       return;
