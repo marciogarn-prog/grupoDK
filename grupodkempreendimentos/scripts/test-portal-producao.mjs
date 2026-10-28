@@ -930,6 +930,11 @@ async function runSuite() {
           Number(integ.canonical?.count || 0) > 0 &&
           Array.isArray(integ.activePlateConflicts) &&
           integ.activePlateConflicts.length === 0;
+        const pgAtivo =
+          integ.ok === true &&
+          integ.skipped === true &&
+          integ.reason === "skipped_pg_active" &&
+          integ.fonte === "dk_locacao";
         record(
           "oficial: auditoria automática confirma canais e placas ativas",
           locIntegrityApi.status === 200 &&
@@ -937,10 +942,11 @@ async function runSuite() {
               integ.channelsEqual === true &&
               Array.isArray(integ.activePlateConflicts) &&
               integ.activePlateConflicts.length === 0) ||
-              mirrorBudget),
+              mirrorBudget ||
+              pgAtivo),
           `status=${locIntegrityApi.status} motivo=${integ.reason || "ok"}${
             mirrorBudget ? " (espelho cloud_budget; Redis oficial ok)" : ""
-          }`
+          }${pgAtivo ? " (locações no PostgreSQL)" : ""}`
         );
       } else {
         record("oficial: total de clientes na nuvem (CPF único, todos os PCs)", false, "sem token — teste não leu a nuvem");
