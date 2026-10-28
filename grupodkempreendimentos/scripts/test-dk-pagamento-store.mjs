@@ -282,8 +282,35 @@ const fonte = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.u
 const html = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "index.html"), "utf8");
 assert.strictEqual(fonte.includes("localStorage"), false);
 assert.strictEqual(fonte.includes('const MODO_PRODUCAO = "legacy"'), true);
-assert.strictEqual(html.includes("portal-pagamento-store.js?v=20261028meta"), true);
-assert.strictEqual(html.includes('app.js?v=20261028meta'), true);
+assert.strictEqual(html.includes("portal-pagamento-store.js?v=20261028rota"), true);
+assert.strictEqual(html.includes('app.js?v=20261028rota'), true);
+
+let legadoExecutou = 0;
+const telaLegado = legacy.criarTela("2025111403", null, {
+  executar() {
+    legadoExecutou += 1;
+    return { ok: true, entry: { valor: 7 } };
+  },
+});
+assert.strictEqual(legadoExecutou, 1);
+assert.strictEqual(telaLegado.entry.valor, 7);
+let fracExecutou = 0;
+const telaFrac = e2e.loja.criarTela("2026102701", ficticio, {
+  executar() {
+    fracExecutou += 1;
+    return { ok: true };
+  },
+});
+assert.strictEqual(fracExecutou, 0);
+assert.strictEqual(telaFrac.enviado, false);
+assert.strictEqual(telaFrac.dryRun, true);
+assert.strictEqual(telaFrac.request.method, "POST");
+assert.ok(!e2e.chamadas.some((c) => c.method === "POST"));
+const lidosTela = legacy.lerAtivosTela({ portalLancamentosAluguel: vinteTres }, (loc) => loc.portalLancamentosAluguel);
+assert.strictEqual(lidosTela.length, 23);
+assert.strictEqual(e2e.loja.lerAtivosTela({ portalLancamentosAluguel: vinteTres }, () => vinteTres).length, 0);
+assert.strictEqual(legacy.lerRemovidosTela({ portalLancamentosAluguelRemovidos: tresRemovidos }, (loc) => loc.portalLancamentosAluguelRemovidos).length, 3);
+assert.strictEqual(e2e.loja.lerRemovidosTela({ portalLancamentosAluguelRemovidos: tresRemovidos }, () => tresRemovidos).length, 0);
 
 console.log("pagamento store ok");
 console.log(JSON.stringify({

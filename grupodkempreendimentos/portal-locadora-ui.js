@@ -25118,7 +25118,7 @@
   }
 
   /** Lançamentos do portal amarrados ao registo da locação (fonte canónica consolidada). */
-  function getPortalLancamentosAluguelDoContrato(loc) {
+  function legacyGetPortalLancamentosAluguelDoContrato(loc) {
     if (typeof window.__DK_getLancamentosAluguelCanonico === "function") {
       return window.__DK_getLancamentosAluguelCanonico(loc);
     }
@@ -25156,6 +25156,38 @@
     if (globalRows.length) chunks.push(globalRows);
     const merged = mergePl(chunks);
     return Array.isArray(merged) ? merged : [];
+  }
+
+  function portalLerPagamentosPeloStore(metodo, loc, legado) {
+    const store = window.__DK_pagamentoStore;
+    if (!store || typeof store[metodo] !== "function") return legado(loc);
+    return store[metodo](loc, legado);
+  }
+
+  function portalDelegarPagamento(metodo, numeroContrato, legado) {
+    const store = window.__DK_pagamentoStore;
+    const extra = { executar: legado };
+    if (!store || typeof store[metodo] !== "function") return legado();
+    if (metodo === "criarTela") return store.criarTela(numeroContrato, null, extra);
+    return store[metodo](numeroContrato, null, null, extra);
+  }
+
+  function getPortalLancamentosAluguelDoContrato(loc) {
+    return portalLerPagamentosPeloStore("lerAtivosTela", loc, legacyGetPortalLancamentosAluguelDoContrato);
+  }
+
+  function legacyGetPortalLancamentosAluguelRemovidosDoContrato(loc) {
+    return Array.isArray(loc && loc.portalLancamentosAluguelRemovidos)
+      ? loc.portalLancamentosAluguelRemovidos
+      : [];
+  }
+
+  function getPortalLancamentosAluguelRemovidosDoContrato(loc) {
+    return portalLerPagamentosPeloStore(
+      "lerRemovidosTela",
+      loc,
+      legacyGetPortalLancamentosAluguelRemovidosDoContrato
+    );
   }
 
   function sumPortalLancamentosAluguelTotal(arr) {
@@ -27931,9 +27963,7 @@
       const nc = normPortalNumeroContrato(loc?.numeroContrato || "");
       if (!nc) continue;
       const cpfDigits = dig(String(loc.cpf || "")).slice(0, 11);
-      const removidos = Array.isArray(loc.portalLancamentosAluguelRemovidos)
-        ? loc.portalLancamentosAluguelRemovidos
-        : [];
+      const removidos = getPortalLancamentosAluguelRemovidosDoContrato(loc);
       for (const row of removidos) {
         const at = Number(row?.removedAt || 0);
         if (!at || at < inicioMs) continue;
@@ -28059,7 +28089,7 @@
     };
   }
 
-  async function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
+  async function legacyPersistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
     if (portalAndroidBloquearEscrita()) return false;
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -28184,34 +28214,52 @@
     };
   }
 
+  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
+    return portalDelegarPagamento("criarTela", numeroContratoNorm, function () {
+      return legacyPersistPortalLancamentoAluguelPagamento(
+        cpfDigits,
+        numeroContratoNorm,
+        valorNum,
+        dataPagamentoBr,
+        meios
+      );
+    });
+  }
+
   function persistPortalLancamentoAluguelDevolucao(cpfDigits, numeroContratoNorm, valorAbsNum, dataDevolucaoBr, extras) {
     const abs = Math.abs(Number(valorAbsNum));
     if (!Number.isFinite(abs) || abs <= 0) return { ok: false };
-    return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataDevolucaoBr, {
-      ...(extras || {}),
-      tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO,
+    return portalDelegarPagamento("criarTela", numeroContratoNorm, function () {
+      return legacyPersistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataDevolucaoBr, {
+        ...(extras || {}),
+        tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO,
+      });
     });
   }
 
   function persistPortalLancamentoAluguelCreditoManutencao(cpfDigits, numeroContratoNorm, valorAbsNum, dataCreditoBr, extras) {
     const abs = Math.abs(Number(valorAbsNum));
     if (!Number.isFinite(abs) || abs <= 0) return { ok: false };
-    return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCreditoBr, {
-      ...(extras || {}),
-      tipoMovimento: PORTAL_LANC_TIPO_CREDITO_MANUTENCAO,
+    return portalDelegarPagamento("criarTela", numeroContratoNorm, function () {
+      return legacyPersistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCreditoBr, {
+        ...(extras || {}),
+        tipoMovimento: PORTAL_LANC_TIPO_CREDITO_MANUTENCAO,
+      });
     });
   }
 
   function persistPortalLancamentoAluguelCaucao(cpfDigits, numeroContratoNorm, valorAbsNum, dataCaucaoBr, extras) {
     const abs = Math.abs(Number(valorAbsNum));
     if (!Number.isFinite(abs) || abs <= 0) return { ok: false };
-    return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCaucaoBr, {
-      ...(extras || {}),
-      tipoMovimento: PORTAL_LANC_TIPO_CAUCAO,
+    return portalDelegarPagamento("criarTela", numeroContratoNorm, function () {
+      return legacyPersistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataCaucaoBr, {
+        ...(extras || {}),
+        tipoMovimento: PORTAL_LANC_TIPO_CAUCAO,
+      });
     });
   }
 
-  function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
+  function legacyApagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
     if (!portalPodeApagarLancamentosAluguel()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -28307,7 +28355,7 @@
     loc.portalLancamentosAluguelRemovidos = prev;
   }
 
-  function apagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
+  function legacyApagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
     if (!portalPodeApagarLancamentosAluguel()) return false;
     const proto = String(protocoloLancamento || "").trim();
     if (!proto) return false;
@@ -28360,7 +28408,7 @@
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
-  function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr, comentarioPagamento) {
+  function legacyAtualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr, comentarioPagamento) {
     if (!isPortalAdministradorTitularCpf()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -28454,6 +28502,31 @@
       detalhe: partes.join("; "),
     });
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+  }
+
+  function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
+    return portalDelegarPagamento("removerTela", ncNorm, function () {
+      return legacyApagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice);
+    });
+  }
+
+  function apagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
+    return portalDelegarPagamento("removerTela", ncNorm, function () {
+      return legacyApagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento);
+    });
+  }
+
+  function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr, comentarioPagamento) {
+    return portalDelegarPagamento("atualizarTela", ncNorm, function () {
+      return legacyAtualizarPortalLancamentoAluguelPorIndice(
+        cpfDigits,
+        ncNorm,
+        indice,
+        valorNum,
+        dataPagamentoBr,
+        comentarioPagamento
+      );
+    });
   }
 
   function renderOperacaoLancAluguelHistorico() {

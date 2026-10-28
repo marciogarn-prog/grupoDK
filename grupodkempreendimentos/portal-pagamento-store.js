@@ -261,13 +261,67 @@
       };
     }
 
+    function lerAtivosTela(loc, legado) {
+      if (modo === "fractionated") return [];
+      if (typeof legado === "function") return legado(loc);
+      return listaLocal(loc, "portalLancamentosAluguel");
+    }
+
+    function lerRemovidosTela(loc, legado) {
+      if (modo === "fractionated") return [];
+      if (typeof legado === "function") return legado(loc);
+      return listaLocal(loc, "portalLancamentosAluguelRemovidos");
+    }
+
+    function delegarTela(op, numeroContrato, pagamento, extra) {
+      if (modo === "fractionated") {
+        const preparo = prepararEscrita(op, numeroContrato, pagamento, extra);
+        return {
+          ok: true,
+          status: 200,
+          modo,
+          dryRun: true,
+          enviado: false,
+          alterouTela: false,
+          fallback: false,
+          request: { method: preparo.method, url: preparo.url, body: preparo.body },
+          bytes: preparo.bytes,
+        };
+      }
+      if (extra && typeof extra.executar === "function") return extra.executar();
+      const via =
+        op === "atualizar"
+          ? "atualizarPortalLancamentoAluguelPorIndice"
+          : op === "remover"
+            ? "apagarPortalLancamentoAluguelPorProtocolo"
+            : "persistPortalLancamentoAluguelPagamento";
+      return { ok: true, status: 200, modo: "legacy", via, enviado: false, fallback: false };
+    }
+
+    function criarTela(numeroContrato, pagamento, extra) {
+      return delegarTela("criar", numeroContrato, pagamento, extra);
+    }
+
+    function atualizarTela(numeroContrato, pagamento, version, extra) {
+      return delegarTela("atualizar", numeroContrato, pagamento, extra);
+    }
+
+    function removerTela(numeroContrato, pagamento, version, extra) {
+      return delegarTela("remover", numeroContrato, pagamento, extra);
+    }
+
     return {
       modo,
       listarAtivos,
       listarRemovidos,
+      lerAtivosTela,
+      lerRemovidosTela,
       criar,
       atualizar,
       remover,
+      criarTela,
+      atualizarTela,
+      removerTela,
       metaDe(pagamento) {
         return metas.get(pagamento) || null;
       },
