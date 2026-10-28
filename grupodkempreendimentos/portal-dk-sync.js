@@ -10,6 +10,7 @@
     lastServerSeq: 0,
     lastError: null,
     initialized: false,
+    lastCheckpointAt: null,
   };
   var transporte = null;
   var limite = 100;
@@ -30,6 +31,7 @@
     state.lastServerSeq = 0;
     state.lastError = null;
     state.initialized = false;
+    state.lastCheckpointAt = null;
     volta = null;
     ouvintes = [];
   }
@@ -41,6 +43,60 @@
       syncInFlight: state.syncInFlight,
       lastError: state.lastError,
     };
+  }
+
+  function atraso(serverSeq, appliedSeq) {
+    var servidor = Number(serverSeq);
+    var navegador = Number(appliedSeq);
+    if (!Number.isFinite(servidor)) servidor = 0;
+    if (!Number.isFinite(navegador)) navegador = 0;
+    return Math.max(0, servidor - navegador);
+  }
+
+  function dkSyncGetStatus() {
+    return {
+      lastAppliedSeq: state.lastAppliedSeq,
+      lastServerSeq: state.lastServerSeq,
+      lag: atraso(state.lastServerSeq, state.lastAppliedSeq),
+      syncInFlight: state.syncInFlight,
+      syncPending: state.syncPending,
+      initialized: state.initialized,
+      lastError: state.lastError,
+      lastCheckpointAt: state.lastCheckpointAt,
+    };
+  }
+
+  function dkSyncRotulo(status) {
+    var s = status || dkSyncGetStatus();
+    if (s.syncInFlight) return "Sincronizando";
+    if (s.lastError) return "Erro";
+    if (!s.initialized) return "Inicializando";
+    if (Number(s.lag) > 0) return "Atrasado";
+    return "Sincronizado";
+  }
+
+  function dkSyncTextos(status) {
+    var s = status || dkSyncGetStatus();
+    return {
+      servidor: "seq " + s.lastServerSeq,
+      navegador: "seq " + s.lastAppliedSeq,
+      atraso: s.lag + " evento(s)",
+      estado: dkSyncRotulo(s),
+      checkpoint: s.lastCheckpointAt ? String(s.lastCheckpointAt) : "ainda não realizado",
+      erro: s.lastError ? String(s.lastError) : "",
+    };
+  }
+
+  function emitirStatus() {
+    var detalhe = dkSyncGetStatus();
+    if (root && typeof root.dispatchEvent === "function" && typeof root.CustomEvent === "function") {
+      try {
+        root.dispatchEvent(new root.CustomEvent("dk:sync:status", { detail: detalhe }));
+      } catch (erro) {
+        /* o painel não pode derrubar o cursor */
+      }
+    }
+    return detalhe;
   }
 
   function assinar(fn) {
@@ -181,6 +237,7 @@
     }
     state.syncInFlight = true;
     state.syncPending = false;
+    emitirStatus();
     volta = (async function () {
       try {
         var resultado = await rodada();
@@ -188,6 +245,7 @@
           state.syncPending = false;
           resultado = await rodada();
         }
+        if (resultado && resultado.ok) state.lastCheckpointAt = new Date().toISOString();
         return resultado;
       } catch (erro) {
         state.lastError = "rede";
@@ -195,6 +253,7 @@
       } finally {
         state.syncInFlight = false;
         volta = null;
+        emitirStatus();
       }
     })();
     return volta;
@@ -208,6 +267,9 @@
     dkSyncCatchUp: dkSyncCatchUp,
     dkSyncCheckpoint: dkSyncCheckpoint,
     dkSyncEstado: estado,
+    dkSyncGetStatus: dkSyncGetStatus,
+    dkSyncRotulo: dkSyncRotulo,
+    dkSyncTextos: dkSyncTextos,
     configurar: configurar,
     reset: reset,
     assinar: assinar,
@@ -217,6 +279,9 @@
     root.dkSyncCatchUp = dkSyncCatchUp;
     root.dkSyncCheckpoint = dkSyncCheckpoint;
     root.dkSyncEstado = estado;
+    root.dkSyncGetStatus = dkSyncGetStatus;
+    root.dkSyncRotulo = dkSyncRotulo;
+    root.dkSyncTextos = dkSyncTextos;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : null);

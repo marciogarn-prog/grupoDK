@@ -17696,6 +17696,14 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   white-space: nowrap;
 }
 
+.portal-sync-monitor {
+  margin: 0.75rem 0 1rem;
+}
+
+.portal-sync-monitor p {
+  margin: 0.2rem 0;
+}
+
 @media (min-width: 769px) and (max-height: 820px) {
   .site-publico__hero-foto {
     object-position: center top;

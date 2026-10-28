@@ -110,6 +110,25 @@
       });
   }
 
+  function textoNo(id, valor) {
+    var no = document.getElementById(id);
+    if (no) no.textContent = valor == null ? "" : String(valor);
+  }
+
+  function pintarMonitor() {
+    if (typeof window.dkSyncGetStatus !== "function" || typeof window.dkSyncTextos !== "function") return;
+    var textos = window.dkSyncTextos(window.dkSyncGetStatus());
+    textoNo("portal-sync-servidor", textos.servidor);
+    textoNo("portal-sync-navegador", textos.navegador);
+    textoNo("portal-sync-lag", textos.atraso);
+    textoNo("portal-sync-estado", textos.estado);
+    textoNo(
+      "portal-sync-checkpoint",
+      textos.checkpoint === "ainda não realizado" ? textos.checkpoint : dataHora(textos.checkpoint)
+    );
+    textoNo("portal-sync-erro", textos.erro);
+  }
+
   function observar() {
     var panel = document.getElementById("panel-log-locadora");
     if (!panel || panel.dataset.logUi === "1") return;
@@ -134,6 +153,16 @@
       agendar();
     });
     obs.observe(panel, { attributes: true, attributeFilter: ["class"] });
+    pintarMonitor();
+    window.addEventListener("dk:sync:status", pintarMonitor);
+    var botao = document.getElementById("btn-verificar-sync");
+    if (botao && botao.dataset.syncUi !== "1") {
+      botao.dataset.syncUi = "1";
+      botao.addEventListener("click", function () {
+        if (typeof window.dkSyncCheckpoint !== "function") return;
+        Promise.resolve(window.dkSyncCheckpoint("manual")).then(pintarMonitor, pintarMonitor);
+      });
+    }
     if (painelAberto()) agendar();
   }
 

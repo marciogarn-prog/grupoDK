@@ -3760,6 +3760,17 @@
         <h2 class="portal-panel__title">Log DK</h2>
         <p class="subpage__lead" id="portal-log-estado">Log DK — eventos duráveis registrados no servidor</p>
         <p class="subtext" id="portal-log-nota">Clientes, veículos, locações e pagamentos ainda não geram eventos.</p>
+        <div id="portal-sync-monitor" class="portal-sync-monitor">
+          <p class="subpage__lead">Monitoramento de sincronização</p>
+          <p class="subtext">Este navegador. Não representa os outros computadores.</p>
+          <p class="subtext">Servidor: <span id="portal-sync-servidor">seq 0</span></p>
+          <p class="subtext">Este navegador: <span id="portal-sync-navegador">seq 0</span></p>
+          <p class="subtext">Atraso: <span id="portal-sync-lag">0 evento(s)</span></p>
+          <p class="subtext">Estado: <span id="portal-sync-estado">Inicializando</span></p>
+          <p class="subtext">Último checkpoint: <span id="portal-sync-checkpoint">ainda não realizado</span></p>
+          <p class="subtext" id="portal-sync-erro"></p>
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-verificar-sync">Verificar sincronização</button>
+        </div>
         <div class="portal-log-tabela-wrap">
           <table class="portal-log-tabela">
             <thead>
@@ -6295,8 +6306,8 @@
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261028canario" defer></script>
   <script src="portal-locadora-ui.js?v=20261028logevt2" defer></script>
-  <script src="portal-dk-sync.js?v=20261028synccur1" defer></script>
-  <script src="portal-log-ui.js?v=20261028synccur1" defer></script>
+  <script src="portal-dk-sync.js?v=20261028synclag1" defer></script>
+  <script src="portal-log-ui.js?v=20261028synclag1" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>
