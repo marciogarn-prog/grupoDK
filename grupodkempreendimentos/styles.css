@@ -17678,6 +17678,24 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   }
 }
 
+.portal-log-tabela-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.portal-log-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font: inherit;
+}
+
+.portal-log-tabela th,
+.portal-log-tabela td {
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  white-space: nowrap;
+}
+
 @media (min-width: 769px) and (max-height: 820px) {
   .site-publico__hero-foto {
     object-position: center top;

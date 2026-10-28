@@ -783,6 +783,7 @@
   const panelFinanceiro = document.getElementById("panel-financeiro-locadora");
   const panelFinanceiroCeo = document.getElementById("panel-financeiro-ceo-locadora");
   const panelEstoque = document.getElementById("panel-estoque-locadora");
+  const panelLog = document.getElementById("panel-log-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
@@ -790,6 +791,7 @@
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
   const btnDocumentos = document.getElementById("btn-locadora-documentos");
+  const btnLog = document.getElementById("btn-locadora-log");
   const btnFinanceiro = document.getElementById("btn-locadora-financeiro");
   const btnFinanceiroCeo = document.getElementById("btn-locadora-financeiro-ceo");
   const btnEstoque = document.getElementById("btn-locadora-estoque");
@@ -2030,7 +2032,7 @@
   }
 
   function portalAndroidPainelAreaVisivel() {
-    return [panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelEstoque, panelFinanceiro, panelFinanceiroCeo].some(
+    return [panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelLog, panelEstoque, panelFinanceiro, panelFinanceiroCeo].some(
       (p) => p && !p.classList.contains("hidden")
     );
   }
@@ -2061,6 +2063,7 @@
     if (panelManutencao && !panelManutencao.classList.contains("hidden")) return "Manutenção";
     if (panelFinanceiroCeo && !panelFinanceiroCeo.classList.contains("hidden")) return "FINANCEIRO CEO";
     if (panelFinanceiro && !panelFinanceiro.classList.contains("hidden")) return "FINANCEIRO";
+    if (panelLog && !panelLog.classList.contains("hidden")) return "Log";
     if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) return "Documentos";
     if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return "Localização";
     if (panelEstoque && !panelEstoque.classList.contains("hidden")) return "Estoque";
@@ -2124,6 +2127,8 @@
     if (!portalAndroidSomenteLeitura()) return false;
     if (portalAndroidPainelAreaVisivel() && portalAndroidTemModuloAberto()) {
       if (panelDocumentos && !panelDocumentos.classList.contains("hidden")) {
+        portalVoltarEquipaLocadora();
+      } else if (panelLog && !panelLog.classList.contains("hidden")) {
         portalVoltarEquipaLocadora();
       } else if (panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) {
         portalVoltarEquipaLocadora();
@@ -2293,6 +2298,7 @@
     btnLocalizacao?.classList.toggle("hidden", !allowOp);
     btnDocumentos?.classList.toggle("hidden", modo === "cliente" || !isPortalDocumentosAcesso());
     const allowFin = currentUnit === "locadora" && modo !== "cliente" && roleEfetivo === "owner";
+    btnLog?.classList.toggle("hidden", !allowFin);
     btnFinanceiro?.classList.toggle("hidden", !allowFin);
     btnFinanceiroCeo?.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
     refreshPortalEstoqueAcesso();
@@ -2622,12 +2628,54 @@
     portalAbrirLoginNoSite();
   }
 
+  function portalPodeAcessarLog() {
+    return isPortalTitularAdministrador();
+  }
+
   function portalPodeAcessarFinanceiro() {
     return isPortalTitularAdministrador();
   }
 
   function portalPodeAcessarFinanceiroCeo() {
     return isPortalAdministradorTitularCpf();
+  }
+
+  function portalMostrarLogVazio() {
+    const estado = document.getElementById("portal-log-estado");
+    if (estado) estado.textContent = "Infraestrutura de eventos em preparação";
+    const linhas = document.getElementById("portal-log-linhas");
+    if (!linhas) return;
+    linhas.textContent = "";
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    td.textContent = "Nenhum evento";
+    tr.appendChild(td);
+    linhas.appendChild(tr);
+  }
+
+  function openLocadoraLog() {
+    currentUnit = "locadora";
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func || !portalPodeAcessarLog()) {
+      openLocadoraEmpresa();
+      return;
+    }
+    hideAllPanels();
+    panelLog?.classList.remove("hidden");
+    showView("unit");
+    setPortalHash("locadora/log");
+    portalPersistirAreaAtiva("log");
+    portalMostrarLogVazio();
+    portalAtualizarBannerAdmin();
+    portalAndroidSyncNavegacao();
+    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    fetch("/api/dk-log", { cache: "no-store", headers })
+      .then((r) => {
+        if (!panelLog || panelLog.classList.contains("hidden")) return;
+        if (r.status !== 200) openLocadoraEmpresa();
+      })
+      .catch(() => {});
   }
 
   function openLocadoraFinanceiro() {
@@ -2707,7 +2755,7 @@
 
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelEstoque, panelFinanceiro, panelFinanceiroCeo].forEach(
+    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelLog, panelEstoque, panelFinanceiro, panelFinanceiroCeo].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -3005,6 +3053,7 @@
       btnManutencao?.classList.add("hidden");
       btnLocalizacao?.classList.add("hidden");
       btnDocumentos?.classList.add("hidden");
+      btnLog?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
       btnFinanceiroCeo?.classList.add("hidden");
       btnEstoque?.classList.add("hidden");
@@ -3061,6 +3110,7 @@
     panelLocalizacao?.classList.add("hidden");
     panelDocumentos?.classList.add("hidden");
     panelEstoque?.classList.add("hidden");
+    panelLog?.classList.add("hidden");
     panelFinanceiro?.classList.add("hidden");
     panelFinanceiroCeo?.classList.add("hidden");
     if (vinhaFinanceiro || vinhaFinanceiroCeo) {
@@ -3098,6 +3148,7 @@
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
+    btnLog?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
     btnFinanceiroCeo?.classList.add("hidden");
     btnEstoque?.classList.add("hidden");
@@ -3487,6 +3538,7 @@
     const h = (window.location.hash || "").toLowerCase();
     if (h.startsWith("#locadora/cliente")) return;
     if (area === "documentos" && panelDocumentos && !panelDocumentos.classList.contains("hidden")) return;
+    if (area === "log" && panelLog && !panelLog.classList.contains("hidden")) return;
     if (area === "financeiro" && viewFinanceiro?.classList.contains("view--active")) return;
     if (area === "financeiro-despesas" && viewFinanceiroCeo?.classList.contains("view--active") && window.__DK_finCeoAtalhoLocadora) {
       return;
@@ -3514,6 +3566,10 @@
     showView("unit");
     finalizarLoginEquipaPortal(func);
     hideAllPanels();
+    if (area === "log" && portalPodeAcessarLog()) {
+      openLocadoraLog();
+      return;
+    }
     if (area === "documentos" && isPortalDocumentosAcesso()) {
       panelDocumentos?.classList.remove("hidden");
       if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
@@ -5451,6 +5507,14 @@
       panelDocumentos?.classList.remove("hidden");
       portalPersistirAreaAtiva("documentos");
     });
+  });
+
+  btnLog?.addEventListener("click", () => {
+    openLocadoraLog();
+  });
+
+  document.getElementById("btn-voltar-log-locadora")?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
   });
 
   btnFinanceiro?.addEventListener("click", () => {
@@ -11594,6 +11658,7 @@
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
+    btnLog?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
     btnFinanceiroCeo?.classList.add("hidden");
     btnEstoque?.classList.add("hidden");
@@ -32058,6 +32123,10 @@
     }
     if (rest === "cliente" || rest.startsWith("cliente/")) {
       openLocadoraClienteArea();
+      return;
+    }
+    if (rest === "log" || rest.startsWith("log/")) {
+      openLocadoraLog();
       return;
     }
     if (rest === "financeiro-ceo" || rest.startsWith("financeiro-ceo/")) {
