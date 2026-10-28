@@ -276,7 +276,13 @@
     function delegarTela(op, numeroContrato, pagamento, extra) {
       if (modo === "fractionated") {
         const preparo = prepararEscrita(op, numeroContrato, pagamento, extra);
-        return {
+        if (extra && extra.simular === 409) return recusarEnvio(preparo, 409, "version");
+        if (extra && extra.simular === 503) return recusarEnvio(preparo, 503, "postgres_indisponivel");
+        if (op === "atualizar") {
+          const versao = Number(extra && extra.version);
+          if (!Number.isInteger(versao) || versao < 1) return recusarEnvio(preparo, 409, "version");
+        }
+        const saida = {
           ok: true,
           status: 200,
           modo,
@@ -287,6 +293,8 @@
           request: { method: preparo.method, url: preparo.url, body: preparo.body },
           bytes: preparo.bytes,
         };
+        if (op === "remover") saida.removido = true;
+        return saida;
       }
       if (extra && typeof extra.executar === "function") return extra.executar();
       const via =
@@ -302,12 +310,18 @@
       return delegarTela("criar", numeroContrato, pagamento, extra);
     }
 
+    function comVersao(version, extra) {
+      const pedido = extra && typeof extra === "object" ? { ...extra } : {};
+      if (version != null && pedido.version == null) pedido.version = Number(version);
+      return pedido;
+    }
+
     function atualizarTela(numeroContrato, pagamento, version, extra) {
-      return delegarTela("atualizar", numeroContrato, pagamento, extra);
+      return delegarTela("atualizar", numeroContrato, pagamento, comVersao(version, extra));
     }
 
     function removerTela(numeroContrato, pagamento, version, extra) {
-      return delegarTela("remover", numeroContrato, pagamento, extra);
+      return delegarTela("remover", numeroContrato, pagamento, comVersao(version, extra));
     }
 
     return {
