@@ -11,6 +11,7 @@ const {
 } = require("../lib/dk-portal-auth.cjs");
 const { decidirAcessoLocacao } = require("../lib/dk-locacao-pg.cjs");
 const store = require("../lib/dk-pagamento-locacao-store.cjs");
+const canary = require("../lib/dk-pagamento-write-canary.cjs");
 
 function corpoJson(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -57,7 +58,19 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
       const body = corpoJson(req);
       if (body.mode !== "write_probe") {
-        return res.status(405).json({ ok: false, reason: "write_not_active", fallback: false, mutated: false });
+        const decisao = canary.avaliarEscritaCanario(
+          {
+            autenticado: true,
+            numeroContrato: body.numeroContrato,
+            operacao: body.operacao,
+            pagamento: body.pagamento,
+            version: body.version,
+            id: body.id,
+          },
+          process.env
+        );
+        const http = canary.respostaHttp(decisao);
+        return res.status(http.status).json(http.body);
       }
       const chaves = Object.keys(body);
       if (chaves.length !== 1) {
