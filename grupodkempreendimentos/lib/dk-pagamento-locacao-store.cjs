@@ -266,10 +266,17 @@ async function inserirE2eReal(cpf, opts) {
   }
   const row = Array.isArray(loc.data) ? loc.data[0] : null;
   const campos = row && row.campos && typeof row.campos === "object" ? row.campos : null;
-  const embutidos = campos && Array.isArray(campos.portalLancamentosAluguel) ? campos.portalLancamentosAluguel.length : -1;
+  const lista = campos ? campos.portalLancamentosAluguel : undefined;
+  const embutidos = Array.isArray(lista) ? lista.length : lista == null ? 0 : -1;
   const marcado = campos ? JSON.stringify(campos).includes(E2E_PROTOCOL_ID) : false;
-  if (!row || Number(row.version) !== 2 || !marcado || embutidos !== 0 || campos.numeroContrato !== E2E_CONTRATO) {
-    return { ok: false, status: 409, reason: "contrato_nao_e2e", mutated: false, inserted: 0, updated: 0, fallback: false };
+  let detalhe = "";
+  if (!row) detalhe = "sem_linha";
+  else if (Number(row.version) !== 2) detalhe = "versao";
+  else if (!marcado) detalhe = "marca";
+  else if (embutidos !== 0) detalhe = "pagamentos";
+  else if (!campos || campos.numeroContrato !== E2E_CONTRATO) detalhe = "numero";
+  if (detalhe) {
+    return { ok: false, status: 409, reason: "contrato_nao_e2e", detalhe, mutated: false, inserted: 0, updated: 0, fallback: false };
   }
   const atuais = await rest(
     "dk_pagamento_locacao?select=payload&numero_contrato=eq." + E2E_CONTRATO + "&removido=eq.false",
