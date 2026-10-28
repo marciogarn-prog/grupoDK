@@ -742,6 +742,121 @@ async function migrarSnapshotOficial() {
   return { ok: false, schema: true, reason: "caminho_desligado", ativado: false };
 }
 
+const RESUMO_COLUNAS = [
+  "numero_contrato",
+  "cpf",
+  "placa",
+  "status_locacao",
+  "nome",
+  "contrato_cancelado",
+  "fim",
+  "data_fim",
+  "data_finalizacao",
+  "dt_fim",
+  "finalizado_em_ms",
+  "status_json",
+].join(",");
+
+function resumoParaTela(row) {
+  const ms = Number(row && row.finalizado_em_ms);
+  const statusColuna = String((row && row.status_locacao) || "");
+  const statusJson = String((row && row.status_json) || "");
+  return {
+    numeroContrato: String((row && row.numero_contrato) || ""),
+    nome: String((row && row.nome) || ""),
+    cpf: row && row.cpf ? String(row.cpf) : "",
+    placa: row && row.placa ? String(row.placa) : "",
+    statusLocacao: statusColuna || statusJson,
+    status: statusJson || statusColuna,
+    contratoCancelado: Boolean(row && row.contrato_cancelado),
+    fim: String((row && row.fim) || ""),
+    dataFim: String((row && row.data_fim) || ""),
+    dataFinalizacao: String((row && row.data_finalizacao) || ""),
+    dtFim: String((row && row.dt_fim) || ""),
+    portalLocacaoFinalizadoEmMs: Number.isFinite(ms) && ms > 0 ? ms : 0,
+  };
+}
+
+async function listarResumo(cpf, opts) {
+  if (!moduloPedido(await flagDoPedido(opts))) return respostaInativa();
+  const io = (opts && opts.rest) || restAll;
+  let path = `dk_locacao_resumo?select=${RESUMO_COLUNAS}&order=numero_contrato.asc`;
+  const c = digitos(cpf).slice(0, 11);
+  if (c.length === 11) path += `&cpf=eq.${encodeURIComponent(c)}`;
+  const rows = await io(path);
+  if (schemaSumiu(rows)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true, locacoes: [], fallback: false };
+  if (!rows || !rows.ok) {
+    return { ok: false, schema: true, ativado: true, reason: "leitura", status: rows && rows.status, locacoes: [], fallback: false };
+  }
+  const locacoes = (rows.data || []).map(resumoParaTela);
+  return { ok: true, schema: true, ativado: true, source: FONTE_LOCACAO, quantidade: locacoes.length, locacoes, fallback: false };
+}
+
+async function lerDetalhe(numero, opts) {
+  const nc = digitos(numero);
+  if (!nc) return { ok: false, status: 400, reason: "contrato_obrigatorio", ativado: true, fallback: false };
+  if (!moduloPedido(await flagDoPedido(opts))) return { ok: false, status: 403, reason: "inativo", ativado: false, fallback: false };
+  const io = (opts && opts.rest) || rest;
+  const path =
+    `dk_locacao?numero_contrato=eq.${encodeURIComponent(nc)}` +
+    "&deleted_at=is.null&select=id,numero_contrato,id_legado,cpf,placa,status_locacao,campos,version,updated_at&limit=1";
+  const rows = await io(path);
+  if (schemaSumiu(rows)) return { ok: false, schema: false, reason: "schema_ausente", ativado: true, fallback: false };
+  if (!rows || !rows.ok) {
+    return { ok: false, schema: true, ativado: true, reason: "leitura", status: rows && rows.status, fallback: false };
+  }
+  const row = Array.isArray(rows.data) ? rows.data[0] : null;
+  if (!row) return { ok: false, status: 404, reason: "nao_encontrada", ativado: true, fallback: false };
+  const cpfPedido = digitos(opts && opts.cpf).slice(0, 11);
+  if (cpfPedido.length === 11 && digitos(row.cpf).slice(0, 11) !== cpfPedido) {
+    return { ok: false, status: 404, reason: "nao_encontrada", ativado: true, fallback: false };
+  }
+  return {
+    ok: true,
+    schema: true,
+    ativado: true,
+    source: FONTE_LOCACAO,
+    quantidade: 1,
+    locacao: locacaoParaTela(row),
+    fallback: false,
+  };
+}
+
+function normBusca(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normPlacaBusca(valor) {
+  return String(valor || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function pesquisarResumo(lista, filtros) {
+  const pedido = filtros && typeof filtros === "object" ? filtros : {};
+  const placaWant = normPlacaBusca(pedido.placa);
+  const protoWant = digitos(pedido.protocolo || pedido.numeroContrato);
+  const cpfDigits = digitos(pedido.cpf).slice(0, 11);
+  const nomeQ = normBusca(pedido.nome);
+  const locs = (Array.isArray(lista) ? lista : []).filter((loc) => digitos(loc && loc.numeroContrato));
+  if (placaWant.length >= 3) {
+    const matches = locs.filter((loc) => normPlacaBusca(loc.placa).includes(placaWant));
+    const pick = protoWant ? matches.find((loc) => digitos(loc.numeroContrato) === protoWant) || matches[0] : matches[0];
+    return pick || null;
+  }
+  if (protoWant) return locs.find((loc) => digitos(loc.numeroContrato) === protoWant) || null;
+  if (cpfDigits.length === 11) {
+    const matches = locs.filter((loc) => digitos(loc.cpf).slice(0, 11) === cpfDigits);
+    return (protoWant && matches.find((loc) => digitos(loc.numeroContrato) === protoWant)) || matches[0] || null;
+  }
+  if (nomeQ) return locs.find((loc) => normBusca(loc.nome).includes(nomeQ)) || null;
+  return null;
+}
+
 module.exports = {
   FLAG_LOCACAO,
   FONTE_LOCACAO,
@@ -759,6 +874,9 @@ module.exports = {
   LEITURA_MS,
   rest,
   listar,
+  listarResumo,
+  lerDetalhe,
+  pesquisarResumo,
   relogio,
   gravarUma,
   excluirUma,
