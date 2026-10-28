@@ -991,12 +991,26 @@ async function runSuite() {
           headers: dkCeoApiHeaders(tokCeo),
         }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
         record(
-          "oficial: contrato de teste tem o pagamento fracionado",
+          "oficial: contrato de teste esconde o pagamento removido",
           pagVazio.status === 200 &&
-            pagVazio.j?.quantidade === 1 &&
+            pagVazio.j?.quantidade === 0 &&
             pagVazio.j?.ok === true &&
             pagVazio.j?.source === "dk_pagamento_locacao",
           `status=${pagVazio.status} n=${pagVazio.j?.quantidade}`
+        );
+        const pagTombstone = await fetch(`${BASE_URL}api/dk-pagamento-locacao?numeroContrato=2026102701&scope=removidos`, {
+          cache: "no-store",
+          headers: dkCeoApiHeaders(tokCeo),
+        }).then(async (r) => ({ status: r.status, j: await r.json().catch(() => ({})) }));
+        const tomb = Array.isArray(pagTombstone.j?.registros) ? pagTombstone.j.registros[0] : null;
+        record(
+          "oficial: contrato de teste conserva o tombstone",
+          pagTombstone.status === 200 &&
+            pagTombstone.j?.quantidade === 1 &&
+            tomb?.id === "e14c3cc2-ed23-409c-8e60-2cdfb65c6de9" &&
+            tomb?.version === 3 &&
+            tomb?.valor === 1.02,
+          `status=${pagTombstone.status} n=${pagTombstone.j?.quantidade}`
         );
         const pagEscrita = await fetch(`${BASE_URL}api/dk-pagamento-locacao`, {
           method: "POST",
@@ -1043,7 +1057,8 @@ async function runSuite() {
         record("oficial: leitura de pagamento exige um contrato", false, "sem token");
         record("oficial: leitura de pagamento não grava", false, "sem token");
         record("oficial: leitura fracionada do contrato histórico", false, "sem token");
-        record("oficial: contrato de teste tem o pagamento fracionado", false, "sem token");
+        record("oficial: contrato de teste esconde o pagamento removido", false, "sem token");
+        record("oficial: contrato de teste conserva o tombstone", false, "sem token");
         record("oficial: criação real de pagamento continua fechada", false, "sem token");
         record("oficial: probe recusa payload de pagamento", false, "sem token");
         record("oficial: probe de upload não altera pagamentos", false, "sem token");

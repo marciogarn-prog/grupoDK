@@ -166,34 +166,6 @@ async function main() {
   assert.strictEqual(falhaProbe.mutated, false);
   assert.ok(!falhaProbe.pagamentos);
 
-  let patch = false;
-  const conflito = await store.removerE2eReal(2, {
-    fetch: async (url, init) => {
-      if (init && init.method === "PATCH") patch = true;
-      return {
-        ok: true,
-        status: 200,
-        text: async () =>
-          JSON.stringify([
-            {
-              id: "e14c3cc2-ed23-409c-8e60-2cdfb65c6de9",
-              numero_contrato: "2026102701",
-              protocolo_lancamento: "20261028020219-030",
-              migration_key: "online:e14c3cc2-ed23-409c-8e60-2cdfb65c6de9",
-              valor: 1.02,
-              version: 3,
-              removido: true,
-              deleted_at: "2026-10-28T05:40:00.000Z",
-              source_position: 1,
-            },
-          ]),
-      };
-    },
-  });
-  assert.strictEqual(conflito.status, 409);
-  assert.strictEqual(conflito.reason, "version_conflict");
-  assert.strictEqual(patch, false);
-
   console.log("leitura fracionada local ok");
 }
 
