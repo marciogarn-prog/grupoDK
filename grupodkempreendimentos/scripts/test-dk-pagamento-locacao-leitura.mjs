@@ -166,6 +166,48 @@ async function main() {
   assert.strictEqual(falhaProbe.mutated, false);
   assert.ok(!falhaProbe.pagamentos);
 
+  const negadoE2e = await store.inserirE2eReal("03037897430", {
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify([{ version: 2, campos: { numeroContrato: "2026102701", portalLancamentosAluguel: [] } }]),
+    }),
+  });
+  assert.strictEqual(negadoE2e.reason, "contrato_nao_e2e");
+  assert.strictEqual(negadoE2e.inserted, 0);
+
+  let postou = false;
+  const duplicadoE2e = await store.inserirE2eReal("03037897430", {
+    fetch: async (url, init) => {
+      if (init.method === "POST") postou = true;
+      if (String(url).includes("dk_locacao")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify([
+              {
+                version: 2,
+                campos: {
+                  numeroContrato: "2026102701",
+                  marcaModelo: "E2E_DK_REAL_20261027_065940_A7F3",
+                  portalLancamentosAluguel: [],
+                },
+              },
+            ]),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify([{ payload: { data: "27/10/2026", valor: 1.01, tipoMovimento: "PAGAMENTO" } }]),
+      };
+    },
+  });
+  assert.strictEqual(duplicadoE2e.status, 409);
+  assert.strictEqual(duplicadoE2e.inserted, 0);
+  assert.strictEqual(postou, false);
+
   console.log("leitura fracionada local ok");
 }
 

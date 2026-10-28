@@ -220,6 +220,124 @@ function gravarUma() {
   return { ok: false, status: 405, reason: "write_not_active", mutated: false, inserted: 0, updated: 0, fallback: false };
 }
 
+const E2E_PROTOCOL_ID = "E2E_DK_REAL_20261027_065940_A7F3";
+const E2E_CONTRATO = "2026102701";
+const E2E_DATA = "27/10/2026";
+const E2E_VALOR = 1.01;
+
+function protocoloNoFuso(cpf, when) {
+  const d = when instanceof Date ? when : new Date(when);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Recife",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const map = {};
+  for (const part of parts) if (part.type !== "literal") map[part.type] = part.value;
+  const cpf3 = String(cpf || "").replace(/\D/g, "").slice(0, 3);
+  const suffix = cpf3.length >= 3 ? cpf3 : "000";
+  return `${map.year}${map.month}${map.day}${map.hour}${map.minute}${map.second}-${suffix}`;
+}
+
+async function protocoloLivre(cpf, opts) {
+  let t = Date.now();
+  for (let i = 0; i < 5; i += 1) {
+    const proto = protocoloNoFuso(cpf, t);
+    const achou = await rest(
+      "dk_pagamento_locacao?select=id&protocolo_lancamento=eq." + encodeURIComponent(proto) + "&limit=1",
+      opts
+    );
+    if (!achou.ok) return { ok: false, status: achou.status || 503, reason: "postgres_indisponivel" };
+    if (!Array.isArray(achou.data) || achou.data.length === 0) return { ok: true, protocolo: proto, createdAt: t };
+    t += 1000;
+  }
+  return { ok: false, status: 409, reason: "protocolo_indisponivel" };
+}
+
+async function inserirE2eReal(cpf, opts) {
+  const loc = await rest("dk_locacao?select=version,campos&numero_contrato=eq." + E2E_CONTRATO + "&deleted_at=is.null&limit=1", opts);
+  if (!loc.ok) {
+    return { ok: false, status: loc.status || 503, reason: (loc.data && loc.data.reason) || "postgres_indisponivel", mutated: false, inserted: 0, updated: 0, fallback: false };
+  }
+  const row = Array.isArray(loc.data) ? loc.data[0] : null;
+  const campos = row && row.campos && typeof row.campos === "object" ? row.campos : null;
+  const embutidos = campos && Array.isArray(campos.portalLancamentosAluguel) ? campos.portalLancamentosAluguel.length : -1;
+  const marcado = campos ? JSON.stringify(campos).includes(E2E_PROTOCOL_ID) : false;
+  if (!row || Number(row.version) !== 2 || !marcado || embutidos !== 0 || campos.numeroContrato !== E2E_CONTRATO) {
+    return { ok: false, status: 409, reason: "contrato_nao_e2e", mutated: false, inserted: 0, updated: 0, fallback: false };
+  }
+  const atuais = await rest(
+    "dk_pagamento_locacao?select=payload&numero_contrato=eq." + E2E_CONTRATO + "&removido=eq.false",
+    opts
+  );
+  if (!atuais.ok) {
+    return { ok: false, status: atuais.status || 503, reason: "postgres_indisponivel", mutated: false, inserted: 0, updated: 0, fallback: false };
+  }
+  const existentes = (Array.isArray(atuais.data) ? atuais.data : []).map((item) => item.payload).filter(Boolean);
+  const pagamento = {
+    data: E2E_DATA,
+    valor: E2E_VALOR,
+    tipoMovimento: "PAGAMENTO",
+    protocoloLancamento: "20261027000000-000",
+  };
+  const dup = encontrarDuplicidade(pagamento, existentes);
+  if (!dup.ok) {
+    return { ok: false, status: 409, reason: dup.reason, mutated: false, inserted: 0, updated: 0, fallback: false, quantidade: existentes.length };
+  }
+  const livre = await protocoloLivre(cpf, opts);
+  if (!livre.ok) return { ...livre, mutated: false, inserted: 0, updated: 0, fallback: false };
+  pagamento.protocoloLancamento = livre.protocolo;
+  pagamento.createdAt = livre.createdAt;
+  const linha = construirLinhaPagamento(pagamento, E2E_CONTRATO, {
+    sourcePosition: existentes.length + 1,
+    createdAt: new Date(livre.createdAt).toISOString(),
+  });
+  if (!linha.ok) return { ...linha, mutated: false, inserted: 0, updated: 0, fallback: false };
+  const gravado = await rest("dk_pagamento_locacao", {
+    ...opts,
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(linha.linha),
+  });
+  const criada = gravado.ok && Array.isArray(gravado.data) ? gravado.data[0] : null;
+  if (!criada) {
+    return {
+      ok: false,
+      status: gravado.status || 503,
+      reason: (gravado.data && (gravado.data.message || gravado.data.reason)) || "insert_falhou",
+      mutated: false,
+      inserted: 0,
+      updated: 0,
+      fallback: false,
+    };
+  }
+  return {
+    ok: true,
+    status: 201,
+    probe: false,
+    mutated: true,
+    inserted: 1,
+    updated: 0,
+    fallback: false,
+    source: FONTE,
+    id: criada.id,
+    protocolo: criada.protocolo_lancamento,
+    numeroContrato: criada.numero_contrato,
+    data: E2E_DATA,
+    valor: E2E_VALOR,
+    tipo: "PAGAMENTO",
+    version: criada.version,
+    sourcePosition: criada.source_position,
+    migrationKey: criada.migration_key,
+    createdAt: criada.created_at,
+  };
+}
+
 function caminhoProbe() {
   const select = CAMPOS_LINHA.join(",");
   return (
@@ -321,6 +439,7 @@ module.exports = {
   decidirVersao,
   construirLinhaPagamento,
   gravarUma,
+  inserirE2eReal,
   listarPorContrato,
   listarRemovidosPorContrato,
   probeEscrita,
