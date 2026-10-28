@@ -56,6 +56,17 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "POST") {
       const body = corpoJson(req);
+      if (body.mode === "e2e_real_remove") {
+        const chaves = Object.keys(body).sort();
+        if (chaves.join(",") !== "expectedVersion,mode,protocolId" || body.protocolId !== "E2E_DK_REAL_20261027_065940_A7F3") {
+          return res.status(400).json({ ok: false, reason: "payload_rejeitado", mutated: false, updated: 0, deleted: 0, fallback: false });
+        }
+        if (!(gate.service || String(gate.role || "").trim() === "owner")) {
+          return res.status(403).json({ ok: false, reason: "forbidden", mutated: false, updated: 0, deleted: 0, fallback: false });
+        }
+        const out = await store.removerE2eReal(body.expectedVersion);
+        return res.status(out.status || 503).json(out);
+      }
       if (body.mode !== "write_probe") {
         return res.status(405).json({ ok: false, reason: "write_not_active", fallback: false, mutated: false });
       }
