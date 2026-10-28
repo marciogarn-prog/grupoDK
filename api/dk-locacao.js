@@ -62,21 +62,21 @@ module.exports = async function handler(req, res) {
     if (cpfCliente && fonte !== pg.FONTE_LOCACAO) {
       return res.status(403).json({ ok: false, reason: "somente_leitura" });
     }
-    let acesso = { ok: true, role: "owner", service: true };
-    if (fonte === pg.FONTE_LOCACAO) {
-      let funcionarios = null;
-      if (!(gate.service || String(gate.role || "").trim() === "owner" || cpfCliente)) {
-        const payload = await loadOfficialSnapshotPayload();
-        funcionarios = payload && Array.isArray(payload.dk_funcionarios_access) ? payload.dk_funcionarios_access : [];
-      }
-      acesso = pg.decidirAcessoLocacao(
-        { ok: true, typ: gate.typ, role: gate.role, service: gate.service, cpf: gate.cpf },
-        funcionarios
-      );
-      if (!acesso.ok) {
-        return res.status(acesso.status || 403).json({ ok: false, reason: acesso.reason, modulo: acesso.modulo });
-      }
+    let funcionarios = null;
+    if (
+      fonte === pg.FONTE_LOCACAO &&
+      !(gate.service || String(gate.role || "").trim() === "owner" || cpfCliente)
+    ) {
+      const payload = await loadOfficialSnapshotPayload();
+      funcionarios = payload && Array.isArray(payload.dk_funcionarios_access) ? payload.dk_funcionarios_access : [];
     }
+    const acesso = {
+      ok: true,
+      typ: gate.typ,
+      role: gate.role,
+      service: Boolean(gate.service),
+      cpf: gate.cpf,
+    };
     const body = parseBody(req);
     const acao = String(body.op || op || "").trim();
     if (acao === "excluir") {
@@ -85,6 +85,7 @@ module.exports = async function handler(req, res) {
         version: body.version,
         by: autor(gate),
         acesso,
+        funcionarios,
       });
       if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
       if (out.conflict) return res.status(409).json(out);
@@ -100,6 +101,7 @@ module.exports = async function handler(req, res) {
         by: autor(gate),
         criar: acao === "criar" || !locacao.pgId,
         acesso,
+        funcionarios,
       });
       if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
       if (out.conflict) return res.status(409).json(out);
