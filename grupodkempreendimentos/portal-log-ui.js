@@ -115,9 +115,18 @@
     if (!panel || panel.dataset.logUi === "1") return;
     panel.dataset.logUi = "1";
     var pendente = 0;
+    var estavaAberto = false;
     function agendar() {
-      if (!painelAberto()) return;
+      var aberto = painelAberto();
+      if (!aberto) {
+        estavaAberto = false;
+        return;
+      }
       carregar();
+      if (!estavaAberto && typeof window.dkSyncCheckpoint === "function") {
+        Promise.resolve(window.dkSyncCheckpoint("checkpoint")).catch(function () {});
+      }
+      estavaAberto = true;
       clearTimeout(pendente);
       pendente = setTimeout(carregar, 400);
     }
