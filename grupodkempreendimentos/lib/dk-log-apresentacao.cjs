@@ -59,6 +59,36 @@ function sanitizarEvento(row) {
   };
 }
 
+function doisPrimeirosNomes(nome) {
+  const partes = String(nome || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!partes.length) return "Sessão";
+  return partes.slice(0, 2).join(" ");
+}
+
+function perfilHumano(role, userId) {
+  const papel = String(role || "").trim();
+  const cpf = String(userId || "").replace(/\D/g, "").slice(0, 11);
+  if (papel === "Administrador CEO" || papel === "Administrador" || papel === "Colaborador") return papel;
+  if (cpf === "03037897430" && (papel === "owner" || papel === "Administrador")) return "Administrador CEO";
+  if (papel === "owner") return "Administrador";
+  if (papel === "operacao" || papel === "op") return "Colaborador";
+  return papel;
+}
+
+function rotuloMaquina(valor) {
+  const cru = String(valor || "").trim();
+  if (!cru) return "";
+  if (/win/i.test(cru)) return "Windows";
+  if (/mac/i.test(cru)) return "macOS";
+  if (/android/i.test(cru)) return "Android";
+  if (/iphone|ipad|ios/i.test(cru)) return "iPhone";
+  if (/linux/i.test(cru)) return "Linux";
+  return cru;
+}
+
 function statusPresenca(row, agora) {
   const item = row && typeof row === "object" ? row : {};
   const gravado = String(item.status || "ONLINE");
@@ -77,9 +107,9 @@ function ordenarSessoes(rows, agora) {
   lista.sort((a, b) => new Date(a.session_started_at).getTime() - new Date(b.session_started_at).getTime());
   return lista.map((row, indice) => ({
     prioridade: indice + 1,
-    usuario: mascararTexto(row.user_name || "Sessão"),
-    perfil: row.role || "",
-    maquina: row.device_label || "",
+    usuario: doisPrimeirosNomes(row.user_name || "Sessão"),
+    perfil: perfilHumano(row.role, row.user_id),
+    maquina: rotuloMaquina(row.device_label),
     entrada: row.session_started_at || null,
     ultima: row.last_activity_at || null,
     tela: row.current_screen || "",
@@ -94,4 +124,7 @@ module.exports = {
   sanitizarEvento,
   statusPresenca,
   ordenarSessoes,
+  doisPrimeirosNomes,
+  perfilHumano,
+  rotuloMaquina,
 };

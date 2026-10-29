@@ -43,6 +43,28 @@ const ordem = app.ordenarSessoes(
 );
 assert.deepStrictEqual(ordem.map((item) => item.usuario), ["Márcio", "João"]);
 assert.deepStrictEqual(ordem.map((item) => item.prioridade), [1, 2]);
+assert.strictEqual(app.doisPrimeirosNomes("MARCOS RAFAEL DA SILVA SANTOS"), "MARCOS RAFAEL");
+assert.strictEqual(app.perfilHumano("owner", ""), "Administrador");
+assert.strictEqual(app.perfilHumano("owner", "03037897430"), "Administrador CEO");
+assert.strictEqual(app.rotuloMaquina("Win32"), "Windows");
+const longo = app.ordenarSessoes(
+  [
+    {
+      user_name: "MARCOS RAFAEL DA SILVA SANTOS",
+      role: "owner",
+      user_id: "111",
+      device_label: "Win32",
+      session_started_at: "2026-10-29T14:39:00Z",
+      last_activity_at: "2026-10-29T14:50:00Z",
+      status: "ONLINE",
+      current_screen: "Log DK",
+    },
+  ],
+  agora
+);
+assert.strictEqual(longo[0].usuario, "MARCOS RAFAEL");
+assert.strictEqual(longo[0].perfil, "Administrador");
+assert.strictEqual(longo[0].maquina, "Windows");
 
 assert.ok(sql.includes("create table if not exists public.dk_audit_state"));
 assert.ok(sql.includes("for update"));
@@ -62,7 +84,13 @@ const css = fs.readFileSync(path.join(raiz, "styles.css"), "utf8");
 assert.ok(html.includes("dk-log-fundacao"));
 assert.ok(html.includes("Usuários ativos"));
 assert.ok(html.includes("Detalhes do evento"));
-assert.ok(css.includes("grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr)"));
+assert.ok(css.includes("grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr)"));
+assert.ok(html.includes('id="portal-log-usuarios"'));
+assert.ok(html.includes('id="portal-log-detalhe"'));
+assert.ok(html.includes('id="portal-log-lista"'));
+assert.ok(css.includes("overflow: auto"));
+assert.ok(ui.includes("Login "));
+assert.ok(ui.includes("white-space") || css.includes("white-space: nowrap"));
 assert.ok(css.includes("grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)"));
 assert.ok(ui.includes("mostrarHover"));
 assert.ok(!ui.includes("setInterval"));

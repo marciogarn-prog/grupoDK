@@ -115,8 +115,8 @@
         texto(sessao.perfil) +
         " · " +
         texto(sessao.maquina) +
-        " · entrada " +
-        quando.cheio +
+        " · Login " +
+        (quando.curto || quando.cheio) +
         " · última " +
         ultima.curto +
         " · " +
@@ -232,13 +232,51 @@
     });
   }
 
+  function rotuloNavegador(nav) {
+    var ua = String((nav && nav.userAgent) || "");
+    var plat = String((nav && nav.platform) || "");
+    if (/Android/i.test(ua)) return "Android";
+    if (/iPhone|iPad/i.test(ua)) return "iPhone";
+    if (/Win/i.test(plat) || /Windows/i.test(ua)) return "Windows";
+    if (/Mac/i.test(plat)) return "macOS";
+    if (/Linux/i.test(plat)) return "Linux";
+    return plat.slice(0, 40);
+  }
+
+  function perfilDestaSessao() {
+    try {
+      var s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      if (!s || s.tipo !== "admin") return "";
+      var cpf = String(s.cpf || "").replace(/\D/g, "").slice(0, 11);
+      if (s.role === "owner" && cpf === "03037897430") return "Administrador CEO";
+      if (s.role === "owner") return "Administrador";
+      var lista = typeof funcionariosAccess !== "undefined" && Array.isArray(funcionariosAccess) ? funcionariosAccess : [];
+      var achado = null;
+      for (var i = 0; i < lista.length; i++) {
+        var item = lista[i];
+        var doc = String((item && item.cpf) || "").replace(/\D/g, "").slice(0, 11);
+        if (doc && doc === cpf) {
+          achado = item;
+          break;
+        }
+      }
+      var funcao = achado ? String(achado.funcao || "").replace(/[\r\n\t]/g, " ").trim() : "";
+      if (funcao) return funcao.slice(0, 40);
+      return "Colaborador";
+    } catch (erro) {
+      return "";
+    }
+  }
+
   function queryLog(antes) {
     var params = new URLSearchParams();
     params.set("limit", "50");
     params.set("tela", "Log DK");
     try {
       var nav = typeof navigator !== "undefined" ? navigator : {};
-      if (nav.platform) params.set("maquina", String(nav.platform).slice(0, 40));
+      params.set("maquina", rotuloNavegador(nav));
+      var perfil = perfilDestaSessao();
+      if (perfil) params.set("perfil", perfil);
       if (nav.userAgent) params.set("navegador", /Edg\//.test(nav.userAgent) ? "Edge" : /Chrome\//.test(nav.userAgent) ? "Chrome" : "navegador");
     } catch (erro) {
       /* a lista abre mesmo sem o rótulo da máquina */

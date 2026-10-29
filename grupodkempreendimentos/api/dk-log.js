@@ -5,7 +5,7 @@
 const { applyApiCors, requireLiveSession, assertEquipaClientProtocol } = require("../lib/dk-portal-auth.cjs");
 const { decidirAcessoLog, estadoLog } = require("../lib/dk-log-acesso.cjs");
 const { lerEventosLog } = require("../lib/dk-log-leitura.cjs");
-const { ordenarSessoes } = require("../lib/dk-log-apresentacao.cjs");
+const { ordenarSessoes, perfilHumano, rotuloMaquina } = require("../lib/dk-log-apresentacao.cjs");
 const { isSupabaseDoormanConfigured } = require("../lib/dk-supabase-doorman.cjs");
 
 module.exports = async function handler(req, res) {
@@ -60,6 +60,11 @@ async function presencaDaLeitura(gate, q) {
   if (!isSupabaseDoormanConfigured()) return [];
   const sid = textoCurto(gate && gate.sid, 80);
   if (!sid) return [];
+  const perfilCliente = textoCurto(q.perfil, 40);
+  const perfil =
+    String(gate.role || "") === "operacao" && perfilCliente && !/\d{8,}/.test(perfilCliente)
+      ? perfilCliente
+      : perfilHumano(gate.role, gate.cpf);
   const headers = {
     apikey: chaveServico(),
     Authorization: "Bearer " + chaveServico(),
@@ -73,8 +78,8 @@ async function presencaDaLeitura(gate, q) {
       p_session_id: sid,
       p_user_id: textoCurto(gate.cpf, 20),
       p_user_name: textoCurto(gate.nome, 80),
-      p_role: textoCurto(gate.role, 40),
-      p_device_label: textoCurto(q.maquina, 40),
+      p_role: perfil,
+      p_device_label: rotuloMaquina(q.maquina) || textoCurto(q.maquina, 40),
       p_screen: textoCurto(q.tela, 60) || "Log DK",
       p_status: "ONLINE",
       p_browser: textoCurto(q.navegador, 40),
@@ -82,7 +87,7 @@ async function presencaDaLeitura(gate, q) {
     }),
   }).catch(() => null);
   const lista = await fetch(
-    urlSupabase() + "/rest/v1/dk_live_sessions?select=session_id,user_name,role,device_label,session_started_at,last_activity_at,current_screen,status&order=session_started_at.asc",
+    urlSupabase() + "/rest/v1/dk_live_sessions?select=session_id,user_id,user_name,role,device_label,session_started_at,last_activity_at,current_screen,status&order=session_started_at.asc",
     { headers }
   );
   const rows = await lista.json().catch(() => []);
