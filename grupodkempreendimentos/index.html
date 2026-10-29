@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261029logdk5">
+  <link rel="stylesheet" href="styles.css?v=20261029logdk6">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -3760,42 +3760,87 @@
         <div class="dk-log-fundacao">
           <div class="dk-log-esq">
             <section class="dk-log-usuarios" aria-labelledby="portal-log-usuarios-titulo">
-              <h2 id="portal-log-usuarios-titulo" class="dk-log-titulo">Usuários ativos</h2>
+              <header class="dk-log-cabeca">
+                <span class="dk-log-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                <div class="dk-log-cabeca-texto">
+                  <h2 id="portal-log-usuarios-titulo" class="dk-log-titulo">Usuários ativos</h2>
+                  <p class="dk-log-legenda">Lista de usuários atualmente conectados ao sistema, com informações de login e status.</p>
+                </div>
+              </header>
               <div id="portal-log-usuarios" class="dk-log-scroll"></div>
             </section>
             <section class="dk-log-detalhe" aria-labelledby="portal-log-detalhe-titulo">
-              <h2 id="portal-log-detalhe-titulo" class="dk-log-titulo">Detalhes do evento</h2>
+              <header class="dk-log-cabeca">
+                <span class="dk-log-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M8 13h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                <div class="dk-log-cabeca-texto">
+                  <h2 id="portal-log-detalhe-titulo" class="dk-log-titulo">Detalhes do evento</h2>
+                </div>
+              </header>
               <div id="portal-log-detalhe" class="dk-log-scroll"></div>
             </section>
           </div>
           <section class="dk-log-dir" aria-labelledby="portal-log-titulo">
-            <h2 id="portal-log-titulo" class="dk-log-titulo">Log DK</h2>
-            <p class="subpage__lead" id="portal-log-estado">Log DK — eventos duráveis registrados no servidor</p>
-            <p class="subtext" id="portal-log-nota">Clientes, veículos, locações e pagamentos ainda não geram eventos.</p>
+            <header class="dk-log-cabeca">
+              <span class="dk-log-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8M3 4h18v4H3zM10 12h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="dk-log-cabeca-texto">
+                <h2 id="portal-log-titulo" class="dk-log-titulo">Log DK</h2>
+                <p class="dk-log-legenda" id="portal-log-estado">Log DK — eventos duráveis registrados no servidor</p>
+                <p class="dk-log-legenda" id="portal-log-nota">Clientes, veículos, locações e pagamentos ainda não geram eventos.</p>
+              </div>
+            </header>
             <div class="dk-log-filtros">
-              <input id="portal-log-filtro-usuario" type="search" placeholder="Usuário" aria-label="Filtrar por usuário">
-              <input id="portal-log-filtro-modulo" type="search" placeholder="Módulo" aria-label="Filtrar por módulo">
-              <input id="portal-log-filtro-acao" type="search" placeholder="Ação" aria-label="Filtrar por ação">
-              <input id="portal-log-filtro-resultado" type="search" placeholder="Resultado" aria-label="Filtrar por resultado">
+              <label class="dk-log-filtro">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 19.5v-1.2a4.5 4.5 0 0 1 4.5-4.5h5a4.5 4.5 0 0 1 4.5 4.5v1.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input id="portal-log-filtro-usuario" type="search" placeholder="Usuário" aria-label="Filtrar por usuário">
+              </label>
+              <label class="dk-log-filtro">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+                <input id="portal-log-filtro-modulo" type="search" placeholder="Módulo" aria-label="Filtrar por módulo">
+              </label>
+              <label class="dk-log-filtro">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input id="portal-log-filtro-acao" type="search" placeholder="Ação" aria-label="Filtrar por ação">
+              </label>
+              <label class="dk-log-filtro">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 16.5L20.5 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input id="portal-log-filtro-resultado" type="search" placeholder="Resultado" aria-label="Filtrar por resultado">
+              </label>
             </div>
             <div id="portal-log-lista" class="dk-log-scroll" role="list"></div>
-            <button type="button" class="btn-primary btn-secondary-outline" id="portal-log-anteriores">Carregar anteriores</button>
-            <div id="portal-sync-monitor" class="portal-sync-monitor">
-              <p class="subpage__lead">Monitoramento de sincronização</p>
-              <p class="subtext">Este navegador. Não representa os outros computadores.</p>
-              <p class="subtext">Servidor: <span id="portal-sync-servidor">seq 0</span></p>
-              <p class="subtext">Este navegador: <span id="portal-sync-navegador">seq 0</span></p>
-              <p class="subtext">Atraso: <span id="portal-sync-lag">0 evento(s)</span></p>
-              <p class="subtext">Estado: <span id="portal-sync-estado">Inicializando</span></p>
-              <p class="subtext">Último checkpoint: <span id="portal-sync-checkpoint">ainda não realizado</span></p>
-              <p class="subtext" id="portal-sync-erro"></p>
-              <button type="button" class="btn-primary btn-secondary-outline" id="btn-verificar-sync">Verificar sincronização</button>
+            <button type="button" class="dk-log-anteriores" id="portal-log-anteriores" hidden>Carregar anteriores</button>
+            <div id="portal-sync-monitor" class="portal-sync-monitor dk-log-syncbar">
+              <p class="dk-log-sync-oculto">Monitoramento de sincronização</p>
+              <p class="dk-log-sync-oculto">Este navegador. Não representa os outros computadores.</p>
+              <div class="dk-log-syncbar__bloco dk-log-syncbar__estado">
+                <span class="dk-log-syncbar__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.2l2.4 2.4L16.2 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span id="portal-sync-estado">Inicializando</span>
+              </div>
+              <span class="dk-log-syncbar__div" aria-hidden="true"></span>
+              <div class="dk-log-syncbar__bloco">
+                <span class="dk-log-syncbar__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="6" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="4" y="14.5" width="16" height="6" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 6.5h.01M8 17.5h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+                <span class="dk-log-syncbar__txt">
+                  <span class="dk-log-syncbar__nome">Servidor</span>
+                  <span id="portal-sync-servidor">seq 0</span>
+                </span>
+              </div>
+              <span class="dk-log-syncbar__div" aria-hidden="true"></span>
+              <div class="dk-log-syncbar__bloco">
+                <span class="dk-log-syncbar__ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="12" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20.5h8M12 16.5v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                <span class="dk-log-syncbar__txt">
+                  <span class="dk-log-syncbar__nome">Este navegador</span>
+                  <span id="portal-sync-navegador">seq 0</span>
+                </span>
+              </div>
+              <p class="dk-log-sync-oculto">Atraso: <span id="portal-sync-lag">0 evento(s)</span></p>
+              <p class="dk-log-sync-oculto">Último checkpoint: <span id="portal-sync-checkpoint">ainda não realizado</span></p>
+              <p class="dk-log-sync-erro" id="portal-sync-erro"></p>
+              <button type="button" class="dk-log-sync-refresh" id="btn-verificar-sync" title="Verificar sincronização">Verificar sincronização</button>
             </div>
           </section>
         </div>
         <div id="portal-log-hover" class="dk-log-hover" hidden></div>
         <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-log-locadora">Voltar</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-log-locadora"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Voltar</button>
         </div>
       </section>
 
@@ -6295,7 +6340,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261018empresa"></script>
-  <script src="app.js?v=20261029logdk5" defer></script>
+  <script src="app.js?v=20261029logdk6" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6309,9 +6354,9 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261028canario" defer></script>
-  <script src="portal-locadora-ui.js?v=20261029logdk5" defer></script>
-  <script src="portal-dk-sync.js?v=20261029logdk5" defer></script>
-  <script src="portal-log-ui.js?v=20261029logdk5" defer></script>
+  <script src="portal-locadora-ui.js?v=20261029logdk6" defer></script>
+  <script src="portal-dk-sync.js?v=20261029logdk6" defer></script>
+  <script src="portal-log-ui.js?v=20261029logdk6" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>

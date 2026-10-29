@@ -78,6 +78,36 @@
     pai.appendChild(p);
   }
 
+  function linhaDetalhe(pai, rotulo, valor) {
+    var linha = document.createElement("div");
+    linha.className = "dk-log-detalhe-linha";
+    var a = document.createElement("span");
+    a.className = "dk-log-detalhe-rotulo";
+    a.textContent = rotulo;
+    var b = document.createElement("span");
+    b.className = "dk-log-detalhe-valor";
+    b.textContent = valor;
+    linha.appendChild(a);
+    linha.appendChild(b);
+    pai.appendChild(linha);
+  }
+
+  function chevron() {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("class", "dk-log-chevron");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M9 6l6 6-6 6");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.8");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(path);
+    return svg;
+  }
+
   function passaFiltro(evento) {
     function contem(id, campo) {
       var el = document.getElementById(id);
@@ -107,9 +137,10 @@
       p.className = "dk-log-usuario";
       var quando = partesTempo(sessao.entrada);
       var ultima = partesTempo(sessao.ultima);
-      p.textContent =
+      var status = texto(sessao.status);
+      p.appendChild(document.createTextNode(
         texto(sessao.prioridade) +
-        " · " +
+        " - " +
         texto(sessao.usuario) +
         " · " +
         texto(sessao.perfil) +
@@ -121,8 +152,12 @@
         ultima.curto +
         " · " +
         texto(sessao.tela) +
-        " · " +
-        texto(sessao.status);
+        " · "
+      ));
+      var marca = document.createElement("span");
+      marca.className = status === "ONLINE" ? "dk-log-status dk-log-status--online" : "dk-log-status";
+      marca.textContent = status;
+      p.appendChild(marca);
       box.appendChild(p);
     });
   }
@@ -140,28 +175,28 @@
     if (titulo) titulo.textContent = "Detalhes do evento #" + texto(evento.audit_no);
     var quando = partesTempo(evento.created_at);
     var campos = [
-      "Número oficial: #" + texto(evento.audit_no),
-      "Data/hora: " + quando.cheio,
-      "Usuário: " + (evento.actor_name || "Sistema"),
-      "Perfil: " + texto(evento.actor_role),
-      "Máquina: " + texto(evento.device_label),
-      "Módulo: " + texto(evento.module),
-      "Entidade: " + texto(evento.entity_type) + (evento.entity_id ? " " + texto(evento.entity_id) : ""),
-      "Evento: " + texto(evento.event_type),
-      "Ação: " + texto(evento.action),
-      "Resultado: " + resultado(evento),
-      "operation_id: " + texto(evento.operation_id),
-      "record_version: " + texto(evento.record_version),
-      "Sequência técnica: " + texto(evento.seq),
-      "Cursor interno de sincronização",
-      "Resumo: " + resumo(evento),
+      ["Número oficial:", "#" + texto(evento.audit_no)],
+      ["Data/hora:", quando.cheio],
+      ["Usuário:", evento.actor_name || "Sistema"],
+      ["Perfil:", texto(evento.actor_role)],
+      ["Máquina:", texto(evento.device_label)],
+      ["Módulo:", texto(evento.module)],
+      ["Entidade:", texto(evento.entity_type) + (evento.entity_id ? " " + texto(evento.entity_id) : "")],
+      ["Evento:", texto(evento.event_type)],
+      ["Ação:", texto(evento.action)],
+      ["Resultado:", resultado(evento)],
+      ["operation_id:", texto(evento.operation_id)],
+      ["record_version:", texto(evento.record_version)],
+      ["Sequência técnica:", texto(evento.seq)],
+      ["Cursor interno de sincronização", ""],
+      ["Resumo:", resumo(evento)],
     ];
     campos.forEach(function (linha) {
-      paragrafo(box, linha);
+      linhaDetalhe(box, linha[0], linha[1]);
     });
     var details = evento.details && typeof evento.details === "object" ? evento.details : {};
     Object.keys(details).forEach(function (chave) {
-      paragrafo(box, chave + ": " + texto(details[chave]));
+      linhaDetalhe(box, chave + ":", texto(details[chave]));
     });
   }
 
@@ -212,7 +247,11 @@
       var botao = document.createElement("button");
       botao.type = "button";
       botao.className = "dk-log-linha";
-      botao.textContent = linhaCompacta(evento);
+      var rotulo = document.createElement("span");
+      rotulo.className = "dk-log-linha-texto";
+      rotulo.textContent = linhaCompacta(evento);
+      botao.appendChild(rotulo);
+      botao.appendChild(chevron());
       botao.addEventListener("mouseenter", function (ev) {
         mostrarHover(evento, ev.clientX, ev.clientY);
       });
@@ -364,6 +403,12 @@
     textoNo("portal-sync-estado", textos.estado);
     textoNo("portal-sync-checkpoint", textos.checkpoint === "ainda não realizado" ? textos.checkpoint : dataHora(textos.checkpoint));
     textoNo("portal-sync-erro", textos.erro);
+    var barra = document.getElementById("portal-sync-monitor");
+    if (barra) {
+      barra.classList.toggle("is-sincronizado", textos.estado === "Sincronizado");
+      barra.classList.toggle("is-erro", textos.estado === "Erro");
+      barra.classList.toggle("is-atrasado", textos.estado === "Atrasado");
+    }
   }
 
   function observar() {
