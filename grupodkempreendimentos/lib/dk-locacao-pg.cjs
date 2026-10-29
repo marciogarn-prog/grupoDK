@@ -755,12 +755,29 @@ const RESUMO_COLUNAS = [
   "dt_fim",
   "finalizado_em_ms",
   "status_json",
+  "inicio",
+  "marca_modelo",
+  "valor_locacao",
+  "valor_investimento",
+  "valor_semanal",
+  "plano",
+  "modalidade",
+  "dia_pagto",
+  "km_inicial",
+  "cliente_codigo",
+  "finalizado_por_nome",
+  "executado_por_nome",
+  "executado_em_ms",
 ].join(",");
 
 function resumoParaTela(row) {
   const ms = Number(row && row.finalizado_em_ms);
+  const executadoMs = Number(row && row.executado_em_ms);
   const statusColuna = String((row && row.status_locacao) || "");
   const statusJson = String((row && row.status_json) || "");
+  const modelo = String((row && row.marca_modelo) || "");
+  const semanal = String((row && row.valor_semanal) || "");
+  const inicio = String((row && row.inicio) || "");
   return {
     numeroContrato: String((row && row.numero_contrato) || ""),
     nome: String((row && row.nome) || ""),
@@ -774,6 +791,22 @@ function resumoParaTela(row) {
     dataFinalizacao: String((row && row.data_finalizacao) || ""),
     dtFim: String((row && row.dt_fim) || ""),
     portalLocacaoFinalizadoEmMs: Number.isFinite(ms) && ms > 0 ? ms : 0,
+    inicio,
+    dataInicio: inicio,
+    marcaModelo: modelo,
+    modelo,
+    valorLocacao: String((row && row.valor_locacao) || ""),
+    valorInvestimento: String((row && row.valor_investimento) || ""),
+    valorSemanal: semanal,
+    valorParcela: semanal,
+    plano: String((row && row.plano) || ""),
+    modalidade: String((row && row.modalidade) || ""),
+    diaPagto: String((row && row.dia_pagto) || ""),
+    kmInicial: String((row && row.km_inicial) || ""),
+    clienteCodigo: String((row && row.cliente_codigo) || ""),
+    portalLocacaoFinalizadoPorNome: String((row && row.finalizado_por_nome) || ""),
+    portalLocacaoExecutadoPorNome: String((row && row.executado_por_nome) || ""),
+    portalLocacaoExecutadoEmMs: Number.isFinite(executadoMs) && executadoMs > 0 ? executadoMs : 0,
   };
 }
 

@@ -37,7 +37,13 @@ async function main() {
 
   const resumo = await pg.listarResumo("", {
     flag: "dk_locacao",
-    rest: async () => ({
+    rest: async (pedido) => {
+      const texto = String(pedido || "");
+      assert.ok(texto.includes("marca_modelo"));
+      assert.ok(texto.includes("valor_locacao"));
+      assert.ok(texto.includes("inicio"));
+      assert.equal(texto.includes("portalLancamentosAluguel"), false);
+      return {
       ok: true,
       data: [
         {
@@ -53,6 +59,19 @@ async function main() {
           dt_fim: null,
           finalizado_em_ms: null,
           status_json: "ATIVO",
+          inicio: "27/10/2026",
+          marca_modelo: "HONDA / CG 160 START",
+          valor_locacao: "R$ 270,00",
+          valor_investimento: "R$ 0,00",
+          valor_semanal: "R$ 270,00",
+          plano: "DK MEU TRANSPORTE (MOTO)",
+          modalidade: "MOTO",
+          dia_pagto: "segunda-feira",
+          km_inicial: "41",
+          cliente_codigo: "0108",
+          finalizado_por_nome: "",
+          executado_por_nome: "OPERADOR",
+          executado_em_ms: "1790000000000",
         },
         {
           numero_contrato: "2025111403",
@@ -69,7 +88,8 @@ async function main() {
           status_json: "FINALIZADO",
         },
       ],
-    }),
+    };
+    },
   });
   assert.strictEqual(resumo.ok, true);
   assert.strictEqual(resumo.source, "dk_locacao");
@@ -77,7 +97,14 @@ async function main() {
   assert.strictEqual(resumo.fallback, false);
   assert.strictEqual(temProibido(resumo), false);
   assert.strictEqual(resumo.locacoes[0].numeroContrato, "2026102701");
+  assert.strictEqual(resumo.locacoes[0].marcaModelo, "HONDA / CG 160 START");
+  assert.strictEqual(resumo.locacoes[0].valorLocacao, "R$ 270,00");
+  assert.strictEqual(resumo.locacoes[0].valorSemanal, "R$ 270,00");
+  assert.strictEqual(resumo.locacoes[0].inicio, "27/10/2026");
+  assert.strictEqual(resumo.locacoes[0].plano, "DK MEU TRANSPORTE (MOTO)");
   assert.strictEqual(resumo.locacoes[1].fim, "01/01/2026");
+  assert.strictEqual(resumo.locacoes[1].marcaModelo, "");
+  assert.strictEqual(resumo.locacoes[1].valorLocacao, "");
 
   const falha = await pg.listarResumo("", {
     flag: "dk_locacao",
