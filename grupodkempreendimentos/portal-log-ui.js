@@ -220,6 +220,9 @@
         mostrarHover(evento, ev.clientX, ev.clientY);
       });
       botao.addEventListener("mouseleave", esconderHover);
+      botao.addEventListener("mousedown", function (ev) {
+        ev.preventDefault();
+      });
       botao.addEventListener("click", function () {
         esconderHover();
         Array.prototype.forEach.call(lista.querySelectorAll(".dk-log-linha"), function (el) {
@@ -227,6 +230,8 @@
         });
         botao.classList.add("is-selecionada");
         pintarDetalhe(evento);
+        var detalhe = document.getElementById("portal-log-detalhe");
+        if (detalhe) detalhe.scrollTop = 0;
       });
       lista.appendChild(botao);
     });

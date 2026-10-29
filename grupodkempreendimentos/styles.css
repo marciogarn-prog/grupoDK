@@ -17704,19 +17704,25 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   margin: 0.2rem 0;
 }
 
+body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) {
+  overflow: hidden;
+}
+
 body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:not(.hidden)) {
   position: fixed;
   top: var(--portal-admin-banner-h, 3.2rem);
   right: 0;
   bottom: 0;
   left: 0;
-  height: auto;
-  max-height: none;
+  height: calc(100dvh - var(--portal-admin-banner-h, 3.2rem));
+  max-height: calc(100dvh - var(--portal-admin-banner-h, 3.2rem));
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
   padding: 0.4rem 0.75rem 0.35rem;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
 }
 
 #panel-log-locadora:not(.hidden) {
@@ -17743,7 +17749,7 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   gap: 0.55rem;
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
+  height: auto;
   overflow: hidden;
   align-items: stretch;
 }
@@ -17765,11 +17771,12 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   background: rgba(8, 8, 10, 0.78);
   min-width: 0;
   min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   padding: 0.55rem 0.7rem;
   overflow: hidden;
-  height: 100%;
+  height: auto;
 }
 
 .dk-log-titulo {
@@ -17783,6 +17790,7 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   overflow-y: scroll;
   min-height: 0;
   flex: 1 1 auto;
+  overscroll-behavior: contain;
 }
 
 .dk-log-filtros {
