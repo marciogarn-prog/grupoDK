@@ -283,7 +283,7 @@ const html = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.ur
 assert.strictEqual(fonte.includes("localStorage"), false);
 assert.strictEqual(fonte.includes('const MODO_PRODUCAO = "legacy"'), true);
 assert.strictEqual(html.includes("portal-pagamento-store.js?v=20261028canario"), true);
-assert.strictEqual(html.includes('app.js?v=20261029logdk9'), true);
+assert.strictEqual(html.includes('app.js?v=20261029logdk10'), true);
 
 let legadoExecutou = 0;
 const telaLegado = legacy.criarTela("2025111403", null, {

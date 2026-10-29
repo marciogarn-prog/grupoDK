@@ -18040,7 +18040,7 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   grid-column: 1 / -1;
 }
 
-.dk-log-status--online {
+.dk-log-usuarios-grade > .dk-log-status--online {
   color: #20d65a;
   font-weight: 700;
 }
