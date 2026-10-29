@@ -17883,20 +17883,20 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
 
 .dk-log-filtros {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0 0 0.7rem;
   flex: 0 0 auto;
 }
 
 .dk-log-filtro {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 7.6rem;
+  min-width: 7.6rem;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   height: 2.45rem;
-  padding: 0 0.7rem;
+  padding: 0 0.5rem;
   background: #0b0d10;
   color: #a9adb5;
   border: 1px solid rgba(255, 255, 255, 0.14);
