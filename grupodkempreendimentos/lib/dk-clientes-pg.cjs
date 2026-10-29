@@ -5,6 +5,7 @@
 const crypto = require("crypto");
 const { isSupabaseDoormanConfigured } = require("./dk-supabase-doorman.cjs");
 const { revisaoConflita } = require("./dk-persistencia-central.cjs");
+const { dkClienteAplicarPatch, dkClienteParaPersistencia, dkClienteParaTerminal } = require("./dk-cliente-fidelidade.cjs");
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const TABELA = "dk_clientes";
@@ -172,8 +173,19 @@ async function listarClientes(ioRest) {
   if (!lido.ok) return lido;
   return {
     ok: true,
-    clientes: lido.linhas.map((row) => (row && row.payload && typeof row.payload === "object" ? row.payload : {})),
+    clientes: lido.linhas.map((row) => dkClienteParaTerminal(row)),
   };
+}
+
+async function lerClienteCompleto(id, ioRest) {
+  const pedido = ioRest || rest;
+  const chave = encodeURIComponent(String(id || ""));
+  const res = await pedido(
+    TABELA + "?id=eq." + chave + "&deleted_at=is.null&select=id,cpf,payload,created_at,updated_at,deleted_at&limit=1"
+  );
+  if (!res.ok) return { ok: false, status: res.status, data: res.data, cliente: null };
+  const linha = Array.isArray(res.data) ? res.data[0] : null;
+  return { ok: true, cliente: linha ? dkClienteParaTerminal(linha) : null };
 }
 
 async function lerPorCpf(cpf, ioRest) {
@@ -229,15 +241,16 @@ async function upsertUm(cliente, baseRevision, ioRest, opts) {
       },
     };
   }
-  const id = String((prev && prev.id != null && String(prev.id)) || recebido.id || Date.now());
-  const merged = { ...(prev || {}), ...recebido, cpf, id: prev && prev.id != null ? prev.id : recebido.id || id };
-  if (prev && prev.senha && !merged.senha) merged.senha = prev.senha;
+  const merged = dkClienteAplicarPatch(prev || {}, recebido);
+  if (prev && prev.id != null) merged.id = prev.id;
+  else if (merged.id == null || merged.id === "") merged.id = recebido.id || Date.now();
+  const persistido = dkClienteParaPersistencia(merged);
   const agora = new Date().toISOString();
   const gravado = await gravarLinha(
     {
-      id: String(merged.id),
-      cpf,
-      payload: merged,
+      id: String(persistido.id),
+      cpf: persistido.cpf || cpf,
+      payload: persistido.payload,
       updated_at: agora,
       ...(atual.row ? {} : { created_at: agora }),
     },
@@ -373,6 +386,7 @@ module.exports = {
   listarClientes,
   listarLinhas,
   lerPorCpf,
+  lerClienteCompleto,
   upsertUm,
   resumirLista,
   copiarLista,

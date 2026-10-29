@@ -17235,18 +17235,8 @@
         cliente: data?.cliente || null,
       };
     };
-    let revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
-    let ultimo = null;
-    for (let i = 0; i < 3; i += 1) {
-      ultimo = await post({ operacao: "upsert", cliente, base_revision: revisao });
-      const nova = String((ultimo && ultimo.revision) || "");
-      if (ultimo && ultimo.status === 409 && ultimo.reason === "revisao_conflito" && nova && i < 2) {
-        revisao = nova;
-        continue;
-      }
-      return ultimo;
-    }
-    return ultimo;
+    const revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
+    return post({ operacao: "upsert", cliente, base_revision: revisao });
   }
 
   async function portalAgendarEnvioClienteParaNuvem(cpfDigits) {

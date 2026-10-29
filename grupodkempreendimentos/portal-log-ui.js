@@ -47,6 +47,7 @@
     if (item.summary) return mascarar(item.summary);
     if (item.event_type === "system.log_initialized") return "Log inicializado";
     if (item.event_type === "system.realtime_initialized") return "Realtime inicializado";
+    if (item.event_type === "system.integrity_baseline_created") return "Baseline de integridade criada";
     return mascarar(item.action || item.event_type || "");
   }
 

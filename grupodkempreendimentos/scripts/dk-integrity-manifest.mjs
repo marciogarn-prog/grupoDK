@@ -25,6 +25,9 @@ import {
 
 const PROJECT = "ppxtwqvzgujllfzarpuz";
 const SHA_ESPERADO = "6a10f9f116dc3ed60523a3ae64df0d851ebf602dd7eec363089ca322bbe9241c";
+const GOLDEN_SHA = "9ad7a1c8fe664dfe274cb93bdf79f248c18c166d34b66787266a4be10dc06d56";
+const GOLDEN_ID = "bcafcc5a-e214-4777-8aec-25d41fb31699";
+const GOLDEN_NOME = "dk-integrity-golden-baseline-20261029.json.gz";
 const BACKUP_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho\\backup.json.gz";
 const SAIDA_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho";
 const CANARIO = "2025092903";
@@ -432,11 +435,8 @@ async function main() {
   );
   const estado = await sql("select last_audit_no from public.dk_audit_state");
   const porAudit = new Map(eventos.map((row) => [Number(row.audit_no), row]));
-  const logOk =
-    Number(porAudit.get(1)?.seq) === 3 &&
-    Number(porAudit.get(2)?.seq) === 12 &&
-    Number(estado[0]?.last_audit_no) === 2 &&
-    eventos.length === 2;
+  const contadorLog = Number(estado[0]?.last_audit_no);
+  const logOk = Number(porAudit.get(1)?.seq) === 3 && Number(porAudit.get(2)?.seq) === 12 && contadorLog >= 2;
   if (!logOk) {
     console.log(
       JSON.stringify({
@@ -997,16 +997,45 @@ async function main() {
   };
 
   const dir = process.env.DK_INTEGRITY_DIR || SAIDA_PADRAO;
-  const nome = aprovado
-    ? "dk-integrity-golden-baseline-20261029.json.gz"
-    : "dk-integrity-audit-20261029.json.gz";
-  const destino = path.join(dir, nome);
-  fs.writeFileSync(destino, zlib.gzipSync(Buffer.from(JSON.stringify(relatorio), "utf8")));
-  const manifestoSha = shaArquivo(destino);
-  fs.writeFileSync(path.join(dir, nome.replace(/\.json\.gz$/, ".sha256")), manifestoSha + "  " + nome + "\n");
+  const goldenPath = path.join(dir, GOLDEN_NOME);
+  const goldenIntacto = fs.existsSync(goldenPath) && shaArquivo(goldenPath) === GOLDEN_SHA;
+  let baselineMatch = null;
+  if (goldenIntacto) {
+    const anterior = JSON.parse(zlib.gunzipSync(fs.readFileSync(goldenPath)).toString("utf8"));
+    const modAnterior = (anterior.modules || []).find((item) => item.module === "clientes");
+    const docsAntes = (anterior.documentos || [])
+      .filter((item) => item.doc_type === "cnh" || item.doc_type === "residencia")
+      .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256)
+      .sort();
+    const docsAgora = (relatorio.documentos || [])
+      .filter((item) => item.doc_type === "cnh" || item.doc_type === "residencia")
+      .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256)
+      .sort();
+    baselineMatch = {
+      clientes_hash: modAnterior && modAnterior.aggregate_hash === modClientes.aggregate_hash,
+      clientes: anterior.gates && anterior.gates.clientes && anterior.gates.clientes.count === 437 && gates.clientes.count === 437,
+      veiculos: gates.veiculos.count === 199 && gates.veiculos.atual === 199,
+      locacoes: gates.locacoes.count === 610 && gates.locacoes.atual === 610,
+      pagamentos: gates.pagamentos.ativos === 1578 && gates.pagamentos.removidos === 274 && gates.pagamentos.atual === 1852,
+      quarentena: relacao.quarentena === 0,
+      documentos_cliente: JSON.stringify(docsAntes) === JSON.stringify(docsAgora),
+    };
+    baselineMatch.ok = Object.keys(baselineMatch)
+      .filter((chave) => chave !== "ok")
+      .every((chave) => baselineMatch[chave] === true);
+  }
+  let nome = GOLDEN_NOME;
+  let manifestoSha = goldenIntacto ? GOLDEN_SHA : "";
+  if (!goldenIntacto) {
+    nome = aprovado ? GOLDEN_NOME : "dk-integrity-audit-20261029.json.gz";
+    const destino = path.join(dir, nome);
+    fs.writeFileSync(destino, zlib.gzipSync(Buffer.from(JSON.stringify(relatorio), "utf8")));
+    manifestoSha = shaArquivo(destino);
+    fs.writeFileSync(path.join(dir, nome.replace(/\.json\.gz$/, ".sha256")), manifestoSha + "  " + nome + "\n");
+  }
 
-  let tabela = { gravada: false };
-  if (aprovado) {
+  let tabela = { gravada: false, baseline_id: goldenIntacto ? GOLDEN_ID : null };
+  if (aprovado && !goldenIntacto) {
     try {
       const baselineId = randomUUID();
       const hashes = await aplicarBaseline(baselineId, manifestoSha, relatorio);
@@ -1019,6 +1048,8 @@ async function main() {
   console.log(
     JSON.stringify({
       status: relatorio.status,
+      baseline_match: baselineMatch,
+      clientes_aggregate_hash: modClientes.aggregate_hash,
       backup_sha256: backupSha,
       manifest_sha256: manifestoSha,
       arquivo: nome,
@@ -1062,6 +1093,7 @@ async function main() {
       tabela,
     })
   );
+  if (relatorio.status !== "APPROVED" || (baselineMatch && baselineMatch.ok !== true)) process.exit(3);
 }
 
 main().catch((err) => {

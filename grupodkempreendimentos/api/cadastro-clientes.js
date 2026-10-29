@@ -2,6 +2,7 @@
  * Sincronização do cadastro de clientes (API no root do projeto para Vercel).
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
+const { moduloAtivo, listar } = require("../lib/dk-locacao-pg.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeClientesCadastro } = require("../lib/dk-append-only-merge.cjs");
 const {
@@ -98,16 +99,34 @@ module.exports = async function handler(req, res) {
         if (!protoIn) {
           return res.status(400).json({ ok: false, msg: "Informe o protocolo da locação." });
         }
+        const oficialAtivo = channel === "default" && (await moduloAtivo());
         const pronta = await clientesFontePronta(redis);
-        let clientesGate;
+        let clientes = [];
+        let locsGate = [];
         if (pronta) {
           const lido = await clientesPg.listarClientes();
           if (!lido.ok) return res.status(502).json({ ok: false, msg: "Clientes indisponíveis.", reason: "leitura" });
-          clientesGate = dropClientesCpfExcluidos(lido.clientes);
+          clientes = dropClientesCpfExcluidos(lido.clientes);
         }
-        const pacote = await fetchPortalCadastrosFromRedis(redis, channel);
-        if (!pronta) clientesGate = pacote.clientes;
-        const result = matchClienteProtocoloGate(cpf, protoIn, clientesGate, pacote.locs);
+        if (!(pronta && oficialAtivo)) {
+          const pacote = await fetchPortalCadastrosFromRedis(redis, channel, {
+            semLocacoes: oficialAtivo,
+          });
+          if (!pronta) clientes = pacote.clientes;
+          locsGate = pacote.locs;
+        }
+        if (oficialAtivo) {
+          const oficial = await listar(cpf);
+          if (!oficial || oficial.ok !== true || oficial.ativado !== true) {
+            return res.status(503).json({
+              ok: false,
+              msg: "A validação oficial das locações está indisponível. Nada foi lido do snapshot.",
+              reason: "locacao_pg",
+            });
+          }
+          locsGate = oficial.locacoes || [];
+        }
+        const result = matchClienteProtocoloGate(cpf, protoIn, clientes, locsGate);
         if (!result.ok) {
           return res.status(404).json({ ok: false, msg: result.msg });
         }
@@ -121,6 +140,15 @@ module.exports = async function handler(req, res) {
       }
 
       if (await clientesFontePronta(redis)) {
+        if (String(req.query?.detalhe || "") === "1") {
+          const completo = await clientesPg.lerClienteCompleto(req.query?.id || "");
+          if (!completo.ok) return res.status(502).json({ ok: false, reason: "leitura", source: clientesPg.FONTE });
+          return res.status(completo.cliente ? 200 : 404).json({
+            ok: Boolean(completo.cliente),
+            cliente: completo.cliente,
+            source: clientesPg.FONTE,
+          });
+        }
         const t0 = Date.now();
         const lido = await clientesPg.listarClientes();
         if (!lido.ok) {
@@ -135,7 +163,9 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const { clientes } = await fetchPortalCadastrosFromRedis(redis, channel);
+      const { clientes } = await fetchPortalCadastrosFromRedis(redis, channel, {
+        semLocacoes: channel === "default" && (await moduloAtivo()),
+      });
       if (clientes.length) {
         return res.status(200).json({ ok: true, data: clientes, channel });
       }
