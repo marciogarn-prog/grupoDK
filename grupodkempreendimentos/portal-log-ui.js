@@ -123,42 +123,40 @@
     );
   }
 
+  var COLUNAS_USUARIO = ["Nº", "Usuário", "Perfil", "Máquina", "Login", "Última", "Tela", "Status"];
+
+  function celula(pai, valor, classe) {
+    var item = document.createElement("span");
+    if (classe) item.className = classe;
+    item.textContent = valor == null ? "" : String(valor);
+    pai.appendChild(item);
+  }
+
   function pintarUsuarios(sessoes) {
     var box = document.getElementById("portal-log-usuarios");
     if (!box) return;
     limpar(box);
+    box.classList.add("dk-log-usuarios-grade");
+    COLUNAS_USUARIO.forEach(function (rotulo) {
+      celula(box, rotulo, "dk-log-usuarios-legenda");
+    });
     var lista = Array.isArray(sessoes) ? sessoes : [];
     if (!lista.length) {
       paragrafo(box, "Nenhuma sessão ativa registrada nesta leitura.");
       return;
     }
     lista.forEach(function (sessao) {
-      var p = document.createElement("p");
-      p.className = "dk-log-usuario";
       var quando = partesTempo(sessao.entrada);
       var ultima = partesTempo(sessao.ultima);
       var status = texto(sessao.status);
-      p.appendChild(document.createTextNode(
-        texto(sessao.prioridade) +
-        " - " +
-        texto(sessao.usuario) +
-        " · " +
-        texto(sessao.perfil) +
-        " · " +
-        texto(sessao.maquina) +
-        " · Login " +
-        (quando.curto || quando.cheio) +
-        " · última " +
-        ultima.curto +
-        " · " +
-        texto(sessao.tela) +
-        " · "
-      ));
-      var marca = document.createElement("span");
-      marca.className = status === "ONLINE" ? "dk-log-status dk-log-status--online" : "dk-log-status";
-      marca.textContent = status;
-      p.appendChild(marca);
-      box.appendChild(p);
+      celula(box, texto(sessao.prioridade), "dk-log-usuario");
+      celula(box, texto(sessao.usuario), "dk-log-usuario");
+      celula(box, texto(sessao.perfil), "dk-log-usuario");
+      celula(box, texto(sessao.maquina), "dk-log-usuario");
+      celula(box, quando.curto || quando.cheio, "dk-log-usuario");
+      celula(box, ultima.curto, "dk-log-usuario");
+      celula(box, texto(sessao.tela), "dk-log-usuario");
+      celula(box, status, status === "ONLINE" ? "dk-log-usuario dk-log-status dk-log-status--online" : "dk-log-usuario dk-log-status");
     });
   }
 

@@ -17995,28 +17995,49 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   color: #f5f5f7;
 }
 
+.dk-log-usuarios-grade {
+  display: grid;
+  grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content;
+  justify-content: space-between;
+  column-gap: 0.55rem;
+  align-items: center;
+  width: 100%;
+}
+
+.dk-log-usuarios-legenda,
+.dk-log-usuarios-grade > .dk-log-usuario {
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
 .dk-log-usuarios-legenda {
-  margin: 0 0 0.4rem;
-  color: #4da3ff;
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.35;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0.15rem 0 0.4rem;
+  color: #a9adb5;
+  font-size: 0.72rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  flex: 0 0 auto;
+  background: #070708;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .dk-log-usuarios .dk-log-scroll {
   overflow-x: hidden;
 }
 
-.dk-log-usuario {
+.dk-log-usuarios-grade > .dk-log-usuario {
   margin: 0;
-  padding: 0.45rem 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  padding: 0.42rem 0;
+  font-size: 0.78rem;
+  color: #f5f5f7;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dk-log-usuarios-grade > .dk-log-campo {
+  grid-column: 1 / -1;
 }
 
 .dk-log-status--online {

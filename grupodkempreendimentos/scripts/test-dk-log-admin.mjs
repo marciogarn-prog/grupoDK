@@ -24,7 +24,7 @@ assert.ok(html.includes(">Log</button>"));
 assert.ok(html.includes('id="panel-log-locadora"'));
 assert.ok(html.includes("Log DK — eventos duráveis registrados no servidor"));
 assert.ok(!html.includes("nesta etapa não é consultada"));
-assert.ok(html.includes("portal-log-ui.js?v=20261029logdk8"));
+assert.ok(html.includes("portal-log-ui.js?v=20261029logdk9"));
 assert.ok(html.includes('id="portal-log-usuarios"'));
 assert.ok(html.includes('id="portal-log-detalhe"'));
 assert.ok(html.includes('id="portal-log-lista"'));
