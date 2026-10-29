@@ -55,6 +55,17 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "GET") {
       if (modo.modo === "pg") {
+        if (String(req.query?.detalhe || "") === "1") {
+          const completo = await veiculosPg.lerVeiculoCompleto(req.query?.id || "");
+          if (!completo.ok) {
+            return res.status(completo.status || 502).json({ ok: false, reason: completo.reason || "leitura", source: veiculosPg.FONTE });
+          }
+          return res.status(completo.veiculo ? 200 : 404).json({
+            ok: Boolean(completo.veiculo),
+            veiculo: completo.veiculo,
+            source: veiculosPg.FONTE,
+          });
+        }
         const t0 = Date.now();
         const lido = await veiculosPg.listar();
         if (!lido.ok) {

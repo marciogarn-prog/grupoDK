@@ -3,6 +3,7 @@
  * Não grava snapshot, Redis nem o espelho legado.
  */
 const { revisaoConflita } = require("./dk-persistencia-central.cjs");
+const { dkVeiculoAplicarPatch, dkVeiculoParaPersistencia, dkVeiculoParaTerminal } = require("./dk-veiculo-fidelidade.cjs");
 
 const FONTE = "dk_veiculos";
 const FLAG_REDIS = "dk:portal:veiculos_fonte:v1";
@@ -109,7 +110,7 @@ async function listar(ioRest) {
   const linhas = Array.isArray(res.data) ? res.data : [];
   return {
     ok: true,
-    veiculos: linhas.map((row) => (row && row.payload && typeof row.payload === "object" ? row.payload : {})),
+    veiculos: linhas.map((row) => dkVeiculoParaTerminal(row)),
   };
 }
 
@@ -121,6 +122,16 @@ async function lerPorId(id, ioRest) {
   if (!res.ok) return { ok: false, status: res.status, data: res.data, row: null };
   const linhas = Array.isArray(res.data) ? res.data : [];
   return { ok: true, row: linhas[0] || null };
+}
+
+async function lerVeiculoCompleto(id, ioRest) {
+  const lido = await lerPorId(String(id || ""), ioRest);
+  if (!lido.ok) {
+    const falha = falhaLeitura(lido);
+    return { ok: false, status: falha.status, reason: falha.reason, veiculo: null };
+  }
+  if (!lido.row || lido.row.deleted_at) return { ok: true, veiculo: null };
+  return { ok: true, veiculo: dkVeiculoParaTerminal(lido.row) };
 }
 
 async function lerPorPlaca(placa, ioRest) {
@@ -172,7 +183,8 @@ async function upsertUm(veiculo, baseRevision, ioRest) {
       },
     };
   }
-  const payload = { ...recebido, id, placa };
+  const anterior = atual.row && atual.row.payload && typeof atual.row.payload === "object" ? atual.row.payload : {};
+  const payload = dkVeiculoParaPersistencia(dkVeiculoAplicarPatch(anterior, { ...recebido, id, placa })).payload;
   const agora = new Date().toISOString();
   const gravado = await pedido(TABELA + "?on_conflict=id", {
     method: "POST",
@@ -233,6 +245,7 @@ module.exports = {
   tabelaExiste,
   falhaLeitura,
   listar,
+  lerVeiculoCompleto,
   upsertUm,
   modoOperacional,
   schemaAusente,

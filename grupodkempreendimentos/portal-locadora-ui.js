@@ -24337,17 +24337,9 @@
           revision: String(data?.revision || data?.updated_at || ""),
         };
       };
-      let revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
-      let ultimo = null;
-      for (let i = 0; i < 3; i += 1) {
-        ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao });
-        if (ultimo.revision) window.__DK_VEICULO_REVISAO = ultimo.revision;
-        if (ultimo.status === 409 && ultimo.reason === "revisao_conflito" && ultimo.revision && i < 2) {
-          revisao = ultimo.revision;
-          continue;
-        }
-        return ultimo;
-      }
+      const revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
+      const ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao });
+      if (ultimo.revision && ultimo.status !== 409) window.__DK_VEICULO_REVISAO = ultimo.revision;
       return ultimo;
     }
 

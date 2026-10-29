@@ -27,6 +27,7 @@ const PROJECT = "ppxtwqvzgujllfzarpuz";
 const SHA_ESPERADO = "6a10f9f116dc3ed60523a3ae64df0d851ebf602dd7eec363089ca322bbe9241c";
 const GOLDEN_SHA = "9ad7a1c8fe664dfe274cb93bdf79f248c18c166d34b66787266a4be10dc06d56";
 const GOLDEN_ID = "bcafcc5a-e214-4777-8aec-25d41fb31699";
+const CHECKPOINT_ID = "c4ec4c01-2026-4029-8aec-000000000438";
 const GOLDEN_NOME = "dk-integrity-golden-baseline-20261029.json.gz";
 const BACKUP_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho\\backup.json.gz";
 const SAIDA_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho";
@@ -896,11 +897,62 @@ async function main() {
     instrucao: "amostra representativa, canario 2025092903 e comparacao integral backup para reconstrucao",
   };
 
-  const aprovado =
+  function refDeltaCliente(id) {
+    return createHash("sha256").update("cliente\n" + String(id), "utf8").digest("hex").slice(0, 12);
+  }
+  let deltasAprovados = [];
+  let checkpointAtual = null;
+  try {
+    deltasAprovados = await sqlUmaVez(
+      "select d.module, d.entity_ref, d.change from public.dk_integrity_deltas d " +
+        "join public.dk_integrity_checkpoints c on c.delta_id = d.id " +
+        "where d.parent_baseline_id = '" +
+        GOLDEN_ID +
+        "' and c.id = '" +
+        CHECKPOINT_ID +
+        "' and c.kind = 'current' and c.status = 'APPROVED'"
+    );
+    const linhasCheckpoint = await sqlUmaVez(
+      "select id::text as id, parent_baseline_id::text as parent_baseline_id, clientes_count, veiculos_count, locacoes_count, pagamentos_ativos, pagamentos_removidos, quarentena, status from public.dk_integrity_checkpoints where id = '" +
+        CHECKPOINT_ID +
+        "'"
+    );
+    checkpointAtual = linhasCheckpoint[0] || null;
+  } catch {
+    deltasAprovados = [];
+    checkpointAtual = null;
+  }
+  const extrasIds = [...mapCliA.mapa.keys()].filter((id) => !mapCliB.mapa.has(id));
+  const extrasRefs = extrasIds.map((id) => refDeltaCliente(id)).sort();
+  const deltasCriados = deltasAprovados
+    .filter((item) => item.module === "clientes" && item.change === "created")
+    .map((item) => String(item.entity_ref))
+    .sort();
+  const deltaExplica = extrasRefs.length === deltasCriados.length && extrasRefs.every((ref, indice) => ref === deltasCriados[indice]);
+  const checkpointOk = Boolean(
+    checkpointAtual &&
+      checkpointAtual.parent_baseline_id === GOLDEN_ID &&
+      checkpointAtual.status === "APPROVED" &&
+      Number(checkpointAtual.clientes_count) === 438 &&
+      Number(checkpointAtual.veiculos_count) === 199 &&
+      Number(checkpointAtual.locacoes_count) === 610 &&
+      Number(checkpointAtual.pagamentos_ativos) === 1578 &&
+      Number(checkpointAtual.pagamentos_removidos) === 274 &&
+      Number(checkpointAtual.quarentena) === 0
+  );
+  const clientesOperacional =
     gates.clientes.count === 437 &&
-    gates.clientes.atual === 437 &&
+    gates.clientes.atual === 437 + deltasCriados.length &&
+    gates.clientes.extra_records === deltasCriados.length &&
+    deltaExplica &&
+    checkpointOk &&
     gates.clientes.unmapped_records === 0 &&
-    gates.clientes.extra_records === 0 &&
+    gates.clientes.unmapped_business_keys === 0 &&
+    gates.clientes.mismatches === 0 &&
+    gates.clientes.extra_keys === 0;
+
+  const aprovado =
+    clientesOperacional &&
     gates.clientes.unmapped_business_keys === 0 &&
     gates.clientes.mismatches === 0 &&
     gates.clientes.extra_keys === 0 &&
@@ -1003,6 +1055,7 @@ async function main() {
   if (goldenIntacto) {
     const anterior = JSON.parse(zlib.gunzipSync(fs.readFileSync(goldenPath)).toString("utf8"));
     const modAnterior = (anterior.modules || []).find((item) => item.module === "clientes");
+    const modVeiAnterior = (anterior.modules || []).find((item) => item.module === "veiculos");
     const docsAntes = (anterior.documentos || [])
       .filter((item) => item.doc_type === "cnh" || item.doc_type === "residencia")
       .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256)
@@ -1011,14 +1064,25 @@ async function main() {
       .filter((item) => item.doc_type === "cnh" || item.doc_type === "residencia")
       .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256)
       .sort();
+    const crlvAntes = (anterior.documentos || [])
+      .filter((item) => item.doc_type === "crlv")
+      .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256 + ":" + item.bytes + ":" + item.mime)
+      .sort();
+    const crlvAgora = (relatorio.documentos || [])
+      .filter((item) => item.doc_type === "crlv")
+      .map((item) => item.doc_type + ":" + item.status + ":" + item.sha256 + ":" + item.bytes + ":" + item.mime)
+      .sort();
     baselineMatch = {
       clientes_hash: modAnterior && modAnterior.aggregate_hash === modClientes.aggregate_hash,
+      veiculos_hash: modVeiAnterior && modVeiAnterior.aggregate_hash === modVeiculos.aggregate_hash,
       clientes: anterior.gates && anterior.gates.clientes && anterior.gates.clientes.count === 437 && gates.clientes.count === 437,
       veiculos: gates.veiculos.count === 199 && gates.veiculos.atual === 199,
       locacoes: gates.locacoes.count === 610 && gates.locacoes.atual === 610,
       pagamentos: gates.pagamentos.ativos === 1578 && gates.pagamentos.removidos === 274 && gates.pagamentos.atual === 1852,
       quarentena: relacao.quarentena === 0,
       documentos_cliente: JSON.stringify(docsAntes) === JSON.stringify(docsAgora),
+      documentos_crlv: JSON.stringify(crlvAntes) === JSON.stringify(crlvAgora),
+      checkpoint: checkpointOk && deltaExplica && gates.clientes.atual === 438,
     };
     baselineMatch.ok = Object.keys(baselineMatch)
       .filter((chave) => chave !== "ok")
@@ -1049,7 +1113,14 @@ async function main() {
     JSON.stringify({
       status: relatorio.status,
       baseline_match: baselineMatch,
+      current_checkpoint: {
+        id: CHECKPOINT_ID,
+        ok: checkpointOk && deltaExplica,
+        clientes: gates.clientes.atual,
+        delta: deltasCriados.length,
+      },
       clientes_aggregate_hash: modClientes.aggregate_hash,
+      veiculos_aggregate_hash: modVeiculos.aggregate_hash,
       backup_sha256: backupSha,
       manifest_sha256: manifestoSha,
       arquivo: nome,

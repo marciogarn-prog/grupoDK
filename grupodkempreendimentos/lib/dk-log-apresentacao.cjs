@@ -17,6 +17,7 @@ function resumoEvento(evento) {
   if (item.event_type === "system.log_initialized") return "Log inicializado";
   if (item.event_type === "system.realtime_initialized") return "Realtime inicializado";
   if (item.event_type === "system.integrity_baseline_created") return "Baseline de integridade criada";
+  if (item.event_type === "system.vehicle_fidelity_contract_verified") return "Contrato de fidelidade dos veículos verificado";
   return mascararTexto(item.action || item.event_type || "");
 }
 
