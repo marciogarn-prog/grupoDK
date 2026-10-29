@@ -17704,6 +17704,127 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
   margin: 0.2rem 0;
 }
 
+.dk-log-fundacao {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+  gap: 0.75rem;
+  min-height: 70vh;
+  align-items: stretch;
+}
+
+.dk-log-esq {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 70vh;
+}
+
+.dk-log-dir,
+.dk-log-usuarios,
+.dk-log-detalhe {
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 10px;
+  background: rgba(8, 8, 10, 0.78);
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0.85rem;
+}
+
+.dk-log-titulo {
+  margin: 0 0 0.45rem;
+  color: #fecaca;
+  font-size: 1.05rem;
+}
+
+.dk-log-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.dk-log-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.dk-log-filtros input {
+  flex: 1 1 7rem;
+  min-width: 0;
+  background: #111;
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 0.3rem 0.45rem;
+}
+
+.dk-log-dia {
+  margin: 0.55rem 0 0.25rem;
+  color: #fca5a5;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.dk-log-linha {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #f5f5f5;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.38rem 0.15rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dk-log-linha.is-selecionada {
+  background: rgba(220, 38, 38, 0.18);
+}
+
+.dk-log-usuario,
+.dk-log-campo {
+  margin: 0 0 0.35rem;
+  color: #e5e5e5;
+}
+
+.dk-log-hover {
+  position: fixed;
+  z-index: 80;
+  max-width: 18rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  background: rgba(12, 12, 14, 0.9);
+  color: #f5f5f5;
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.dk-log-hover p {
+  margin: 0.12rem 0;
+}
+
+@media (max-width: 900px) {
+  .dk-log-fundacao {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .dk-log-esq {
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+  .dk-log-scroll {
+    max-height: 40vh;
+  }
+  .dk-log-dir .dk-log-scroll {
+    max-height: 55vh;
+  }
+}
+
 @media (min-width: 769px) and (max-height: 820px) {
   .site-publico__hero-foto {
     object-position: center top;

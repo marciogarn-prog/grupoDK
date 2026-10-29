@@ -3,6 +3,7 @@
  * O navegador não recebe a chave e não escreve nesta tabela.
  */
 const { isSupabaseDoormanConfigured } = require("./dk-supabase-doorman.cjs");
+const { sanitizarEvento } = require("./dk-log-apresentacao.cjs");
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 
@@ -16,9 +17,11 @@ function serviceRoleKey() {
   return String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 }
 
-const LIMITE = 100;
+const LIMITE = 50;
 const CAMPOS = [
   "seq",
+  "audit_no",
+  "operation_id",
   "event_type",
   "entity_type",
   "entity_id",
@@ -27,6 +30,13 @@ const CAMPOS = [
   "module",
   "actor_user_id",
   "actor_session_id",
+  "actor_name_snapshot",
+  "actor_role_snapshot",
+  "device_label",
+  "result",
+  "severity",
+  "context",
+  "details",
   "payload",
   "visibility",
   "created_at",
@@ -47,6 +57,15 @@ function projetarEvento(row) {
     payload: item.payload && typeof item.payload === "object" && !Array.isArray(item.payload) ? item.payload : {},
     visibility: item.visibility == null ? null : String(item.visibility),
     created_at: item.created_at == null ? null : String(item.created_at),
+    audit_no: item.audit_no == null ? null : Number(item.audit_no),
+    operation_id: item.operation_id == null ? null : String(item.operation_id),
+    actor_name_snapshot: item.actor_name_snapshot == null ? null : String(item.actor_name_snapshot),
+    actor_role_snapshot: item.actor_role_snapshot == null ? null : String(item.actor_role_snapshot),
+    device_label: item.device_label == null ? null : String(item.device_label),
+    result: item.result == null ? null : String(item.result),
+    severity: item.severity == null ? null : String(item.severity),
+    context: item.context && typeof item.context === "object" && !Array.isArray(item.context) ? item.context : {},
+    details: item.details && typeof item.details === "object" && !Array.isArray(item.details) ? item.details : {},
   };
 }
 
@@ -75,21 +94,34 @@ async function restSelect(path, prefer) {
   return { ok: res.ok, status: res.status, data, contentRange: res.headers.get("content-range") };
 }
 
-async function lerEventosLog(io) {
+function limitePedido(valor) {
+  const n = Number(valor);
+  if (!Number.isInteger(n) || n < 1) return LIMITE;
+  return Math.min(n, 100);
+}
+
+async function lerEventosLog(io, opts) {
   const pedido = io || restSelect;
   if (!io && !isSupabaseDoormanConfigured()) {
     return { ok: false, status: 503, reason: "doorman_key_missing", events: [] };
   }
-  const res = await pedido("dk_events?select=" + CAMPOS + "&order=seq.desc&limit=" + LIMITE, "count=exact");
+  const opcoes = opts && typeof opts === "object" ? opts : {};
+  const limite = limitePedido(opcoes.limit);
+  let path = "dk_events?select=" + CAMPOS + "&order=audit_no.desc&limit=" + limite;
+  const antes = Number(opcoes.before);
+  if (Number.isInteger(antes) && antes > 0) path += "&audit_no=lt." + antes;
+  const res = await pedido(path, "count=exact");
   if (!res.ok || !Array.isArray(res.data)) {
     return { ok: false, status: res.status || 503, reason: "log_leitura", events: [] };
   }
-  const events = res.data.map(projetarEvento);
+  const events = res.data.map((row) => sanitizarEvento(projetarEvento(row)));
+  const maiorSeq = events.reduce((maior, item) => Math.max(maior, Number(item.seq) || 0), 0);
   return {
     ok: true,
     events,
     quantidade: quantidadeDoCabecalho(res.contentRange, events.length),
-    server_event_seq: events.length ? Number(events[0].seq) : 0,
+    server_event_seq: maiorSeq,
+    has_more: events.length > 0 && quantidadeDoCabecalho(res.contentRange, events.length) > events.length,
   };
 }
 

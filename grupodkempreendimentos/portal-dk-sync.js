@@ -129,9 +129,11 @@
   function detalheSeguro(evento) {
     var seq = Number(evento && evento.seq);
     if (evento && evento.restricted === true) return { seq: seq, restricted: true };
+    var audit = Number(evento && evento.audit_no);
     return {
       seq: seq,
       restricted: false,
+      audit_no: Number.isFinite(audit) ? audit : null,
       event_type: evento && evento.event_type != null ? String(evento.event_type) : "",
       entity_type: evento && evento.entity_type != null ? String(evento.entity_type) : "",
       action: evento && evento.action != null ? String(evento.action) : "",

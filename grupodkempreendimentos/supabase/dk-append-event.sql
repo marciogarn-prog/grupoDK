@@ -1,5 +1,6 @@
 -- Gravador idempotente do Log. Não altera cadastros.
 -- O navegador não executa esta função.
+-- O número oficial sai do contador dk_audit_state, dentro da mesma transação.
 create or replace function public.dk_append_event(
   p_operation_id uuid,
   p_event_type text,
@@ -30,6 +31,7 @@ declare
   v_seq bigint;
   v_created timestamptz;
   v_type text;
+  v_audit bigint;
 begin
   if p_operation_id is null then
     raise exception 'operation_id_ausente' using errcode = '22023';
@@ -44,34 +46,40 @@ begin
     raise exception 'payload_invalido' using errcode = '22023';
   end if;
 
+  perform 1 from public.dk_audit_state where id = 1 for update;
+
+  select e.seq, e.created_at, e.event_type
+    into v_seq, v_created, v_type
+  from public.dk_events e
+  where e.operation_id = p_operation_id;
+
+  if v_seq is not null then
+    seq := v_seq;
+    created_at := v_created;
+    operation_id := p_operation_id;
+    event_type := v_type;
+    return next;
+    return;
+  end if;
+
+  update public.dk_audit_state
+     set last_audit_no = last_audit_no + 1,
+         updated_at = now()
+   where id = 1
+  returning last_audit_no into v_audit;
+
+  if v_audit is null then
+    raise exception 'contador_ausente' using errcode = 'P0001';
+  end if;
+
   insert into public.dk_events (
-    operation_id,
-    event_type,
-    entity_type,
-    entity_id,
-    action,
-    record_version,
-    module,
-    empresa_id,
-    filial_id,
-    actor_user_id,
-    actor_session_id,
-    payload,
-    visibility
+    operation_id, event_type, entity_type, entity_id, action, record_version,
+    module, empresa_id, filial_id, actor_user_id, actor_session_id, payload, visibility,
+    audit_no, result, severity
   ) values (
-    p_operation_id,
-    btrim(p_event_type),
-    btrim(p_entity_type),
-    p_entity_id,
-    p_action,
-    p_record_version,
-    p_module,
-    p_empresa_id,
-    p_filial_id,
-    p_actor_user_id,
-    p_actor_session_id,
-    p_payload,
-    p_visibility
+    p_operation_id, btrim(p_event_type), btrim(p_entity_type), p_entity_id, p_action, p_record_version,
+    p_module, p_empresa_id, p_filial_id, p_actor_user_id, p_actor_session_id, p_payload, p_visibility,
+    v_audit, 'success', 'info'
   )
   on conflict (operation_id) do nothing
   returning dk_events.seq, dk_events.created_at, dk_events.event_type

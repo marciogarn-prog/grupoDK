@@ -2,7 +2,7 @@
  * Acesso ao Log DK. Não lê cadastros e não grava eventos.
  * Administrador é o perfil owner já usado pelo portal.
  */
-const COLUNAS = ["seq", "dataHora", "usuario", "sessao", "modulo", "tipo", "entidade", "acao"];
+const COLUNAS = ["audit_no", "horario", "usuario", "maquina", "resumo"];
 
 function decidirAcessoLog(gate) {
   if (!gate || gate.ok === false) {
@@ -14,7 +14,7 @@ function decidirAcessoLog(gate) {
   return { ok: true };
 }
 
-function estadoLog(lido) {
+function estadoLog(lido, sessoes) {
   const events = lido && Array.isArray(lido.events) ? lido.events : [];
   return {
     ok: true,
@@ -25,6 +25,8 @@ function estadoLog(lido) {
     eventos: events,
     quantidade: lido && Number.isFinite(lido.quantidade) ? lido.quantidade : events.length,
     server_event_seq: lido && Number.isFinite(lido.server_event_seq) ? lido.server_event_seq : 0,
+    has_more: Boolean(lido && lido.has_more),
+    sessoes: Array.isArray(sessoes) ? sessoes : [],
     colunas: COLUNAS.slice(),
     fallback: false,
   };

@@ -14,24 +14,22 @@ assert.ok(fonte.includes("textContent"));
 assert.ok(!fonte.includes("setInterval"));
 
 const malicioso = "<img src=x onerror=alert(1)>";
-const celulas = ui.celulasDoEvento({
-  seq: 2,
-  created_at: "2026-10-28T20:00:00.000Z",
-  event_type: malicioso,
-  entity_type: "system",
-  entity_id: "log-dk",
+const linha = ui.linhaCompacta({
+  audit_no: 2,
+  seq: 12,
+  created_at: "2026-10-28T22:01:25.000Z",
+  event_type: "system.realtime_initialized",
   action: "initialized",
   module: "system",
-  actor_user_id: null,
-  actor_session_id: null,
-  payload: { message: malicioso },
+  actor_name: "Sistema",
+  device_label: "servidor",
+  summary: malicioso,
 });
-assert.strictEqual(celulas[0], "2");
-assert.strictEqual(celulas[2], "Sistema");
-assert.strictEqual(celulas[4], "system");
-assert.strictEqual(celulas[5], malicioso);
-assert.ok(celulas[7].includes("initialized"));
-assert.ok(celulas[7].includes(malicioso));
-assert.deepStrictEqual(ui.celulasDoEvento(null).slice(0, 1), [""]);
+assert.ok(linha.startsWith("#2"));
+assert.ok(linha.includes("Sistema"));
+assert.ok(linha.includes("servidor"));
+assert.ok(linha.includes(malicioso));
+assert.strictEqual(fonte.split('fetch("/api/dk-log"').length - 1, 1);
+assert.ok(!fonte.includes("mouseenter\", function") || !fonte.includes("fetch(queryLog"));
 
 console.log("log ui ok");

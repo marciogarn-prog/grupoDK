@@ -21,6 +21,7 @@ const CAMPOS = [
   "payload",
   "visibility",
   "created_at",
+  "audit_no",
 ].join(",");
 
 function supabaseUrl() {

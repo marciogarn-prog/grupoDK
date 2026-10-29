@@ -24,7 +24,10 @@ assert.ok(html.includes(">Log</button>"));
 assert.ok(html.includes('id="panel-log-locadora"'));
 assert.ok(html.includes("Log DK — eventos duráveis registrados no servidor"));
 assert.ok(!html.includes("nesta etapa não é consultada"));
-assert.ok(html.includes("portal-log-ui.js?v=20261028synclag1"));
+assert.ok(html.includes("portal-log-ui.js?v=20261029logdk1"));
+assert.ok(html.includes('id="portal-log-usuarios"'));
+assert.ok(html.includes('id="portal-log-detalhe"'));
+assert.ok(html.includes('id="portal-log-lista"'));
 assert.ok(html.includes('id="btn-voltar-log-locadora"'));
 assert.ok(!html.includes("dk_events_fake"));
 
@@ -59,7 +62,8 @@ assert.deepStrictEqual(estado.eventos, []);
 assert.strictEqual(estado.quantidade, 0);
 assert.strictEqual(estado.server_event_seq, 0);
 assert.strictEqual(estado.fallback, false);
-assert.deepStrictEqual(estado.colunas, ["seq", "dataHora", "usuario", "sessao", "modulo", "tipo", "entidade", "acao"]);
+assert.deepStrictEqual(estado.colunas, ["audit_no", "horario", "usuario", "maquina", "resumo"]);
+assert.deepStrictEqual(estado.sessoes, []);
 
 const sql = fs.readFileSync(path.join(raiz, "supabase", "dk-events.sql"), "utf8").toLowerCase();
 assert.ok(sql.includes("create table if not exists public.dk_events"));
@@ -87,7 +91,8 @@ const um = await leitura.lerEventosLog(async () => ({
 assert.strictEqual(um.events[0].seq, 7);
 assert.strictEqual(um.quantidade, 1);
 assert.strictEqual(um.server_event_seq, 7);
-assert.deepStrictEqual(um.events[0].payload, { ok: true });
+assert.strictEqual(um.events[0].summary, "teste");
+assert.strictEqual(Object.prototype.hasOwnProperty.call(um.events[0], "payload"), false);
 const negado = await leitura.lerEventosLog(async () => ({ ok: false, status: 401, data: {} }));
 assert.strictEqual(negado.ok, false);
 assert.deepStrictEqual(negado.events, []);

@@ -3757,39 +3757,43 @@
       </section>
 
       <section id="panel-log-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Log DK</h2>
-        <p class="subpage__lead" id="portal-log-estado">Log DK — eventos duráveis registrados no servidor</p>
-        <p class="subtext" id="portal-log-nota">Clientes, veículos, locações e pagamentos ainda não geram eventos.</p>
-        <div id="portal-sync-monitor" class="portal-sync-monitor">
-          <p class="subpage__lead">Monitoramento de sincronização</p>
-          <p class="subtext">Este navegador. Não representa os outros computadores.</p>
-          <p class="subtext">Servidor: <span id="portal-sync-servidor">seq 0</span></p>
-          <p class="subtext">Este navegador: <span id="portal-sync-navegador">seq 0</span></p>
-          <p class="subtext">Atraso: <span id="portal-sync-lag">0 evento(s)</span></p>
-          <p class="subtext">Estado: <span id="portal-sync-estado">Inicializando</span></p>
-          <p class="subtext">Último checkpoint: <span id="portal-sync-checkpoint">ainda não realizado</span></p>
-          <p class="subtext" id="portal-sync-erro"></p>
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-verificar-sync">Verificar sincronização</button>
+        <div class="dk-log-fundacao">
+          <div class="dk-log-esq">
+            <section class="dk-log-usuarios" aria-labelledby="portal-log-usuarios-titulo">
+              <h2 id="portal-log-usuarios-titulo" class="dk-log-titulo">Usuários ativos</h2>
+              <div id="portal-log-usuarios" class="dk-log-scroll"></div>
+            </section>
+            <section class="dk-log-detalhe" aria-labelledby="portal-log-detalhe-titulo">
+              <h2 id="portal-log-detalhe-titulo" class="dk-log-titulo">Detalhes do evento</h2>
+              <div id="portal-log-detalhe" class="dk-log-scroll"></div>
+            </section>
+          </div>
+          <section class="dk-log-dir" aria-labelledby="portal-log-titulo">
+            <h2 id="portal-log-titulo" class="dk-log-titulo">Log DK</h2>
+            <p class="subpage__lead" id="portal-log-estado">Log DK — eventos duráveis registrados no servidor</p>
+            <p class="subtext" id="portal-log-nota">Clientes, veículos, locações e pagamentos ainda não geram eventos.</p>
+            <div class="dk-log-filtros">
+              <input id="portal-log-filtro-usuario" type="search" placeholder="Usuário" aria-label="Filtrar por usuário">
+              <input id="portal-log-filtro-modulo" type="search" placeholder="Módulo" aria-label="Filtrar por módulo">
+              <input id="portal-log-filtro-acao" type="search" placeholder="Ação" aria-label="Filtrar por ação">
+              <input id="portal-log-filtro-resultado" type="search" placeholder="Resultado" aria-label="Filtrar por resultado">
+            </div>
+            <div id="portal-log-lista" class="dk-log-scroll" role="list"></div>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portal-log-anteriores">Carregar anteriores</button>
+            <div id="portal-sync-monitor" class="portal-sync-monitor">
+              <p class="subpage__lead">Monitoramento de sincronização</p>
+              <p class="subtext">Este navegador. Não representa os outros computadores.</p>
+              <p class="subtext">Servidor: <span id="portal-sync-servidor">seq 0</span></p>
+              <p class="subtext">Este navegador: <span id="portal-sync-navegador">seq 0</span></p>
+              <p class="subtext">Atraso: <span id="portal-sync-lag">0 evento(s)</span></p>
+              <p class="subtext">Estado: <span id="portal-sync-estado">Inicializando</span></p>
+              <p class="subtext">Último checkpoint: <span id="portal-sync-checkpoint">ainda não realizado</span></p>
+              <p class="subtext" id="portal-sync-erro"></p>
+              <button type="button" class="btn-primary btn-secondary-outline" id="btn-verificar-sync">Verificar sincronização</button>
+            </div>
+          </section>
         </div>
-        <div class="portal-log-tabela-wrap">
-          <table class="portal-log-tabela">
-            <thead>
-              <tr>
-                <th>seq</th>
-                <th>data/hora</th>
-                <th>usuário</th>
-                <th>sessão</th>
-                <th>módulo</th>
-                <th>tipo</th>
-                <th>entidade</th>
-                <th>ação</th>
-              </tr>
-            </thead>
-            <tbody id="portal-log-linhas">
-              <tr><td colspan="8">Nenhum evento</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <div id="portal-log-hover" class="dk-log-hover" hidden></div>
         <div class="logado-actions">
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-log-locadora">Voltar</button>
         </div>
@@ -6291,7 +6295,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261018empresa"></script>
-  <script src="app.js?v=20261028logevt2" defer></script>
+  <script src="app.js?v=20261029logdk1" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6305,9 +6309,9 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261028canario" defer></script>
-  <script src="portal-locadora-ui.js?v=20261028logevt2" defer></script>
-  <script src="portal-dk-sync.js?v=20261028synclag1" defer></script>
-  <script src="portal-log-ui.js?v=20261028synclag1" defer></script>
+  <script src="portal-locadora-ui.js?v=20261029logdk1" defer></script>
+  <script src="portal-dk-sync.js?v=20261029logdk1" defer></script>
+  <script src="portal-log-ui.js?v=20261029logdk1" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20261017quantprot"></script>
