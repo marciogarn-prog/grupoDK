@@ -17725,11 +17725,19 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   flex-direction: column;
 }
 
+body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:not(.hidden)) > .subpage--wide {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 0;
+  max-width: none;
+  overflow: hidden;
+}
+
 #panel-log-locadora:not(.hidden) {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  height: 100%;
+  flex: 1 1 0;
+  height: 0;
   max-height: 100%;
   min-height: 0;
   margin-top: 0;
@@ -17747,9 +17755,10 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
   gap: 0.55rem;
-  flex: 1 1 auto;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 0;
   min-height: 0;
-  height: auto;
+  height: 0;
   overflow: hidden;
   align-items: stretch;
 }
@@ -17776,7 +17785,7 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   flex-direction: column;
   padding: 0.55rem 0.7rem;
   overflow: hidden;
-  height: auto;
+  height: 100%;
 }
 
 .dk-log-titulo {
@@ -17789,7 +17798,8 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
   overflow-x: auto;
   overflow-y: scroll;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  height: 0;
   overscroll-behavior: contain;
 }
 
@@ -17875,30 +17885,9 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
 }
 
 @media (max-width: 900px) {
-  #panel-log-locadora:not(.hidden) {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
   .dk-log-fundacao {
     grid-template-columns: 1fr;
-    height: auto;
-    overflow: visible;
-  }
-  .dk-log-esq {
-    height: auto;
-    overflow: visible;
-    grid-template-rows: minmax(12rem, 32vh) minmax(12rem, 32vh);
-  }
-  .dk-log-dir {
-    height: auto;
-    min-height: 40vh;
-  }
-  .dk-log-scroll {
-    max-height: none;
-  }
-  .dk-log-dir .dk-log-scroll {
-    max-height: 42vh;
+    grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
   }
 }
 

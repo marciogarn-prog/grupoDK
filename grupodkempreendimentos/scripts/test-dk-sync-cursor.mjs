@@ -29,11 +29,11 @@ assert.ok(logUi.includes('fetch("/api/dk-log"'));
 assert.ok(logUi.includes('dkSyncCheckpoint("checkpoint")'));
 assert.ok(!logUi.includes("setInterval"));
 assert.ok(!logUi.includes("innerHTML"));
-const syncSrc = html.indexOf("portal-dk-sync.js?v=20261029logdk4");
-const logSrc = html.indexOf("portal-log-ui.js?v=20261029logdk4");
+const syncSrc = html.indexOf("portal-dk-sync.js?v=20261029logdk5");
+const logSrc = html.indexOf("portal-log-ui.js?v=20261029logdk5");
 assert.ok(syncSrc > 0 && logSrc > syncSrc);
-assert.ok(html.includes("app.js?v=20261029logdk4"));
-assert.ok(html.includes("portal-locadora-ui.js?v=20261029logdk4"));
+assert.ok(html.includes("app.js?v=20261029logdk5"));
+assert.ok(html.includes("portal-locadora-ui.js?v=20261029logdk5"));
 
 function http(body, status) {
   const code = status || 200;
