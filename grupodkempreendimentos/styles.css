@@ -17705,13 +17705,18 @@ body.portal-plataforma-android #btn-dk-cloud-pull {
 }
 
 body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:not(.hidden)) {
-  height: calc(100dvh - var(--portal-admin-banner-h, 2.85rem));
-  max-height: calc(100dvh - var(--portal-admin-banner-h, 2.85rem));
+  position: fixed;
+  top: var(--portal-admin-banner-h, 3.2rem);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: auto;
+  max-height: none;
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  padding-top: 0.4rem;
-  padding-bottom: 0.35rem;
+  padding: 0.4rem 0.75rem 0.35rem;
+  z-index: 2;
 }
 
 #panel-log-locadora:not(.hidden) {
@@ -17774,10 +17779,10 @@ body.portal-body--admin-logado #view-unit.view--active:has(#panel-log-locadora:n
 }
 
 .dk-log-scroll {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: scroll;
   min-height: 0;
   flex: 1 1 auto;
-  scrollbar-gutter: stable;
 }
 
 .dk-log-filtros {

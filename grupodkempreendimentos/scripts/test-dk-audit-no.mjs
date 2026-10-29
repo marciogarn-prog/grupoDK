@@ -88,7 +88,7 @@ assert.ok(css.includes("grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr)
 assert.ok(html.includes('id="portal-log-usuarios"'));
 assert.ok(html.includes('id="portal-log-detalhe"'));
 assert.ok(html.includes('id="portal-log-lista"'));
-assert.ok(css.includes("overflow: auto"));
+assert.ok(css.includes("overflow-y: scroll"));
 assert.ok(ui.includes("Login "));
 assert.ok(ui.includes("white-space") || css.includes("white-space: nowrap"));
 assert.ok(css.includes("grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)"));
