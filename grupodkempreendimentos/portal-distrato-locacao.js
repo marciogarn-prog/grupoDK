@@ -260,11 +260,16 @@ body { padding: 58px 0 24px; font-family: Arial, Helvetica, sans-serif; }
     btn.disabled=false;
   };
   document.getElementById("btnDistratoImprimir").onclick=function(){window.print();};
-  document.getElementById("btnDistratoConfirmar").onclick=function(){
+  document.getElementById("btnDistratoConfirmar").onclick=async function(){
     if(!window.opener||typeof window.opener.__DK_distratoLocacaoConfirmar!=="function"){msg.textContent="A janela principal não está disponível.";return;}
-    var r=window.opener.__DK_distratoLocacaoConfirmar(token);
-    if(r&&r.ok){msg.textContent="Locação finalizada e distrato confirmado.";this.disabled=true;}
-    else msg.textContent=(r&&r.msg)||"Não foi possível finalizar.";
+    this.disabled=true;msg.textContent="A confirmar no servidor oficial…";
+    try{
+      var r=window.opener.__DK_distratoLocacaoConfirmar(token);
+      if(r&&typeof r.then==="function") r=await r;
+      if(r&&r.ok){msg.textContent="Locação finalizada e distrato confirmado.";return;}
+      msg.textContent=(r&&r.msg)||"Não foi possível finalizar.";
+      this.disabled=false;
+    }catch(e){msg.textContent="Erro ao finalizar: "+(e&&e.message?e.message:e);this.disabled=false;}
   };
 })();
 <\/script>`;
@@ -300,11 +305,12 @@ ${scriptPreview(token, String(dados.protocolo || dados.numeroContrato || "distra
   window.__DK_distratoLocacaoAbrir = abrir;
   window.__DK_distratoLocacaoBuildHtml = (dados) =>
     `<!doctype html><html><head><meta charset="utf-8"><style>${cssDistrato()}</style></head><body>${htmlDistrato(dados)}</body></html>`;
-  window.__DK_distratoLocacaoConfirmar = (token) => {
+  window.__DK_distratoLocacaoConfirmar = async (token) => {
     const pendente = confirmacoes.get(String(token || ""));
     if (!pendente) return { ok: false, msg: "Esta pré-visualização expirou. Abra o distrato novamente." };
     try {
-      const resultado = pendente.callback(pendente.dados);
+      let resultado = pendente.callback(pendente.dados);
+      if (resultado && typeof resultado.then === "function") resultado = await resultado;
       if (resultado === false) return { ok: false, msg: "A finalização não foi guardada." };
       confirmacoes.delete(String(token || ""));
       return { ok: true };

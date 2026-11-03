@@ -51,9 +51,9 @@ const checks = [
   ["odômetros calculam 7.847 km rodados", html.includes("029842 Km(s)") && html.includes("037689 Km(s)") && html.includes("007847 Km(s)")],
   ["motivo aparece no documento", html.includes("Cliente desistiu do Processo.")],
   ["preview tem PDF, impressão e confirmação", js.includes("btnDistratoPdf") && js.includes("btnDistratoImprimir") && js.includes("btnDistratoConfirmar")],
-  ["finalização só ocorre pela confirmação do preview", ui.includes("__DK_distratoLocacaoAbrir(dadosDistrato, pendente.onConfirm)") && ui.includes("const finalizarLocacao = (dadosDistrato = {})")],
+  ["finalização só ocorre pela confirmação do preview", ui.includes("__DK_distratoLocacaoAbrir(dadosDistrato, pendente.onConfirm)") && /const finalizarLocacao = async \(dadosDistrato = \{\}\)/.test(ui)],
   ["modal de dados presente", htmlPortal.includes("portalDistratoDadosModal") && htmlPortal.includes("portalDistratoMotivo")],
-  ["CSS e cache-bust presentes", styles.includes("portal-distrato-dados-card") && htmlPortal.includes("portal-distrato-locacao.js?v=20260916distratodias")],
+  ["CSS e cache-bust presentes", styles.includes("portal-distrato-dados-card") && /portal-distrato-locacao\.js\?v=[^"'<>]+/.test(htmlPortal)],
 ];
 
 for (const [label, ok] of checks) console.log(`${ok ? "OK" : "FALHOU"} — ${label}`);

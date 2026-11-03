@@ -80,54 +80,51 @@ module.exports = async function handler(req, res) {
     const body = parseBody(req);
     const acao = String(body.op || op || "").trim();
     if (acao === "excluir") {
-      const out = await pg.excluirUma({
-        numero: body.numero || body.numeroContrato,
-        version: body.version,
-        by: autor(gate),
-        acesso,
-        funcionarios,
+      const opIdExcluir = body.operation_id || body.operationId;
+      if (!opIdExcluir) {
+        return res.status(400).json({
+          ok: false,
+          reason: "operation_id_obrigatorio",
+          hint: "exclusão exige operation_id; caminho legado sem Log foi desativado",
+        });
+      }
+      return res.status(501).json({
+        ok: false,
+        reason: "exclusao_atomica_pendente",
+        operation_id: opIdExcluir,
+        hint: "use finalizar/cancelar via atualizar/finalizar com Log; DELETE físico sem evento não é aceite",
       });
-      if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
-      if (out.conflict) return res.status(409).json(out);
-      return res.status(out.ok ? 200 : out.status || 400).json(out);
     }
     if (acao === "gravar" || acao === "criar" || acao === "atualizar" || acao === "finalize" || acao === "finalizar") {
       const locacao = body.locacao && typeof body.locacao === "object" ? body.locacao : null;
       if (!locacao) return res.status(400).json({ ok: false, reason: "locacao_obrigatoria" });
       const opId = body.operation_id || body.operationId;
-      if (opId) {
-        const atomicLpm = require("../lib/dk-atomic-write-lpm.cjs");
-        const action =
-          acao === "criar" || (!locacao.pgId && acao === "gravar")
-            ? "create"
-            : acao === "finalize" || acao === "finalizar"
-              ? "finalize"
-              : "update";
-        const atom = await atomicLpm.mutarLocacaoAtomico({
-          action,
-          locacao,
-          numeroContrato: body.numero || locacao.numeroContrato,
-          expectedVersion: body.version != null ? body.version : locacao.pgVersion,
-          operationId: opId,
-          actorUserId: autor(gate),
-          actorSessionId: gate.sid || null,
-          route: "/api/dk-locacao",
-          method: "POST",
+      if (!opId) {
+        return res.status(400).json({
+          ok: false,
+          reason: "operation_id_obrigatorio",
+          hint: "cutover: use /api/dk-locacao com operation_id; caminho legado sem Log foi desativado",
         });
-        return res.status(atom.status || 400).json(atom.body || atom);
       }
-      const out = await pg.gravarUma({
-        numero: body.numero || locacao.numeroContrato,
-        version: body.version != null ? body.version : locacao.pgVersion,
+      const atomicLpm = require("../lib/dk-atomic-write-lpm.cjs");
+      const action =
+        acao === "criar" || (!locacao.pgId && acao === "gravar")
+          ? "create"
+          : acao === "finalize" || acao === "finalizar"
+            ? "finalize"
+            : "update";
+      const atom = await atomicLpm.mutarLocacaoAtomico({
+        action,
         locacao,
-        by: autor(gate),
-        criar: acao === "criar" || !locacao.pgId,
-        acesso,
-        funcionarios,
+        numeroContrato: body.numero || locacao.numeroContrato,
+        expectedVersion: body.version != null ? body.version : locacao.pgVersion,
+        operationId: opId,
+        actorUserId: autor(gate),
+        actorSessionId: gate.sid || null,
+        route: "/api/dk-locacao",
+        method: "POST",
       });
-      if (out.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
-      if (out.conflict) return res.status(409).json(out);
-      return res.status(out.ok ? 200 : out.status || 400).json(out);
+      return res.status(atom.status || 400).json(atom.body || atom);
     }
     return res.status(400).json({ ok: false, reason: "operacao_desconhecida" });
   } catch (err) {

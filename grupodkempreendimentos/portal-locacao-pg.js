@@ -192,41 +192,227 @@
     });
   }
 
-  async function enviarUma(loc) {
-    if (ehResumo(loc)) return { status: 400, data: { ok: false, reason: "resumo_nao_e_locacao" } };
-    const nc = digitos(loc.numeroContrato);
-    const chaveLogica = nc + ":" + (loc.pgId ? "atualizar" : "criar") + ":" + assinatura(loc);
-    if (!window.__DK_LOCACAO_OP_IDS) window.__DK_LOCACAO_OP_IDS = Object.create(null);
-    if (!window.__DK_LOCACAO_OP_IDS[chaveLogica]) window.__DK_LOCACAO_OP_IDS[chaveLogica] = novoOperationId();
-    const operation_id = window.__DK_LOCACAO_OP_IDS[chaveLogica];
-    const res = await fetch("/api/dk-locacao?nocache=" + Date.now(), {
-      method: "POST",
-      cache: "no-store",
-      headers: headers(),
-      body: JSON.stringify({
-        op: loc.pgId ? "atualizar" : "criar",
-        numero: nc,
-        version: Number(loc.pgVersion) || 0,
-        locacao: semMarcador(loc),
-        operation_id,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data && data.ok !== false) {
-      try {
-        delete window.__DK_LOCACAO_OP_IDS[chaveLogica];
-      } catch {
-        /* ignore */
-      }
+  function mensagemFalha(status, data, err) {
+    const reason = String((data && (data.reason || data.message)) || "").trim();
+    if (err && (err.name === "AbortError" || /aborted/i.test(String(err.message || "")))) {
+      return "O servidor demorou demais. Nada foi confirmado. Tente de novo — o mesmo envio será reutilizado.";
     }
-    return { status: res.status, data };
+    if (err && /failed to fetch|networkerror|load failed|conexão|connection/i.test(String(err.message || err))) {
+      return "Sem ligação ao servidor. Nada foi confirmado. Os campos digitados foram mantidos.";
+    }
+    if (status === 401 || status === 403 || reason === "unauthorized" || reason === "auth") {
+      return "Sessão inválida ou sem permissão. Entre de novo e tente gravar outra vez.";
+    }
+    if (status === 409 || (data && data.conflict)) {
+      return "Conflito de versão: outro computador alterou este contrato. Os campos digitados foram mantidos — compare antes de gravar de novo.";
+    }
+    if (reason === "resumo_nao_e_locacao") {
+      return "A lista leve não contém o contrato completo. Abra o protocolo de novo antes de gravar.";
+    }
+    if (reason === "operation_id_obrigatorio") {
+      return "Falta o identificador da operação. Recarregue a página e tente de novo.";
+    }
+    if (reason === "revisao_desconhecida" || reason === "version_obrigatoria") {
+      return "A revisão oficial do contrato não foi lida. Abra o protocolo de novo antes de gravar.";
+    }
+    if (reason === "idempotency_conflict" || reason === "IDEMPOTENCY_CONFLICT") {
+      return "Esta operação já foi usada com outro conteúdo. Altere o formulário ou recarregue e tente de novo.";
+    }
+    if (status >= 500 || reason === "erro_interno") {
+      return "O servidor falhou ao gravar. Nada foi confirmado. Tente de novo.";
+    }
+    if (reason) return "Não foi possível gravar (" + reason + "). Nada foi confirmado.";
+    if (status) return "Não foi possível gravar (HTTP " + status + "). Nada foi confirmado.";
+    return "Não foi possível gravar no servidor. Nada foi confirmado.";
   }
 
+  /**
+   * Gravação oficial: aguarda POST /api/dk-locacao + RPC.
+   * Sucesso só após confirmação. Em falha preserva formulário e o mesmo operation_id.
+   */
+  async function salvarConfirmada(locEntrada, opts) {
+    const op = String((opts && opts.op) || "").trim().toLowerCase() || "atualizar";
+    let loc = locEntrada && typeof locEntrada === "object" ? { ...locEntrada } : null;
+    if (!loc) {
+      return { ok: false, status: 400, reason: "locacao_obrigatoria", message: "Locação obrigatória." };
+    }
+    const nc = digitos(loc.numeroContrato || loc.protocolo || (opts && opts.numero));
+    if (!nc) {
+      return { ok: false, status: 400, reason: "protocolo_obrigatorio", message: "Protocolo obrigatório." };
+    }
+    loc.numeroContrato = nc;
+
+    if (ehResumo(loc) || loc.__dkResumo === true) {
+      const det = await detalhe(nc);
+      if (!det || det.ok !== true || !det.locacao) {
+        return {
+          ok: false,
+          status: (det && det.status) || 400,
+          reason: "resumo_nao_e_locacao",
+          message: mensagemFalha(400, { reason: "resumo_nao_e_locacao" }),
+        };
+      }
+      loc = {
+        ...det.locacao,
+        ...semMarcador(loc),
+        numeroContrato: nc,
+        pgId: loc.pgId || det.locacao.pgId,
+        pgVersion: Number(loc.pgVersion || det.locacao.pgVersion || 0),
+      };
+      delete loc.__dkResumo;
+    }
+
+    const ehCriar = op === "criar" || op === "create" || (!loc.pgId && op === "gravar");
+    const ehFinalizar = op === "finalize" || op === "finalizar";
+    let expectedVersion = Number(loc.pgVersion);
+    if (!ehCriar && (!Number.isFinite(expectedVersion) || expectedVersion <= 0)) {
+      const det = await detalhe(nc);
+      if (!det || det.ok !== true || !det.locacao) {
+        return {
+          ok: false,
+          status: (det && det.status) || 400,
+          reason: "revisao_desconhecida",
+          message: mensagemFalha(400, { reason: "revisao_desconhecida" }),
+          pending: true,
+        };
+      }
+      expectedVersion = Number(det.locacao.pgVersion) || 0;
+      loc = {
+        ...det.locacao,
+        ...semMarcador(loc),
+        numeroContrato: nc,
+        pgId: loc.pgId || det.locacao.pgId,
+        pgVersion: expectedVersion,
+      };
+      delete loc.__dkResumo;
+      if (!Number.isFinite(expectedVersion) || expectedVersion <= 0) {
+        return {
+          ok: false,
+          status: 400,
+          reason: "revisao_desconhecida",
+          message: mensagemFalha(400, { reason: "revisao_desconhecida" }),
+          pending: true,
+        };
+      }
+    }
+
+    const payloadLimpo = semMarcador(loc);
+    const assin = assinatura(payloadLimpo);
+    const chaveLogica =
+      nc + ":" + (ehCriar ? "criar" : ehFinalizar ? "finalizar" : "atualizar") + ":" + assin;
+    if (!window.__DK_LOCACAO_OP_IDS) window.__DK_LOCACAO_OP_IDS = Object.create(null);
+    if (!window.__DK_LOCACAO_PENDING) window.__DK_LOCACAO_PENDING = Object.create(null);
+    const pending = window.__DK_LOCACAO_PENDING[nc];
+    let operation_id;
+    if (pending && pending.assinatura === assin && pending.operation_id) {
+      operation_id = pending.operation_id;
+    } else {
+      if (!window.__DK_LOCACAO_OP_IDS[chaveLogica]) {
+        window.__DK_LOCACAO_OP_IDS[chaveLogica] = novoOperationId();
+      }
+      operation_id = window.__DK_LOCACAO_OP_IDS[chaveLogica];
+      window.__DK_LOCACAO_PENDING[nc] = { operation_id, assinatura: assin, op: ehCriar ? "criar" : ehFinalizar ? "finalizar" : "atualizar" };
+    }
+
+    let res;
+    let data = {};
+    try {
+      res = await fetch("/api/dk-locacao?nocache=" + Date.now(), {
+        method: "POST",
+        cache: "no-store",
+        headers: headers(),
+        body: JSON.stringify({
+          op: ehCriar ? "criar" : ehFinalizar ? "finalizar" : "atualizar",
+          numero: nc,
+          version: ehCriar ? null : expectedVersion,
+          locacao: payloadLimpo,
+          operation_id,
+        }),
+      });
+      data = await res.json().catch(() => ({}));
+    } catch (err) {
+      return {
+        ok: false,
+        status: 0,
+        reason: "rede",
+        message: mensagemFalha(0, null, err),
+        operation_id,
+        pending: true,
+        conflict: false,
+      };
+    }
+
+    if (!(res.status >= 200 && res.status < 300) || !data || data.ok === false) {
+      return {
+        ok: false,
+        status: res.status,
+        reason: (data && data.reason) || "falha",
+        message: mensagemFalha(res.status, data),
+        operation_id,
+        pending: true,
+        conflict: res.status === 409 || Boolean(data && data.conflict),
+        data,
+        oficial: data && data.oficial ? data.oficial : null,
+      };
+    }
+
+    let oficial = data.locacao && typeof data.locacao === "object" ? semMarcador(data.locacao) : null;
+    if (!oficial) {
+      const det = await detalhe(nc);
+      if (det && det.ok && det.locacao) oficial = semMarcador(det.locacao);
+    }
+    if (oficial && data.record_version != null) {
+      oficial.pgVersion = Number(data.record_version);
+    } else if (oficial && data.version != null) {
+      oficial.pgVersion = Number(data.version);
+    }
+    if (oficial) {
+      guardarDetalheAberto(oficial);
+      const cache = Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache.slice() : [];
+      const i = cache.findIndex((l) => digitos(l && l.numeroContrato) === nc);
+      if (i >= 0) cache[i] = oficial;
+      else cache.push(oficial);
+      window.__DK_locacoesPgCache = cache;
+      publicarPesquisa(cache);
+    }
+
+    try {
+      delete window.__DK_LOCACAO_OP_IDS[chaveLogica];
+      delete window.__DK_LOCACAO_PENDING[nc];
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      if (typeof window.dkSyncCheckpoint === "function") void window.dkSyncCheckpoint("locacao_salva");
+    } catch {
+      /* ignore */
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      operation_id: data.operation_id || operation_id,
+      audit_no: data.audit_no != null ? Number(data.audit_no) : null,
+      seq: data.seq != null ? Number(data.seq) : null,
+      version: data.record_version != null ? Number(data.record_version) : data.version != null ? Number(data.version) : null,
+      idempotent: Boolean(data.idempotent),
+      locacao: oficial || payloadLimpo,
+      data,
+    };
+  }
+
+  async function enviarUma(loc) {
+    return salvarConfirmada(loc, { op: loc && loc.pgId ? "atualizar" : "criar" });
+  }
+
+  /**
+   * Atualiza só o cache em memória. Não POST — gravação oficial é salvarConfirmada.
+   */
   function salvarLista(list) {
     if (window.__DK_LOCACAO_PG !== true) return;
     const anterior = Array.isArray(window.__DK_locacoesPgCache) ? window.__DK_locacoesPgCache : [];
     const porNc = new Map(anterior.map((l) => [digitos(l.numeroContrato), l]));
-    const tarefas = [];
     const vista = [];
     for (const loc of Array.isArray(list) ? list : []) {
       if (!loc || typeof loc !== "object") continue;
@@ -240,33 +426,11 @@
         pgVersion: Number(loc.pgVersion || (velha && velha.pgVersion) || 0),
       };
       vista.push(atual);
-      if (ehResumo(atual)) continue;
-      if (!velha || assinatura(velha) !== assinatura(atual)) tarefas.push(atual);
     }
-    if (vista.length) window.__DK_locacoesPgCache = vista;
-    if (!tarefas.length) return;
-    fila = fila
-      .then(async () => {
-        for (const loc of tarefas) {
-          const r = await enviarUma(loc);
-          if (r.status === 409 || (r.data && r.data.conflict)) {
-            if (!avisoConflito) {
-              avisoConflito = true;
-              window.alert(
-                "Este contrato foi atualizado em outro computador. A tela foi recarregada com a versão do servidor."
-              );
-            }
-            await carregar();
-            avisoConflito = false;
-            return;
-          }
-          if (r.data && r.data.locacao) guardarDetalheAberto(semMarcador(r.data.locacao));
-        }
-        refrescarTela();
-      })
-      .catch((e) => {
-        console.warn("[DK locação] gravação no servidor", e);
-      });
+    if (vista.length) {
+      window.__DK_locacoesPgCache = vista;
+      publicarPesquisa(vista);
+    }
   }
 
   function instalarGanchos() {
@@ -326,6 +490,7 @@
 
   window.__DK_locacaoPgRecarregar = carregar;
   window.__DK_locacaoPgDetalhe = detalhe;
+  window.__DK_locacaoSalvarConfirmada = salvarConfirmada;
   window.setInterval(() => {
     if (window.__DK_LOCACAO_PG === true) void vigiar();
     else tentar();

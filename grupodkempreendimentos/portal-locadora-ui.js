@@ -20242,37 +20242,32 @@
     const nc = portalNuvemNormProto(ncRaw);
     const loc = nc && typeof findPortalLocacaoByProtocolo === "function" ? findPortalLocacaoByProtocolo(nc) : null;
     if (!loc) return { ok: false, error: "O protocolo não está neste computador." };
-    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
-    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 50000) : null;
-    try {
-      const res = await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
-        method: "POST",
-        cache: "no-store",
-        headers: { Accept: "application/json", "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ locacao: loc, confirm: { kind: "locacao", value: nc } }),
-        signal: ctrl ? ctrl.signal : undefined,
+    if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      const r = await window.__DK_locacaoSalvarConfirmada(loc, {
+        op: loc.pgId ? "atualizar" : "criar",
+        numero: nc,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.success !== true) {
-        return {
-          ok: false,
-          error: data?.message || data?.reason || "Não foi possível salvar no servidor.",
-        };
+      if (!r || r.ok !== true) {
+        return { ok: false, error: (r && r.message) || "Não foi possível salvar no servidor." };
       }
       return {
         ok: true,
         success: true,
         supaOk: true,
-        source: "supabase",
-        confirmed: data.confirmed === true,
+        source: "postgres",
+        confirmed: true,
         redisOk: false,
+        operation_id: r.operation_id,
+        audit_no: r.audit_no,
+        seq: r.seq,
+        version: r.version,
       };
-    } catch (err) {
-      return { ok: false, error: err };
-    } finally {
-      if (timer) clearTimeout(timer);
     }
+    return {
+      ok: false,
+      error:
+        "LOCAÇÃO NÃO É GRAVADA NO SNAPSHOT. A FONTE OFICIAL É /API/DK-LOCACAO. A gravação só vale depois que o servidor confirmar.",
+    };
   }
 
   async function portalNuvemPushAwait(opts) {
@@ -23555,6 +23550,19 @@
       if (msg) msg.textContent = `Protocolo ${nc} não está neste computador nem na nuvem oficial.`;
       return { ok: false };
     }
+    if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoPgDetalhe === "function") {
+      if (msg) msg.textContent = `A carregar o detalhe oficial do protocolo ${nc}…`;
+      const det = await window.__DK_locacaoPgDetalhe(nc);
+      if (det && det.ok === true && det.locacao) {
+        loc = det.locacao;
+      } else if (loc.__dkResumo === true) {
+        if (msg) {
+          msg.textContent =
+            `Não foi possível carregar o detalhe completo do protocolo ${nc}. Sem a revisão oficial não é seguro atualizar.`;
+        }
+        return { ok: false, reason: "detalhe_indisponivel" };
+      }
+    }
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const cpfDigits = dig(String(loc.cpf || ""));
@@ -23758,7 +23766,7 @@
     };
     const saldos = portalLocacaoFinalizacaoSaldos(locParaSaldo, fimBr);
 
-    const finalizarLocacao = (dadosDistrato = {}) => {
+    const finalizarLocacao = async (dadosDistrato = {}) => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const finNow = Date.now();
@@ -23766,7 +23774,7 @@
         digitsPortalOdometro(dadosDistrato.odometroFim || dadosDistrato.kmFinal) ||
         digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroFim")?.value) ||
         digitsPortalOdometro(prev.kmFinal || prev.odometroFim);
-      locs[idx] = {
+      const registro = {
         ...prev,
         fim: fimBr,
         dataFim: fimBr,
@@ -23783,14 +23791,33 @@
         portalLocacaoFinalizadoEmMs: finNow,
         updatedAt: finNow,
       };
-      try {
-        saveCadastro(CAD_LOCACOES_KEY, locs);
-      } catch (err) {
-        console.error(err);
-        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
-        return false;
+      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        portalNuvemSyncLockShow("A finalizar a locação no servidor oficial…");
+        const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "finalizar", numero: ncNorm });
+        if (!r || r.ok !== true) {
+          const falha = (r && r.message) || "Não foi possível finalizar no servidor. Nada foi confirmado.";
+          portalNuvemSyncLockShow(falha, {
+            retry: true,
+            onRetry: () => {
+              void finalizarLocacao(dadosDistrato);
+            },
+          });
+          portalLocacaoFeedback(falha);
+          return false;
+        }
+        portalNuvemSyncLockHide();
+        locs[idx] = r.locacao || registro;
+      } else {
+        locs[idx] = registro;
+        try {
+          saveCadastro(CAD_LOCACOES_KEY, locs);
+        } catch (err) {
+          console.error(err);
+          portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+          return false;
+        }
+        portalPushCloudSnapshotAfterPersist();
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof addAuditLog === "function") {
         try {
           addAuditLog("finalizar_locacao_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · fim ${fimBr}`);
@@ -23798,7 +23825,7 @@
           /* ignore */
         }
       }
-      portalLocacaoFeedback("Locação finalizada e guardada.");
+      portalLocacaoFeedback("Locação finalizada e confirmada no servidor.");
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       applyPortalLocacaoRowFromRecord(locs[idx]);
       refreshOperacaoLocacaoDatalists();
@@ -23910,11 +23937,11 @@
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(prev);
     const totalPago = sumPortalLancamentosAluguelTotal(lancs);
 
-    const cancelarContrato = () => {
+    const cancelarContrato = async () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const finNow = Date.now();
-      locs[idx] = {
+      const registro = {
         ...prev,
         inicio: inicioBr,
         fim: inicioBr,
@@ -23926,14 +23953,33 @@
         portalLocacaoCanceladoEmMs: finNow,
         updatedAt: finNow,
       };
-      try {
-        saveCadastro(CAD_LOCACOES_KEY, locs);
-      } catch (err) {
-        console.error(err);
-        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
-        return;
+      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        portalNuvemSyncLockShow("A cancelar o contrato no servidor oficial…");
+        const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "atualizar", numero: ncNorm });
+        if (!r || r.ok !== true) {
+          const falha = (r && r.message) || "Não foi possível cancelar no servidor. Nada foi confirmado.";
+          portalNuvemSyncLockShow(falha, {
+            retry: true,
+            onRetry: () => {
+              void cancelarContrato();
+            },
+          });
+          portalLocacaoFeedback(falha);
+          return;
+        }
+        portalNuvemSyncLockHide();
+        locs[idx] = r.locacao || registro;
+      } else {
+        locs[idx] = registro;
+        try {
+          saveCadastro(CAD_LOCACOES_KEY, locs);
+        } catch (err) {
+          console.error(err);
+          portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+          return;
+        }
+        portalPushCloudSnapshotAfterPersist();
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof addAuditLog === "function") {
         try {
           addAuditLog("cancelar_contrato_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · desistência`);
@@ -23945,7 +23991,7 @@
       const tempoEl = document.getElementById("operacaoLocacaoTempoDias");
       if (dfEl) dfEl.value = inicioBr;
       if (tempoEl) tempoEl.value = "0";
-      portalLocacaoFeedback("Contrato cancelado — data fim = início, sem débito e receita prevista zero.");
+      portalLocacaoFeedback("Contrato cancelado e confirmado no servidor — data fim = início, sem débito.");
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       applyPortalLocacaoRowFromRecord(locs[idx]);
       refreshOperacaoLocacaoDatalists();
@@ -24049,7 +24095,7 @@
       return;
     }
 
-    const reativarContrato = () => {
+    const reativarContrato = async () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const finNow = Date.now();
@@ -24058,7 +24104,7 @@
         (l, i) => i !== idx && Number(l?.id || 0) > 0 && Number(l.id) === idAntigo
       );
       const novoId = idConflito || !idAntigo ? finNow : idAntigo;
-      locs[idx] = {
+      const registro = {
         ...prev,
         id: novoId,
         fim: "",
@@ -24084,14 +24130,33 @@
         portalLocacaoReativadoEmMs: finNow,
         updatedAt: finNow,
       };
-      try {
-        saveCadastro(CAD_LOCACOES_KEY, locs, { allowShrink: true });
-      } catch (err) {
-        console.error(err);
-        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
-        return;
+      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        portalNuvemSyncLockShow("A reativar o protocolo no servidor oficial…");
+        const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "atualizar", numero: ncNorm });
+        if (!r || r.ok !== true) {
+          const falha = (r && r.message) || "Não foi possível reativar no servidor. Nada foi confirmado.";
+          portalNuvemSyncLockShow(falha, {
+            retry: true,
+            onRetry: () => {
+              void reativarContrato();
+            },
+          });
+          portalLocacaoFeedback(falha);
+          return;
+        }
+        portalNuvemSyncLockHide();
+        locs[idx] = r.locacao || registro;
+      } else {
+        locs[idx] = registro;
+        try {
+          saveCadastro(CAD_LOCACOES_KEY, locs, { allowShrink: true });
+        } catch (err) {
+          console.error(err);
+          portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+          return;
+        }
+        portalPushCloudSnapshotAfterPersist();
       }
-      portalPushCloudSnapshotAfterPersist();
       if (typeof addAuditLog === "function") {
         try {
           addAuditLog(
@@ -24109,7 +24174,7 @@
       if (dfEl) dfEl.value = "";
       if (tempoEl) tempoEl.value = "";
       if (tempoContratoEl) tempoContratoEl.value = "";
-      portalLocacaoFeedback(`Protocolo ${ncNorm} reativado — status ATIVO, data fim limpa.`);
+      portalLocacaoFeedback(`Protocolo ${ncNorm} reativado e confirmado no servidor — status ATIVO.`);
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       applyPortalLocacaoRowFromRecord(locs[idx]);
       refreshOperacaoLocacaoDatalists();
@@ -24811,7 +24876,7 @@
       }
     }
 
-    const doSaveLocacao = () => {
+    const doSaveLocacao = async () => {
       if (
         statusLocacao === "ATIVO" &&
         portalBloquearPlacaComOutroProtocoloAtivo(
@@ -24822,30 +24887,85 @@
       ) {
         return;
       }
-      if (prev) {
-        locs[idxAll] = {
-          ...prev,
-          ...baseRecord,
-          portalLancamentosAluguel: prev.portalLancamentosAluguel,
-          portalLancamentosCaucao: prev.portalLancamentosCaucao,
-          portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
-          portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
-          portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
-          portalLocacaoFinalizadoPorCpf: prev.portalLocacaoFinalizadoPorCpf,
-          portalLocacaoFinalizadoPorNome: prev.portalLocacaoFinalizadoPorNome,
-          portalLocacaoFinalizadoEmMs: prev.portalLocacaoFinalizadoEmMs,
-          updatedAt: nowMs,
-        };
-      } else {
-        locs.push({
-          id: nowMs,
-          createdAt: nowMs,
-          ...baseRecord,
-          portalLocacaoExecutadoPorCpf: execCpf,
-          portalLocacaoExecutadoPorNome: execNome,
-          portalLocacaoExecutadoEmMs: nowMs,
-          updatedAt: nowMs,
+      const registro = prev
+        ? {
+            ...prev,
+            ...baseRecord,
+            portalLancamentosAluguel: prev.portalLancamentosAluguel,
+            portalLancamentosCaucao: prev.portalLancamentosCaucao,
+            portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
+            portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
+            portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
+            portalLocacaoFinalizadoPorCpf: prev.portalLocacaoFinalizadoPorCpf,
+            portalLocacaoFinalizadoPorNome: prev.portalLocacaoFinalizadoPorNome,
+            portalLocacaoFinalizadoEmMs: prev.portalLocacaoFinalizadoEmMs,
+            updatedAt: nowMs,
+          }
+        : {
+            id: nowMs,
+            createdAt: nowMs,
+            ...baseRecord,
+            portalLocacaoExecutadoPorCpf: execCpf,
+            portalLocacaoExecutadoPorNome: execNome,
+            portalLocacaoExecutadoEmMs: nowMs,
+            updatedAt: nowMs,
+          };
+
+      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        portalNuvemSyncLockShow(
+          prev ? "A gravar a atualização no servidor oficial…" : "A gravar a locação no servidor oficial…"
+        );
+        const r = await window.__DK_locacaoSalvarConfirmada(registro, {
+          op: prev ? "atualizar" : "criar",
+          numero: nc,
         });
+        if (!r || r.ok !== true) {
+          const falha = (r && r.message) || "Não foi possível gravar no servidor. Nada foi confirmado.";
+          portalNuvemSyncLockShow(falha, {
+            retry: true,
+            onRetry: () => {
+              void doSaveLocacao();
+            },
+          });
+          portalLocacaoFeedback(falha);
+          return;
+        }
+        portalNuvemSyncLockHide();
+        if (typeof addAuditLog === "function") {
+          try {
+            addAuditLog(
+              prev ? "atualizar_locacao_portal" : "cadastrar_locacao_portal",
+              "locacao",
+              `${nc} · CPF ${cpfDigits} · ${plate} · audit ${r.audit_no != null ? r.audit_no : "—"}`
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+        const saved = r.locacao || registro;
+        portalLocacaoFeedback(
+          prev
+            ? `Locação atualizada e confirmada no servidor${r.audit_no != null ? ` (Log ${r.audit_no})` : ""}.`
+            : `Locação cadastrada e confirmada no servidor${r.audit_no != null ? ` (Log ${r.audit_no})` : ""}.`
+        );
+        refreshOperacaoLocacaoProtocoloPicker({ force: true });
+        refreshOperacaoLocacaoProtocoloAdminPlaceholder();
+        applyPortalLocacaoRowFromRecord(saved);
+        pinOperacaoLocacaoProtocoloCarregado(nc);
+        refreshOperacaoLocacaoDatalists();
+        refreshOperacaoLocacaoFinalizarBtn();
+        refreshOperacaoLocacaoVisualizarContratoBtn();
+        if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+          void window.__DK_contratoLocacaoSincronizarPasta(nc, saved.statusLocacao, { fim: fimBr, silent: true });
+        }
+        refreshOperacaoLocacaoVisualizarContratoBtn();
+        return;
+      }
+
+      if (prev) {
+        locs[idxAll] = registro;
+      } else {
+        locs.push(registro);
       }
       if (ncOriginal && ncOriginal !== nc) {
         for (let i = locs.length - 1; i >= 0; i--) {
@@ -27896,8 +28016,12 @@
       return false;
     }
     if (!opts?.adiarNuvem && !opts?.semFilaNuvem) {
-      portalPushCloudSnapshotAfterPersist();
-      void portalNuvemConfirmarLocacaoDireta(ncNorm);
+      if (window.__DK_LOCACAO_PG === true) {
+        void portalNuvemConfirmarLocacaoDireta(ncNorm);
+      } else {
+        portalPushCloudSnapshotAfterPersist();
+        void portalNuvemConfirmarLocacaoDireta(ncNorm);
+      }
     }
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLocacaoLancamentosHistorico(cpfDigits, ncNorm);
@@ -31379,7 +31503,22 @@
   document.getElementById("portalLocacaoConfirmSimBtn")?.addEventListener("click", () => {
     const fn = portalLocacaoConfirmCallback;
     closePortalLocacaoConfirmModal();
-    if (typeof fn === "function") fn();
+    if (typeof fn === "function") {
+      try {
+        const ret = fn();
+        if (ret && typeof ret.then === "function") {
+          void ret.catch((err) => {
+            console.error(err);
+            portalLocacaoFeedback(
+              `Não foi possível confirmar: ${err && err.message ? err.message : err}.`
+            );
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        portalLocacaoFeedback(`Não foi possível confirmar: ${err && err.message ? err.message : err}.`);
+      }
+    }
   });
   document.getElementById("portalLocacaoConfirmNaoBtn")?.addEventListener("click", () => closePortalLocacaoConfirmModal());
   document.querySelectorAll("[data-close-locacao-confirm]").forEach((el) => {

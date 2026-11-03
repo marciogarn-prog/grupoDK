@@ -122,15 +122,87 @@ async function fetchRedisCloudSnapshot(channel = "default") {
   };
 }
 
+const PG_OFICIAL_TABELAS = [
+  { key: "dk_clientes", path: "dk_clientes", select: "id", countExact: true },
+  { key: "dk_veiculos", path: "dk_veiculos", select: "id", countExact: true },
+  { key: "dk_locacao", path: "dk_locacao", select: "id", countExact: true },
+  { key: "dk_pagamento_locacao", path: "dk_pagamento_locacao", select: "id,removed_at", countExact: true },
+  { key: "dk_manutencao", path: "dk_manutencao", select: "id", countExact: true },
+  { key: "dk_events", path: "dk_events", select: "seq,audit_no", countExact: true },
+  { key: "dk_audit_state", path: "dk_audit_state", select: "*", countExact: false },
+  { key: "dk_mutation_receipt", path: "dk_mutation_receipt", select: "operation_id", countExact: true },
+];
+
+async function fetchPgTableMeta(base, key, table) {
+  const url = `${base.replace(/\/$/, "")}/rest/v1/${table.path}?select=${encodeURIComponent(table.select)}&limit=0`;
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    Accept: "application/json",
+    Prefer: table.countExact ? "count=exact" : "count=estimated",
+  };
+  const res = await fetch(url, { headers });
+  const range = String(res.headers.get("content-range") || "");
+  const m = /\/(\d+)\s*$/.exec(range);
+  const count = m ? Number(m[1]) : null;
+  let sample = null;
+  if (table.path === "dk_audit_state" && res.ok) {
+    const full = await fetch(`${base.replace(/\/$/, "")}/rest/v1/dk_audit_state?select=*&limit=5`, { headers });
+    sample = full.ok ? await full.json().catch(() => null) : null;
+  }
+  return {
+    ok: res.ok,
+    status: res.status,
+    count: Number.isFinite(count) ? count : null,
+    sample,
+  };
+}
+
+/**
+ * Captura metadados/contagens das tabelas oficiais PostgreSQL.
+ * Não é snapshot transacional único — cada tabela é pedida em separado.
+ */
+async function fetchPgOficialColeta() {
+  const base =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    "https://ppxtwqvzgujllfzarpuz.supabase.co";
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!key) {
+    return { ok: false, reason: "doorman_key_missing", tables: {}, consistency: "unavailable" };
+  }
+  const tables = {};
+  let okAll = true;
+  for (const table of PG_OFICIAL_TABELAS) {
+    try {
+      const meta = await fetchPgTableMeta(base, key, table);
+      tables[table.key] = meta;
+      if (!meta.ok) okAll = false;
+    } catch (err) {
+      okAll = false;
+      tables[table.key] = { ok: false, reason: String(err && err.message ? err.message : err) };
+    }
+  }
+  return {
+    ok: okAll,
+    reason: okAll ? "ok" : "partial",
+    tables,
+    consistency: "non_transactional_independent_requests",
+    note: "Contagens oficiais incluídas; dump físico WALG permanece a proteção completa.",
+  };
+}
+
 /**
  * Monta payload no formato do backup operacional do app.
+ * Snapshot legado fica em `data`; estado relacional em `oficial_pg` (separado).
  * @param {{ channel?: 'default'|'demo' }} opts
  */
 async function collectDkBackupPayload(opts = {}) {
   const channel = normalizeChannel(opts.channel);
-  const [supabase, redis] = await Promise.all([
+  const [supabase, redis, oficialPg] = await Promise.all([
     fetchSupabaseSnapshot(channel),
     fetchRedisCloudSnapshot(channel),
+    fetchPgOficialColeta(),
   ]);
 
   const data = mergeSnapshotPayloads(supabase.payload, redis.payload);
@@ -149,14 +221,18 @@ async function collectDkBackupPayload(opts = {}) {
   const pick = (t) => brParts.find((p) => p.type === t)?.value || "";
   const exportedAtBr = `${pick("year")}-${pick("month")}-${pick("day")}T${pick("hour")}:${pick("minute")}:${pick("second")}-03:00`;
 
+  const oficialCompleto = Boolean(oficialPg && oficialPg.ok);
+  const legadoOk = Boolean(supabase.ok || redis.ok);
+
   return {
-    version: 2,
+    version: 3,
     source: "dk-vercel-cron",
     channel,
     exportedAtIso: now.toISOString(),
     exportedAtBr,
     timezone: "America/Sao_Paulo",
     data,
+    oficial_pg: oficialPg,
     redis: null,
     sources: {
       supabase: {
@@ -164,14 +240,31 @@ async function collectDkBackupPayload(opts = {}) {
         reason: supabase.reason,
         updatedAt: supabase.updatedAt,
         detail: supabase.detail || null,
+        role: "snapshot_legado_historico",
       },
       redis: {
         ok: redis.ok,
         reason: redis.reason,
         updatedAt: redis.updatedAt,
+        role: "snapshot_legado_cache",
+      },
+      oficial_pg: {
+        ok: oficialCompleto,
+        reason: oficialPg.reason,
+        consistency: oficialPg.consistency,
+        role: "contagens_relacionais_oficiais",
       },
     },
+    complete: oficialCompleto && legadoOk,
+    completeReason: oficialCompleto
+      ? legadoOk
+        ? "oficial_pg_e_legado"
+        : "oficial_pg_sem_legado"
+      : "oficial_pg_incompleto",
     counts: countRecords(data),
+    oficialCounts: Object.fromEntries(
+      Object.entries((oficialPg && oficialPg.tables) || {}).map(([k, v]) => [k, v && v.count != null ? v.count : null])
+    ),
     redisCounts: null,
   };
 }
@@ -226,7 +319,9 @@ function buildBrowserBackupPayload(browserData, channel = "default") {
 
 module.exports = {
   SNAPSHOT_STORAGE_KEYS,
+  PG_OFICIAL_TABELAS,
   collectDkBackupPayload,
+  fetchPgOficialColeta,
   buildBrowserBackupPayload,
   backupFileBaseName,
   countRecords,

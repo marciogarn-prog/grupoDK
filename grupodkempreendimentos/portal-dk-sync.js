@@ -1,16 +1,39 @@
 /**
- * Cursor do Log em memória. Lê GET /api/dk-sync e não grava cadastro.
- * O cursor existe só nesta página. Recarregar recomeça em after=0.
+ * Cursor técnico do Log (seq). Catch-up via GET /api/dk-sync.
+ * sessionStorage guarda só o cursor da aba (não é autoridade de negócio).
+ * WebSocket/Realtime de negócio: BLOQUEADO até canal privado autenticado.
  */
 (function (root) {
+  var CURSOR_KEY = "dk_sync_cursor_seq_v1";
+  function lerCursorPersistido() {
+    try {
+      if (!root || !root.sessionStorage) return 0;
+      var n = Number(root.sessionStorage.getItem(CURSOR_KEY));
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function gravarCursorPersistido(seq) {
+    try {
+      if (!root || !root.sessionStorage) return;
+      var n = Number(seq);
+      if (!Number.isFinite(n) || n < 0) return;
+      root.sessionStorage.setItem(CURSOR_KEY, String(Math.floor(n)));
+    } catch (e) {
+      /* ignore */
+    }
+  }
   var state = {
-    lastAppliedSeq: 0,
+    lastAppliedSeq: lerCursorPersistido(),
     syncInFlight: false,
     syncPending: false,
     lastServerSeq: 0,
     lastError: null,
     initialized: false,
     lastCheckpointAt: null,
+    realtimeBloqueado: true,
+    realtimeMotivo: "canal_privado_nao_autenticado",
   };
   var transporte = null;
   var limite = 100;
@@ -34,6 +57,7 @@
     state.lastCheckpointAt = null;
     volta = null;
     ouvintes = [];
+    gravarCursorPersistido(0);
   }
 
   function estado() {
@@ -42,6 +66,7 @@
       lastServerSeq: state.lastServerSeq,
       syncInFlight: state.syncInFlight,
       lastError: state.lastError,
+      realtimeBloqueado: state.realtimeBloqueado,
     };
   }
 
@@ -63,6 +88,8 @@
       initialized: state.initialized,
       lastError: state.lastError,
       lastCheckpointAt: state.lastCheckpointAt,
+      realtimeBloqueado: state.realtimeBloqueado,
+      realtimeMotivo: state.realtimeMotivo,
     };
   }
 
@@ -124,6 +151,7 @@
         /* notificação interna */
       }
     }
+    aplicarEventoNasTelas(detalhe);
   }
 
   function detalheSeguro(evento) {
@@ -162,10 +190,47 @@
       var seq = Number(events[i].seq);
       if (seq <= state.lastAppliedSeq) continue;
       state.lastAppliedSeq = seq;
+      gravarCursorPersistido(seq);
       novos.push(detalheSeguro(events[i]));
     }
     novos.forEach(emitir);
     return { ok: true };
+  }
+
+  function aplicarEventoNasTelas(detalhe) {
+    if (!detalhe || detalhe.restricted === true) return;
+    var mod = String(detalhe.module || detalhe.entity_type || "").toLowerCase();
+    var tipo = String(detalhe.event_type || "").toLowerCase();
+    var afetaLocacao = /locacao|loca[cç]ao/.test(mod + " " + tipo);
+    var afetaPagamento = /pagamento|payment/.test(mod + " " + tipo);
+    var afetaCliente = /cliente/.test(mod + " " + tipo);
+    var afetaVeiculo = /veiculo|veículo/.test(mod + " " + tipo);
+    var afetaManut = /manutencao|manuten[cç]ao/.test(mod + " " + tipo);
+    try {
+      if (afetaLocacao && typeof root.__DK_locacaoPgRecarregar === "function") {
+        var aberta = root.__DK_locacaoDetalheAtual;
+        var editando =
+          aberta &&
+          aberta.__dkEditando === true;
+        if (editando) {
+          root.dispatchEvent(
+            new root.CustomEvent("dk:sync:conflito-edicao", {
+              detail: { module: "locacao", seq: detalhe.seq, audit_no: detalhe.audit_no },
+            })
+          );
+        } else {
+          void root.__DK_locacaoPgRecarregar();
+        }
+      }
+      if (afetaPagamento && typeof root.__DK_portalRepintarPagamentosAbertos === "function") {
+        root.__DK_portalRepintarPagamentosAbertos();
+      }
+      if ((afetaCliente || afetaVeiculo || afetaManut || afetaLocacao) && typeof root.__DK_portalRefreshOperacaoDeferred === "function") {
+        root.__DK_portalRefreshOperacaoDeferred();
+      }
+    } catch (e) {
+      /* a tela não pode derrubar o cursor */
+    }
   }
 
   function pedir(url) {

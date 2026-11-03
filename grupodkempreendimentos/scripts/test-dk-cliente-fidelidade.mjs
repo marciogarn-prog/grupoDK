@@ -101,16 +101,34 @@ memoria.set("c-100", {
   payload: cliente,
   updated_at: "2026-10-29T12:00:00.000Z",
 });
-const salvo = await pg.upsertUm({ cpf: "123.456.789-01", telefone: "11666660000" }, "2026-10-29T12:00:00.000Z", restFalso);
-assert.equal(salvo.ok, true);
-assert.equal(memoria.get("c-100").payload.telefone, "11666660000");
-assert.equal(memoria.get("c-100").payload.campo_futuro_teste.subcampo, "preservar");
-assert.equal(memoria.get("c-100").payload.contatos[0], "a");
-assert.equal(memoria.get("c-100").payload.complemento, null);
+const semOp = await pg.upsertUm({ cpf: "123.456.789-01", telefone: "11666660000" }, "2026-10-29T12:00:00.000Z", restFalso);
+assert.equal(semOp.ok, false);
+assert.equal(semOp.body && semOp.body.reason, "operation_id_obrigatorio");
+
+const opId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const atomicFlagAntes = process.env.DK_ATOMIC_WRITE_CV;
+process.env.DK_ATOMIC_WRITE_CV = "0";
+try {
+  const salvo = await pg.upsertUm(
+    { cpf: "123.456.789-01", telefone: "11666660000" },
+    "2026-10-29T12:00:00.000Z",
+    restFalso,
+    { operation_id: opId, ignorarRevisao: true }
+  );
+  assert.equal(salvo.ok, true);
+  assert.equal(memoria.get("c-100").payload.telefone, "11666660000");
+  assert.equal(memoria.get("c-100").payload.campo_futuro_teste.subcampo, "preservar");
+  assert.equal(memoria.get("c-100").payload.contatos[0], "a");
+  assert.equal(memoria.get("c-100").payload.complemento, null);
+} finally {
+  if (atomicFlagAntes == null) delete process.env.DK_ATOMIC_WRITE_CV;
+  else process.env.DK_ATOMIC_WRITE_CV = atomicFlagAntes;
+}
 
 const ui = fs.readFileSync(new URL("../portal-locadora-ui.js", import.meta.url), "utf8");
 const envio = ui.slice(ui.indexOf("async function portalEnviarUmClienteParaNuvem"), ui.indexOf("async function portalAgendarEnvioClienteParaNuvem"));
 assert.equal(envio.includes("revisao_conflito"), false);
+assert.ok(envio.includes("operation_id"), "mock/UI de cliente deve enviar operation_id");
 assert.equal(log.sanitizarEvento({ event_type: "system.integrity_baseline_created", audit_no: 3, seq: 20, payload: { baseline_id: "x" } }).summary, "Baseline de integridade criada");
 
 console.log("ok dk-cliente-fidelidade");
