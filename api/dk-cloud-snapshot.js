@@ -1,25 +1,45 @@
 /**
- * Snapshot completo DK (localStorage) — cópia redundante em Upstash Redis.
- * Quando Supabase falhar, o portal usa GET/POST nesta API.
+ * Snapshot DK. Supabase é a fonte que confirma a gravação.
+ * Redis só recebe a cópia depois dessa confirmação e não decide o sucesso.
  *
- * Variáveis Vercel: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
- * SUPABASE_SERVICE_ROLE_KEY (porteiro — espelho no Supabase; nunca no browser)
- *
- * GET  /api/dk-cloud-snapshot → { ok, payload, updated_at, source: "redis" }
- * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
+ * GET  /api/dk-cloud-snapshot → { success, payload, revision, updated_at, source: "supabase" }
+ *      A revisão (updated_at) confirma o Redis. O payload grande só é lido se o cache não servir.
+ * POST /api/dk-cloud-snapshot → body { payload, updated_at?, base_revision? }
+ *      Usa o Redis só se a revisão for a mesma. Sem mudança real não faz upsert.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
+  assertHourlyBudget,
+  isQuotaError,
+  tripCloudBudget,
+  budgetReject,
+  isCloudBudgetTripped,
+  rejectIfRedisBurst,
+  allowRedisAttempt,
+} = require("../lib/dk-cloud-budget.cjs");
+const {
   isSupabaseDoormanConfigured,
+  fetchSnapshotRevisionByLabel,
   fetchSnapshotByLabel,
   upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("../lib/dk-supabase-doorman.cjs");
+const { revisaoConflita } = require("../lib/dk-persistencia-central.cjs");
+const {
+  manutencaoUnificadaAtiva,
+  listarManutencoes,
+  FONTE: FONTE_MANUT_UNIFICADA,
+} = require("../lib/dk-manutencao-fonte.cjs");
+const {
+  cpfSoDigitoRepetido,
+  isCodigoAcimaDoUltimoClienteOficial,
+} = require("../lib/dk-sequencia-cliente-0427.cjs");
 const {
   applyApiCors,
   enforceRateLimit,
   requirePortalAuth,
   attachLiveSession,
+  assertEquipaClientProtocol,
   findFuncionario,
   onlyDigits,
   clientIp,
@@ -33,11 +53,31 @@ const {
 } = require("../lib/dk-portal-module-access.cjs");
 const {
   mergeClientesCadastro,
+  mergeVeiculosCadastro,
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
   isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
+const pacotes = require("../lib/dk-pacotes.cjs");
+const {
+  findActivePlateConflicts,
+  activePlateConflictMessage,
+  findNewDuplicatePayments,
+  acquireLocacoesWriteLock,
+  releaseLocacoesWriteLock,
+} = require("../lib/dk-locacoes-integrity.cjs");
+const { obterFonteLocacoes, FONTE_LOCACAO } = require("../lib/dk-locacao-pg.cjs");
+
+function reterLocacoesForaDoSnapshot(fonte, existingPayload, payload) {
+  if (fonte !== FONTE_LOCACAO || !payload || typeof payload !== "object") return payload;
+  if (existingPayload && Array.isArray(existingPayload.dk_locacoes_cadastro)) {
+    payload.dk_locacoes_cadastro = existingPayload.dk_locacoes_cadastro;
+  } else {
+    delete payload.dk_locacoes_cadastro;
+  }
+  return payload;
+}
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -137,6 +177,51 @@ function locacaoNcKey(record) {
     .replace(/\s+/g, "");
 }
 
+function probePlaca(v) {
+  return String(v || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+/** O payload desta resposta já foi o que o Supabase gravou. Evita outro download do snapshot. */
+function probeCadastroConfirmado(payload, query) {
+  const kind = String(query?.probe || "").trim().toLowerCase();
+  if (!kind) return null;
+  if (!payload || typeof payload !== "object") return false;
+  if (kind === "locacao") {
+    const want = String(query.nc || query.value || "").replace(/\D/g, "");
+    const arr = payload.dk_locacoes_cadastro;
+    if (!want || !Array.isArray(arr)) return false;
+    return arr.some((l) => {
+      const nc = String(l?.numeroContrato || "").replace(/\D/g, "");
+      if (nc !== want) return false;
+      const inicio = String(l?.inicio || l?.dataInicio || "").trim();
+      const cpf = String(l?.cpf || "").replace(/\D/g, "");
+      const nome = String(l?.nome || l?.cliente || "").trim();
+      const placa = probePlaca(l?.placa);
+      return Boolean(inicio && cpf.length === 11 && nome && placa.length >= 7);
+    });
+  }
+  if (kind === "cliente") {
+    const want = String(query.cpf || query.value || "").replace(/\D/g, "").slice(0, 11);
+    if (want.length !== 11) return false;
+    const arr = [].concat(payload.dk_clientes_cadastro || [], payload.dk_portal_clientes_cadastro || []);
+    return arr.some((c) => String(c?.cpf || "").replace(/\D/g, "").slice(0, 11) === want);
+  }
+  if (kind === "veiculo") {
+    const want = probePlaca(query.placa || query.value);
+    if (!want) return false;
+    const arr = [].concat(
+      payload.dk_veiculos_cadastro || [],
+      payload.dk_portal_veiculos_cadastro || [],
+      payload.dk_veiculos_frota_planilha || []
+    );
+    return arr.some((v) => probePlaca(v?.placa) === want);
+  }
+  return null;
+}
+
 function locacaoNcSetFromPayload(payload) {
   const set = new Set();
   const arr = payload && Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
@@ -147,7 +232,32 @@ function locacaoNcSetFromPayload(payload) {
   return set;
 }
 
-const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
+  "00000000001",
+  "00000000003",
+  "00000000004",
+  "06523244440",
+  "04292253420",
+  "07534147409",
+  "00445040556",
+  "01303628514",
+  "01503628514",
+  /* 0412 — cadastro errado da operadora. O cliente real é 11369128436 / 0413. */
+  "11369128423",
+  /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
+  "19174403400",
+  /* teste 4–7 repetem os códigos 0312–0315. O último cliente oficial é 0427. */
+  "12345678910",
+  "23456789012",
+  "34567890123",
+  "45678901234",
+]);
+/** CPF real com código errado (7410) — no oficial o Cód. é sempre o canónico. */
+const OFICIAL_CLIENTES_CODIGO_CANON = Object.freeze({
+  "01503608514": "0315",
+  /* RAYNERES: o 0413 ocupa o 0412 que ficou vazio. O próximo cadastro é 0413. */
+  "11369128436": "0412",
+});
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
 const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026122501",
@@ -158,6 +268,7 @@ const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2025010103",
   "2026010101",
   "2026010102",
+  "2026010103",
   "2026010104",
 ]);
 const OFICIAL_LOCACOES_NC_SEEDS = new Set([
@@ -166,6 +277,7 @@ const OFICIAL_LOCACOES_NC_SEEDS = new Set([
   "2025010103",
   "2026010101",
   "2026010102",
+  "2026010103",
   "2026010104",
 ]);
 /** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
@@ -175,6 +287,9 @@ const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
   "AAA0A02",
   "BBB0B00",
   "CCC0C00",
+  "DDD0D000",
+  /* Moto de teste do agente (DKMT - 173). Não existe na frota. */
+  "QWE9Z99",
 ]);
 
 function isLocacaoNcOficialmenteBloqueado(r) {
@@ -208,6 +323,30 @@ function placaNormKey(record) {
   return String(record?.placa || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+}
+
+function canonClienteCodigoOficial(list) {
+  const seen = new Set();
+  const out = [];
+  for (const r of Array.isArray(list) ? list : []) {
+    const d = cpfDigitsKey(r);
+    const canon = OFICIAL_CLIENTES_CODIGO_CANON[d];
+    const rec = canon ? { ...r, codigo: canon } : r;
+    if (canon) {
+      if (seen.has(d)) continue;
+      seen.add(d);
+    }
+    out.push(rec);
+  }
+  return out;
+}
+
+function canonLocacaoClienteCodigoOficial(list) {
+  return (Array.isArray(list) ? list : []).map((r) => {
+    const canon = OFICIAL_CLIENTES_CODIGO_CANON[cpfDigitsKey(r)];
+    if (!canon) return r;
+    return { ...r, clienteCodigo: canon };
+  });
 }
 
 function cadastroKeepSetsFromPayload(payload) {
@@ -268,6 +407,10 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
     const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
       const cpfEarly = cpfDigitsKey(r);
+      if (cpfEarly.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly) && !isVei) return false;
+      if (!isVei && cpfSoDigitoRepetido(cpfEarly)) return false;
+      if (isCli && isCodigoAcimaDoUltimoClienteOficial(r, "codigo")) return false;
+      if (isLoc && isCodigoAcimaDoUltimoClienteOficial(r, "clienteCodigo")) return false;
       if (isNotif) {
         if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
         if (!String(r?.mensagem || "").trim()) return false;
@@ -284,6 +427,21 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        (k === "dk_manutencoes_cadastro" || k === "dk_manutencoes_rapidas_v1") &&
+        r &&
+        typeof r === "object"
+      ) {
+        const placaManut = placaNormKey(r);
+        const ativaManut = !String(r.dataRealSaida || "").trim();
+        if (
+          placaManut &&
+          !OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaManut) &&
+          (ativaManut || r.origemPortalChecklist === true)
+        ) {
+          return true;
+        }
+      }
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (
         isLoc &&
@@ -303,6 +461,8 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= keyCutoff;
     });
+    if (isCli) out[k] = canonClienteCodigoOficial(out[k]);
+    if (isLoc) out[k] = canonLocacaoClienteCodigoOficial(out[k]);
   }
   out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
   return out;
@@ -319,6 +479,30 @@ function resolveDeployChannel() {
 
 function redisKeyForChannel() {
   return REDIS_KEYS.default;
+}
+
+function lerLinhaSnapshotRedis(raw) {
+  if (!raw) return null;
+  let row = raw;
+  if (typeof raw === "string") {
+    try {
+      row = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!row || typeof row !== "object" || !row.payload || typeof row.payload !== "object") return null;
+  return { payload: row.payload, updated_at: row.updated_at || null };
+}
+
+async function lerSnapshotRedisOficial(redis, key) {
+  if (!redis) return null;
+  try {
+    return lerLinhaSnapshotRedis(await redis.get(key));
+  } catch (err) {
+    console.error("[dk-snapshot] leitura redis", err && err.message ? err.message : err);
+    return null;
+  }
 }
 
 function labelForChannel() {
@@ -522,6 +706,14 @@ function applyCadastroLock(existing, incoming) {
     if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
     if (k === "dk_clientes_cadastro" || k === "dk_portal_clientes_cadastro") {
       out[k] = mergeClientesCadastro(ex, inc);
+      continue;
+    }
+    if (
+      k === "dk_veiculos_cadastro" ||
+      k === "dk_portal_veiculos_cadastro" ||
+      k === "dk_veiculos_frota_planilha"
+    ) {
+      out[k] = mergeVeiculosCadastro(ex, inc);
       continue;
     }
     if (inc.length > ex.length) out[k] = ex;
@@ -736,6 +928,58 @@ function mergeComunicacaoOperacaoRedis(existing, incoming) {
     .slice(0, 3000);
 }
 
+function mergeManutencoesCadastro(existingList, incomingList) {
+  const plateKey = (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const normCat = (x) =>
+    String(x?.categoriaManutencao || x?.categoria || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+  const concreta = (c) =>
+    c === "oficina-propria" ||
+    c === "oficina-terceiros" ||
+    c === "enviado-seguro" ||
+    c === "sinistrado-roubo";
+  const score = (x) => Number(x?.updatedAt || 0) || Number(x?.id || 0) || 0;
+  const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+  const byPlaca = new Map();
+  const byId = new Map();
+  const closed = [];
+  const add = (r) => {
+    if (!r || typeof r !== "object") return;
+    const pl = plateKey(r.placa);
+    if (ativa(r) && pl) {
+      const ex = byPlaca.get(pl);
+      if (!ex) {
+        byPlaca.set(pl, { ...r });
+        return;
+      }
+      const catR = normCat(r);
+      const catEx = normCat(ex);
+      const newer =
+        concreta(catR) && (catEx === "triagem" || !catEx)
+          ? { ...ex, ...r }
+          : concreta(catEx) && (catR === "triagem" || !catR)
+            ? { ...r, ...ex }
+            : score(r) >= score(ex)
+              ? { ...ex, ...r }
+              : { ...r, ...ex };
+      byPlaca.set(pl, newer);
+      return;
+    }
+    const id = String(r.id || "").trim();
+    if (id) {
+      const ex = byId.get(id);
+      if (!ex || score(r) >= score(ex)) byId.set(id, { ...(ex || {}), ...r });
+      return;
+    }
+    closed.push({ ...r });
+  };
+  (Array.isArray(existingList) ? existingList : []).forEach(add);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(add);
+  return [...byPlaca.values(), ...byId.values(), ...closed];
+}
+
 function mergePayloads(existing, incoming) {
   if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
@@ -753,6 +997,15 @@ function mergePayloads(existing, incoming) {
     "dk_funcionarios_access",
   ]);
   const out = { ...existing, ...incoming };
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_manutencoes_cadastro") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_manutencoes_cadastro")
+  ) {
+    out.dk_manutencoes_cadastro = mergeManutencoesCadastro(
+      existing.dk_manutencoes_cadastro,
+      incoming.dk_manutencoes_cadastro
+    );
+  }
   if (
     Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
     Object.prototype.hasOwnProperty.call(existing, "dk_locacoes_cadastro")
@@ -846,6 +1099,392 @@ function mergePayloads(existing, incoming) {
   return stripInternalPayloadKeys(neverLoseCadastroPayload(existing, out));
 }
 
+/** Uma locação só: o browser não reenvia o snapshot inteiro. */
+function montarPayloadComLocacaoUnica(existingPayload, locacao) {
+  const existing = existingPayload && typeof existingPayload === "object" ? existingPayload : {};
+  const prev = Array.isArray(existing.dk_locacoes_cadastro) ? existing.dk_locacoes_cadastro : [];
+  const loc = { ...locacao };
+  delete loc.arquivoBase64;
+  delete loc.imagem;
+  delete loc.imagemRecortada;
+  const mergedLocs = mergeLocacoesCadastro(prev, [loc]);
+  let payload = { ...existing, dk_locacoes_cadastro: mergedLocs };
+  payload = sanitizePayloadForOficial(
+    payload,
+    oficialTodayYmd(),
+    mergeCadastroKeepSets(cadastroKeepSetsFromPayload(existing), cadastroKeepSetsFromPayload(payload))
+  );
+  if (existingPayload && typeof existingPayload === "object") {
+    payload = neverLoseCadastroPayload(existing, payload);
+  }
+  payload.dk_dados_seguros_v1 = true;
+  return payload;
+}
+
+const DK_SNAPSHOT_WARN_BYTES = 524288;
+const DK_SNAPSHOT_CRITICAL_BYTES = 2097152;
+const supabaseBreaker = { fails: 0, openUntil: 0 };
+
+function supabaseBreakerAberto() {
+  return Date.now() < supabaseBreaker.openUntil;
+}
+
+function falhaSupabaseComunicacao(result) {
+  const reason = String((result && result.reason) || "");
+  if (reason === "supabase_timeout") return true;
+  return /^supabase_http_5\d\d$/.test(reason);
+}
+
+function notarSupabase(result) {
+  if (!result || result.reason === "supabase_circuit_open") return;
+  if (result.ok) {
+    supabaseBreaker.fails = 0;
+    supabaseBreaker.openUntil = 0;
+    return;
+  }
+  if (!falhaSupabaseComunicacao(result)) return;
+  supabaseBreaker.fails += 1;
+  if (supabaseBreaker.fails >= 3) {
+    supabaseBreaker.openUntil = Date.now() + 60000;
+    supabaseBreaker.fails = 0;
+  }
+}
+
+async function consultarSupabase(fn) {
+  if (supabaseBreakerAberto()) {
+    return { ok: false, reason: "supabase_circuit_open", payload: null, updatedAt: null };
+  }
+  const result = await withDoormanTimeout(fn(), 8000, "supabase_timeout");
+  notarSupabase(result);
+  return result;
+}
+
+function corpoDaConsulta(req, safePayload) {
+  const limpo = stripSecretsFromPayload(safePayload);
+  const pacote = String((req.query && req.query.pacote) || "");
+  const dia = String((req.query && req.query.dia) || "");
+  if (pacote === "dia" && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
+    const extraido = pacotes.extrairPacoteDia(limpo, dia);
+    return { pacote: "dia", dia, payload: extraido.payload };
+  }
+  if (pacote === "ficheiro") {
+    const chave = String((req.query && req.query.chave) || "");
+    const id = String((req.query && req.query.id) || "");
+    return {
+      pacote: "ficheiro",
+      chave,
+      id,
+      payload: { registro: pacotes.lerFicheiro(limpo, chave, id) },
+    };
+  }
+  return { payload: limpo };
+}
+
+function etagDeRevisao(rev) {
+  const raw = String(rev || "").trim();
+  if (!raw) return "";
+  return `"${raw.replace(/"/g, "")}"`;
+}
+
+function etagNormalizado(valor) {
+  return String(valor || "").trim();
+}
+
+function contarRegistrosPayload(payload) {
+  if (!payload || typeof payload !== "object") return 0;
+  let n = 0;
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value)) n += value.length;
+  }
+  return n;
+}
+
+function instalarTelemetriaSnapshot(res) {
+  if (res.__dkSnapTel) return;
+  res.__dkSnapTel = true;
+  res.__dkSnapT0 = Date.now();
+  const origJson = typeof res.json === "function" ? res.json.bind(res) : null;
+  res.json = (body) => {
+    let json = "{}";
+    try {
+      json = JSON.stringify(body);
+    } catch {
+      json = "{}";
+    }
+    const bytes = Buffer.byteLength(json);
+    const status = res.statusCode || 200;
+    const rev = body && (body.revision || body.updated_at);
+    const etag = etagDeRevisao(rev);
+    if (etag) res.setHeader("ETag", etag);
+    res.setHeader("Cache-Control", "private, no-store");
+    const ms = Date.now() - res.__dkSnapT0;
+    if (bytes >= DK_SNAPSHOT_WARN_BYTES) {
+      console.warn(
+        JSON.stringify({
+          route: "/api/dk-cloud-snapshot",
+          aviso: bytes >= DK_SNAPSHOT_CRITICAL_BYTES ? "resposta_critica" : "resposta_grande",
+          bytes,
+          ms,
+        })
+      );
+    }
+    console.log(
+      JSON.stringify({
+        route: "/api/dk-cloud-snapshot",
+        ms,
+        status,
+        bytes,
+        modo: body && body.meta ? "meta" : "completo",
+        registros: contarRegistrosPayload(body && body.payload),
+      })
+    );
+    if (origJson) return origJson(body);
+    res.statusCode = status;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(json);
+  };
+}
+
+function mesmaRevisaoSnapshot(a, b) {
+  const sa = String(a || "").trim();
+  const sb = String(b || "").trim();
+  if (!sa || !sb) return false;
+  if (sa === sb) return true;
+  const ta = Date.parse(sa);
+  const tb = Date.parse(sb);
+  return Number.isFinite(ta) && ta === tb;
+}
+
+function snapshotLeituraFalhou(oficial) {
+  if (!oficial) return true;
+  const reason = String(oficial.reason || "");
+  return (
+    reason === "supabase_timeout" ||
+    reason === "supabase_circuit_open" ||
+    reason === "doorman_key_missing" ||
+    reason === "cloud_budget" ||
+    reason.startsWith("supabase_http")
+  );
+}
+
+/** Decide a leitura do GET. Não chama o Supabase. */
+function decidirLeituraSnapshot(cache, revisao) {
+  const revisaoOk = Boolean(revisao && revisao.ok && revisao.updatedAt);
+  const cacheOk = Boolean(cache && cache.payload && typeof cache.payload === "object");
+  if (revisaoOk && cacheOk && mesmaRevisaoSnapshot(cache.updated_at, revisao.updatedAt)) {
+    return { acao: "cache", updatedAt: String(revisao.updatedAt), leiturasPayload: 0 };
+  }
+  if (!revisaoOk && cacheOk) {
+    return {
+      acao: "fallback",
+      updatedAt: cache.updated_at || null,
+      leiturasPayload: 0,
+      supabasePendente: true,
+      reason: (revisao && revisao.reason) || "supabase_indisponivel",
+    };
+  }
+  if (!revisaoOk) {
+    return {
+      acao: "erro",
+      leiturasPayload: 0,
+      reason: (revisao && revisao.reason) || "supabase_indisponivel",
+    };
+  }
+  return { acao: "buscar", updatedAt: String(revisao.updatedAt), leiturasPayload: 1 };
+}
+
+const leiturasPayloadEmVoo = new Map();
+
+function esperar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function gravarCacheSnapshot(redis, key, label, payload, updatedAt) {
+  if (!redis || !payload || typeof payload !== "object") return;
+  const storedAt = updatedAt || new Date().toISOString();
+  await redis.set(key, JSON.stringify({ label, payload, updated_at: storedAt }));
+  await redis.set(`${key}:rev`, storedAt);
+}
+
+/**
+ * Uma só leitura do payload por instância. Outra instância espera o Redis
+ * ficar na revisão nova em vez de baixar o mesmo JSON outra vez.
+ */
+async function lerPayloadOficialUnico(label, redis, redisKey, revisaoNova, buscar, opts) {
+  const chave = String(label || "default");
+  const existente = leiturasPayloadEmVoo.get(chave);
+  if (existente) return existente;
+  const prom = executarLeituraPayload(redis, redisKey, chave, revisaoNova, buscar, opts || {});
+  leiturasPayloadEmVoo.set(chave, prom);
+  prom.finally(() => {
+    if (leiturasPayloadEmVoo.get(chave) === prom) leiturasPayloadEmVoo.delete(chave);
+  });
+  return prom;
+}
+
+async function executarLeituraPayload(redis, redisKey, label, revisaoNova, buscar, opts) {
+  const tentativas = Number(opts.tentativas) > 0 ? Number(opts.tentativas) : 40;
+  const esperaMs = Number(opts.esperaMs) > 0 ? Number(opts.esperaMs) : 250;
+  const lockKey = `${redisKey}:leitura`;
+  let dono = true;
+  if (redis) {
+    try {
+      const got = await redis.set(lockKey, "1", { nx: true, ex: 25 });
+      dono = got != null && got !== false;
+    } catch {
+      dono = true;
+    }
+  }
+  if (!dono) {
+    for (let i = 0; i < tentativas; i += 1) {
+      await esperar(esperaMs);
+      try {
+        const row = lerLinhaSnapshotRedis(await redis.get(redisKey));
+        if (row && row.payload && mesmaRevisaoSnapshot(row.updated_at, revisaoNova)) {
+          return { ok: true, payload: row.payload, updatedAt: row.updated_at, reason: "ok", viaCache: true };
+        }
+      } catch {
+        /* tenta de novo */
+      }
+    }
+  }
+  try {
+    const oficial = await buscar();
+    if (oficial && oficial.payload && typeof oficial.payload === "object") {
+      try {
+        await gravarCacheSnapshot(redis, redisKey, label, oficial.payload, oficial.updatedAt || revisaoNova);
+      } catch (err) {
+        console.error("[dk-snapshot] cache redis", err && err.message ? err.message : err);
+      }
+    }
+    return oficial;
+  } finally {
+    if (dono && redis) {
+      try {
+        await redis.del(lockKey);
+      } catch {
+        /* o prazo do lock encerra sozinho */
+      }
+    }
+  }
+}
+
+function stableStringify(value) {
+  if (value === undefined) return "null";
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+}
+
+function payloadSnapshotDigest(payload) {
+  if (!payload || typeof payload !== "object") return "";
+  const crypto = require("crypto");
+  return crypto.createHash("sha256").update(stableStringify(payload)).digest("hex");
+}
+
+function payloadSnapshotIgual(antes, depois) {
+  if (!antes || !depois) return false;
+  return payloadSnapshotDigest(antes) === payloadSnapshotDigest(depois);
+}
+
+const gravacoesEmVoo = new Map();
+
+function enfileirarGravacaoSnapshot(label, fn) {
+  const chave = String(label || "default");
+  const anterior = gravacoesEmVoo.get(chave) || Promise.resolve();
+  const atual = anterior.catch(() => {}).then(fn);
+  gravacoesEmVoo.set(chave, atual);
+  atual.finally(() => {
+    if (gravacoesEmVoo.get(chave) === atual) gravacoesEmVoo.delete(chave);
+  });
+  return atual;
+}
+
+/**
+ * Base do POST. Lê só updated_at. O payload grande sai do Redis quando a revisão é a mesma.
+ */
+async function lerBaseOficialParaPost(redis, redisKey, label, deps) {
+  const revisar = deps && deps.revisar
+    ? deps.revisar
+    : () => consultarSupabase(() => fetchSnapshotRevisionByLabel(label));
+  const buscarPayload = deps && deps.buscarPayload
+    ? deps.buscarPayload
+    : () => consultarSupabase(() => fetchSnapshotByLabel(label));
+  if (!deps && !isSupabaseDoormanConfigured()) {
+    return { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null, leiturasPayload: 0, cache: "ausente" };
+  }
+  const revisao = await revisar();
+  if (!revisao || !revisao.ok || !revisao.updatedAt) {
+    return {
+      ok: false,
+      reason: (revisao && revisao.reason) || "supabase_indisponivel",
+      payload: null,
+      updatedAt: null,
+      leiturasPayload: 0,
+      cache: "ausente",
+    };
+  }
+  let cached = null;
+  if (redis) {
+    let revCurta = null;
+    try {
+      const bruto = await redis.get(`${redisKey}:rev`);
+      revCurta = bruto == null ? null : String(bruto);
+    } catch {
+      revCurta = null;
+    }
+    if (revCurta == null || mesmaRevisaoSnapshot(revCurta, revisao.updatedAt)) {
+      cached = await lerSnapshotRedisOficial(redis, redisKey);
+    }
+  }
+  if (cached && cached.payload && mesmaRevisaoSnapshot(cached.updated_at, revisao.updatedAt)) {
+    return {
+      ok: true,
+      reason: "ok",
+      payload: cached.payload,
+      updatedAt: String(revisao.updatedAt),
+      leiturasPayload: 0,
+      cache: "valido",
+    };
+  }
+  const oficial = await buscarPayload();
+  if (snapshotLeituraFalhou(oficial)) {
+    return {
+      ok: false,
+      reason: (oficial && oficial.reason) || "supabase_indisponivel",
+      payload: null,
+      updatedAt: null,
+      leiturasPayload: 1,
+      cache: "invalido",
+    };
+  }
+  return {
+    ok: Boolean(oficial && oficial.payload && typeof oficial.payload === "object"),
+    reason: (oficial && oficial.reason) || "supabase_empty",
+    payload: oficial && oficial.payload && typeof oficial.payload === "object" ? oficial.payload : null,
+    updatedAt: String((oficial && oficial.updatedAt) || revisao.updatedAt),
+    leiturasPayload: 1,
+    cache: "invalido",
+  };
+}
+
+function responderSnapshot304(res, etag) {
+  res.setHeader("ETag", etag);
+  res.setHeader("Cache-Control", "private, no-store");
+  console.log(
+    JSON.stringify({
+      route: "/api/dk-cloud-snapshot",
+      ms: Date.now() - (res.__dkSnapT0 || Date.now()),
+      status: 304,
+      bytes: 0,
+      modo: "304",
+      registros: 0,
+    })
+  );
+  return res.status(304).end();
+}
+
 async function handler(req, res) {
   applyCors(res);
   res.setHeader("Content-Type", "application/json");
@@ -854,13 +1493,22 @@ async function handler(req, res) {
     return res.status(204).end();
   }
 
+  instalarTelemetriaSnapshot(res);
+
+  allowRedisAttempt();
+  if (isCloudBudgetTripped()) return budgetReject(res);
+
   const gate = requirePortalAuth(req, { allowCliente: true, allowEquipa: true });
   if (!gate.ok) {
     if (await enforceRateLimit(req, res, "cloud-snapshot-anon", 20)) return;
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
-  const live = await attachLiveSession(gate);
+  const protoGate = assertEquipaClientProtocol(gate, req);
+  if (!protoGate.ok) {
+    return res.status(protoGate.status || 403).json({ ok: false, reason: protoGate.reason || "client_stale" });
+  }
+  const live = await attachLiveSession(gate, req);
   const ident = gate.service
     ? "svc"
     : onlyDigits(gate.cpf).slice(0, 11) || `ip:${clientIp(req)}`;
@@ -883,86 +1531,419 @@ async function handler(req, res) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
 
-  const redis = createRedisClient();
+  try {
+    await assertHourlyBudget(isPost ? "post" : "get");
+  } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget")) return budgetReject(res);
+    return res.status(503).json({ ok: false, reason: "cloud_budget" });
+  }
+
+  let redis = null;
+  try {
+    redis = createRedisClient();
+    if (await rejectIfRedisBurst(redis)) return budgetReject(res);
+  } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget") || isCloudBudgetTripped()) {
+      return budgetReject(res);
+    }
+    console.error("[dk-snapshot] redis indisponivel, segue no supabase");
+    redis = null;
+  }
   const channel = resolveDeployChannel(req);
   const REDIS_KEY = redisKeyForChannel(channel);
   const LABEL = labelForChannel(channel);
 
   try {
     if (req.method === "GET") {
-      const raw = await redis.get(REDIS_KEY);
-      if (!raw) {
-        const mirror = isSupabaseDoormanConfigured()
-          ? await withDoormanTimeout(fetchSnapshotByLabel(LABEL), 8000, "supabase_timeout")
-          : { ok: false, payload: null, updatedAt: null };
-        if (mirror && mirror.payload && typeof mirror.payload === "object") {
-          const safeFallback =
-            channel === "default"
-              ? sanitizePayloadForOficial(
-                  mirror.payload,
-                  oficialTodayYmd(),
-                  cadastroKeepSetsFromPayload(mirror.payload)
-                )
-              : mirror.payload;
+      const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
+      const etagPedido = etagNormalizado(req.headers["if-none-match"]);
+      const revisao = isSupabaseDoormanConfigured()
+        ? await consultarSupabase(() => fetchSnapshotRevisionByLabel(LABEL))
+        : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
+      const revisaoOk = Boolean(revisao && revisao.ok && revisao.updatedAt);
+      if (revisaoOk) {
+        const etag = etagDeRevisao(revisao.updatedAt);
+        if (etag && etagPedido && etagPedido === etag) return responderSnapshot304(res, etag);
+        if (metaOnly) {
           return res.status(200).json({
             ok: true,
+            success: true,
+            meta: true,
             label: LABEL,
-            payload: stripSecretsFromPayload(safeFallback),
-            updated_at: mirror.updatedAt || null,
+            revision: revisao.updatedAt,
+            updated_at: revisao.updatedAt,
             source: "supabase",
           });
         }
+      }
+
+      let cached = null;
+      async function lerCacheCompleto() {
+        if (cached || !redis) return cached;
+        try {
+          cached = lerLinhaSnapshotRedis(await redis.get(REDIS_KEY));
+        } catch (err) {
+          console.error("[dk-snapshot] leitura redis", err && err.message ? err.message : err);
+          cached = null;
+        }
+        return cached;
+      }
+
+      async function overlayManutencaoRelacional(payload) {
+        if (!payload || typeof payload !== "object") return payload;
+        if (!(await manutencaoUnificadaAtiva(redis))) return payload;
+        const hist = await listarManutencoes("historico");
+        const rap = await listarManutencoes("rapida");
+        const out = { ...payload };
+        if (!hist.ok || !rap.ok) {
+          out.dk_manutencoes_cadastro = [];
+          out.dk_manutencoes_rapidas_v1 = [];
+          out._dk_manutencao_pg_erro = true;
+          out._dk_manutencao_fonte = FONTE_MANUT_UNIFICADA;
+          return out;
+        }
+        out.dk_manutencoes_cadastro = hist.data;
+        out.dk_manutencoes_rapidas_v1 = rap.data;
+        out._dk_manutencao_fonte = FONTE_MANUT_UNIFICADA;
+        return out;
+      }
+
+      async function responderPayloadGet(payload, revisaoResp, source, pendente) {
+        const base =
+          channel === "default"
+            ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
+            : payload;
+        const safe = await overlayManutencaoRelacional(base);
         return res.status(200).json({
           ok: true,
+          success: true,
           label: LABEL,
-          payload: null,
-          updated_at: null,
-          source: "redis",
+          ...corpoDaConsulta(req, safe),
+          revision: revisaoResp,
+          updated_at: revisaoResp,
+          source,
+          ...(pendente ? { supabasePendente: true } : {}),
         });
       }
-      let row = raw;
-      if (typeof raw === "string") {
-        try {
-          row = JSON.parse(raw);
-        } catch {
-          return res.status(500).json({ ok: false, reason: "invalid_stored_json" });
+
+      if (!revisaoOk) {
+        await lerCacheCompleto();
+        const etagRedis = etagDeRevisao(cached && cached.updated_at);
+        if (etagRedis && etagPedido && etagPedido === etagRedis) return responderSnapshot304(res, etagRedis);
+        if (metaOnly && cached && cached.payload) {
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            meta: true,
+            label: LABEL,
+            revision: cached.updated_at || null,
+            updated_at: cached.updated_at || null,
+            source: "redis",
+            supabasePendente: true,
+          });
         }
+        if (metaOnly || !cached || !cached.payload) {
+          console.error("[dk-snapshot] leitura supabase", revisao && revisao.reason);
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: (revisao && revisao.reason) || "supabase_indisponivel",
+            source: "supabase",
+          });
+        }
+        return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
       }
-      const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
-      const safePayload =
-        channel === "default" && payload
-          ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
-          : payload;
-      return res.status(200).json({
-        ok: true,
-        label: LABEL,
-        payload: stripSecretsFromPayload(safePayload),
-        updated_at: row?.updated_at || null,
-        source: "redis",
-      });
+
+      const revCurta = redis
+        ? await redis
+            .get(`${REDIS_KEY}:rev`)
+            .then((v) => (v == null ? null : String(v)))
+            .catch(() => null)
+        : null;
+      if (revCurta == null || mesmaRevisaoSnapshot(revCurta, revisao.updatedAt)) {
+        await lerCacheCompleto();
+      }
+      const decisao = decidirLeituraSnapshot(cached, revisao);
+      if (decisao.acao === "cache") {
+        return await responderPayloadGet(cached.payload, decisao.updatedAt, "supabase", false);
+      }
+
+      const oficial = await lerPayloadOficialUnico(LABEL, redis, REDIS_KEY, revisao.updatedAt, () =>
+        consultarSupabase(() => fetchSnapshotByLabel(LABEL))
+      );
+      if (snapshotLeituraFalhou(oficial)) {
+        console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
+        await lerCacheCompleto();
+        if (cached && cached.payload) {
+          return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
+        }
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: (oficial && oficial.reason) || "supabase_indisponivel",
+          source: "supabase",
+        });
+      }
+      const revisaoPayload = (oficial && oficial.updatedAt) || revisao.updatedAt;
+      if (!oficial.payload || typeof oficial.payload !== "object") {
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          payload: null,
+          revision: revisaoPayload,
+          updated_at: revisaoPayload,
+          source: "supabase",
+        });
+      }
+      return await responderPayloadGet(oficial.payload, revisaoPayload, "supabase", false);
     }
 
     if (req.method === "POST") {
       const body = parseBody(req);
+      if (await manutencaoUnificadaAtiva(redis)) {
+        if (body.payload && typeof body.payload === "object") {
+          delete body.payload.dk_manutencoes_cadastro;
+          delete body.payload.dk_manutencoes_rapidas_v1;
+        }
+      }
+      const operador = body.operador === true;
+      let locacoesLockToken = "";
+      if (!redis) {
+        locacoesLockToken = "sem-redis";
+      } else {
+        try {
+          locacoesLockToken = await acquireLocacoesWriteLock(redis, {
+            attempts: operador ? 250 : 5,
+            waitMs: 100,
+            ttlSec: 30,
+          });
+        } catch (err) {
+          console.error("[dk-snapshot] lock redis", err && err.message ? err.message : err);
+          locacoesLockToken = "sem-redis";
+        }
+      }
+      if (!locacoesLockToken) {
+        return res.status(409).json({
+          ok: false,
+          reason: "locacoes_write_busy",
+          message: "Outra gravação de locação está em andamento. Aguarde e tente novamente.",
+        });
+      }
+      try {
+      if (body.locacao && typeof body.locacao === "object" && !Array.isArray(body.locacao) && !isObject(body.payload)) {
+        if (gate.typ === "cliente") {
+          return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
+        }
+        if ((await obterFonteLocacoes()) === FONTE_LOCACAO) {
+          return res.status(409).json({
+            ok: false,
+            reason: "locacao_pg",
+            message: "Locação não é gravada no snapshot. A fonte oficial é /api/dk-locacao.",
+          });
+        }
+        const locacao = body.locacao;
+        const nc = String(locacao.numeroContrato || locacao.protocolo || "").replace(/\D/g, "");
+        if (!nc) {
+          return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
+        }
+        let gravarLocSoRedis = false;
+        let oficialAtualLoc = await lerBaseOficialParaPost(redis, REDIS_KEY, LABEL);
+        if (
+          !oficialAtualLoc ||
+          oficialAtualLoc.reason === "supabase_timeout" ||
+          oficialAtualLoc.reason === "supabase_circuit_open" ||
+          oficialAtualLoc.reason === "doorman_key_missing" ||
+          oficialAtualLoc.reason === "cloud_budget" ||
+          (oficialAtualLoc.reason && String(oficialAtualLoc.reason).startsWith("supabase_http")) ||
+          oficialAtualLoc.reason === "supabase_indisponivel"
+        ) {
+          const cachedLoc = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+          if (!cachedLoc || !cachedLoc.payload) {
+            return res.status(503).json({
+              ok: false,
+              success: false,
+              reason: (oficialAtualLoc && oficialAtualLoc.reason) || "supabase_indisponivel",
+              message: "A nuvem não respondeu. Tente cadastrar de novo.",
+            });
+          }
+          gravarLocSoRedis = true;
+          oficialAtualLoc = {
+            ok: true,
+            reason: "redis",
+            payload: cachedLoc.payload,
+            updatedAt: cachedLoc.updated_at || null,
+          };
+        }
+        const existingLocPayload =
+          oficialAtualLoc.payload && typeof oficialAtualLoc.payload === "object" ? oficialAtualLoc.payload : null;
+        const digestLocAntes = existingLocPayload ? payloadSnapshotDigest(existingLocPayload) : "";
+        if (!gate.service && String(gate.role || "").trim() !== "owner") {
+          const f = findFuncionario(existingLocPayload, onlyDigits(gate.cpf).slice(0, 11));
+          const role = String((f && f.role) || gate.role || "operacao").trim();
+          const acessos = role === "owner" ? ownerWriteAccess() : normalizeOperacaoAccess(f && f.acessos, role);
+          if (!acessos.locacao) {
+            return res.status(403).json({ ok: false, reason: "module_forbidden", modulo: "locacao" });
+          }
+        }
+        const payloadLoc = montarPayloadComLocacaoUnica(existingLocPayload, { ...locacao, numeroContrato: nc });
+        const activePlateConflictsLoc = findActivePlateConflicts(payloadLoc.dk_locacoes_cadastro);
+        if (activePlateConflictsLoc.length) {
+          const conflict = activePlateConflictsLoc[0];
+          return res.status(409).json({
+            ok: false,
+            success: false,
+            reason: "active_plate_conflict",
+            placa: conflict.placa,
+            protocolos: conflict.contratos.map((item) => item.protocolo),
+            message: activePlateConflictMessage(conflict),
+          });
+        }
+        const storedAtLoc = new Date().toISOString();
+        if (!gravarLocSoRedis && digestLocAntes && payloadSnapshotDigest(payloadLoc) === digestLocAntes) {
+          const confirmedIgual = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
+          if (confirmedIgual !== true) {
+            return res.status(409).json({
+              ok: false,
+              success: false,
+              reason: "locacao_nao_confirmada",
+              message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+            });
+          }
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            label: LABEL,
+            revision: oficialAtualLoc.updatedAt || null,
+            updated_at: oficialAtualLoc.updatedAt || null,
+            source: "supabase",
+            persistencia: "supabase",
+            inalterado: true,
+            supabase: { ok: true },
+            supabasePendente: false,
+            redis: { ok: Boolean(redis) },
+            confirmed: true,
+            locacao: nc,
+          });
+        }
+        let supabaseLoc = { ok: false, reason: "supabase_pendente" };
+        if (!gravarLocSoRedis) {
+          try {
+            supabaseLoc = await enfileirarGravacaoSnapshot(LABEL, () =>
+              withDoormanTimeout(
+                upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
+                8000,
+                "supabase_timeout"
+              )
+            );
+          } catch (err) {
+            supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
+          }
+          if (!supabaseLoc || supabaseLoc.ok !== true) {
+            const cachedDepois = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+            if (!cachedDepois || !cachedDepois.payload || !redis) {
+              return res.status(502).json({
+                ok: false,
+                success: false,
+                reason: (supabaseLoc && supabaseLoc.reason) || "supabase_falhou",
+                message: "A nuvem não confirmou a locação. Tente de novo.",
+              });
+            }
+            gravarLocSoRedis = true;
+          }
+        }
+        if (!gravarLocSoRedis) {
+          const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
+          if (confirmedLoc !== true) {
+            return res.status(409).json({
+              ok: false,
+              success: false,
+              reason: "locacao_nao_confirmada",
+              message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+            });
+          }
+        }
+        let redisLocOk = false;
+        let redisLocErr = "";
+        if (redis) {
+          try {
+            await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload: payloadLoc, updated_at: storedAtLoc }));
+            await redis.set(`${REDIS_KEY}:rev`, storedAtLoc);
+            redisLocOk = true;
+          } catch (err) {
+            redisLocErr = String(err && err.message ? err.message : err);
+          }
+        }
+        if (gravarLocSoRedis && !redisLocOk) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: redisLocErr || "redis_indisponivel",
+            message: "A nuvem não respondeu. Tente cadastrar de novo.",
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAtLoc,
+          updated_at: storedAtLoc,
+          source: gravarLocSoRedis ? "redis" : redisLocOk ? "both" : "supabase",
+          persistencia: gravarLocSoRedis ? "redis" : redisLocOk ? "supabase+redis" : "supabase",
+          supabase: gravarLocSoRedis ? { ok: false, reason: "supabase_pendente" } : { ok: true },
+          supabasePendente: gravarLocSoRedis,
+          redis: redisLocOk ? { ok: true } : { ok: false, reason: redisLocErr || "redis_indisponivel" },
+          confirmed: !gravarLocSoRedis,
+          locacao: nc,
+        });
+      }
       let incoming = body.payload;
+      if (body.pacote === "ficheiro") incoming = incoming && typeof incoming === "object" ? incoming : {};
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
       }
       const updatedAt = String(body.updated_at || new Date().toISOString());
-      const existingRaw = await redis.get(REDIS_KEY);
-      let existingPayload = null;
-      let existingUpdatedAt = null;
-      if (existingRaw) {
-        let row = existingRaw;
-        if (typeof existingRaw === "string") {
-          try {
-            row = JSON.parse(existingRaw);
-          } catch {
-            row = null;
-          }
+      const baseRevision = String(body.base_revision || body.revision || "");
+      const oficialAtual = await lerBaseOficialParaPost(redis, REDIS_KEY, LABEL);
+      let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
+      let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
+      let gravarSoRedis = false;
+      if (
+        !oficialAtual ||
+        oficialAtual.reason === "supabase_timeout" ||
+        oficialAtual.reason === "supabase_circuit_open" ||
+        oficialAtual.reason === "doorman_key_missing" ||
+        oficialAtual.reason === "cloud_budget" ||
+        oficialAtual.reason === "supabase_indisponivel" ||
+        (oficialAtual.reason && String(oficialAtual.reason).startsWith("supabase_http"))
+      ) {
+        const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
+        if (!cached || !cached.payload) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel",
+          });
         }
-        if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
-        if (row?.updated_at) existingUpdatedAt = String(row.updated_at);
+        existingPayload = cached.payload;
+        existingUpdatedAt = cached.updated_at ? String(cached.updated_at) : null;
+        gravarSoRedis = true;
+      }
+      const digestAntes = existingPayload ? payloadSnapshotDigest(existingPayload) : "";
+      if (revisaoConflita(baseRevision, existingUpdatedAt)) {
+        return res.status(409).json({
+          ok: false,
+          success: false,
+          reason: "revisao_conflito",
+          revision: existingUpdatedAt,
+          updated_at: existingUpdatedAt,
+          message: "A nuvem tem uma versão mais nova. Recarregue antes de gravar.",
+        });
+      }
+      if (body.pacote === "dia" && /^\d{4}-\d{2}-\d{2}$/.test(String(body.dia || ""))) {
+        incoming = pacotes.fundirPacoteDia(existingPayload || {}, body.dia, incoming);
+      } else if (body.pacote === "ficheiro" && body.registro && typeof body.registro === "object") {
+        incoming = pacotes.fundirFicheiro(existingPayload || {}, String(body.chave || ""), body.registro);
       }
       if (channel === "default") {
         incoming = sanitizePayloadForOficial(
@@ -988,6 +1969,7 @@ async function handler(req, res) {
         acessos = f && String(f.role || "").trim() === "owner"
           ? ownerWriteAccess()
           : normalizeOperacaoAccess(f?.acessos, f?.role || "operacao");
+        acessos = { ...acessos, manutencao: true, lancamentoManutencao: true };
       }
       incoming = restoreCredentialFields(existingPayload, incoming);
       incoming = filterIncomingByModules(existingPayload, incoming, acessos, {
@@ -1034,31 +2016,200 @@ async function handler(req, res) {
       if (existingPayload && !wipeKeys.length) {
         payload = neverLoseCadastroPayload(existingPayload, payload);
       }
+      payload = reterLocacoesForaDoSnapshot(await obterFonteLocacoes(), existingPayload, payload);
+      const activePlateConflicts = findActivePlateConflicts(payload.dk_locacoes_cadastro);
+      if (activePlateConflicts.length) {
+        const conflict = activePlateConflicts[0];
+        return res.status(409).json({
+          ok: false,
+          reason: "active_plate_conflict",
+          placa: conflict.placa,
+          protocolos: conflict.contratos.map((item) => item.protocolo),
+          conflicts: activePlateConflicts,
+          message: activePlateConflictMessage(conflict),
+        });
+      }
+      const duplicatePayments = findNewDuplicatePayments(
+        existingPayload?.dk_locacoes_cadastro,
+        payload.dk_locacoes_cadastro
+      );
+      if (duplicatePayments.length) {
+        const duplicate = duplicatePayments[0];
+        return res.status(409).json({
+          ok: false,
+          reason: "duplicate_payment_same_day_value",
+          protocolo: duplicate.protocoloContrato,
+          data: duplicate.data,
+          valor: duplicate.valor,
+          duplicates: duplicatePayments,
+          message:
+            `JÁ EXISTE UM PAGAMENTO DE R$ ${Number(duplicate.valor).toFixed(2).replace(".", ",")} ` +
+            `EM ${duplicate.data} PARA O PROTOCOLO ${duplicate.protocoloContrato}.`,
+        });
+      }
       payload.dk_dados_seguros_v1 = true;
-      const incomingTs = Date.parse(updatedAt) || 0;
-      const existingTs = Date.parse(existingUpdatedAt || "") || 0;
-      const storedAt = existingTs > incomingTs ? existingUpdatedAt : updatedAt;
-      const stored = { label: LABEL, payload, updated_at: storedAt };
-      await redis.set(REDIS_KEY, JSON.stringify(stored));
-      const supabase = isSupabaseDoormanConfigured()
-        ? await withDoormanTimeout(
-            upsertSnapshotByLabel(LABEL, payload, storedAt),
-            20000,
-            "supabase_timeout"
-          )
-        : { ok: false, reason: "doorman_key_missing" };
+      if (digestAntes && payloadSnapshotDigest(payload) === digestAntes) {
+        if (gravarSoRedis) {
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            label: LABEL,
+            revision: existingUpdatedAt,
+            updated_at: existingUpdatedAt,
+            source: "redis",
+            persistencia: "redis",
+            inalterado: true,
+            supabasePendente: true,
+            supabase: { ok: false, reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel" },
+            redis: { ok: true },
+            replace,
+            keys: Object.keys(payload).length,
+          });
+        }
+        if (redis && oficialAtual.cache !== "valido") {
+          try {
+            await gravarCacheSnapshot(redis, REDIS_KEY, LABEL, payload, existingUpdatedAt);
+          } catch (err) {
+            console.error("[dk-snapshot] cache redis apos comparacao", err && err.message ? err.message : err);
+          }
+        }
+        let confirmedIgual;
+        if (body.confirm && typeof body.confirm === "object") {
+          const kind = String(body.confirm.kind || "");
+          const value = body.confirm.value;
+          confirmedIgual = probeCadastroConfirmado(payload, {
+            probe: kind,
+            nc: value,
+            cpf: value,
+            placa: value,
+            value,
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: existingUpdatedAt,
+          updated_at: existingUpdatedAt,
+          source: "supabase",
+          persistencia: "supabase",
+          inalterado: true,
+          supabase: { ok: true },
+          redis: { ok: Boolean(redis), reason: redis ? "" : "redis_indisponivel" },
+          replace,
+          keys: Object.keys(payload).length,
+          ...(typeof confirmedIgual === "boolean" ? { confirmed: confirmedIgual } : {}),
+        });
+      }
+      const storedAt = new Date().toISOString();
+      if (gravarSoRedis) {
+        try {
+          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+          await redis.set(`${REDIS_KEY}:rev`, storedAt);
+        } catch (err) {
+          return res.status(503).json({
+            ok: false,
+            success: false,
+            reason: "kv_write_failed",
+            message: "Não foi possível guardar no Redis oficial. Tente de novo.",
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAt,
+          updated_at: storedAt,
+          source: "redis",
+          supabasePendente: true,
+          persistencia: "redis",
+          supabase: { ok: false, reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel" },
+          redis: { ok: true },
+          replace,
+          keys: Object.keys(payload).length,
+        });
+      }
+      let supabase;
+      try {
+        supabase = await enfileirarGravacaoSnapshot(LABEL, () =>
+          consultarSupabase(() => upsertSnapshotByLabel(LABEL, payload, storedAt))
+        );
+      } catch (err) {
+        supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
+      }
+      if (!supabase || supabase.ok !== true) {
+        try {
+          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+          await redis.set(`${REDIS_KEY}:rev`, storedAt);
+        } catch (err) {
+          return res.status(502).json({
+            ok: false,
+            success: false,
+            reason: (supabase && supabase.reason) || "supabase_falhou",
+            message: "O Supabase não confirmou e o Redis também não guardou. Tente de novo.",
+            supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          label: LABEL,
+          revision: storedAt,
+          updated_at: storedAt,
+          source: "redis",
+          supabasePendente: true,
+          persistencia: "redis",
+          supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
+          redis: { ok: true },
+          replace,
+          keys: Object.keys(payload).length,
+        });
+      }
+      let confirmed;
+      if (body.confirm && typeof body.confirm === "object") {
+        const kind = String(body.confirm.kind || "");
+        const value = body.confirm.value;
+        confirmed = probeCadastroConfirmado(payload, {
+          probe: kind,
+          nc: value,
+          cpf: value,
+          placa: value,
+          value,
+        });
+      }
+      let redisOk = true;
+      let redisErr = "";
+      try {
+        await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+        await redis.set(`${REDIS_KEY}:rev`, storedAt);
+      } catch (err) {
+        redisOk = false;
+        redisErr = String(err && err.message ? err.message : err);
+        console.error("[DK cloud] cache redis apos supabase", redisErr);
+      }
       return res.status(200).json({
         ok: true,
+        success: true,
         label: LABEL,
+        revision: storedAt,
         updated_at: storedAt,
-        source: "redis",
-        persistencia: supabase && supabase.ok ? "supabase+redis" : "redis",
-        supabase: { ok: Boolean(supabase && supabase.ok), reason: supabase && supabase.reason ? supabase.reason : "" },
+        source: "supabase",
+        persistencia: redisOk ? "supabase+redis" : "supabase",
+        supabase: { ok: true },
+        redis: { ok: redisOk, reason: redisErr },
         replace,
         keys: Object.keys(payload).length,
+        ...(typeof confirmed === "boolean" ? { confirmed } : {}),
       });
+      } finally {
+        await releaseLocacoesWriteLock(redis, locacoesLockToken);
+      }
     }
   } catch (e) {
+    if (isQuotaError(e) || (e && e.reason === "cloud_budget")) {
+      tripCloudBudget();
+      return budgetReject(res);
+    }
     return res.status(500).json({
       ok: false,
       error: String(e && e.message ? e.message : e),
@@ -1068,8 +2219,24 @@ async function handler(req, res) {
   return res.status(405).json({ ok: false, reason: "method" });
 }
 
-module.exports = handler;
+const { comMedicaoCusto } = require("../lib/dk-custos-sistema.cjs");
+function handlerMedido(req, res) {
+  return comMedicaoCusto(req, res, () => handler(req, res));
+}
+
+module.exports = handlerMedido;
 module.exports.sanitizePayloadForOficial = sanitizePayloadForOficial;
 module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
 module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
 module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;
+module.exports.applyCadastroLock = applyCadastroLock;
+module.exports.probeCadastroConfirmado = probeCadastroConfirmado;
+module.exports.montarPayloadComLocacaoUnica = montarPayloadComLocacaoUnica;
+module.exports.mesmaRevisaoSnapshot = mesmaRevisaoSnapshot;
+module.exports.decidirLeituraSnapshot = decidirLeituraSnapshot;
+module.exports.lerPayloadOficialUnico = lerPayloadOficialUnico;
+module.exports.corpoDaConsulta = corpoDaConsulta;
+module.exports.lerBaseOficialParaPost = lerBaseOficialParaPost;
+module.exports.payloadSnapshotIgual = payloadSnapshotIgual;
+module.exports.enfileirarGravacaoSnapshot = enfileirarGravacaoSnapshot;
+module.exports.reterLocacoesForaDoSnapshot = reterLocacoesForaDoSnapshot;

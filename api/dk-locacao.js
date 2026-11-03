@@ -91,9 +91,31 @@ module.exports = async function handler(req, res) {
       if (out.conflict) return res.status(409).json(out);
       return res.status(out.ok ? 200 : out.status || 400).json(out);
     }
-    if (acao === "gravar" || acao === "criar" || acao === "atualizar") {
+    if (acao === "gravar" || acao === "criar" || acao === "atualizar" || acao === "finalize" || acao === "finalizar") {
       const locacao = body.locacao && typeof body.locacao === "object" ? body.locacao : null;
       if (!locacao) return res.status(400).json({ ok: false, reason: "locacao_obrigatoria" });
+      const opId = body.operation_id || body.operationId;
+      if (opId) {
+        const atomicLpm = require("../lib/dk-atomic-write-lpm.cjs");
+        const action =
+          acao === "criar" || (!locacao.pgId && acao === "gravar")
+            ? "create"
+            : acao === "finalize" || acao === "finalizar"
+              ? "finalize"
+              : "update";
+        const atom = await atomicLpm.mutarLocacaoAtomico({
+          action,
+          locacao,
+          numeroContrato: body.numero || locacao.numeroContrato,
+          expectedVersion: body.version != null ? body.version : locacao.pgVersion,
+          operationId: opId,
+          actorUserId: autor(gate),
+          actorSessionId: gate.sid || null,
+          route: "/api/dk-locacao",
+          method: "POST",
+        });
+        return res.status(atom.status || 400).json(atom.body || atom);
+      }
       const out = await pg.gravarUma({
         numero: body.numero || locacao.numeroContrato,
         version: body.version != null ? body.version : locacao.pgVersion,
