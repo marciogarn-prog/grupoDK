@@ -1,7 +1,7 @@
 /**
- * Trava temporária de área de trabalho. Não grava cadastro.
- * Redis guarda só quem está na área, por poucos segundos, para dois
- * computadores não abrirem a mesma área ao mesmo tempo.
+ * Presença de área de trabalho (aviso). Não grava cadastro.
+ * Não bloqueia outros usuários: dois operadores podem usar a mesma área.
+ * Concorrência de escrita fica no registro (version/409), não na tela.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -134,6 +134,16 @@ module.exports = async function handler(req, res) {
 
     const marca = Number(body.marca) || Date.now();
     const pacote = JSON.stringify({ cpf, nome: nomeExibicao(body), at: marca });
+    if (acao === "renovar") {
+      const donoRenova = lerDono(await redis.get(key));
+      if (!donoRenova || donoRenova.cpf !== cpf) {
+        return res.status(200).json({ ok: true, livre: false, expirada: true });
+      }
+      await redis.set(key, JSON.stringify({ cpf, nome: nomeExibicao(body), at: donoRenova.at || marca }), {
+        ex: TTL_SEC,
+      });
+      return res.status(200).json({ ok: true, livre: true, marca: donoRenova.at || marca });
+    }
     if (acao === "entrar") {
       const reservou = await redis.set(key, pacote, { nx: true, ex: TTL_SEC });
       if (reservou) {
@@ -149,11 +159,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, livre: true, marca });
     }
 
-    return res.status(409).json({
-      ok: false,
-      ocupada: true,
+    /* Compartilha a área: presença informativa, sem bloquear a UI. */
+    return res.status(200).json({
+      ok: true,
+      livre: true,
+      compartilhada: true,
+      aviso: true,
+      ocupada: false,
       area,
       nome: dono.nome || "outra pessoa",
+      marca,
     });
   } catch (e) {
     const reason = e && e.reason === "cloud_budget" ? "cloud_budget" : "area_indisponivel";

@@ -39,7 +39,8 @@ function lerConfig(env) {
   const ttl = Math.min(300, Math.max(30, Number(e.DK_REALTIME_JWT_TTL_SEC) || DEFAULT_TTL_SEC));
   const sinal = String(e.DK_REALTIME_SINAL || "0").trim() === "1";
   const trusted = String(e.DK_REALTIME_ES256_TRUSTED || "0").trim() === "1";
-  const scopeOk = String(e.DK_REALTIME_SCOPE_ISOLATION || "0").trim() === "1";
+  const { isolamentoPronto } = require("./dk-realtime-scope.cjs");
+  const scopeOk = isolamentoPronto(e).ok;
   const iss = String(e.DK_REALTIME_JWT_ISS || e.SUPABASE_URL || DEFAULT_ISS)
     .trim()
     .replace(/\/$/, "");
@@ -223,23 +224,8 @@ function emitirCredencialRealtime(opts) {
     };
   }
 
-  const { topicoRealtime, normalizarEmpresa, isolamentoPronto } = require("./dk-realtime-scope.cjs");
-  const empresa = normalizarEmpresa(opts.empresa || (gate && gate.empresa) || "locadora");
-  if (!empresa) {
-    return {
-      ok: false,
-      status: 403,
-      body: { ok: false, reason: "REALTIME_AUTH_BLOCKED", hint: "empresa_invalida" },
-    };
-  }
-  const canal = topicoRealtime(empresa);
-  if (!canal) {
-    return {
-      ok: false,
-      status: 503,
-      body: { ok: false, reason: "SCOPE_ISOLATION_BLOCKED", hint: "topico_ausente" },
-    };
-  }
+  const { topicoRealtime, normalizarEmpresa, isolamentoPronto, TOPICO_GLOBAL } = require("./dk-realtime-scope.cjs");
+  const empresa = normalizarEmpresa(opts.empresa || (gate && gate.empresa) || "locadora") || "locadora";
   if (!forcar) {
     const iso = isolamentoPronto(env);
     if (!iso.ok) {
@@ -255,6 +241,14 @@ function emitirCredencialRealtime(opts) {
         },
       };
     }
+  }
+  const canal = topicoRealtime(empresa, env) || TOPICO_GLOBAL;
+  if (!canal) {
+    return {
+      ok: false,
+      status: 503,
+      body: { ok: false, reason: "SCOPE_ISOLATION_BLOCKED", hint: "topico_ausente" },
+    };
   }
 
   let claims;

@@ -43,21 +43,44 @@ module.exports = async function handler(req, res) {
   if (await enforceRateLimit(req, res, "cadastro-veiculos", 30)) return;
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
-  if (!isRedisKvConfigured()) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
-
-  const redis = createRedisClient();
+  const redisOk = isRedisKvConfigured();
+  let redis = null;
+  if (redisOk) {
+    try {
+      redis = createRedisClient();
+    } catch {
+      redis = null;
+    }
+  }
+  const channel = "default";
 
   try {
-    const modo = await veiculosPg.modoOperacional(redis);
+    const modo = await veiculosPg.modoOperacional(redis, { channel });
     if (modo.modo === "erro") {
       return res.status(503).json({ ok: false, reason: modo.reason || "leitura", source: veiculosPg.FONTE });
+    }
+    if (modo.modo !== "pg" && !redisOk) {
+      return res.status(503).json({ ok: false, reason: "kv_not_configured" });
     }
 
     if (req.method === "GET") {
       if (modo.modo === "pg") {
+        if (String(req.query?.detalhe || "") === "1") {
+          const completo = await veiculosPg.lerVeiculoCompleto(req.query?.id || "");
+          if (!completo.ok) {
+            return res.status(completo.status || 502).json({ ok: false, reason: completo.reason || "leitura", source: veiculosPg.FONTE });
+          }
+          return res.status(completo.veiculo ? 200 : 404).json({
+            ok: Boolean(completo.veiculo),
+            veiculo: completo.veiculo,
+            source: veiculosPg.FONTE,
+          });
+        }
         const t0 = Date.now();
         const lido = await veiculosPg.listar();
-        if (!lido.ok) return res.status(502).json({ ok: false, reason: "leitura", source: veiculosPg.FONTE });
+        if (!lido.ok) {
+          return res.status(lido.status || 502).json({ ok: false, reason: lido.reason || "leitura", source: veiculosPg.FONTE });
+        }
         return res.status(200).json({
           ok: true,
           data: lido.veiculos,
@@ -65,6 +88,7 @@ module.exports = async function handler(req, res) {
           duracao_ms: Date.now() - t0,
         });
       }
+      if (!redis) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
       const raw = await redis.get(STORAGE_KEY);
       const data = parseRedisArray(raw);
       return res.status(200).json({ ok: true, data });
@@ -79,9 +103,16 @@ module.exports = async function handler(req, res) {
       if (modo.modo === "pg") {
         const veiculo = veiculosPg.pedidoUm(body);
         if (!veiculo) return res.status(400).json({ ok: false, success: false, reason: "um_veiculo", source: veiculosPg.FONTE });
-        const um = await veiculosPg.upsertUm(veiculo, body.base_revision || body.revision || "");
+        const um = await veiculosPg.upsertUm(veiculo, body.base_revision || body.revision || "", null, {
+          operationId: body.operation_id || body.operationId,
+          actorUserId: gate.cpf || gate.userId || null,
+          actorSessionId: gate.sid || gate.sessionId || null,
+          route: "/api/cadastro-veiculos",
+          method: "POST",
+        });
         return res.status(um.status).json(um.body);
       }
+      if (!redis) return res.status(503).json({ ok: false, success: false, reason: "kv_not_configured" });
       const incoming = Array.isArray(body?.data) ? body.data : [];
       let merged = incoming;
       const central = await executarGravacaoCentral({

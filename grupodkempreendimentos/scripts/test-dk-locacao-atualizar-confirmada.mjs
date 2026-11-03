@@ -39,7 +39,7 @@ check("backup inclui oficial_pg", backup.includes("oficial_pg") && backup.includ
 check("backup não finge restauração completa", backup.includes("backup_relacional_completo: false") && backup.includes("complete: false"));
 check(
   "cache-bust locação",
-  /portal-locacao-pg\.js\?v=/.test(html) && /portal-locadora-ui\.js\?v=20261103rtwsprep/.test(html)
+  /portal-locacao-pg\.js\?v=/.test(html) && /portal-locadora-ui\.js\?v=20261103jorm/.test(html)
 );
 
 /** Simula respostas HTTP da UI (sem rede). */

@@ -12,8 +12,8 @@ begin
     insert into realtime.messages (id, payload, event, topic, private, extension)
     values (
       gen_random_uuid(),
-      jsonb_build_object('seq', new.seq, 'kind', 'dk_event'),
-      'dk_event',
+      jsonb_build_object('kind', 'dk_changed', 'seq', new.seq),
+      'dk_changed',
       'dk:events',
       true,
       'broadcast'
@@ -28,9 +28,8 @@ $$;
 
 revoke all on function public.dk_events_broadcast_seq() from public, anon, authenticated, service_role;
 
--- realtime.messages está particionada e, nesta base, não tinha partição.
--- O papel postgres não pode criar partição nesse schema.
--- O INSERT abaixo falha com segurança e o evento durável continua.
+-- realtime.messages está particionada e, nesta base, pode não ter partição.
+-- O INSERT falha com segurança e o evento durável continua.
 
 do $$
 begin

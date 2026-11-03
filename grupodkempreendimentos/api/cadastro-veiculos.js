@@ -43,14 +43,24 @@ module.exports = async function handler(req, res) {
   if (await enforceRateLimit(req, res, "cadastro-veiculos", 30)) return;
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
-  if (!isRedisKvConfigured()) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
-
-  const redis = createRedisClient();
+  const redisOk = isRedisKvConfigured();
+  let redis = null;
+  if (redisOk) {
+    try {
+      redis = createRedisClient();
+    } catch {
+      redis = null;
+    }
+  }
+  const channel = "default";
 
   try {
-    const modo = await veiculosPg.modoOperacional(redis);
+    const modo = await veiculosPg.modoOperacional(redis, { channel });
     if (modo.modo === "erro") {
       return res.status(503).json({ ok: false, reason: modo.reason || "leitura", source: veiculosPg.FONTE });
+    }
+    if (modo.modo !== "pg" && !redisOk) {
+      return res.status(503).json({ ok: false, reason: "kv_not_configured" });
     }
 
     if (req.method === "GET") {
@@ -78,6 +88,7 @@ module.exports = async function handler(req, res) {
           duracao_ms: Date.now() - t0,
         });
       }
+      if (!redis) return res.status(503).json({ ok: false, reason: "kv_not_configured" });
       const raw = await redis.get(STORAGE_KEY);
       const data = parseRedisArray(raw);
       return res.status(200).json({ ok: true, data });
@@ -101,6 +112,7 @@ module.exports = async function handler(req, res) {
         });
         return res.status(um.status).json(um.body);
       }
+      if (!redis) return res.status(503).json({ ok: false, success: false, reason: "kv_not_configured" });
       const incoming = Array.isArray(body?.data) ? body.data : [];
       let merged = incoming;
       const central = await executarGravacaoCentral({

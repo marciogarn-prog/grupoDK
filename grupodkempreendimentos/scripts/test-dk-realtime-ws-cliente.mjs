@@ -116,7 +116,7 @@ function makeWin(store, sessao) {
             ok: true,
             token: "jwt-ficticio",
             exp: Math.floor(Date.now() / 1000) + 120,
-            canal: "dk:events:locadora",
+            canal: "dk:events",
             private: true,
           };
         },
@@ -142,7 +142,7 @@ function makeWin(store, sessao) {
     return {
       realtime: { setAuth() {} },
       channel(name, opts) {
-        assert.equal(name, "dk:events:locadora");
+        assert.equal(name, "dk:events");
         assert.equal(opts.config.private, true);
         const handlers = [];
         return {
@@ -174,7 +174,7 @@ function makeWin(store, sessao) {
   assert.equal(api.dkSyncGetStatus().realtimeConectado, false);
 }
 
-/** Canal partilhado dk:events rejeitado */
+/** Canal inválido rejeitado */
 {
   const store = new Map();
   const win = makeWin(store, { sid: "sid-C", empresa: "locadora" });
@@ -184,7 +184,7 @@ function makeWin(store, sessao) {
       ok: true,
       status: 200,
       async json() {
-        return { ok: true, token: "x", exp: 9e9, canal: "dk:events", private: true };
+        return { ok: true, token: "x", exp: 9e9, canal: "publico-inseguro", private: true };
       },
     }),
     () => ({ channel() { return { on() { return this; }, subscribe(cb) { cb("SUBSCRIBED"); } }; }, async removeChannel() {} })

@@ -190,9 +190,7 @@
     const { list, changed } = backfillOs(loadArr(STORAGE_KEY));
     if (changed) {
       saveArr(STORAGE_KEY, list);
-      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
-      }
+      /* Manutenção oficial é PostgreSQL — sem segundo POST de snapshot. */
     }
     return list;
   }
@@ -598,10 +596,11 @@
     if (typeof window.addAuditLog === "function") {
       addAuditLog("manutencao_rapida", "gravar", `${os} · ${placa} · ${labelsServicos(rec)}`);
     }
-    void pushManutencoesParaNuvem(next, { registroUnico: rec });
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
-    }
+    void pushManutencoesParaNuvem(next, { registroUnico: rec }).then((ok) => {
+      if (ok && ok.audit_no != null) {
+        setMsg(`Manutenção rápida gravada na nuvem — Log #${ok.audit_no} · ${os} · ${placa}.`, true);
+      }
+    });
     limparForm();
     renderDia();
     setMsg(`Manutenção rápida gravada — ${os} · ${placa}.`, true);
@@ -686,7 +685,12 @@
       } catch {
         /* ignore */
       }
-      return true;
+      return {
+        ok: true,
+        audit_no: j.audit_no != null ? j.audit_no : null,
+        seq: j.seq != null ? j.seq : null,
+        operation_id: j.operation_id || operation_id,
+      };
     }
     return false;
   }

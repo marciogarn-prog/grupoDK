@@ -213,14 +213,12 @@
 
   async function abrirCanalPrivado(corpo) {
     var canalNome = String(corpo.canal || "").trim();
-    if (!canalNome || canalNome === "dk:events") {
+    var canalGlobal = canalNome === "dk:events";
+    var canalEmpresa = /^dk:events:(locadora|centro|construtora)$/.test(canalNome);
+    if (!canalNome || (!canalGlobal && !canalEmpresa)) {
       state.realtimeBloqueado = true;
       state.realtimeMotivo = "SCOPE_ISOLATION_BLOCKED";
       state.realtimeConectado = false;
-      return { ok: false, reason: state.realtimeMotivo };
-    }
-    if (!/^dk:events:(locadora|centro|construtora)$/.test(canalNome)) {
-      state.realtimeMotivo = "SCOPE_ISOLATION_BLOCKED";
       return { ok: false, reason: state.realtimeMotivo };
     }
     rtMem.token = String(corpo.token);
@@ -263,11 +261,21 @@
     }
 
     var channel = client.channel(canalNome, { config: { private: true } });
+    channel.on("broadcast", { event: "dk_changed" }, function (msg) {
+      onBroadcastSinal(msg && msg.payload != null ? msg.payload : msg);
+    });
     channel.on("broadcast", { event: "dk_event" }, function (msg) {
       onBroadcastSinal(msg && msg.payload != null ? msg.payload : msg);
     });
     channel.on("broadcast", { event: "*" }, function (msg) {
-      if (msg && (msg.event === "dk_event" || (msg.payload && msg.payload.kind === "dk_event"))) {
+      var kind = msg && msg.payload && msg.payload.kind;
+      if (
+        msg &&
+        (msg.event === "dk_changed" ||
+          msg.event === "dk_event" ||
+          kind === "dk_changed" ||
+          kind === "dk_event")
+      ) {
         onBroadcastSinal(msg.payload || msg);
       }
     });

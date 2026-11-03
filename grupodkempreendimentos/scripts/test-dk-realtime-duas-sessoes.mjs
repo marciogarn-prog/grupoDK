@@ -89,7 +89,7 @@ function makeFetch(label) {
             ok: true,
             token: "jwt-" + label,
             exp: Math.floor(Date.now() / 1000) + 120,
-            canal: "dk:events:locadora",
+            canal: "dk:events",
             private: true,
           };
         },
@@ -130,7 +130,7 @@ function makeFactory(label, bus) {
   return () => ({
     realtime: { setAuth() {} },
     channel(name, opts) {
-      assert.equal(name, "dk:events:locadora");
+      assert.equal(name, "dk:events");
       assert.equal(opts.config.private, true);
       let handler = null;
       const ch = {

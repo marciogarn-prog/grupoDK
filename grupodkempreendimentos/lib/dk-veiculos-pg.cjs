@@ -256,15 +256,24 @@ async function upsertUm(veiculo, baseRevision, ioRest, opts) {
   };
 }
 
-async function modoOperacional(redis, ioRest) {
+async function modoOperacional(redis, opts) {
+  const channel = opts && opts.channel != null ? String(opts.channel) : "default";
+  if (channel === "demo") return { modo: "snapshot", flag: "" };
+  if (String(process.env.DK_VEICULOS_PG || "").trim() === "1") {
+    const tEnv = await tabelaExiste();
+    if (tEnv && tEnv.ok && tEnv.existe) return { modo: "pg", flag: FONTE };
+  }
   let flag = "";
   try {
-    flag = String((await redis.get(FLAG_REDIS)) || "");
+    if (redis) flag = String((await redis.get(FLAG_REDIS)) || "");
   } catch {
     flag = "";
   }
-  if (flag !== FONTE) return { modo: "snapshot", flag };
-  return { modo: "pg", flag };
+  if (flag === FONTE) return { modo: "pg", flag };
+  if (flag && flag !== FONTE) return { modo: "snapshot", flag };
+  const t = await tabelaExiste();
+  if (t && t.ok && t.existe) return { modo: "pg", flag: FONTE, inferido: true };
+  return { modo: "snapshot", flag };
 }
 
 module.exports = {

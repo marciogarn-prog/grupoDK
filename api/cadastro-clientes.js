@@ -2,6 +2,7 @@
  * Sincronização do cadastro de clientes (API no root do projeto para Vercel).
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
+const { moduloAtivo, listar } = require("../lib/dk-locacao-pg.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeClientesCadastro } = require("../lib/dk-append-only-merge.cjs");
 const {
@@ -31,15 +32,21 @@ function parseRedisArray(raw) {
   return [];
 }
 
-async function clientesFontePronta(redis) {
-  try {
-    const flag = await redis.get(clientesPg.FLAG_REDIS);
-    if (String(flag || "") !== clientesPg.FONTE) return false;
-  } catch {
-    return false;
-  }
+async function clientesFontePronta(redis, channel) {
+  if (String(channel || "") === "demo") return false;
   const existe = await clientesPg.tabelaExiste();
-  return Boolean(existe && existe.ok && existe.existe);
+  if (!(existe && existe.ok && existe.existe)) return false;
+  if (String(process.env.DK_CLIENTES_PG || "").trim() === "1") return true;
+  try {
+    if (redis) {
+      const flag = String((await redis.get(clientesPg.FLAG_REDIS)) || "");
+      if (flag === clientesPg.FONTE) return true;
+      if (flag && flag !== clientesPg.FONTE) return false;
+    }
+  } catch {
+    /* Redis indisponível: tabela oficial existe → PG continua */
+  }
+  return true;
 }
 
 function aplicarUpsertCliente(base, cliente) {
@@ -76,12 +83,20 @@ module.exports = async function handler(req, res) {
     return res.status(gate.status).json({ ok: false, reason: gate.reason });
   }
 
-  if (!isRedisKvConfigured()) {
+  const channel = resolveDeployChannel(req);
+  const redisOk = isRedisKvConfigured();
+  let redis = null;
+  if (redisOk) {
+    try {
+      redis = createRedisClient();
+    } catch {
+      redis = null;
+    }
+  }
+  const prontaInicial = await clientesFontePronta(redis, channel);
+  if (!prontaInicial && !redisOk) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
-
-  const redis = createRedisClient();
-  const channel = resolveDeployChannel(req);
 
   try {
     if (req.method === "GET") {
@@ -98,16 +113,37 @@ module.exports = async function handler(req, res) {
         if (!protoIn) {
           return res.status(400).json({ ok: false, msg: "Informe o protocolo da locação." });
         }
-        const pronta = await clientesFontePronta(redis);
-        let clientesGate;
+        const oficialAtivo = channel === "default" && (await moduloAtivo());
+        const pronta = await clientesFontePronta(redis, channel);
+        let clientes = [];
+        let locsGate = [];
         if (pronta) {
           const lido = await clientesPg.listarClientes();
           if (!lido.ok) return res.status(502).json({ ok: false, msg: "Clientes indisponíveis.", reason: "leitura" });
-          clientesGate = dropClientesCpfExcluidos(lido.clientes);
+          clientes = dropClientesCpfExcluidos(lido.clientes);
         }
-        const pacote = await fetchPortalCadastrosFromRedis(redis, channel);
-        if (!pronta) clientesGate = pacote.clientes;
-        const result = matchClienteProtocoloGate(cpf, protoIn, clientesGate, pacote.locs);
+        if (!(pronta && oficialAtivo)) {
+          if (!redis) {
+            return res.status(503).json({ ok: false, msg: "Fonte auxiliar indisponível.", reason: "kv_not_configured" });
+          }
+          const pacote = await fetchPortalCadastrosFromRedis(redis, channel, {
+            semLocacoes: oficialAtivo,
+          });
+          if (!pronta) clientes = pacote.clientes;
+          locsGate = pacote.locs;
+        }
+        if (oficialAtivo) {
+          const oficial = await listar(cpf);
+          if (!oficial || oficial.ok !== true || oficial.ativado !== true) {
+            return res.status(503).json({
+              ok: false,
+              msg: "A validação oficial das locações está indisponível. Nada foi lido do snapshot.",
+              reason: "locacao_pg",
+            });
+          }
+          locsGate = oficial.locacoes || [];
+        }
+        const result = matchClienteProtocoloGate(cpf, protoIn, clientes, locsGate);
         if (!result.ok) {
           return res.status(404).json({ ok: false, msg: result.msg });
         }
@@ -120,7 +156,16 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      if (await clientesFontePronta(redis)) {
+      if (await clientesFontePronta(redis, channel)) {
+        if (String(req.query?.detalhe || "") === "1") {
+          const completo = await clientesPg.lerClienteCompleto(req.query?.id || "");
+          if (!completo.ok) return res.status(502).json({ ok: false, reason: "leitura", source: clientesPg.FONTE });
+          return res.status(completo.cliente ? 200 : 404).json({
+            ok: Boolean(completo.cliente),
+            cliente: completo.cliente,
+            source: clientesPg.FONTE,
+          });
+        }
         const t0 = Date.now();
         const lido = await clientesPg.listarClientes();
         if (!lido.ok) {
@@ -135,7 +180,12 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const { clientes } = await fetchPortalCadastrosFromRedis(redis, channel);
+      if (!redis) {
+        return res.status(503).json({ ok: false, reason: "kv_not_configured" });
+      }
+      const { clientes } = await fetchPortalCadastrosFromRedis(redis, channel, {
+        semLocacoes: channel === "default" && (await moduloAtivo()),
+      });
       if (clientes.length) {
         return res.status(200).json({ ok: true, data: clientes, channel });
       }
@@ -168,9 +218,15 @@ module.exports = async function handler(req, res) {
       if (umCliente && !dropClientesCpfExcluidos([body.cliente]).length) {
         return res.status(400).json({ ok: false, success: false, reason: "cliente_rejeitado" });
       }
-      if (await clientesFontePronta(redis)) {
+      if (await clientesFontePronta(redis, channel)) {
         if (umCliente) {
-          const um = await clientesPg.upsertUm(body.cliente, body.base_revision || body.revision || "");
+          const um = await clientesPg.upsertUm(body.cliente, body.base_revision || body.revision || "", null, {
+            operationId: body.operation_id || body.operationId,
+            actorUserId: writeGate.cpf || writeGate.userId || null,
+            actorSessionId: writeGate.sid || writeGate.sessionId || null,
+            route: "/api/cadastro-clientes",
+            method: "POST",
+          });
           return res.status(um.status).json(um.body);
         }
         const lista = Array.isArray(body?.data) ? body.data : [];
@@ -187,6 +243,9 @@ module.exports = async function handler(req, res) {
           count: aceitos.length,
           snapshot_gravacoes: 0,
         });
+      }
+      if (!redis) {
+        return res.status(503).json({ ok: false, success: false, reason: "kv_not_configured" });
       }
       const incoming = umCliente ? [body.cliente] : Array.isArray(body?.data) ? body.data : [];
       let merged = incoming;

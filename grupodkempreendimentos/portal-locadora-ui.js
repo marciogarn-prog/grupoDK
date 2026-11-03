@@ -3277,14 +3277,15 @@
         .then(({ res, data }) => {
           if (portalAreaLockIdAtual !== areaRenovada) return;
           if (data?.expirada) return;
-          if (res.status === 409 || data?.ocupada) {
-            portalPararRenovacaoArea();
-            portalAreaLockIdAtual = "";
+          if (data?.compartilhada || data?.aviso) {
             portalRegistrarOcupacaoVista(areaRenovada, data?.nome);
-            portalLimparMeuNomeDasOutrasAreas("");
             portalPintarOcupacaoBotoes(portalOcupacaoCache);
-            portalVoltarEquipaLocadora();
-            portalAvisarAreaOcupada(areaRenovada, data?.nome);
+            return;
+          }
+          if (res.status === 409 || data?.ocupada) {
+            /* Não expulsar: presença é aviso; escrita conflita no registro (409). */
+            portalRegistrarOcupacaoVista(areaRenovada, data?.nome);
+            portalPintarOcupacaoBotoes(portalOcupacaoCache);
           }
         })
         .catch(() => {});
@@ -3308,12 +3309,19 @@
       try {
         const marca = Date.now();
         const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
+        if (res.ok && (data?.livre || data?.compartilhada || data?.ok !== false)) {
+          if (data?.nome && (data.compartilhada || data.aviso)) {
+            portalRegistrarOcupacaoVista(id, data.nome);
+          }
+          if (!data?.compartilhada) {
+            portalIniciarRenovacaoArea(id, data?.marca || marca);
+          } else {
+            portalPintarOcupacaoBotoes(portalOcupacaoCache);
+          }
+          return true;
+        }
         if (res.status === 409 || data?.ocupada) {
           portalRegistrarOcupacaoVista(id, data?.nome);
-          return false;
-        }
-        if (res.ok) {
-          portalIniciarRenovacaoArea(id, data?.marca || marca);
           return true;
         }
         if (!portalRespostaAreaTransitoria(res.status)) break;
@@ -17010,7 +17018,10 @@
     const el = document.getElementById("operacaoClienteInlineMsg");
     if (!el) return;
     el.textContent = texto;
-    el.classList.toggle("portal-feedback--ok", texto === DK_MSG_PC_NUVEM_IGUAIS);
+    el.classList.toggle(
+      "portal-feedback--ok",
+      texto === DK_MSG_PC_NUVEM_IGUAIS || /Log #\d+/i.test(String(texto || ""))
+    );
   }
 
   function portalMsgFalhaCompararNuvem(reason) {
@@ -17233,6 +17244,9 @@
         count: data?.count,
         snapshot_gravacoes: Number(data?.snapshot_gravacoes || 0),
         cliente: data?.cliente || null,
+        audit_no: data?.audit_no != null ? data.audit_no : null,
+        seq: data?.seq != null ? data.seq : null,
+        operation_id: data?.operation_id || null,
       };
     };
     const revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
@@ -17274,12 +17288,16 @@
       }
     }
     if (geracao !== portalClienteMsgGeracao) return;
-    portalMsgCliente(
-      portalEnvioClienteConfirmado(envio)
-        ? DK_MSG_PC_NUVEM_IGUAIS
-        : "Não foi possível enviar o cliente para a nuvem. O cadastro ficou neste PC.",
-      geracao
-    );
+    if (portalEnvioClienteConfirmado(envio)) {
+      portalMsgCliente(
+        envio && envio.audit_no != null
+          ? `Cliente atualizado na nuvem — Log #${envio.audit_no}`
+          : DK_MSG_PC_NUVEM_IGUAIS,
+        geracao
+      );
+    } else {
+      portalMsgCliente("Não foi possível enviar o cliente para a nuvem. O cadastro ficou neste PC.", geracao);
+    }
   }
 
   async function portalAlinharClientesAoEntrarNaTela() {
@@ -24408,6 +24426,9 @@
           ok: res.ok && data?.ok !== false && data?.success !== false,
           reason: String(data?.reason || ""),
           revision: String(data?.revision || data?.updated_at || ""),
+          audit_no: data?.audit_no != null ? data.audit_no : null,
+          seq: data?.seq != null ? data.seq : null,
+          operation_id: data?.operation_id || null,
         };
       };
       const revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
@@ -24453,9 +24474,14 @@
       if (window.__DK_VEICULOS_PG === true) {
         void portalEnviarUmVeiculoParaNuvem(novo).then((envio) => {
           if (!msg) return;
-          msg.textContent = envio && envio.ok
-            ? "Veículo gravado na nuvem."
-            : "Não foi possível gravar o veículo na nuvem. O cadastro ficou neste PC.";
+          if (envio && envio.ok) {
+            msg.textContent =
+              envio.audit_no != null
+                ? `Veículo gravado na nuvem — Log #${envio.audit_no}`
+                : "Veículo gravado na nuvem.";
+          } else {
+            msg.textContent = "Não foi possível gravar o veículo na nuvem. O cadastro ficou neste PC.";
+          }
         });
       } else {
         portalPushCloudSnapshotAfterPersist();
@@ -24945,8 +24971,8 @@
         const saved = r.locacao || registro;
         portalLocacaoFeedback(
           prev
-            ? `Locação atualizada e confirmada no servidor${r.audit_no != null ? ` (Log ${r.audit_no})` : ""}.`
-            : `Locação cadastrada e confirmada no servidor${r.audit_no != null ? ` (Log ${r.audit_no})` : ""}.`
+            ? `Locação atualizada na nuvem${r.audit_no != null ? ` — Log #${r.audit_no}` : ""}.`
+            : `Locação cadastrada na nuvem${r.audit_no != null ? ` — Log #${r.audit_no}` : ""}.`
         );
         refreshOperacaoLocacaoProtocoloPicker({ force: true });
         refreshOperacaoLocacaoProtocoloAdminPlaceholder();
@@ -32658,7 +32684,7 @@
         return;
       }
       const apiTasks = [];
-      if (!isDemo || clientesArr.length) {
+      if (window.__DK_CLIENTES_PG !== true && (!isDemo || clientesArr.length)) {
         apiTasks.push(dkPortalPushToApi("cadastro-clientes", clientesArr));
       }
       if (window.__DK_VEICULOS_PG !== true && (!isDemo || veiculosArr.length)) {

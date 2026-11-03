@@ -39,7 +39,7 @@ const emit = es.emitirCredencialRealtime({
 assert.equal(emit.ok, true, JSON.stringify(emit.body));
 assert.ok(emit.body.token);
 assert.equal(emit.body.alg, "ES256");
-assert.equal(emit.body.canal, "dk:events:locadora");
+assert.equal(emit.body.canal, "dk:events");
 assert.equal(emit.body.revogacao.instantanea, false);
 assert.ok(emit.body.revogacao.residual_max_sec >= 30);
 
