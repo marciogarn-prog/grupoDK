@@ -2349,6 +2349,11 @@ function clearSession() {
   if (typeof window.__DK_portalApiTokenClear === "function") {
     window.__DK_portalApiTokenClear();
   }
+  try {
+    if (typeof window.dkSyncReset === "function") window.dkSyncReset();
+  } catch {
+    // ignore
+  }
 }
 
 function isSalvarClienteUnlockedThisSession() {

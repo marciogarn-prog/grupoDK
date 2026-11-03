@@ -34,9 +34,10 @@ check("operation_id obrigatório na API", api.includes('reason: "operation_id_ob
 check("API root espelhada sem legado", apiRoot.includes('reason: "operation_id_obrigatorio"') && !/const out = await pg\.gravarUma/.test(apiRoot));
 check("exclusão física sem evento bloqueada", api.includes("exclusao_atomica_pendente"));
 check("cursor sync em sessionStorage", sync.includes("dk_sync_cursor_seq_v1") && sync.includes("sessionStorage"));
-check("Realtime marcado bloqueado sem canal privado", sync.includes("realtimeBloqueado: true"));
+check("Realtime marcado bloqueado sem canal privado", sync.includes("realtimeBloqueado: true") && sync.includes("REALTIME_AUTH_BLOCKED"));
 check("backup inclui oficial_pg", backup.includes("oficial_pg") && backup.includes("fetchPgOficialColeta"));
-check("cache-bust locação", /portal-locacao-pg\.js\?v=20261103locfix/.test(html) && /portal-locadora-ui\.js\?v=20261103locfix/.test(html));
+check("backup não finge restauração completa", backup.includes("backup_relacional_completo: false") && backup.includes("complete: false"));
+check("cache-bust locação", /portal-locacao-pg\.js\?v=20261103rtblock/.test(html) && /portal-locadora-ui\.js\?v=20261103rtblock/.test(html));
 
 /** Simula respostas HTTP da UI (sem rede). */
 function mensagemDeStatus(status, data) {

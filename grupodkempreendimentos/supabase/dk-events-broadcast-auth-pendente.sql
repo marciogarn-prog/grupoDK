@@ -1,0 +1,32 @@
+-- PENDENTE / NÃO APLICAR EM PRODUÇÃO sem:
+-- 1) SUPABASE_JWT_SECRET (ou signing key) no servidor Vercel
+-- 2) emissão de JWT curto com role=authenticated + claims DK (sid, empresa)
+-- 3) prova de partição realtime.messages e broadcast
+-- 4) backup físico confirmado + rollback da política
+--
+-- Este ficheiro documenta a política desejada. NÃO executa cutover automático.
+
+-- Objetivo: substituir a política atual (só role authenticated + tópico)
+-- por uma que exija claim de sessão DK no JWT.
+--
+-- Exemplo (NÃO aplicar agora):
+--
+-- drop policy if exists dk_events_broadcast_ler on realtime.messages;
+-- create policy dk_events_broadcast_ler
+--   on realtime.messages
+--   for select
+--   to authenticated
+--   using (
+--     extension = 'broadcast'
+--     and topic = 'dk:events'
+--     and realtime.topic() = 'dk:events'
+--     and coalesce((auth.jwt() ->> 'dk_portal')::boolean, false) = true
+--     and nullif(auth.jwt() ->> 'dk_sid', '') is not null
+--   );
+--
+-- Impedir INSERT/broadcast a partir do papel authenticated (só o trigger server-side publica).
+-- create policy dk_events_broadcast_sem_write_cliente
+--   on realtime.messages
+--   for insert
+--   to authenticated
+--   with check (false);

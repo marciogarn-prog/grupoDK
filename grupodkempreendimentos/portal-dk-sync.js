@@ -1,13 +1,54 @@
 /**
  * Cursor técnico do Log (seq). Catch-up via GET /api/dk-sync.
  * sessionStorage guarda só o cursor da aba (não é autoridade de negócio).
- * WebSocket/Realtime de negócio: BLOQUEADO até canal privado autenticado.
+ * WebSocket/Realtime: REALTIME_AUTH_BLOCKED até JWT Supabase + canal privado.
  */
 (function (root) {
   var CURSOR_KEY = "dk_sync_cursor_seq_v1";
+  var CURSOR_SCOPE_KEY = "dk_sync_cursor_scope_v1";
+  var REALTIME_MOTIVO = "REALTIME_AUTH_BLOCKED";
+
+  function escopoSessao() {
+    try {
+      if (root && typeof root.__DK_portalSyncScopeId === "function") {
+        var s = String(root.__DK_portalSyncScopeId() || "").trim();
+        if (s) return s;
+      }
+      var cpf = "";
+      var sid = "";
+      if (root && root.__DK_portalSessao && typeof root.__DK_portalSessao === "object") {
+        cpf = String(root.__DK_portalSessao.cpf || "").replace(/\D/g, "").slice(0, 11);
+        sid = String(root.__DK_portalSessao.sid || root.__DK_portalSessao.sessionId || "").trim();
+      }
+      if (!cpf && root && typeof root.__DK_portalCpfSessao === "function") {
+        cpf = String(root.__DK_portalCpfSessao() || "").replace(/\D/g, "").slice(0, 11);
+      }
+      if (cpf || sid) return cpf + ":" + sid;
+    } catch (e) {
+      /* ignore */
+    }
+    return "";
+  }
+
+  function garantirEscopoCursor() {
+    var scope = escopoSessao();
+    if (!scope || !root || !root.sessionStorage) return;
+    try {
+      var prev = String(root.sessionStorage.getItem(CURSOR_SCOPE_KEY) || "");
+      if (prev && prev !== scope) {
+        state.lastAppliedSeq = 0;
+        root.sessionStorage.setItem(CURSOR_KEY, "0");
+      }
+      root.sessionStorage.setItem(CURSOR_SCOPE_KEY, scope);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   function lerCursorPersistido() {
     try {
       if (!root || !root.sessionStorage) return 0;
+      garantirEscopoCursor();
       var n = Number(root.sessionStorage.getItem(CURSOR_KEY));
       return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
     } catch (e) {
@@ -17,6 +58,7 @@
   function gravarCursorPersistido(seq) {
     try {
       if (!root || !root.sessionStorage) return;
+      garantirEscopoCursor();
       var n = Number(seq);
       if (!Number.isFinite(n) || n < 0) return;
       root.sessionStorage.setItem(CURSOR_KEY, String(Math.floor(n)));
@@ -25,7 +67,7 @@
     }
   }
   var state = {
-    lastAppliedSeq: lerCursorPersistido(),
+    lastAppliedSeq: 0,
     syncInFlight: false,
     syncPending: false,
     lastServerSeq: 0,
@@ -33,13 +75,16 @@
     initialized: false,
     lastCheckpointAt: null,
     realtimeBloqueado: true,
-    realtimeMotivo: "canal_privado_nao_autenticado",
+    realtimeMotivo: REALTIME_MOTIVO,
+    realtimeConectado: false,
   };
+  state.lastAppliedSeq = lerCursorPersistido();
   var transporte = null;
   var limite = 100;
   var ouvintes = [];
   var volta = null;
   var MAX_PAGINAS = 30;
+  var seqsVistos = Object.create(null);
 
   function configurar(opcoes) {
     if (!opcoes || typeof opcoes !== "object") return;
@@ -55,9 +100,18 @@
     state.lastError = null;
     state.initialized = false;
     state.lastCheckpointAt = null;
+    state.realtimeConectado = false;
+    state.realtimeBloqueado = true;
+    state.realtimeMotivo = REALTIME_MOTIVO;
     volta = null;
     ouvintes = [];
+    seqsVistos = Object.create(null);
     gravarCursorPersistido(0);
+    try {
+      if (root && root.sessionStorage) root.sessionStorage.removeItem(CURSOR_SCOPE_KEY);
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   function estado() {
@@ -90,7 +144,53 @@
       lastCheckpointAt: state.lastCheckpointAt,
       realtimeBloqueado: state.realtimeBloqueado,
       realtimeMotivo: state.realtimeMotivo,
+      realtimeConectado: state.realtimeConectado === true,
     };
+  }
+
+  /**
+   * Tenta obter credencial Realtime. Sem JWT de projeto, permanece bloqueado.
+   * Nunca persiste token em localStorage/IndexedDB.
+   */
+  async function dkSyncTentarRealtime() {
+    state.realtimeBloqueado = true;
+    state.realtimeConectado = false;
+    state.realtimeMotivo = REALTIME_MOTIVO;
+    var cabecalhos = {};
+    try {
+      if (root && typeof root.__DK_portalApiHeaders === "function") {
+        cabecalhos = root.__DK_portalApiHeaders() || {};
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      var res = await fetch("/api/dk-realtime-credencial?nocache=" + Date.now(), {
+        method: "GET",
+        cache: "no-store",
+        headers: cabecalhos,
+      });
+      var corpo = await res.json().catch(function () {
+        return {};
+      });
+      if (corpo && corpo.reason) state.realtimeMotivo = String(corpo.reason);
+      if (!(res.status >= 200 && res.status < 300) || !corpo || corpo.ok !== true || !corpo.token) {
+        state.realtimeBloqueado = true;
+        state.realtimeConectado = false;
+        emitirStatus();
+        return { ok: false, reason: state.realtimeMotivo, realtime: false };
+      }
+      /* Emissão real só após remoção do gate — não abrir canal com token inseguro. */
+      state.realtimeBloqueado = true;
+      state.realtimeMotivo = "REALTIME_AUTH_BLOCKED";
+      emitirStatus();
+      return { ok: false, reason: state.realtimeMotivo, realtime: false };
+    } catch (err) {
+      state.realtimeBloqueado = true;
+      state.realtimeMotivo = REALTIME_MOTIVO;
+      emitirStatus();
+      return { ok: false, reason: REALTIME_MOTIVO, realtime: false };
+    }
   }
 
   function dkSyncRotulo(status) {
@@ -188,7 +288,13 @@
     var novos = [];
     for (var i = 0; i < events.length; i++) {
       var seq = Number(events[i].seq);
-      if (seq <= state.lastAppliedSeq) continue;
+      if (!Number.isFinite(seq)) continue;
+      if (seqsVistos[seq] === true) continue;
+      if (seq <= state.lastAppliedSeq) {
+        seqsVistos[seq] = true;
+        continue;
+      }
+      seqsVistos[seq] = true;
       state.lastAppliedSeq = seq;
       gravarCursorPersistido(seq);
       novos.push(detalheSeguro(events[i]));
@@ -209,13 +315,28 @@
     try {
       if (afetaLocacao && typeof root.__DK_locacaoPgRecarregar === "function") {
         var aberta = root.__DK_locacaoDetalheAtual;
-        var editando =
-          aberta &&
-          aberta.__dkEditando === true;
-        if (editando) {
+        var formSujo = root.__DK_locacaoFormularioSujo === true || (aberta && aberta.__dkEditando === true);
+        var formAtivo = false;
+        try {
+          var doc = root.document;
+          var el = doc && doc.activeElement;
+          formAtivo = Boolean(
+            el &&
+              el.closest &&
+              el.closest("#operacaoInlineLocacao, #operacaoLocacaoForm, form[data-dk-locacao-form]")
+          );
+        } catch (e2) {
+          formAtivo = false;
+        }
+        if (formSujo || formAtivo) {
           root.dispatchEvent(
             new root.CustomEvent("dk:sync:conflito-edicao", {
-              detail: { module: "locacao", seq: detalhe.seq, audit_no: detalhe.audit_no },
+              detail: {
+                module: "locacao",
+                seq: detalhe.seq,
+                audit_no: detalhe.audit_no,
+                preservarEdicao: true,
+              },
             })
           );
         } else {
@@ -298,6 +419,7 @@
   }
 
   function dkSyncCatchUp(reason) {
+    garantirEscopoCursor();
     if (state.syncInFlight) {
       state.syncPending = true;
       return volta;
@@ -337,6 +459,7 @@
     dkSyncGetStatus: dkSyncGetStatus,
     dkSyncRotulo: dkSyncRotulo,
     dkSyncTextos: dkSyncTextos,
+    dkSyncTentarRealtime: dkSyncTentarRealtime,
     configurar: configurar,
     reset: reset,
     assinar: assinar,
@@ -349,6 +472,8 @@
     root.dkSyncGetStatus = dkSyncGetStatus;
     root.dkSyncRotulo = dkSyncRotulo;
     root.dkSyncTextos = dkSyncTextos;
+    root.dkSyncTentarRealtime = dkSyncTentarRealtime;
+    root.dkSyncReset = reset;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : null);

@@ -221,8 +221,18 @@ async function collectDkBackupPayload(opts = {}) {
   const pick = (t) => brParts.find((p) => p.type === t)?.value || "";
   const exportedAtBr = `${pick("year")}-${pick("month")}-${pick("day")}T${pick("hour")}:${pick("minute")}:${pick("second")}-03:00`;
 
-  const oficialCompleto = Boolean(oficialPg && oficialPg.ok);
+  const oficialContagensOk = Boolean(oficialPg && oficialPg.ok);
   const legadoOk = Boolean(supabase.ok || redis.ok);
+  /** Contagens oficiais ≠ dump relacional completo. Não usar como prova de restauração total. */
+  const classificacao = {
+    snapshot_legado: legadoOk,
+    contagens_oficiais_pg: oficialContagensOk,
+    backup_relacional_completo: false,
+    restauracao_comprovada: false,
+    nota:
+      "Inclui snapshot legado (quando disponível) e contagens/metadados PostgreSQL. " +
+      "Não contém dump completo das linhas oficiais. A proteção física WALG/PITR do Supabase permanece a referência de recuperação.",
+  };
 
   return {
     version: 3,
@@ -249,18 +259,16 @@ async function collectDkBackupPayload(opts = {}) {
         role: "snapshot_legado_cache",
       },
       oficial_pg: {
-        ok: oficialCompleto,
+        ok: oficialContagensOk,
         reason: oficialPg.reason,
         consistency: oficialPg.consistency,
-        role: "contagens_relacionais_oficiais",
+        role: "contagens_relacionais_oficiais_nao_dump",
       },
     },
-    complete: oficialCompleto && legadoOk,
-    completeReason: oficialCompleto
-      ? legadoOk
-        ? "oficial_pg_e_legado"
-        : "oficial_pg_sem_legado"
-      : "oficial_pg_incompleto",
+    classificacao,
+    /** Compatibilidade: complete=false evita induzir restauração total. */
+    complete: false,
+    completeReason: "contagens_oficiais_sem_dump_relacional_completo",
     counts: countRecords(data),
     oficialCounts: Object.fromEntries(
       Object.entries((oficialPg && oficialPg.tables) || {}).map(([k, v]) => [k, v && v.count != null ? v.count : null])
