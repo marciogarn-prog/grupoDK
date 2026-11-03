@@ -23,6 +23,9 @@ function resumoEvento(evento) {
   if (item.event_type === "system.rental_payment_fidelity_contract_verified") {
     return "Contrato de fidelidade de locações e pagamentos verificado";
   }
+  if (item.event_type === "system.maintenance_fidelity_contract_verified") {
+    return "Contrato de fidelidade da manutenção verificado";
+  }
   return mascararTexto(item.action || item.event_type || "");
 }
 
