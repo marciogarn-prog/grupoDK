@@ -1,5 +1,5 @@
 /**
  * Espelho raiz — Vercel descobre /api/dk-realtime-credencial.
- * Gate: REALTIME_AUTH_BLOCKED até JWT Supabase + política privada.
+ * ES256 atrás de feature gate; produção permanece REALTIME_AUTH_BLOCKED.
  */
 module.exports = require("../grupodkempreendimentos/api/dk-realtime-credencial.js");

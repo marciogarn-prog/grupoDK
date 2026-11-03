@@ -1,18 +1,24 @@
--- PENDENTE / NÃO APLICAR EM PRODUÇÃO sem:
--- 1) SUPABASE_JWT_SECRET (ou signing key) no servidor Vercel
--- 2) emissão de JWT curto com role=authenticated + claims DK (sid, empresa)
--- 3) prova de partição realtime.messages e broadcast
--- 4) backup físico confirmado + rollback da política
+-- =============================================================================
+-- PENDENTE — NÃO APLICAR EM PRODUÇÃO sem autorização explícita de Márcio/ChatGPT.
+-- =============================================================================
+-- Pré-requisitos:
+-- 1) Par ES256 gerado (supabase gen signing-key --algorithm ES256)
+-- 2) Import da chave no Dashboard → JWT Signing Keys (estado standby)
+-- 3) Rotação para Current (standby NÃO basta para confiar em JWTs mintados)
+-- 4) DK_REALTIME_ES256_JWK + KID + DK_REALTIME_ES256_TRUSTED=1 + DK_REALTIME_SINAL=1 na Vercel
+-- 5) Backup físico confirmado; rollback: recriar política antiga / desligar feature
 --
--- Este ficheiro documenta a política desejada. NÃO executa cutover automático.
+-- ATENÇÃO (OR de políticas PostgreSQL):
+-- A política atual dk_events_broadcast_ler (authenticated + tópico) é PERMISSIVA.
+-- Adicionar outra política restritiva SEM dropar a antiga NÃO reduz o acesso.
+-- É obrigatório DROP da política antiga na mesma janela de cutover.
+-- =============================================================================
 
--- Objetivo: substituir a política atual (só role authenticated + tópico)
--- por uma que exija claim de sessão DK no JWT.
---
--- Exemplo (NÃO aplicar agora):
---
+-- 1) Remover política permissiva antiga (cutover atómico sugerido)
 -- drop policy if exists dk_events_broadcast_ler on realtime.messages;
--- create policy dk_events_broadcast_ler
+
+-- 2) Leitura só com claims DK assinadas + escopo
+-- create policy dk_events_broadcast_ler_dk
 --   on realtime.messages
 --   for select
 --   to authenticated
@@ -22,11 +28,25 @@
 --     and realtime.topic() = 'dk:events'
 --     and coalesce((auth.jwt() ->> 'dk_portal')::boolean, false) = true
 --     and nullif(auth.jwt() ->> 'dk_sid', '') is not null
+--     and coalesce(auth.jwt() ->> 'role', '') = 'authenticated'
+--     and coalesce(auth.jwt() ->> 'dk_empresa', '') in ('locadora', 'centro', 'construtora')
 --   );
---
--- Impedir INSERT/broadcast a partir do papel authenticated (só o trigger server-side publica).
+
+-- 3) Negar publicação pelo navegador (só o trigger server-side escreve)
+-- drop policy if exists dk_events_broadcast_sem_write_cliente on realtime.messages;
 -- create policy dk_events_broadcast_sem_write_cliente
 --   on realtime.messages
 --   for insert
 --   to authenticated
 --   with check (false);
+
+-- 4) Negar anon explicitamente (sem policy = sem acesso com RLS)
+-- (não criar policy para anon)
+
+-- Rollback sugerido:
+-- drop policy if exists dk_events_broadcast_ler_dk on realtime.messages;
+-- drop policy if exists dk_events_broadcast_sem_write_cliente on realtime.messages;
+-- create policy dk_events_broadcast_ler
+--   on realtime.messages for select to authenticated
+--   using (extension = 'broadcast' and topic = 'dk:events' and realtime.topic() = 'dk:events');
+-- e DK_REALTIME_SINAL=0

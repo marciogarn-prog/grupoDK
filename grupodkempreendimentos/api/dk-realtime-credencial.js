@@ -1,16 +1,24 @@
 /**
- * Gate de credencial Realtime privada.
- * Enquanto não houver assinatura JWT reconhecida pelo Supabase vinculada
- * à sessão do portal, responde REALTIME_AUTH_BLOCKED e não emite token.
+ * Credencial Realtime privada (ES256) — feature gate DESLIGADO por defeito.
  *
- * Não usa service_role no browser. Não assina com DK_PORTAL_API_SECRET
- * (HMAC do portal ≠ JWT do projeto Supabase).
+ * Sem DK_REALTIME_SINAL=1 + DK_REALTIME_ES256_TRUSTED=1 + JWK/KID → REALTIME_AUTH_BLOCKED.
+ * Não usa SUPABASE_JWT_SECRET legado, não usa service_role, não usa HMAC do portal.
  */
 const {
   applyApiCors,
   requireLiveSession,
   assertEquipaClientProtocol,
+  enforceRateLimit,
+  onlyDigits,
+  loadOfficialSnapshotPayload,
+  findFuncionario,
 } = require("../lib/dk-portal-auth.cjs");
+const { emitirCredencialRealtime, emissorPronto } = require("../lib/dk-realtime-jwt-es256.cjs");
+
+function noStore(res) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+}
 
 function bloqueado(extra) {
   return {
@@ -19,12 +27,16 @@ function bloqueado(extra) {
     realtime: false,
     canal: "dk:events",
     private: true,
+    alg: "ES256",
+    catch_up: "/api/dk-sync",
+    polling_temporario: true,
     ...extra,
   };
 }
 
 module.exports = async function handler(req, res) {
   applyApiCors(res);
+  noStore(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
@@ -43,31 +55,54 @@ module.exports = async function handler(req, res) {
   if (!proto.ok) {
     return res.status(proto.status || 403).json(bloqueado({ hint: proto.reason || "forbidden" }));
   }
+  if (await enforceRateLimit(req, res, "realtime-cred", 30, { identity: onlyDigits(gate.cpf).slice(0, 11) || gate.sid })) {
+    return;
+  }
 
-  const jwtSecret = String(process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || "").trim();
-  const flag = String(process.env.DK_REALTIME_SINAL || "0").trim();
-  if (flag !== "1" || !jwtSecret) {
+  let empresa = "locadora";
+  let filial = "default";
+  try {
+    if (String(gate.role || "").trim() !== "owner") {
+      const payload = await loadOfficialSnapshotPayload();
+      const f = findFuncionario(payload, onlyDigits(gate.cpf).slice(0, 11));
+      if (!f || f.blocked) {
+        return res.status(403).json(bloqueado({ hint: "funcionario_bloqueado_ou_ausente" }));
+      }
+      empresa = String(f.empresa || "locadora").trim() || "locadora";
+      filial = String(f.filial || f.unidade || "default").trim() || "default";
+    } else {
+      empresa = String(gate.empresa || "locadora").trim() || "locadora";
+      filial = String(gate.filial || "default").trim() || "default";
+    }
+  } catch {
+    /* owner sem snapshot ainda pode seguir; demais já falharam acima */
+    if (String(gate.role || "").trim() !== "owner") {
+      return res.status(503).json(bloqueado({ hint: "snapshot_unavailable" }));
+    }
+  }
+
+  const pronto = emissorPronto();
+  if (!pronto.ok) {
     return res.status(503).json(
       bloqueado({
-        requisito_ausente: jwtSecret
-          ? "DK_REALTIME_SINAL"
-          : "SUPABASE_JWT_SECRET",
+        requisito_ausente: pronto.falta.join(","),
+        falta: pronto.falta,
         detalhe:
-          "Portal usa token HMAC próprio; Realtime exige JWT assinado com a chave do projeto Supabase. " +
-          "Sem essa chave no servidor e feature gate, a credencial não é emitida.",
-        catch_up: "/api/dk-sync",
-        polling_temporario: true,
+          "Emissor ES256 está no código. Falta chave confiável no Supabase (import + rotação Current), " +
+          "JWK privado no servidor e feature gates. Standby sozinho não autentica.",
       })
     );
   }
 
-  /* Feature gate futuro: só após JWT secret + política RLS por claims DK. */
-  return res.status(503).json(
-    bloqueado({
-      requisito_ausente: "politica_rls_claims_dk",
-      detalhe:
-        "A emissão de JWT Realtime ainda não está ligada: falta política RLS com claims de sessão/empresa e prova de broadcast.",
-      catch_up: "/api/dk-sync",
-    })
-  );
+  const out = emitirCredencialRealtime({
+    gate: { ...gate, ok: true },
+    empresa,
+    filial,
+  });
+  if (!out.ok) {
+    return res.status(out.status || 503).json(out.body || bloqueado({ hint: "emissao" }));
+  }
+
+  /* Não registar token em logs. */
+  return res.status(200).json(out.body);
 };

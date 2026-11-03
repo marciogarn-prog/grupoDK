@@ -1,7 +1,8 @@
 /**
  * Cursor técnico do Log (seq). Catch-up via GET /api/dk-sync.
  * sessionStorage guarda só o cursor da aba (não é autoridade de negócio).
- * WebSocket/Realtime: REALTIME_AUTH_BLOCKED até JWT Supabase + canal privado.
+ * WebSocket/Realtime: REALTIME_AUTH_BLOCKED até ES256 confiável (import+rotação Current).
+ * Revogação: não é instantânea no Realtime — residual até exp do JWT (~2 min); logout chama reset.
  */
 (function (root) {
   var CURSOR_KEY = "dk_sync_cursor_seq_v1";

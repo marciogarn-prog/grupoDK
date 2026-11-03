@@ -20,9 +20,12 @@ const backup = fs.readFileSync(path.join(root, "lib", "dk-collect-backup.cjs"), 
 const supabaseInit = fs.readFileSync(path.join(root, "supabase-init.js"), "utf8");
 
 assert.match(api, /REALTIME_AUTH_BLOCKED/);
-assert.match(api, /SUPABASE_JWT_SECRET/);
+assert.match(api, /ES256/);
+assert.match(api, /DK_REALTIME_ES256_TRUSTED|emissorPronto/);
 assert.ok(!/Bearer \$\{|service_role_key|SERVICE_ROLE/.test(api));
 assert.match(api, /DK_REALTIME_SINAL/);
+assert.match(fs.readFileSync(path.join(root, "lib", "dk-realtime-jwt-es256.cjs"), "utf8"), /assinarEs256/);
+assert.match(sqlPend, /OR de políticas|drop policy if exists dk_events_broadcast_ler/i);
 assert.match(syncSrc, /REALTIME_AUTH_BLOCKED/);
 assert.match(syncSrc, /dkSyncTentarRealtime/);
 assert.match(syncSrc, /dk_sync_cursor_scope_v1/);
@@ -58,7 +61,23 @@ async function testHandlerGate() {
   const abs = require.resolve(handlerPath);
   const original = Module._load;
   Module._load = function (request, parent, isMain) {
-    if (request.includes("dk-portal-auth")) return fakeAuth;
+    if (String(request).includes("dk-portal-auth")) {
+      return {
+        ...fakeAuth,
+        async enforceRateLimit() {
+          return false;
+        },
+        onlyDigits(v) {
+          return String(v || "").replace(/\D/g, "");
+        },
+        async loadOfficialSnapshotPayload() {
+          return {};
+        },
+        findFuncionario() {
+          return null;
+        },
+      };
+    }
     return original(request, parent, isMain);
   };
   try {
