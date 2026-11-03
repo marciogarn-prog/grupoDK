@@ -18,6 +18,11 @@ function resumoEvento(evento) {
   if (item.event_type === "system.realtime_initialized") return "Realtime inicializado";
   if (item.event_type === "system.integrity_baseline_created") return "Baseline de integridade criada";
   if (item.event_type === "system.vehicle_fidelity_contract_verified") return "Contrato de fidelidade dos veículos verificado";
+  if (item.event_type === "system.integrity_delta_registered") return "Delta de integridade registrado";
+  if (item.event_type === "system.integrity_delta_batch_registered") return "Lote de deltas de integridade registrado";
+  if (item.event_type === "system.rental_payment_fidelity_contract_verified") {
+    return "Contrato de fidelidade de locações e pagamentos verificado";
+  }
   return mascararTexto(item.action || item.event_type || "");
 }
 
