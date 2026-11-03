@@ -17236,7 +17236,15 @@
       };
     };
     const revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
-    return post({ operacao: "upsert", cliente, base_revision: revisao });
+    const operation_id =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
+    return post({ operacao: "upsert", cliente, base_revision: revisao, operation_id });
   }
 
   async function portalAgendarEnvioClienteParaNuvem(cpfDigits) {
@@ -24338,7 +24346,15 @@
         };
       };
       const revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
-      const ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao });
+      const operation_id =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+              const r = (Math.random() * 16) | 0;
+              const v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+      const ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao, operation_id });
       if (ultimo.revision && ultimo.status !== 409) window.__DK_VEICULO_REVISAO = ultimo.revision;
       return ultimo;
     }
