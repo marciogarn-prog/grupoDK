@@ -598,7 +598,7 @@
     if (typeof window.addAuditLog === "function") {
       addAuditLog("manutencao_rapida", "gravar", `${os} · ${placa} · ${labelsServicos(rec)}`);
     }
-    void pushManutencoesParaNuvem(next);
+    void pushManutencoesParaNuvem(next, { registroUnico: rec });
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       void window.__DK_pushCloudSnapshotNow({ manual: true, force: true });
     }
@@ -613,11 +613,18 @@
 
   async function pullManutencoesDaNuvem() {
     try {
-      const r = await fetch(`/api/cadastro-manutencoes-rapidas?nocache=${Date.now()}`, {
+      let r = await fetch(`/api/dk-manutencao?kind=rapida&nocache=${Date.now()}`, {
         headers: apiHeadersManut(),
         cache: "no-store",
       });
-      const j = await r.json().catch(() => ({}));
+      let j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !Array.isArray(j.data)) {
+        r = await fetch(`/api/cadastro-manutencoes-rapidas?nocache=${Date.now()}`, {
+          headers: apiHeadersManut(),
+          cache: "no-store",
+        });
+        j = await r.json().catch(() => ({}));
+      }
       if (!r.ok || !j.ok || !Array.isArray(j.data)) return false;
       const local = loadArr(STORAGE_KEY);
       const merged =
@@ -634,13 +641,69 @@
     }
   }
 
+  function novoOperationIdManut() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  function operationIdEstavelManut(chave) {
+    if (!window.__DK_MANUT_OP_IDS) window.__DK_MANUT_OP_IDS = Object.create(null);
+    if (!window.__DK_MANUT_OP_IDS[chave]) window.__DK_MANUT_OP_IDS[chave] = novoOperationIdManut();
+    return window.__DK_MANUT_OP_IDS[chave];
+  }
+
+  async function pushManutencaoUmaAtomica(rec) {
+    const chave =
+      "rapida:create:" +
+      String(rec && rec.id != null ? rec.id : "") +
+      ":" +
+      String(rec && rec.placa != null ? rec.placa : "") +
+      ":" +
+      String(rec && (rec.criadoEm || rec.dataLancamento) != null ? rec.criadoEm || rec.dataLancamento : "");
+    const operation_id = operationIdEstavelManut(chave);
+    const r = await fetch("/api/dk-manutencao", {
+      method: "POST",
+      headers: { ...apiHeadersManut(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        op: "create",
+        action: "create",
+        source_kind: "rapida",
+        kind: "rapida",
+        id: "rapida:" + String(rec.id || ""),
+        manutencao: rec,
+        operation_id,
+      }),
+      cache: "no-store",
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j && j.ok !== false) {
+      try {
+        delete window.__DK_MANUT_OP_IDS[chave];
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }
+    return false;
+  }
+
   async function pushManutencoesParaNuvem(list, opts) {
     try {
+      const lista = Array.isArray(list) ? list : loadArr(STORAGE_KEY);
+      if (opts && opts.registroUnico) {
+        return pushManutencaoUmaAtomica(opts.registroUnico);
+      }
       const envio = {
-        data: Array.isArray(list) ? list : loadArr(STORAGE_KEY),
+        data: lista,
         base_revision: window.__DK_CLOUD_REVISION || "",
       };
       if (opts && opts.automatico === true) envio.automatico = true;
+      if (opts && opts.operation_id) envio.operation_id = opts.operation_id;
+      if (opts && opts.manutencao) envio.manutencao = opts.manutencao;
       const r = await fetch("/api/cadastro-manutencoes-rapidas", {
         method: "POST",
         headers: { ...apiHeadersManut(), "Content-Type": "application/json" },
@@ -648,6 +711,10 @@
         cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
+      if (r.status === 400 && j && j.reason === "operation_id_obrigatorio" && opts && opts.registroUnico == null) {
+        const ultimo = lista[lista.length - 1];
+        if (ultimo) return pushManutencaoUmaAtomica(ultimo);
+      }
       if (!r.ok || j.success !== true || !Array.isArray(j.data)) return false;
       const local = loadArr(STORAGE_KEY);
       const merged =

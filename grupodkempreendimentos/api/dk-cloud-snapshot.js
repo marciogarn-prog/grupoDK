@@ -26,6 +26,11 @@ const {
 } = require("../lib/dk-supabase-doorman.cjs");
 const { revisaoConflita } = require("../lib/dk-persistencia-central.cjs");
 const {
+  manutencaoUnificadaAtiva,
+  listarManutencoes,
+  FONTE: FONTE_MANUT_UNIFICADA,
+} = require("../lib/dk-manutencao-fonte.cjs");
+const {
   cpfSoDigitoRepetido,
   isCodigoAcimaDoUltimoClienteOficial,
 } = require("../lib/dk-sequencia-cliente-0427.cjs");
@@ -1584,11 +1589,31 @@ async function handler(req, res) {
         return cached;
       }
 
-      function responderPayloadGet(payload, revisaoResp, source, pendente) {
-        const safe =
+      async function overlayManutencaoRelacional(payload) {
+        if (!payload || typeof payload !== "object") return payload;
+        if (!(await manutencaoUnificadaAtiva(redis))) return payload;
+        const hist = await listarManutencoes("historico");
+        const rap = await listarManutencoes("rapida");
+        const out = { ...payload };
+        if (!hist.ok || !rap.ok) {
+          out.dk_manutencoes_cadastro = [];
+          out.dk_manutencoes_rapidas_v1 = [];
+          out._dk_manutencao_pg_erro = true;
+          out._dk_manutencao_fonte = FONTE_MANUT_UNIFICADA;
+          return out;
+        }
+        out.dk_manutencoes_cadastro = hist.data;
+        out.dk_manutencoes_rapidas_v1 = rap.data;
+        out._dk_manutencao_fonte = FONTE_MANUT_UNIFICADA;
+        return out;
+      }
+
+      async function responderPayloadGet(payload, revisaoResp, source, pendente) {
+        const base =
           channel === "default"
             ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
             : payload;
+        const safe = await overlayManutencaoRelacional(base);
         return res.status(200).json({
           ok: true,
           success: true,
@@ -1626,7 +1651,7 @@ async function handler(req, res) {
             source: "supabase",
           });
         }
-        return responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
+        return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
       }
 
       const revCurta = redis
@@ -1640,7 +1665,7 @@ async function handler(req, res) {
       }
       const decisao = decidirLeituraSnapshot(cached, revisao);
       if (decisao.acao === "cache") {
-        return responderPayloadGet(cached.payload, decisao.updatedAt, "supabase", false);
+        return await responderPayloadGet(cached.payload, decisao.updatedAt, "supabase", false);
       }
 
       const oficial = await lerPayloadOficialUnico(LABEL, redis, REDIS_KEY, revisao.updatedAt, () =>
@@ -1650,7 +1675,7 @@ async function handler(req, res) {
         console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
         await lerCacheCompleto();
         if (cached && cached.payload) {
-          return responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
+          return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
         }
         return res.status(503).json({
           ok: false,
@@ -1671,11 +1696,17 @@ async function handler(req, res) {
           source: "supabase",
         });
       }
-      return responderPayloadGet(oficial.payload, revisaoPayload, "supabase", false);
+      return await responderPayloadGet(oficial.payload, revisaoPayload, "supabase", false);
     }
 
     if (req.method === "POST") {
       const body = parseBody(req);
+      if (await manutencaoUnificadaAtiva(redis)) {
+        if (body.payload && typeof body.payload === "object") {
+          delete body.payload.dk_manutencoes_cadastro;
+          delete body.payload.dk_manutencoes_rapidas_v1;
+        }
+      }
       const operador = body.operador === true;
       let locacoesLockToken = "";
       if (!redis) {

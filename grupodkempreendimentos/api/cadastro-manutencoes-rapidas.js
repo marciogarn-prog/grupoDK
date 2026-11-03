@@ -8,6 +8,12 @@ const { applyApiCors, enforceRateLimit, requireLiveSession, requireModuleAccess 
 const { executarGravacaoCentral, ioSnapshotOficial } = require("../lib/dk-persistencia-central.cjs");
 const { manutencaoRelacionalAtiva, atenderManutencaoRelacional } = require("../lib/dk-manutencao-rapida-pg.cjs");
 const { diskIoSafeModeAtivo, devePularGravacaoManutencaoAutomatica } = require("../lib/dk-disk-io-safe-mode.cjs");
+const {
+  manutencaoUnificadaAtiva,
+  listarManutencoes,
+  FONTE: FONTE_MANUT_UNIFICADA,
+} = require("../lib/dk-manutencao-fonte.cjs");
+const atomicLpm = require("../lib/dk-atomic-write-lpm.cjs");
 
 const STORAGE_KEY = "dk:portal:manutencoes_rapidas:v1";
 const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
@@ -92,6 +98,27 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      if (await manutencaoUnificadaAtiva(redis)) {
+        const lido = await listarManutencoes("rapida");
+        if (!lido.ok) {
+          return res.status(lido.status || 503).json({
+            ok: false,
+            success: false,
+            reason: lido.reason || "pg_indisponivel",
+            source: FONTE_MANUT_UNIFICADA,
+            fallback: false,
+          });
+        }
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          data: lido.data,
+          source: FONTE_MANUT_UNIFICADA,
+          revision: null,
+          updated_at: null,
+          fallback: false,
+        });
+      }
       if (manutencaoRelacionalAtiva()) {
         const rel = await atenderManutencaoRelacional(
           { method: "GET" },
@@ -180,6 +207,36 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.error("[DK manutencao] comparacao do modo seguro", err && err.message ? err.message : err);
         }
+      }
+      if (await manutencaoUnificadaAtiva(redis)) {
+        const opId = body?.operation_id || body?.operationId;
+        const registro = body?.manutencao || body?.registro || (incoming.length === 1 ? incoming[0] : null);
+        if (!opId || !registro) {
+          return res.status(400).json({
+            ok: false,
+            reason: "operation_id_obrigatorio",
+            source: FONTE_MANUT_UNIFICADA,
+            fallback: false,
+            hint: "cutover: use /api/dk-manutencao com operation_id; snapshot não é autoridade de write",
+          });
+        }
+        const atom = await atomicLpm.mutarManutencaoAtomico({
+          action: body.op || body.action || "create",
+          id: body.id || (registro._pgId ? registro._pgId : "rapida:" + String(registro.id || "")),
+          sourceKind: "rapida",
+          manutencao: registro,
+          expectedVersion: body.version != null ? body.version : registro._record_version,
+          operationId: opId,
+          actorUserId: writeGate.cpf || null,
+          actorSessionId: writeGate.sid || null,
+          route: "/api/cadastro-manutencoes-rapidas",
+          method: "POST",
+        });
+        if (!atom.ok) return res.status(atom.status || 400).json({ ...(atom.body || atom), fallback: false });
+        const lido = await listarManutencoes("rapida");
+        return res.status(200).json(
+          corpoPostManutencaoRelacional(lido.ok ? lido.data : [], atom.body && atom.body.audit_no != null ? String(atom.body.audit_no) : null, true, "")
+        );
       }
       if (manutencaoRelacionalAtiva()) {
         const rel = await atenderManutencaoRelacional(

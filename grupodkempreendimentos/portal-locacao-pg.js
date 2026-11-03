@@ -183,20 +183,42 @@
     }
   }
 
+  function novoOperationId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   async function enviarUma(loc) {
     if (ehResumo(loc)) return { status: 400, data: { ok: false, reason: "resumo_nao_e_locacao" } };
+    const nc = digitos(loc.numeroContrato);
+    const chaveLogica = nc + ":" + (loc.pgId ? "atualizar" : "criar") + ":" + assinatura(loc);
+    if (!window.__DK_LOCACAO_OP_IDS) window.__DK_LOCACAO_OP_IDS = Object.create(null);
+    if (!window.__DK_LOCACAO_OP_IDS[chaveLogica]) window.__DK_LOCACAO_OP_IDS[chaveLogica] = novoOperationId();
+    const operation_id = window.__DK_LOCACAO_OP_IDS[chaveLogica];
     const res = await fetch("/api/dk-locacao?nocache=" + Date.now(), {
       method: "POST",
       cache: "no-store",
       headers: headers(),
       body: JSON.stringify({
         op: loc.pgId ? "atualizar" : "criar",
-        numero: digitos(loc.numeroContrato),
+        numero: nc,
         version: Number(loc.pgVersion) || 0,
         locacao: semMarcador(loc),
+        operation_id,
       }),
     });
     const data = await res.json().catch(() => ({}));
+    if (res.ok && data && data.ok !== false) {
+      try {
+        delete window.__DK_LOCACAO_OP_IDS[chaveLogica];
+      } catch {
+        /* ignore */
+      }
+    }
     return { status: res.status, data };
   }
 

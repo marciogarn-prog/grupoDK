@@ -16846,7 +16846,7 @@ if (manutencaoCadastroForm) {
     );
     return;
   }
-  manutencoes.push({
+  const novoManut = {
     id: Date.now(),
     placa,
     servicos: servicosSelecionados,
@@ -16855,8 +16855,50 @@ if (manutencaoCadastroForm) {
     dataPrevistaSaida,
     dataRealSaida,
     valor,
-  });
+  };
+  manutencoes.push(novoManut);
   saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+  try {
+    if (!window.__DK_MANUT_HIST_OP_IDS) window.__DK_MANUT_HIST_OP_IDS = Object.create(null);
+    const chaveManut = "historico:create:" + String(novoManut.id) + ":" + placa;
+    if (!window.__DK_MANUT_HIST_OP_IDS[chaveManut]) {
+      window.__DK_MANUT_HIST_OP_IDS[chaveManut] =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+              const r = (Math.random() * 16) | 0;
+              const v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+    }
+    const operation_id = window.__DK_MANUT_HIST_OP_IDS[chaveManut];
+    const headersManut =
+      typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    void fetch("/api/dk-manutencao", {
+      method: "POST",
+      headers: { ...headersManut, "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        op: "create",
+        action: "create",
+        source_kind: "historico",
+        kind: "historico",
+        id: "historico:" + String(novoManut.id),
+        manutencao: novoManut,
+        operation_id,
+      }),
+    }).then((r) => {
+      if (r && r.ok) {
+        try {
+          delete window.__DK_MANUT_HIST_OP_IDS[chaveManut];
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  } catch {
+    /* ignore */
+  }
   addAuditLog("cadastrar_manutencao", "manutencao", `${placa} - ${servico}`);
   manutencaoCadastroForm.reset();
   if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();

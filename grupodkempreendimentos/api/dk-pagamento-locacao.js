@@ -58,6 +58,24 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
       const body = corpoJson(req);
       if (body.mode !== "write_probe") {
+        const opId = body.operation_id || body.operationId;
+        if (opId) {
+          const { normalizarOperacao } = require("../lib/dk-pagamento-operacao.cjs");
+          const atomicLpm = require("../lib/dk-atomic-write-lpm.cjs");
+          const atom = await atomicLpm.mutarPagamentoAtomico({
+            operacao: normalizarOperacao(body.operacao) || body.operacao,
+            pagamento: body.pagamento,
+            id: body.id,
+            numeroContrato: body.numeroContrato,
+            expectedVersion: body.version,
+            operationId: opId,
+            actorUserId: onlyDigits(gate.cpf).slice(0, 11) || null,
+            actorSessionId: gate.sid || null,
+            route: "/api/dk-pagamento-locacao",
+            method: "POST",
+          });
+          return res.status(atom.status || 400).json(atom.body || atom);
+        }
         const decisao = canary.avaliarEscritaCanario(
           {
             autenticado: true,

@@ -153,16 +153,51 @@
       return lerRemoto(numeroContrato, true);
     }
 
+    function novoOperationId() {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+
+    function operationIdEstavel(chave) {
+      if (!window.__DK_PAG_OP_IDS) window.__DK_PAG_OP_IDS = Object.create(null);
+      if (!window.__DK_PAG_OP_IDS[chave]) window.__DK_PAG_OP_IDS[chave] = novoOperationId();
+      return window.__DK_PAG_OP_IDS[chave];
+    }
+
     function prepararEscrita(op, numeroContrato, pagamento, extra) {
       const negocio = copiarNegocio(pagamento) || {};
-      const corpo = { op, numeroContrato: String(numeroContrato || "").trim() };
-      for (const chave of Object.keys(negocio)) corpo[chave] = negocio[chave];
+      const nc = String(numeroContrato || "").trim();
+      const mapa = { criar: "create", create: "create", atualizar: "update", update: "update", remover: "remove", remove: "remove" };
+      const operacao = mapa[String(op || "").trim()] || String(op || "").trim();
+      const idExtra = extra && extra.id ? String(extra.id) : "";
+      const chave =
+        nc +
+        ":" +
+        operacao +
+        ":" +
+        (idExtra || String(negocio.protocoloLancamento || "")) +
+        ":" +
+        String(negocio.data || "") +
+        ":" +
+        String(negocio.valor || "");
+      const operation_id = (extra && extra.operation_id) || operationIdEstavel(chave);
+      const corpo = {
+        operacao,
+        op,
+        numeroContrato: nc,
+        pagamento: negocio,
+        operation_id,
+      };
       if (extra && typeof extra === "object") {
         if (extra.id) corpo.id = String(extra.id);
         if (extra.version != null) corpo.version = Number(extra.version);
         if (extra.campos && typeof extra.campos === "object") corpo.campos = { ...extra.campos };
       }
-      if (op === "remover") corpo.removido = true;
+      if (operacao === "remove") corpo.removido = true;
       const medida = bytesDe(corpo);
       return {
         method: "POST",
@@ -170,6 +205,7 @@
         body: corpo,
         bytes: medida.bytes,
         texto: medida.texto,
+        chaveOperationId: chave,
       };
     }
 
