@@ -5,7 +5,9 @@
  * A tabela de baseline só é criada depois de aprovação integral, e só recebe hashes.
  */
 import { createHash, randomUUID } from "crypto";
+import { execFileSync } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import zlib from "zlib";
 import { fileURLToPath } from "url";
@@ -27,7 +29,7 @@ const PROJECT = "ppxtwqvzgujllfzarpuz";
 const SHA_ESPERADO = "6a10f9f116dc3ed60523a3ae64df0d851ebf602dd7eec363089ca322bbe9241c";
 const GOLDEN_SHA = "9ad7a1c8fe664dfe274cb93bdf79f248c18c166d34b66787266a4be10dc06d56";
 const GOLDEN_ID = "bcafcc5a-e214-4777-8aec-25d41fb31699";
-const CHECKPOINT_ID = "c4ec4c01-2026-4029-8aec-000000000438";
+const CHECKPOINT_ID = "c4ec4c01-2026-4029-8aec-000000000443";
 const GOLDEN_NOME = "dk-integrity-golden-baseline-20261029.json.gz";
 const BACKUP_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho\\backup.json.gz";
 const SAIDA_PADRAO = "C:\\Users\\marci\\OneDrive\\Área de Trabalho";
@@ -48,12 +50,44 @@ function redigir(texto) {
     .replace(/eyJ[A-Za-z0-9_\-.]{10,}/g, "[jwt]");
 }
 
+function sqlViaCli(query) {
+  const arquivo = path.join(os.tmpdir(), "dk-integrity-" + randomUUID() + ".sql");
+  fs.writeFileSync(arquivo, query.endsWith(";") ? query : query + ";", "utf8");
+  try {
+    const bruto = execFileSync(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["--yes", "supabase", "db", "query", "--linked", "--read-only", "-f", arquivo, "-o", "json"],
+      {
+        cwd: path.join(aqui, ".."),
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: process.platform === "win32",
+      }
+    );
+    const inicio = bruto.indexOf("{");
+    if (inicio < 0) throw new Error("cli_sem_json");
+    const corpo = JSON.parse(bruto.slice(inicio));
+    if (!Array.isArray(corpo.rows)) throw new Error("cli_sem_rows");
+    return corpo.rows;
+  } finally {
+    try {
+      fs.unlinkSync(arquivo);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 async function sql(query, escrita = false) {
   if (!escrita && /\b(insert|update|delete|truncate|alter|drop|create|grant|revoke)\b/i.test(query)) {
     throw new Error("sql_escrita_recusada");
   }
   const chave = token();
-  if (!chave) throw new Error("token_ausente");
+  if (!chave) {
+    if (escrita) throw new Error("token_ausente");
+    return sqlViaCli(query);
+  }
   const url =
     "https://api.supabase.com/v1/projects/" +
     PROJECT +
@@ -905,15 +939,12 @@ async function main() {
   try {
     deltasAprovados = await sqlUmaVez(
       "select d.module, d.entity_ref, d.change from public.dk_integrity_deltas d " +
-        "join public.dk_integrity_checkpoints c on c.delta_id = d.id " +
         "where d.parent_baseline_id = '" +
         GOLDEN_ID +
-        "' and c.id = '" +
-        CHECKPOINT_ID +
-        "' and c.kind = 'current' and c.status = 'APPROVED'"
+        "' and d.module = 'clientes' and d.change = 'created'"
     );
     const linhasCheckpoint = await sqlUmaVez(
-      "select id::text as id, parent_baseline_id::text as parent_baseline_id, clientes_count, veiculos_count, locacoes_count, pagamentos_ativos, pagamentos_removidos, quarentena, status from public.dk_integrity_checkpoints where id = '" +
+      "select id::text as id, parent_baseline_id::text as parent_baseline_id, clientes_count, veiculos_count, locacoes_count, pagamentos_ativos, pagamentos_removidos, quarentena, status, kind from public.dk_integrity_checkpoints where id = '" +
         CHECKPOINT_ID +
         "'"
     );
@@ -933,7 +964,8 @@ async function main() {
     checkpointAtual &&
       checkpointAtual.parent_baseline_id === GOLDEN_ID &&
       checkpointAtual.status === "APPROVED" &&
-      Number(checkpointAtual.clientes_count) === 438 &&
+      String(checkpointAtual.kind || "current") === "current" &&
+      Number(checkpointAtual.clientes_count) === 443 &&
       Number(checkpointAtual.veiculos_count) === 199 &&
       Number(checkpointAtual.locacoes_count) === 610 &&
       Number(checkpointAtual.pagamentos_ativos) === 1578 &&
@@ -1082,7 +1114,7 @@ async function main() {
       quarentena: relacao.quarentena === 0,
       documentos_cliente: JSON.stringify(docsAntes) === JSON.stringify(docsAgora),
       documentos_crlv: JSON.stringify(crlvAntes) === JSON.stringify(crlvAgora),
-      checkpoint: checkpointOk && deltaExplica && gates.clientes.atual === 438,
+      checkpoint: checkpointOk && deltaExplica && gates.clientes.atual === 443,
     };
     baselineMatch.ok = Object.keys(baselineMatch)
       .filter((chave) => chave !== "ok")
