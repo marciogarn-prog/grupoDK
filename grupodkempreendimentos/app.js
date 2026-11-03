@@ -2354,6 +2354,11 @@ function clearSession() {
   } catch {
     // ignore
   }
+  try {
+    window.dispatchEvent(new CustomEvent("dk:sessao:logout"));
+  } catch {
+    // ignore
+  }
 }
 
 function isSalvarClienteUnlockedThisSession() {

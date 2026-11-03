@@ -39,17 +39,19 @@ function lerConfig(env) {
   const ttl = Math.min(300, Math.max(30, Number(e.DK_REALTIME_JWT_TTL_SEC) || DEFAULT_TTL_SEC));
   const sinal = String(e.DK_REALTIME_SINAL || "0").trim() === "1";
   const trusted = String(e.DK_REALTIME_ES256_TRUSTED || "0").trim() === "1";
+  const scopeOk = String(e.DK_REALTIME_SCOPE_ISOLATION || "0").trim() === "1";
   const iss = String(e.DK_REALTIME_JWT_ISS || e.SUPABASE_URL || DEFAULT_ISS)
     .trim()
     .replace(/\/$/, "");
   const issuer = /\/auth\/v1$/i.test(iss) ? iss : `${iss}/auth/v1`;
-  return { jwk, kid, ttl, sinal, trusted, issuer };
+  return { jwk, kid, ttl, sinal, trusted, scopeOk, issuer };
 }
 
 function requisitosAusentes(cfg) {
   const falta = [];
   if (!cfg.sinal) falta.push("DK_REALTIME_SINAL");
   if (!cfg.trusted) falta.push("DK_REALTIME_ES256_TRUSTED");
+  if (!cfg.scopeOk) falta.push("DK_REALTIME_SCOPE_ISOLATION");
   if (!cfg.jwk || cfg.jwk.kty !== "EC" || cfg.jwk.crv !== "P-256" || !cfg.jwk.d) {
     falta.push("DK_REALTIME_ES256_JWK");
   }
@@ -89,9 +91,14 @@ function montarClaims(gate, opts) {
   const ttl = Number(opts && opts.ttl) || DEFAULT_TTL_SEC;
   const cpf = String((gate && gate.cpf) || "").replace(/\D/g, "").slice(0, 11);
   const sid = String((gate && gate.sid) || "").trim();
-  const empresa = String((opts && opts.empresa) || (gate && gate.empresa) || "locadora").trim() || "locadora";
-  const filial = String((opts && opts.filial) || (gate && gate.filial) || "default").trim() || "default";
+  const { normalizarEmpresa, normalizarFilial } = require("./dk-realtime-scope.cjs");
+  const empresa =
+    normalizarEmpresa((opts && opts.empresa) || (gate && gate.empresa) || "locadora") || "locadora";
+  const filial = normalizarFilial((opts && opts.filial) || (gate && gate.filial) || "default");
   const roleDk = String((gate && gate.role) || "").trim() || "equipa";
+  if (String(roleDk).toLowerCase() === "service_role") {
+    throw new Error("service_role_proibido");
+  }
   return {
     iss: opts.issuer,
     aud: "authenticated",
@@ -155,6 +162,9 @@ function verificarEs256(token, publicJwk, opts) {
   if (opts && opts.issuer && payload.iss !== opts.issuer) return { ok: false, reason: "issuer", payload };
   if (opts && opts.aud && payload.aud !== opts.aud) return { ok: false, reason: "audience", payload };
   if (payload.role !== "authenticated") return { ok: false, reason: "role", payload };
+  if (String(payload.role || "").toLowerCase() === "service_role") {
+    return { ok: false, reason: "service_role_proibido", payload };
+  }
   if (payload.dk_portal !== true) return { ok: false, reason: "dk_portal", payload };
   return { ok: true, header, payload };
 }
@@ -213,12 +223,66 @@ function emitirCredencialRealtime(opts) {
     };
   }
 
-  const claims = montarClaims(gate, {
-    issuer: cfg.issuer,
-    ttl,
-    empresa: opts.empresa,
-    filial: opts.filial,
-  });
+  const { topicoRealtime, normalizarEmpresa, isolamentoPronto } = require("./dk-realtime-scope.cjs");
+  const empresa = normalizarEmpresa(opts.empresa || (gate && gate.empresa) || "locadora");
+  if (!empresa) {
+    return {
+      ok: false,
+      status: 403,
+      body: { ok: false, reason: "REALTIME_AUTH_BLOCKED", hint: "empresa_invalida" },
+    };
+  }
+  const canal = topicoRealtime(empresa);
+  if (!canal) {
+    return {
+      ok: false,
+      status: 503,
+      body: { ok: false, reason: "SCOPE_ISOLATION_BLOCKED", hint: "topico_ausente" },
+    };
+  }
+  if (!forcar) {
+    const iso = isolamentoPronto(env);
+    if (!iso.ok) {
+      return {
+        ok: false,
+        status: 503,
+        body: {
+          ok: false,
+          reason: "SCOPE_ISOLATION_BLOCKED",
+          realtime: false,
+          detalhe: iso.detalhe,
+          catch_up: "/api/dk-sync",
+        },
+      };
+    }
+  }
+
+  let claims;
+  try {
+    claims = montarClaims(gate, {
+      issuer: cfg.issuer,
+      ttl,
+      empresa,
+      filial: opts.filial,
+    });
+  } catch (errClaims) {
+    return {
+      ok: false,
+      status: 500,
+      body: {
+        ok: false,
+        reason: "REALTIME_AUTH_BLOCKED",
+        hint: String(errClaims && errClaims.message ? errClaims.message : "claims"),
+      },
+    };
+  }
+  if (String(claims.role).toLowerCase() === "service_role") {
+    return {
+      ok: false,
+      status: 500,
+      body: { ok: false, reason: "REALTIME_AUTH_BLOCKED", hint: "service_role_proibido" },
+    };
+  }
 
   let token;
   try {
@@ -246,7 +310,7 @@ function emitirCredencialRealtime(opts) {
       kid,
       expires_in: ttl,
       exp: claims.exp,
-      canal: "dk:events",
+      canal,
       private: true,
       token,
       /** Revogação: Realtime só reavalia RLS no join ou no access_token; residual até exp. */

@@ -23,8 +23,10 @@ assert.match(api, /REALTIME_AUTH_BLOCKED/);
 assert.match(api, /ES256/);
 assert.match(api, /DK_REALTIME_ES256_TRUSTED|emissorPronto/);
 assert.ok(!/Bearer \$\{|service_role_key|SERVICE_ROLE/.test(api));
-assert.match(api, /DK_REALTIME_SINAL/);
-assert.match(fs.readFileSync(path.join(root, "lib", "dk-realtime-jwt-es256.cjs"), "utf8"), /assinarEs256/);
+assert.match(api, /SCOPE_ISOLATION_BLOCKED|DK_REALTIME_SCOPE_ISOLATION/);
+const jwtLib = fs.readFileSync(path.join(root, "lib", "dk-realtime-jwt-es256.cjs"), "utf8");
+assert.match(jwtLib, /assinarEs256/);
+assert.match(jwtLib, /DK_REALTIME_SINAL/);
 assert.match(sqlPend, /OR de políticas|drop policy if exists dk_events_broadcast_ler/i);
 assert.match(syncSrc, /REALTIME_AUTH_BLOCKED/);
 assert.match(syncSrc, /dkSyncTentarRealtime/);
@@ -76,6 +78,10 @@ async function testHandlerGate() {
         findFuncionario() {
           return null;
         },
+        async readSessaoAtiva() {
+          return { at: Date.now(), sid: "sid-teste", ip: "", deviceId: "" };
+        },
+        TITULAR_CEO_CPF: "00000000000",
       };
     }
     return original(request, parent, isMain);
@@ -103,9 +109,12 @@ async function testHandlerGate() {
       }
     );
     assert.equal(status, 503);
-    assert.equal(body.reason, "REALTIME_AUTH_BLOCKED");
+    assert.ok(
+      body.reason === "REALTIME_AUTH_BLOCKED" || body.reason === "SCOPE_ISOLATION_BLOCKED",
+      JSON.stringify(body)
+    );
     assert.equal(body.realtime, false);
-    assert.ok(body.requisito_ausente);
+    assert.ok(body.requisito_ausente || body.detalhe);
   } finally {
     Module._load = original;
     delete require.cache[abs];
@@ -216,18 +225,19 @@ async function testCatchUpSimulado() {
 
   // Sessão B isolada
   const winB = makeWindow(storeB);
-  winB.__DK_portalSessao = { cpf: "22222222222", sid: "B" };
+  winB.__DK_portalSessao = { cpf: "22222222222", sid: "B", empresa: "locadora" };
   const apiB = loadSync(winB, fetchFactory("B"));
   const rB = await apiB.dkSyncCatchUp("B");
   assert.equal(rB.ok, true);
   assert.equal(apiB.dkSyncGetStatus().lastAppliedSeq, 4);
 
-  // Cenário 10: troca de conta na mesma aba — cursor não reutiliza escopo anterior
-  winA.__DK_portalSessao = { cpf: "33333333333", sid: "C" };
+  // Cenário 10: troca de conta na mesma aba — cursor não reutiliza escopo (sem CPF no id)
+  winA.__DK_portalSessao = { cpf: "33333333333", sid: "C", empresa: "locadora" };
   const antes = Number(storeA.get("dk_sync_cursor_seq_v1") || 0);
   assert.ok(antes >= 4);
   await apiA.dkSyncCatchUp("troca");
-  assert.equal(storeA.get("dk_sync_cursor_scope_v1"), "33333333333:C");
+  assert.equal(storeA.get("dk_sync_cursor_scope_v1"), "C:locadora");
+  assert.doesNotMatch(String(storeA.get("dk_sync_cursor_scope_v1")), /\d{11}/);
 
   // Realtime permanece bloqueado
   const rt = await apiA.dkSyncTentarRealtime();
@@ -239,3 +249,4 @@ async function testCatchUpSimulado() {
 await testHandlerGate();
 await testCatchUpSimulado();
 console.log("realtime auth bloqueado + catch-up simulado ok");
+process.exit(0);

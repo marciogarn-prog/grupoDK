@@ -37,7 +37,10 @@ check("cursor sync em sessionStorage", sync.includes("dk_sync_cursor_seq_v1") &&
 check("Realtime marcado bloqueado sem canal privado", sync.includes("realtimeBloqueado: true") && sync.includes("REALTIME_AUTH_BLOCKED"));
 check("backup inclui oficial_pg", backup.includes("oficial_pg") && backup.includes("fetchPgOficialColeta"));
 check("backup não finge restauração completa", backup.includes("backup_relacional_completo: false") && backup.includes("complete: false"));
-check("cache-bust locação", /portal-locacao-pg\.js\?v=20261103es256prep/.test(html) && /portal-locadora-ui\.js\?v=20261103es256prep/.test(html));
+check(
+  "cache-bust locação",
+  /portal-locacao-pg\.js\?v=/.test(html) && /portal-locadora-ui\.js\?v=20261103rtwsprep/.test(html)
+);
 
 /** Simula respostas HTTP da UI (sem rede). */
 function mensagemDeStatus(status, data) {

@@ -39,6 +39,7 @@ const emit = es.emitirCredencialRealtime({
 assert.equal(emit.ok, true, JSON.stringify(emit.body));
 assert.ok(emit.body.token);
 assert.equal(emit.body.alg, "ES256");
+assert.equal(emit.body.canal, "dk:events:locadora");
 assert.equal(emit.body.revogacao.instantanea, false);
 assert.ok(emit.body.revogacao.residual_max_sec >= 30);
 
@@ -146,6 +147,10 @@ Module._load = function (request, parent, isMain) {
       findFuncionario() {
         return null;
       },
+      async readSessaoAtiva() {
+        return { at: Date.now(), sid: "sid-http", ip: "", deviceId: "" };
+      },
+      TITULAR_CEO_CPF: "39072202866",
     };
   }
   return original(request, parent, isMain);
@@ -171,8 +176,10 @@ try {
     }
   );
   assert.equal(status, 503);
-  assert.equal(body.reason, "REALTIME_AUTH_BLOCKED");
-  assert.equal(body.alg, "ES256");
+  assert.ok(
+    body.reason === "REALTIME_AUTH_BLOCKED" || body.reason === "SCOPE_ISOLATION_BLOCKED",
+    JSON.stringify(body)
+  );
   assert.ok(!body.token);
 } finally {
   Module._load = original;

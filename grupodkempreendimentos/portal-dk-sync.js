@@ -15,16 +15,14 @@
         var s = String(root.__DK_portalSyncScopeId() || "").trim();
         if (s) return s;
       }
-      var cpf = "";
       var sid = "";
+      var empresa = "locadora";
       if (root && root.__DK_portalSessao && typeof root.__DK_portalSessao === "object") {
-        cpf = String(root.__DK_portalSessao.cpf || "").replace(/\D/g, "").slice(0, 11);
         sid = String(root.__DK_portalSessao.sid || root.__DK_portalSessao.sessionId || "").trim();
+        empresa = String(root.__DK_portalSessao.empresa || "locadora").trim() || "locadora";
       }
-      if (!cpf && root && typeof root.__DK_portalCpfSessao === "function") {
-        cpf = String(root.__DK_portalCpfSessao() || "").replace(/\D/g, "").slice(0, 11);
-      }
-      if (cpf || sid) return cpf + ":" + sid;
+      /* Identificador opaco: sid + empresa — sem CPF em sessionStorage. */
+      if (sid) return sid + ":" + empresa;
     } catch (e) {
       /* ignore */
     }
@@ -86,14 +84,52 @@
   var volta = null;
   var MAX_PAGINAS = 30;
   var seqsVistos = Object.create(null);
+  var rtMem = {
+    token: null,
+    exp: 0,
+    canal: null,
+    client: null,
+    channel: null,
+    renovarTimer: null,
+    reconnectAttempt: 0,
+    wanted: false,
+    factory: null,
+  };
 
   function configurar(opcoes) {
     if (!opcoes || typeof opcoes !== "object") return;
     if (Object.prototype.hasOwnProperty.call(opcoes, "transporte")) transporte = opcoes.transporte;
     if (opcoes.limite != null) limite = opcoes.limite;
+    if (typeof opcoes.realtimeFactory === "function") rtMem.factory = opcoes.realtimeFactory;
+  }
+
+  function limparRealtimeLocal() {
+    rtMem.wanted = false;
+    rtMem.token = null;
+    rtMem.exp = 0;
+    rtMem.canal = null;
+    if (rtMem.renovarTimer) {
+      try {
+        root.clearTimeout(rtMem.renovarTimer);
+      } catch (e) {
+        /* ignore */
+      }
+      rtMem.renovarTimer = null;
+    }
+    try {
+      if (rtMem.channel && rtMem.client && typeof rtMem.client.removeChannel === "function") {
+        void rtMem.client.removeChannel(rtMem.channel);
+      }
+    } catch (e2) {
+      /* ignore */
+    }
+    rtMem.channel = null;
+    rtMem.client = null;
+    state.realtimeConectado = false;
   }
 
   function reset() {
+    limparRealtimeLocal();
     state.lastAppliedSeq = 0;
     state.syncInFlight = false;
     state.syncPending = false;
@@ -101,7 +137,6 @@
     state.lastError = null;
     state.initialized = false;
     state.lastCheckpointAt = null;
-    state.realtimeConectado = false;
     state.realtimeBloqueado = true;
     state.realtimeMotivo = REALTIME_MOTIVO;
     volta = null;
@@ -149,14 +184,128 @@
     };
   }
 
+  function agendarRenovacao(expUnix) {
+    if (rtMem.renovarTimer) {
+      try {
+        root.clearTimeout(rtMem.renovarTimer);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    var agora = Math.floor(Date.now() / 1000);
+    var faltam = Number(expUnix) - agora - 20;
+    if (!Number.isFinite(faltam) || faltam < 5) faltam = 30;
+    rtMem.renovarTimer = root.setTimeout(function () {
+      if (!rtMem.wanted) return;
+      void dkSyncTentarRealtime({ renovar: true });
+    }, faltam * 1000);
+  }
+
+  function onBroadcastSinal(payload) {
+    try {
+      var seq = payload && (payload.seq != null ? payload.seq : payload.payload && payload.payload.seq);
+      /* Sinal não é autoridade — só dispara catch-up autenticado. */
+      void dkSyncCatchUp(seq != null ? "broadcast:" + seq : "broadcast");
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  async function abrirCanalPrivado(corpo) {
+    var canalNome = String(corpo.canal || "").trim();
+    if (!canalNome || canalNome === "dk:events") {
+      state.realtimeBloqueado = true;
+      state.realtimeMotivo = "SCOPE_ISOLATION_BLOCKED";
+      state.realtimeConectado = false;
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+    if (!/^dk:events:(locadora|centro|construtora)$/.test(canalNome)) {
+      state.realtimeMotivo = "SCOPE_ISOLATION_BLOCKED";
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+    rtMem.token = String(corpo.token);
+    rtMem.exp = Number(corpo.exp) || 0;
+    rtMem.canal = canalNome;
+    rtMem.wanted = true;
+
+    var criar =
+      rtMem.factory ||
+      (root && typeof root.__DK_criarClienteRealtime === "function" ? root.__DK_criarClienteRealtime : null);
+    if (typeof criar !== "function") {
+      state.realtimeMotivo = "REALTIME_CLIENT_AUSENTE";
+      state.realtimeBloqueado = true;
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+
+    if (rtMem.channel && rtMem.client) {
+      try {
+        await rtMem.client.removeChannel(rtMem.channel);
+      } catch (e) {
+        /* ignore */
+      }
+      rtMem.channel = null;
+    }
+
+    var client = criar(function () {
+      return rtMem.token;
+    });
+    if (!client || !client.channel) {
+      state.realtimeMotivo = "REALTIME_CLIENT_AUSENTE";
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+    rtMem.client = client;
+    try {
+      if (client.realtime && typeof client.realtime.setAuth === "function") {
+        client.realtime.setAuth(rtMem.token);
+      }
+    } catch (e2) {
+      /* setAuth opcional conforme versão */
+    }
+
+    var channel = client.channel(canalNome, { config: { private: true } });
+    channel.on("broadcast", { event: "dk_event" }, function (msg) {
+      onBroadcastSinal(msg && msg.payload != null ? msg.payload : msg);
+    });
+    channel.on("broadcast", { event: "*" }, function (msg) {
+      if (msg && (msg.event === "dk_event" || (msg.payload && msg.payload.kind === "dk_event"))) {
+        onBroadcastSinal(msg.payload || msg);
+      }
+    });
+
+    await new Promise(function (resolve) {
+      channel.subscribe(function (status) {
+        if (status === "SUBSCRIBED") {
+          state.realtimeConectado = true;
+          state.realtimeBloqueado = false;
+          state.realtimeMotivo = "";
+          rtMem.reconnectAttempt = 0;
+          resolve({ ok: true });
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          state.realtimeConectado = false;
+          resolve({ ok: false, status: status });
+        }
+      });
+      root.setTimeout(function () {
+        resolve({ ok: state.realtimeConectado === true });
+      }, 8000);
+    });
+
+    rtMem.channel = channel;
+    agendarRenovacao(rtMem.exp);
+    emitirStatus();
+    if (state.realtimeConectado) {
+      void dkSyncCatchUp("realtime_subscribed");
+      return { ok: true, canal: canalNome, realtime: true };
+    }
+    state.realtimeMotivo = state.realtimeMotivo || "REALTIME_SUBSCRIBE_FAILED";
+    return { ok: false, reason: state.realtimeMotivo };
+  }
+
   /**
-   * Tenta obter credencial Realtime. Sem JWT de projeto, permanece bloqueado.
-   * Nunca persiste token em localStorage/IndexedDB.
+   * Obtém credencial e, se o servidor autorizar, abre canal privado.
+   * Token só em memória. Sem gates no servidor → bloqueado.
    */
-  async function dkSyncTentarRealtime() {
-    state.realtimeBloqueado = true;
-    state.realtimeConectado = false;
-    state.realtimeMotivo = REALTIME_MOTIVO;
+  async function dkSyncTentarRealtime(opts) {
     var cabecalhos = {};
     try {
       if (root && typeof root.__DK_portalApiHeaders === "function") {
@@ -178,20 +327,60 @@
       if (!(res.status >= 200 && res.status < 300) || !corpo || corpo.ok !== true || !corpo.token) {
         state.realtimeBloqueado = true;
         state.realtimeConectado = false;
+        if (!state.realtimeMotivo) state.realtimeMotivo = REALTIME_MOTIVO;
         emitirStatus();
         return { ok: false, reason: state.realtimeMotivo, realtime: false };
       }
-      /* Emissão real só após remoção do gate — não abrir canal com token inseguro. */
-      state.realtimeBloqueado = true;
-      state.realtimeMotivo = "REALTIME_AUTH_BLOCKED";
+      var aberto = await abrirCanalPrivado(corpo);
       emitirStatus();
-      return { ok: false, reason: state.realtimeMotivo, realtime: false };
+      return aberto;
     } catch (err) {
       state.realtimeBloqueado = true;
+      state.realtimeConectado = false;
       state.realtimeMotivo = REALTIME_MOTIVO;
+      if (rtMem.wanted) {
+        rtMem.reconnectAttempt += 1;
+        var wait = Math.min(30000, 1000 * Math.pow(2, Math.min(5, rtMem.reconnectAttempt)));
+        root.setTimeout(function () {
+          if (rtMem.wanted) void dkSyncTentarRealtime({ reconnect: true });
+        }, wait);
+      }
       emitirStatus();
       return { ok: false, reason: REALTIME_MOTIVO, realtime: false };
     }
+  }
+
+  function dkSyncEncerrarRealtime() {
+    limparRealtimeLocal();
+    state.realtimeBloqueado = true;
+    state.realtimeMotivo = REALTIME_MOTIVO;
+    emitirStatus();
+  }
+
+  if (root && typeof root.addEventListener === "function") {
+    root.addEventListener("visibilitychange", function () {
+      try {
+        if (!root.document) return;
+        if (root.document.visibilityState === "visible" && rtMem.wanted) {
+          void dkSyncCheckpoint("aba_ativa");
+          if (!state.realtimeConectado) void dkSyncTentarRealtime({ visibility: true });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    });
+    root.addEventListener("dk:sessao:logout", function () {
+      reset();
+    });
+    root.addEventListener("dk:sessao:bloqueada", function () {
+      reset();
+    });
+    root.addEventListener("dk:sessao:troca-usuario", function () {
+      reset();
+    });
+    root.addEventListener("dk:sessao:troca-empresa", function () {
+      reset();
+    });
   }
 
   function dkSyncRotulo(status) {
@@ -265,6 +454,7 @@
       audit_no: Number.isFinite(audit) ? audit : null,
       event_type: evento && evento.event_type != null ? String(evento.event_type) : "",
       entity_type: evento && evento.entity_type != null ? String(evento.entity_type) : "",
+      entity_id: evento && evento.entity_id != null ? String(evento.entity_id) : "",
       action: evento && evento.action != null ? String(evento.action) : "",
       module: evento && evento.module != null ? String(evento.module) : "",
     };
@@ -286,7 +476,6 @@
       state.lastError = "ordem_invalida";
       return { ok: false, reason: "ordem_invalida" };
     }
-    var novos = [];
     for (var i = 0; i < events.length; i++) {
       var seq = Number(events[i].seq);
       if (!Number.isFinite(seq)) continue;
@@ -295,13 +484,56 @@
         seqsVistos[seq] = true;
         continue;
       }
+      var det = detalheSeguro(events[i]);
+      try {
+        emitir(det);
+      } catch (e) {
+        state.lastError = "aplicar_evento";
+        return { ok: false, reason: "aplicar_evento" };
+      }
       seqsVistos[seq] = true;
       state.lastAppliedSeq = seq;
       gravarCursorPersistido(seq);
-      novos.push(detalheSeguro(events[i]));
     }
-    novos.forEach(emitir);
     return { ok: true };
+  }
+
+  function sinalizarConflito(modulo, detalhe) {
+    root.dispatchEvent(
+      new root.CustomEvent("dk:sync:conflito-edicao", {
+        detail: {
+          module: modulo,
+          seq: detalhe.seq,
+          audit_no: detalhe.audit_no,
+          entity_id: detalhe.entity_id || "",
+          preservarEdicao: true,
+        },
+      })
+    );
+  }
+
+  function formularioSujo(modulo) {
+    if (modulo === "locacao") {
+      if (root.__DK_locacaoFormularioSujo === true) return true;
+      if (root.__DK_locacaoDetalheAtual && root.__DK_locacaoDetalheAtual.__dkEditando === true) return true;
+    }
+    if (root.__DK_formularioSujoModulo === modulo) return true;
+    try {
+      var el = root.document && root.document.activeElement;
+      if (!el || !el.closest) return false;
+      if (modulo === "locacao" && el.closest("#operacaoInlineLocacao, #operacaoLocacaoForm, form[data-dk-locacao-form]")) {
+        return true;
+      }
+      if (modulo === "cliente" && el.closest("#operacaoInlineCliente, form[data-dk-cliente-form]")) return true;
+      if (modulo === "veiculo" && el.closest("#operacaoInlineVeiculo, form[data-dk-veiculo-form]")) return true;
+      if (modulo === "pagamento" && el.closest("#operacaoInlineLancamentoAluguel, form[data-dk-pagamento-form]")) {
+        return true;
+      }
+      if (modulo === "manutencao" && el.closest("form[data-dk-manutencao-form]")) return true;
+    } catch (e) {
+      return false;
+    }
+    return false;
   }
 
   function aplicarEventoNasTelas(detalhe) {
@@ -314,40 +546,35 @@
     var afetaVeiculo = /veiculo|veículo/.test(mod + " " + tipo);
     var afetaManut = /manutencao|manuten[cç]ao/.test(mod + " " + tipo);
     try {
-      if (afetaLocacao && typeof root.__DK_locacaoPgRecarregar === "function") {
-        var aberta = root.__DK_locacaoDetalheAtual;
-        var formSujo = root.__DK_locacaoFormularioSujo === true || (aberta && aberta.__dkEditando === true);
-        var formAtivo = false;
-        try {
-          var doc = root.document;
-          var el = doc && doc.activeElement;
-          formAtivo = Boolean(
-            el &&
-              el.closest &&
-              el.closest("#operacaoInlineLocacao, #operacaoLocacaoForm, form[data-dk-locacao-form]")
-          );
-        } catch (e2) {
-          formAtivo = false;
-        }
-        if (formSujo || formAtivo) {
-          root.dispatchEvent(
-            new root.CustomEvent("dk:sync:conflito-edicao", {
-              detail: {
-                module: "locacao",
-                seq: detalhe.seq,
-                audit_no: detalhe.audit_no,
-                preservarEdicao: true,
-              },
-            })
-          );
-        } else {
-          void root.__DK_locacaoPgRecarregar();
+      if (afetaLocacao) {
+        if (formularioSujo("locacao")) sinalizarConflito("locacao", detalhe);
+        else if (typeof root.__DK_locacaoPgRecarregar === "function") void root.__DK_locacaoPgRecarregar();
+        else if (typeof root.__DK_locacaoPgDetalhe === "function" && detalhe.entity_id) {
+          void root.__DK_locacaoPgDetalhe(detalhe.entity_id);
         }
       }
-      if (afetaPagamento && typeof root.__DK_portalRepintarPagamentosAbertos === "function") {
-        root.__DK_portalRepintarPagamentosAbertos();
+      if (afetaPagamento) {
+        if (formularioSujo("pagamento")) sinalizarConflito("pagamento", detalhe);
+        else if (typeof root.__DK_portalRepintarPagamentosAbertos === "function") {
+          root.__DK_portalRepintarPagamentosAbertos();
+        }
       }
-      if ((afetaCliente || afetaVeiculo || afetaManut || afetaLocacao) && typeof root.__DK_portalRefreshOperacaoDeferred === "function") {
+      if (afetaCliente) {
+        if (formularioSujo("cliente")) sinalizarConflito("cliente", detalhe);
+        else if (typeof root.__DK_clientePgRecarregar === "function") void root.__DK_clientePgRecarregar();
+      }
+      if (afetaVeiculo) {
+        if (formularioSujo("veiculo")) sinalizarConflito("veiculo", detalhe);
+        else if (typeof root.__DK_veiculoPgRecarregar === "function") void root.__DK_veiculoPgRecarregar();
+      }
+      if (afetaManut) {
+        if (formularioSujo("manutencao")) sinalizarConflito("manutencao", detalhe);
+        else if (typeof root.__DK_manutencaoRecarregar === "function") void root.__DK_manutencaoRecarregar();
+      }
+      if (
+        (afetaCliente || afetaVeiculo || afetaManut || afetaLocacao || afetaPagamento) &&
+        typeof root.__DK_portalRefreshOperacaoDeferred === "function"
+      ) {
         root.__DK_portalRefreshOperacaoDeferred();
       }
     } catch (e) {
@@ -461,6 +688,7 @@
     dkSyncRotulo: dkSyncRotulo,
     dkSyncTextos: dkSyncTextos,
     dkSyncTentarRealtime: dkSyncTentarRealtime,
+    dkSyncEncerrarRealtime: dkSyncEncerrarRealtime,
     configurar: configurar,
     reset: reset,
     assinar: assinar,
@@ -474,6 +702,7 @@
     root.dkSyncRotulo = dkSyncRotulo;
     root.dkSyncTextos = dkSyncTextos;
     root.dkSyncTentarRealtime = dkSyncTentarRealtime;
+    root.dkSyncEncerrarRealtime = dkSyncEncerrarRealtime;
     root.dkSyncReset = reset;
   }
   if (typeof module !== "undefined" && module.exports) module.exports = api;

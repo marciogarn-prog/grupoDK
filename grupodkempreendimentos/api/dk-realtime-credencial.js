@@ -1,8 +1,6 @@
 /**
- * Credencial Realtime privada (ES256) — feature gate DESLIGADO por defeito.
- *
- * Sem DK_REALTIME_SINAL=1 + DK_REALTIME_ES256_TRUSTED=1 + JWK/KID → REALTIME_AUTH_BLOCKED.
- * Não usa SUPABASE_JWT_SECRET legado, não usa service_role, não usa HMAC do portal.
+ * Credencial Realtime privada (ES256) — feature gates DESLIGADOS por defeito.
+ * Sem SCOPE_ISOLATION + ES256 trusted + sinal → REALTIME_AUTH_BLOCKED / SCOPE_ISOLATION_BLOCKED.
  */
 const {
   applyApiCors,
@@ -12,8 +10,11 @@ const {
   onlyDigits,
   loadOfficialSnapshotPayload,
   findFuncionario,
+  readSessaoAtiva,
+  TITULAR_CEO_CPF,
 } = require("../lib/dk-portal-auth.cjs");
 const { emitirCredencialRealtime, emissorPronto } = require("../lib/dk-realtime-jwt-es256.cjs");
+const { isolamentoPronto, normalizarEmpresa, topicoRealtime } = require("../lib/dk-realtime-scope.cjs");
 
 function noStore(res) {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
@@ -25,7 +26,7 @@ function bloqueado(extra) {
     ok: false,
     reason: "REALTIME_AUTH_BLOCKED",
     realtime: false,
-    canal: "dk:events",
+    canal: null,
     private: true,
     alg: "ES256",
     catch_up: "/api/dk-sync",
@@ -59,26 +60,53 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const cpf = onlyDigits(gate.cpf).slice(0, 11);
+  const sid = String(gate.sid || "").trim();
+  if (!sid) {
+    return res.status(401).json(bloqueado({ hint: "sid_obrigatorio" }));
+  }
+  const isCeo = cpf === TITULAR_CEO_CPF || String(gate.role || "").trim() === "owner";
+  if (cpf.length === 11 && !isCeo) {
+    const rec = await readSessaoAtiva(cpf);
+    if (rec.sid && rec.sid !== sid) {
+      return res.status(401).json(bloqueado({ hint: "session_replaced", reason: "REALTIME_AUTH_BLOCKED" }));
+    }
+    if (!rec.sid && !rec.at) {
+      return res.status(401).json(bloqueado({ hint: "session_idle" }));
+    }
+  }
+
   let empresa = "locadora";
   let filial = "default";
   try {
     if (String(gate.role || "").trim() !== "owner") {
       const payload = await loadOfficialSnapshotPayload();
-      const f = findFuncionario(payload, onlyDigits(gate.cpf).slice(0, 11));
+      const f = findFuncionario(payload, cpf);
       if (!f || f.blocked) {
         return res.status(403).json(bloqueado({ hint: "funcionario_bloqueado_ou_ausente" }));
       }
-      empresa = String(f.empresa || "locadora").trim() || "locadora";
+      empresa = normalizarEmpresa(f.empresa) || "locadora";
       filial = String(f.filial || f.unidade || "default").trim() || "default";
     } else {
-      empresa = String(gate.empresa || "locadora").trim() || "locadora";
+      empresa = normalizarEmpresa(gate.empresa) || "locadora";
       filial = String(gate.filial || "default").trim() || "default";
     }
   } catch {
-    /* owner sem snapshot ainda pode seguir; demais já falharam acima */
     if (String(gate.role || "").trim() !== "owner") {
       return res.status(503).json(bloqueado({ hint: "snapshot_unavailable" }));
     }
+  }
+
+  const iso = isolamentoPronto();
+  if (!iso.ok) {
+    return res.status(503).json(
+      bloqueado({
+        reason: "SCOPE_ISOLATION_BLOCKED",
+        requisito_ausente: "DK_REALTIME_SCOPE_ISOLATION",
+        detalhe: iso.detalhe,
+        topico_planejado: topicoRealtime(empresa),
+      })
+    );
   }
 
   const pronto = emissorPronto();
@@ -88,8 +116,7 @@ module.exports = async function handler(req, res) {
         requisito_ausente: pronto.falta.join(","),
         falta: pronto.falta,
         detalhe:
-          "Emissor ES256 está no código. Falta chave confiável no Supabase (import + rotação Current), " +
-          "JWK privado no servidor e feature gates. Standby sozinho não autentica.",
+          "Emissor ES256 no código. Falta chave Current no Supabase, JWK no servidor e gates. Standby sozinho não autentica.",
       })
     );
   }
@@ -102,7 +129,5 @@ module.exports = async function handler(req, res) {
   if (!out.ok) {
     return res.status(out.status || 503).json(out.body || bloqueado({ hint: "emissao" }));
   }
-
-  /* Não registar token em logs. */
   return res.status(200).json(out.body);
 };
