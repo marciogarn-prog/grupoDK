@@ -215,6 +215,43 @@ async function upsertUm(cliente, baseRevision, ioRest, opts) {
   if (cpf.length !== 11) {
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "cpf" } };
   }
+  const atomic = require("./dk-atomic-write.cjs");
+  const opId = opts && (opts.operationId || opts.operation_id);
+  if (atomic.atomicWriteAtivo() && opId) {
+    const atualCpf = await lerPorCpf(cpf, ioRest);
+    if (!atualCpf.ok) {
+      return {
+        ok: false,
+        status: schemaAusente(atualCpf) ? 503 : 502,
+        body: { ok: false, success: false, reason: schemaAusente(atualCpf) ? "tabela_ausente" : "leitura" },
+      };
+    }
+    if (atualCpf.duplicado) {
+      return { ok: false, status: 409, body: { ok: false, success: false, reason: "cpf_duplicado" } };
+    }
+    const row = atualCpf.row;
+    const oficial = row ? { ...dkClienteParaTerminal(row), updated_at: row.updated_at } : null;
+    const atom = await atomic.mutarClienteAtomico({
+      cliente: recebido,
+      patch: recebido,
+      baseRevision,
+      operationId: opId,
+      actorUserId: opts && opts.actorUserId,
+      actorSessionId: opts && opts.actorSessionId,
+      route: opts && opts.route,
+      method: opts && opts.method,
+      io: opts && opts.io,
+      lerOficial: async () => ({ ok: true, cliente: oficial }),
+    });
+    if (atom.ok && atom.body) {
+      atom.body.cliente = ecoDe(recebido);
+      atom.body.duracao_ms = Date.now() - t0;
+    }
+    return atom;
+  }
+  if (atomic.atomicWriteAtivo() && !(opts && opts.ignorarRevisao)) {
+    return { ok: false, status: 400, body: { ok: false, success: false, reason: "operation_id_obrigatorio" } };
+  }
   const atual = await lerPorCpf(cpf, ioRest);
   if (!atual.ok) {
     return {

@@ -200,7 +200,13 @@ module.exports = async function handler(req, res) {
       }
       if (await clientesFontePronta(redis)) {
         if (umCliente) {
-          const um = await clientesPg.upsertUm(body.cliente, body.base_revision || body.revision || "");
+          const um = await clientesPg.upsertUm(body.cliente, body.base_revision || body.revision || "", null, {
+            operationId: body.operation_id || body.operationId,
+            actorUserId: writeGate.cpf || writeGate.userId || null,
+            actorSessionId: writeGate.sid || writeGate.sessionId || null,
+            route: "/api/cadastro-clientes",
+            method: "POST",
+          });
           return res.status(um.status).json(um.body);
         }
         const lista = Array.isArray(body?.data) ? body.data : [];

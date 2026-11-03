@@ -146,7 +146,7 @@ async function lerPorPlaca(placa, ioRest) {
   return { ok: true, linhas: Array.isArray(res.data) ? res.data : [] };
 }
 
-async function upsertUm(veiculo, baseRevision, ioRest) {
+async function upsertUm(veiculo, baseRevision, ioRest, opts) {
   const pedido = ioRest || rest;
   const t0 = Date.now();
   const recebido = JSON.parse(JSON.stringify(veiculo || {}));
@@ -154,6 +154,36 @@ async function upsertUm(veiculo, baseRevision, ioRest) {
   const placa = placaDe(recebido);
   if (!id || !placa.trim()) {
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "veiculo" } };
+  }
+  const atomic = require("./dk-atomic-write.cjs");
+  const opId = opts && (opts.operationId || opts.operation_id);
+  if (atomic.atomicWriteAtivo() && opId) {
+    const atual = await lerPorId(id, pedido);
+    if (!atual.ok) {
+      const falha = falhaLeitura(atual);
+      return { ok: false, status: falha.status, body: { ok: false, success: false, reason: falha.reason, source: FONTE } };
+    }
+    const oficial =
+      atual.row && !atual.row.deleted_at
+        ? { ...dkVeiculoParaTerminal(atual.row), updated_at: atual.row.updated_at }
+        : null;
+    const atom = await atomic.mutarVeiculoAtomico({
+      veiculo: recebido,
+      patch: recebido,
+      baseRevision,
+      operationId: opId,
+      actorUserId: opts && opts.actorUserId,
+      actorSessionId: opts && opts.actorSessionId,
+      route: opts && opts.route,
+      method: opts && opts.method,
+      io: opts && opts.io,
+      lerOficial: async () => ({ ok: true, veiculo: oficial }),
+    });
+    if (atom.ok && atom.body) atom.body.duracao_ms = Date.now() - t0;
+    return atom;
+  }
+  if (atomic.atomicWriteAtivo()) {
+    return { ok: false, status: 400, body: { ok: false, success: false, reason: "operation_id_obrigatorio", source: FONTE } };
   }
   const atual = await lerPorId(id, pedido);
   if (!atual.ok) {

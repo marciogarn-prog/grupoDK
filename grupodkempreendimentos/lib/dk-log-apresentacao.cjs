@@ -26,6 +26,9 @@ function resumoEvento(evento) {
   if (item.event_type === "system.maintenance_fidelity_contract_verified") {
     return "Contrato de fidelidade da manutenção verificado";
   }
+  if (item.event_type === "system.atomic_write_clients_vehicles_verified") {
+    return "Escrita atômica de clientes e veículos verificada";
+  }
   return mascararTexto(item.action || item.event_type || "");
 }
 
