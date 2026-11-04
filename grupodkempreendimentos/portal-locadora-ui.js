@@ -12586,9 +12586,22 @@
       portalAbrirClienteConfirmModal(
         { novo, rows: portalClienteResumoConfirmRows(digits) },
         () => {
-          const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
-          if (!ok) return;
-          portalAgendarEnvioClienteParaNuvem(digits);
+          void (async () => {
+            const ok = known ? persistOperacaoClienteAtualizacao(digits, known) : persistOperacaoClienteNovo(digits);
+            if (!ok) return;
+            const envio = await portalAgendarEnvioClienteParaNuvem(digits);
+            if (window.__DK_CLIENTES_PG === true && !portalEnvioClienteConfirmado(envio)) {
+              /* Fonte oficial é o PG: se a nuvem não confirmou, o PC não fica como verdade. */
+              try {
+                const nuvem = await portalLerClientesNuvem();
+                if (nuvem && nuvem.ok && Array.isArray(nuvem.lista)) {
+                  portalAplicarClientesOficiaisNoPc(nuvem.lista);
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+          })();
         }
       );
     }
@@ -17126,7 +17139,13 @@
   bindPortalNuvemOfflineModalOnce();
 
   function portalEnvioClienteConfirmado(envio) {
-    return Boolean(envio) && envio.ok !== false && envio.success !== false;
+    return Boolean(
+      envio &&
+        envio.ok === true &&
+        envio.success !== false &&
+        Number(envio.status) >= 200 &&
+        Number(envio.status) < 300
+    );
   }
 
   function portalLerClientesLocais() {
@@ -17249,7 +17268,8 @@
         operation_id: data?.operation_id || null,
       };
     };
-    const revisao = typeof window.__DK_CLOUD_REVISION === "string" ? window.__DK_CLOUD_REVISION : "";
+    /* Revisão da entidade (updated_at), nunca a revisão global do snapshot. */
+    const revisao = String((cliente && (cliente.updated_at || cliente.updatedAt || cliente.revision)) || "").trim();
     const operation_id =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
@@ -17258,7 +17278,15 @@
             const v = c === "x" ? r : (r & 0x3) | 0x8;
             return v.toString(16);
           });
-    return post({ operacao: "upsert", cliente, base_revision: revisao, operation_id });
+    const out = await post({ operacao: "upsert", cliente, base_revision: revisao, operation_id });
+    if (out.revision && out.status !== 409) {
+      try {
+        window.__DK_CLOUD_REVISION = out.revision;
+      } catch {
+        /* ignore */
+      }
+    }
+    return out;
   }
 
   async function portalAgendarEnvioClienteParaNuvem(cpfDigits) {
@@ -17277,27 +17305,70 @@
     });
     let envio = null;
     if (dig.length !== 11 || !cliente) {
-      envio = { ok: false, success: false, reason: "cliente_local_ausente" };
+      envio = { ok: false, success: false, status: 0, reason: "cliente_local_ausente" };
     } else {
       const um = { ...cliente };
       delete um.senha;
       try {
         envio = await portalEnviarUmClienteParaNuvem(um);
       } catch (e) {
-        envio = { ok: false, success: false, reason: String(e?.message || e || "erro") };
+        envio = { ok: false, success: false, status: 0, reason: String(e?.message || e || "erro") };
       }
     }
-    if (geracao !== portalClienteMsgGeracao) return;
+    if (geracao !== portalClienteMsgGeracao) return envio;
     if (portalEnvioClienteConfirmado(envio)) {
+      if (envio.revision || envio.updated_at) {
+        try {
+          const lista = portalLerClientesLocais();
+          const idx = lista.findIndex((item) => {
+            const cpf =
+              typeof onlyDigits === "function"
+                ? onlyDigits(String(item && item.cpf || ""))
+                : String((item && item.cpf) || "").replace(/\D/g, "");
+            return cpf === dig;
+          });
+          if (idx >= 0) {
+            lista[idx] = {
+              ...lista[idx],
+              updated_at: envio.revision || envio.updated_at,
+            };
+            if (typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+              const prev = window.__DK_suppressPortalCadastroPush;
+              window.__DK_suppressPortalCadastroPush = true;
+              try {
+                saveCadastro(CAD_CLIENTES_KEY, lista);
+              } finally {
+                window.__DK_suppressPortalCadastroPush = prev;
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       portalMsgCliente(
         envio && envio.audit_no != null
           ? `Cliente atualizado na nuvem — Log #${envio.audit_no}`
           : DK_MSG_PC_NUVEM_IGUAIS,
         geracao
       );
+      try {
+        window.dispatchEvent(
+          new CustomEvent("dk:log:recarregar", { detail: { motivo: "cliente", audit_no: envio.audit_no } })
+        );
+      } catch {
+        /* ignore */
+      }
     } else {
-      portalMsgCliente("Não foi possível enviar o cliente para a nuvem. O cadastro ficou neste PC.", geracao);
+      const detalhe = String((envio && (envio.message || envio.reason)) || "").trim();
+      portalMsgCliente(
+        detalhe && detalhe.length < 220 && !/failed to fetch|networkerror/i.test(detalhe)
+          ? detalhe
+          : "Não foi possível salvar o cliente no servidor. Nada foi confirmado. Tente de novo.",
+        geracao
+      );
     }
+    return envio;
   }
 
   async function portalAlinharClientesAoEntrarNaTela() {
@@ -24493,7 +24564,8 @@
                 ? `Veículo gravado na nuvem — Log #${envio.audit_no}`
                 : "Veículo gravado na nuvem.";
           } else {
-            msg.textContent = "Não foi possível gravar o veículo na nuvem. O cadastro ficou neste PC.";
+            msg.textContent =
+              "Não foi possível salvar o veículo no servidor. Nada foi confirmado. Tente de novo.";
           }
         });
       } else {

@@ -49,6 +49,14 @@
     if (item.event_type === "system.realtime_initialized") return "Realtime inicializado";
     if (item.event_type === "system.integrity_baseline_created") return "Baseline de integridade criada";
     if (item.event_type === "system.vehicle_fidelity_contract_verified") return "Contrato de fidelidade dos veículos verificado";
+    if (item.event_type === "cliente.created") return "Cliente criado";
+    if (item.event_type === "cliente.updated") return "Cliente atualizado";
+    if (item.event_type === "veiculo.created") return "Veículo criado";
+    if (item.event_type === "veiculo.updated") return "Veículo atualizado";
+    if (item.event_type === "locacao.created") return "Locação criada";
+    if (item.event_type === "locacao.updated") return "Locação atualizada";
+    if (item.event_type === "pagamento.created") return "Pagamento criado";
+    if (item.event_type === "pagamento.updated") return "Pagamento atualizado";
     return mascarar(item.action || item.event_type || "");
   }
 
@@ -223,7 +231,10 @@
     var estado = document.getElementById("portal-log-estado");
     var lista = document.getElementById("portal-log-lista");
     var nota = document.getElementById("portal-log-nota");
-    if (nota) nota.textContent = "Clientes, veículos, locações e pagamentos ainda não geram eventos.";
+    if (nota) {
+      nota.textContent =
+        "Clientes, veículos, locações e pagamentos geram eventos no Log (PG + audit_no). O sinal Realtime só avisa; a lista vem do servidor.";
+    }
     if (!lista) return;
     var visiveis = (Array.isArray(eventos) ? eventos : []).filter(passaFiltro);
     if (!visiveis.length) {
@@ -450,13 +461,33 @@
     }
     pintarMonitor();
     pintarDetalhe(null);
-    window.addEventListener("dk:sync:status", pintarMonitor);
+    var ultimoSeqVisto = 0;
+    window.addEventListener("dk:sync:status", function () {
+      pintarMonitor();
+      if (!painelAberto()) return;
+      try {
+        var st = typeof window.dkSyncGetStatus === "function" ? window.dkSyncGetStatus() : null;
+        var seq = Number(st && (st.serverSeq || st.server_event_seq || st.seq));
+        if (Number.isFinite(seq) && seq > 0 && seq !== ultimoSeqVisto) {
+          ultimoSeqVisto = seq;
+          carregar(0);
+        }
+      } catch (erro) {
+        /* ignore */
+      }
+    });
+    window.addEventListener("dk:log:recarregar", function () {
+      if (painelAberto()) carregar(0);
+    });
     var botao = document.getElementById("btn-verificar-sync");
     if (botao && botao.dataset.syncUi !== "1") {
       botao.dataset.syncUi = "1";
       botao.addEventListener("click", function () {
         if (typeof window.dkSyncCheckpoint !== "function") return;
-        Promise.resolve(window.dkSyncCheckpoint("manual")).then(pintarMonitor, pintarMonitor);
+        Promise.resolve(window.dkSyncCheckpoint("manual")).then(function () {
+          pintarMonitor();
+          if (painelAberto()) carregar(0);
+        }, pintarMonitor);
       });
     }
     if (painelAberto()) agendar();

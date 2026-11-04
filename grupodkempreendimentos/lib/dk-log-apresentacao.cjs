@@ -32,6 +32,14 @@ function resumoEvento(evento) {
   if (item.event_type === "system.atomic_write_clients_vehicles_verified") {
     return "Escrita atômica de clientes e veículos verificada";
   }
+  if (item.event_type === "cliente.created") return "Cliente criado";
+  if (item.event_type === "cliente.updated") return "Cliente atualizado";
+  if (item.event_type === "veiculo.created") return "Veículo criado";
+  if (item.event_type === "veiculo.updated") return "Veículo atualizado";
+  if (item.event_type === "locacao.created") return "Locação criada";
+  if (item.event_type === "locacao.updated") return "Locação atualizada";
+  if (item.event_type === "pagamento.created") return "Pagamento criado";
+  if (item.event_type === "pagamento.updated") return "Pagamento atualizado";
   return mascararTexto(item.action || item.event_type || "");
 }
 

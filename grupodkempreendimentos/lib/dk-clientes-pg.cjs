@@ -173,7 +173,11 @@ async function listarClientes(ioRest) {
   if (!lido.ok) return lido;
   return {
     ok: true,
-    clientes: lido.linhas.map((row) => dkClienteParaTerminal(row)),
+    clientes: lido.linhas.map((row) => {
+      const terminal = dkClienteParaTerminal(row);
+      if (row && row.updated_at) terminal.updated_at = row.updated_at;
+      return terminal;
+    }),
   };
 }
 

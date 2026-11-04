@@ -146,22 +146,8 @@ async function mutarClienteAtomico({
       };
     }
     oficial = lido.cliente || null;
-    if (oficial && oficial.updated_at && baseRevision != null && String(baseRevision) !== "") {
-      const { revisaoConflita } = require("./dk-persistencia-central.cjs");
-      if (revisaoConflita(baseRevision, oficial.updated_at || oficial.revision)) {
-        return {
-          ok: false,
-          status: 409,
-          body: {
-            ok: false,
-            success: false,
-            reason: "revisao_conflito",
-            revision: oficial.updated_at,
-            updated_at: oficial.updated_at,
-          },
-        };
-      }
-    }
+    /* baseRevision do browser (snapshot/__DK_CLOUD_REVISION) não entra aqui:
+       a concorrência usa só oficial.updated_at lido agora → p_expected_updated_at. */
   }
 
   const anterior = oficial && typeof oficial === "object" ? oficial : {};
@@ -179,7 +165,8 @@ async function mutarClienteAtomico({
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "cpf" } };
   }
 
-  const expected = action === "update" ? oficial.updated_at || baseRevision || null : null;
+  /* Sempre a revisão lida agora — nunca a revisão global do snapshot. */
+  const expected = action === "update" ? oficial.updated_at || null : null;
   const changed = camposAlterados(anterior, persistido.payload);
   const requestHash = hashPedido({
     domain: "cliente",
@@ -283,22 +270,7 @@ async function mutarVeiculoAtomico({
       };
     }
     oficial = lido.veiculo || null;
-    if (oficial && oficial.updated_at && baseRevision != null && String(baseRevision) !== "") {
-      const { revisaoConflita } = require("./dk-persistencia-central.cjs");
-      if (revisaoConflita(baseRevision, oficial.updated_at || oficial.revision)) {
-        return {
-          ok: false,
-          status: 409,
-          body: {
-            ok: false,
-            success: false,
-            reason: "revisao_conflito",
-            revision: oficial.updated_at,
-            updated_at: oficial.updated_at,
-          },
-        };
-      }
-    }
+    /* baseRevision global do browser não decide conflito; usa-se a linha lida agora. */
   }
 
   const anterior = oficial && typeof oficial === "object" ? oficial : {};
@@ -316,7 +288,7 @@ async function mutarVeiculoAtomico({
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "veiculo" } };
   }
 
-  const expected = action === "update" ? oficial.updated_at || baseRevision || null : null;
+  const expected = action === "update" ? oficial.updated_at || null : null;
   const changed = camposAlterados(anterior, persistido.payload);
   const requestHash = hashPedido({
     domain: "veiculo",
