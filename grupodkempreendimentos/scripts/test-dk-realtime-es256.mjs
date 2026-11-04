@@ -233,6 +233,8 @@ const winB = {
     return true;
   },
   document: { activeElement: null },
+  setTimeout,
+  clearTimeout,
 };
 let conflito = 0;
 winB.addEventListener = () => {};

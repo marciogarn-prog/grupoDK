@@ -13,7 +13,9 @@ const sync = require("../portal-dk-sync.js");
 
 assert.ok(!fonte.includes("localStorage"));
 assert.ok(!fonte.includes("setInterval"));
-assert.ok(!fonte.includes("setTimeout"));
+/* setTimeout só para renovar JWT / bootstrap Realtime — sem polling de negócio. */
+assert.ok(fonte.includes("agendarRenovacao"));
+assert.ok(fonte.includes("abrirCanalPrivado"));
 assert.ok(fonte.includes("dkSyncAplicarSinalRedis"));
 assert.ok(fonte.includes("dk-area-ocupacao"));
 assert.ok(fonte.includes("dk:sync:status"));

@@ -154,6 +154,8 @@ async function testCatchUpSimulado() {
         });
       },
       document: { activeElement: null },
+      setTimeout,
+      clearTimeout,
     };
   }
 

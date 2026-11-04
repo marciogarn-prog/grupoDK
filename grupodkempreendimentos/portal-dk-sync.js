@@ -1,8 +1,9 @@
 /**
  * Cursor técnico do Log (seq). Catch-up via GET /api/dk-sync (PG = autoridade).
  * sessionStorage guarda só o cursor da aba (não é autoridade de negócio).
- * Sinal entre PCs: Redis da ocupação das abas (dk-area-ocupacao / server_event_seq).
- * WebSocket/Realtime Supabase: mantém-se bloqueado (REALTIME_AUTH_BLOCKED) — sem custo extra.
+ * Piloto A (D01): Supabase Realtime privado ES256 quando a credencial autorizar.
+ * Redis (ocupação/sinal) permanece fallback D02 se o WS cair — nunca autoridade de negócio.
+ * Broadcast só avisa seq; detalhes oficiais via GET /api/dk-sync (PG).
  * Revogação / logout chama reset.
  */
 (function (root) {
@@ -109,7 +110,21 @@
     rtMem.token = null;
     rtMem.exp = 0;
     rtMem.canal = null;
-    rtMem.renovarTimer = null;
+    if (rtMem.renovarTimer) {
+      try {
+        root.clearTimeout(rtMem.renovarTimer);
+      } catch (e) {
+        /* ignore */
+      }
+      rtMem.renovarTimer = null;
+    }
+    try {
+      if (rtMem.channel && rtMem.client && typeof rtMem.client.removeChannel === "function") {
+        void rtMem.client.removeChannel(rtMem.channel);
+      }
+    } catch (e2) {
+      /* ignore */
+    }
     rtMem.channel = null;
     rtMem.client = null;
     state.realtimeConectado = false;
@@ -171,21 +186,145 @@
     };
   }
 
-  /**
-   * Realtime Supabase permanece desligado (custo/ES256).
-   * O sinal entre PCs é Redis (ocupação das abas) → catch-up em /api/dk-sync.
-   */
-  async function dkSyncTentarRealtime() {
-    state.realtimeBloqueado = true;
-    state.realtimeConectado = false;
-    state.realtimeMotivo = REALTIME_MOTIVO;
-    rtMem.wanted = false;
-    emitirStatus();
+  function agendarRenovacao(expUnix) {
+    if (rtMem.renovarTimer) {
+      try {
+        root.clearTimeout(rtMem.renovarTimer);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    var agora = Math.floor(Date.now() / 1000);
+    var faltam = Number(expUnix) - agora - 20;
+    if (!Number.isFinite(faltam) || faltam < 5) faltam = 30;
+    rtMem.renovarTimer = root.setTimeout(function () {
+      if (!rtMem.wanted) return;
+      void dkSyncTentarRealtime({ renovar: true });
+    }, faltam * 1000);
+  }
+
+  function onBroadcastSinal(payload) {
     try {
-      var cabecalhos = {};
+      var seq = payload && (payload.seq != null ? payload.seq : payload.payload && payload.payload.seq);
+      /* Sinal não é autoridade — só dispara catch-up autenticado. */
+      void dkSyncCatchUp(seq != null ? "broadcast:" + seq : "broadcast");
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  async function abrirCanalPrivado(corpo) {
+    var canalNome = String(corpo.canal || "").trim();
+    var canalGlobal = canalNome === "dk:events";
+    var canalEmpresa = /^dk:events:(locadora|centro|construtora)$/.test(canalNome);
+    if (!canalNome || (!canalGlobal && !canalEmpresa)) {
+      state.realtimeBloqueado = true;
+      state.realtimeMotivo = "SCOPE_ISOLATION_BLOCKED";
+      state.realtimeConectado = false;
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+    rtMem.token = String(corpo.token);
+    rtMem.exp = Number(corpo.exp) || 0;
+    rtMem.canal = canalNome;
+    rtMem.wanted = true;
+
+    var criar =
+      rtMem.factory ||
+      (root && typeof root.__DK_criarClienteRealtime === "function" ? root.__DK_criarClienteRealtime : null);
+    if (typeof criar !== "function") {
+      state.realtimeMotivo = "REALTIME_CLIENT_AUSENTE";
+      state.realtimeBloqueado = true;
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+
+    if (rtMem.channel && rtMem.client) {
+      try {
+        await rtMem.client.removeChannel(rtMem.channel);
+      } catch (e) {
+        /* ignore */
+      }
+      rtMem.channel = null;
+    }
+
+    var client = criar(function () {
+      return rtMem.token;
+    });
+    if (!client || !client.channel) {
+      state.realtimeMotivo = "REALTIME_CLIENT_AUSENTE";
+      return { ok: false, reason: state.realtimeMotivo };
+    }
+    rtMem.client = client;
+    try {
+      if (client.realtime && typeof client.realtime.setAuth === "function") {
+        client.realtime.setAuth(rtMem.token);
+      }
+    } catch (e2) {
+      /* setAuth opcional conforme versão */
+    }
+
+    var channel = client.channel(canalNome, { config: { private: true } });
+    channel.on("broadcast", { event: "dk_changed" }, function (msg) {
+      onBroadcastSinal(msg && msg.payload != null ? msg.payload : msg);
+    });
+    channel.on("broadcast", { event: "dk_event" }, function (msg) {
+      onBroadcastSinal(msg && msg.payload != null ? msg.payload : msg);
+    });
+    channel.on("broadcast", { event: "*" }, function (msg) {
+      var kind = msg && msg.payload && msg.payload.kind;
+      if (
+        msg &&
+        (msg.event === "dk_changed" ||
+          msg.event === "dk_event" ||
+          kind === "dk_changed" ||
+          kind === "dk_event")
+      ) {
+        onBroadcastSinal(msg.payload || msg);
+      }
+    });
+
+    await new Promise(function (resolve) {
+      channel.subscribe(function (status) {
+        if (status === "SUBSCRIBED") {
+          state.realtimeConectado = true;
+          state.realtimeBloqueado = false;
+          state.realtimeMotivo = "";
+          rtMem.reconnectAttempt = 0;
+          resolve({ ok: true });
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          state.realtimeConectado = false;
+          resolve({ ok: false, status: status });
+        }
+      });
+      root.setTimeout(function () {
+        resolve({ ok: state.realtimeConectado === true });
+      }, 8000);
+    });
+
+    rtMem.channel = channel;
+    agendarRenovacao(rtMem.exp);
+    emitirStatus();
+    if (state.realtimeConectado) {
+      void dkSyncCatchUp("realtime_subscribed");
+      return { ok: true, canal: canalNome, realtime: true };
+    }
+    state.realtimeMotivo = state.realtimeMotivo || "REALTIME_SUBSCRIBE_FAILED";
+    return { ok: false, reason: state.realtimeMotivo };
+  }
+
+  /**
+   * Obtém credencial e, se o servidor autorizar, abre canal privado.
+   * Token só em memória. Sem gates no servidor → bloqueado.
+   */
+  async function dkSyncTentarRealtime(opts) {
+    var cabecalhos = {};
+    try {
       if (root && typeof root.__DK_portalApiHeaders === "function") {
         cabecalhos = root.__DK_portalApiHeaders() || {};
       }
+    } catch (e) {
+      /* ignore */
+    }
+    try {
       var res = await fetch("/api/dk-realtime-credencial?nocache=" + Date.now(), {
         method: "GET",
         cache: "no-store",
@@ -195,36 +334,56 @@
         return {};
       });
       if (corpo && corpo.reason) state.realtimeMotivo = String(corpo.reason);
+      if (!(res.status >= 200 && res.status < 300) || !corpo || corpo.ok !== true || !corpo.token) {
+        state.realtimeBloqueado = true;
+        state.realtimeConectado = false;
+        if (!state.realtimeMotivo) state.realtimeMotivo = REALTIME_MOTIVO;
+        emitirStatus();
+        return { ok: false, reason: state.realtimeMotivo, realtime: false, transport: "redis" };
+      }
+      var aberto = await abrirCanalPrivado(corpo);
+      emitirStatus();
+      return aberto;
     } catch (err) {
+      state.realtimeBloqueado = true;
+      state.realtimeConectado = false;
       state.realtimeMotivo = REALTIME_MOTIVO;
+      if (rtMem.wanted) {
+        rtMem.reconnectAttempt += 1;
+        var wait = Math.min(30000, 1000 * Math.pow(2, Math.min(5, rtMem.reconnectAttempt)));
+        root.setTimeout(function () {
+          if (rtMem.wanted) void dkSyncTentarRealtime({ reconnect: true });
+        }, wait);
+      }
+      emitirStatus();
+      return { ok: false, reason: REALTIME_MOTIVO, realtime: false, transport: "redis" };
     }
-    emitirStatus();
-    return { ok: false, reason: state.realtimeMotivo || REALTIME_MOTIVO, realtime: false, transport: "redis" };
   }
 
   function dkSyncEncerrarRealtime() {
     limparRealtimeLocal();
     state.realtimeBloqueado = true;
     state.realtimeMotivo = REALTIME_MOTIVO;
-    state.realtimeConectado = false;
     emitirStatus();
   }
 
   /**
-   * Sinal Redis (mesmo ciclo OCUPADO POR / listar áreas).
-   * Se o seq do servidor avançou, faz catch-up autenticado em /api/dk-sync.
+   * Sinal Redis (ocupação das abas) — fallback D02 se Realtime cair.
+   * Não desliga o Realtime se já estiver conectado; só dispara catch-up PG.
    */
   function dkSyncAplicarSinalRedis(detalhe) {
     var seq = Number(detalhe && (detalhe.server_event_seq || detalhe.seq));
     if (!Number.isFinite(seq) || seq <= 0) return { ok: true, skipped: true, reason: "sem_seq" };
     if (seq > state.lastServerSeq) state.lastServerSeq = seq;
-    state.realtimeBloqueado = true;
-    state.realtimeMotivo = REALTIME_MOTIVO;
-    state.realtimeConectado = false;
     emitirStatus();
     if (seq > state.lastAppliedSeq) {
       void dkSyncCatchUp("redis_sinal");
-      return { ok: true, catchup: true, seq: seq };
+      return {
+        ok: true,
+        catchup: true,
+        seq: seq,
+        transport: state.realtimeConectado ? "realtime+redis" : "redis",
+      };
     }
     return { ok: true, skipped: true, reason: "ja_aplicado", seq: seq };
   }
@@ -235,6 +394,7 @@
         if (!root.document) return;
         if (root.document.visibilityState === "visible") {
           void dkSyncCheckpoint("aba_ativa");
+          if (rtMem.wanted && !state.realtimeConectado) void dkSyncTentarRealtime({ visibility: true });
         }
       } catch (e) {
         /* ignore */
@@ -254,8 +414,8 @@
     });
     root.addEventListener("dk:sessao:pronta", function () {
       void dkSyncCheckpoint("login");
+      void dkSyncTentarRealtime({ login: true });
     });
-    /* Mesmo Redis da ocupação: avança o Log/webstock sem Realtime nem pulso novo. */
     root.addEventListener("dk-area-ocupacao", function (ev) {
       try {
         dkSyncAplicarSinalRedis(ev && ev.detail ? ev.detail : {});
@@ -263,16 +423,16 @@
         /* ignore */
       }
     });
-    /* Sessão já existente (F5 / PWA): checkpoint PG; sinal Redis vem do listar de áreas. */
-    Promise.resolve().then(function () {
+    root.setTimeout(function () {
       try {
         if (root.__DK_portalApiTokenGet && root.__DK_portalApiTokenGet()) {
           void dkSyncCheckpoint("bootstrap");
+          void dkSyncTentarRealtime({ bootstrap: true });
         }
       } catch (e) {
         /* ignore */
       }
-    });
+    }, 1500);
   }
 
   function dkSyncRotulo(status) {

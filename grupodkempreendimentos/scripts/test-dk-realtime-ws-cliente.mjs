@@ -1,5 +1,5 @@
 /**
- * Cliente sync — Realtime Supabase desligado; sinal Redis + catch-up PG.
+ * Cliente sync — piloto A Realtime + fallback Redis; catch-up PG.
  * TESTE SIMULADO ≠ PRODUÇÃO.
  */
 import assert from "node:assert/strict";
@@ -41,6 +41,8 @@ function loadSync(win, fetchImpl) {
     JSON,
     encodeURIComponent,
     Promise,
+    setTimeout,
+    clearTimeout,
   };
   sandbox.self = win;
   sandbox.globalThis = sandbox;
@@ -64,6 +66,8 @@ function makeWin(store, sessao) {
     __DK_portalApiTokenGet() {
       return "tok";
     },
+    setTimeout,
+    clearTimeout,
     addEventListener(type, fn) {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(fn);
@@ -176,5 +180,70 @@ function makeWin(store, sessao) {
   assert.match(String(r.reason), /REALTIME_AUTH_BLOCKED|SCOPE_ISOLATION|canal|auth/i);
 }
 
-console.log("ok dk-realtime-ws-cliente simulado (redis sinal)");
+{
+  const store = new Map();
+  const win = makeWin(store, { sid: "sid-D", empresa: "locadora" });
+  let catchUps = 0;
+  const fetchImpl = async (url) => {
+    if (String(url).includes("dk-realtime-credencial")) {
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            token: "jwt-ok",
+            exp: Math.floor(Date.now() / 1000) + 120,
+            canal: "dk:events",
+            private: true,
+          };
+        },
+      };
+    }
+    catchUps += 1;
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return { ok: true, server_event_seq: 2, events: [], has_more: false };
+      },
+    };
+  };
+  win.__DK_criarClienteRealtime = function () {
+    const handlers = [];
+    const channel = {
+      on(_t, _f, fn) {
+        handlers.push(fn);
+        return channel;
+      },
+      subscribe(cb) {
+        setTimeout(() => cb("SUBSCRIBED"), 0);
+        return channel;
+      },
+    };
+    return {
+      channel() {
+        return channel;
+      },
+      removeChannel() {
+        return Promise.resolve();
+      },
+      realtime: { setAuth() {} },
+    };
+  };
+  const api = loadSync(win, fetchImpl);
+  api.configurar({ realtimeFactory: win.__DK_criarClienteRealtime });
+  const r = await api.dkSyncTentarRealtime();
+  assert.equal(r.ok, true);
+  assert.equal(api.dkSyncGetStatus().realtimeConectado, true);
+  assert.equal(api.dkSyncGetStatus().realtimeBloqueado, false);
+  const sinal = api.dkSyncAplicarSinalRedis({ server_event_seq: 2 });
+  assert.equal(sinal.ok, true);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(catchUps >= 1);
+  api.dkSyncEncerrarRealtime();
+  assert.equal(api.dkSyncGetStatus().realtimeConectado, false);
+}
+
+console.log("ok dk-realtime-ws-cliente simulado (piloto A + redis fallback)");
 process.exit(0);

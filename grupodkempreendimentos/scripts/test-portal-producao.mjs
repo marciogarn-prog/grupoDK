@@ -149,12 +149,14 @@ async function runSuite() {
       r.text()
     );
     record(
-      "webstock/Log usam sinal Redis (sem Realtime activo)",
+      "webstock/Log: Realtime piloto A + Redis fallback",
       dkSyncJs.includes("dkSyncAplicarSinalRedis") &&
         dkSyncJs.includes("dk-area-ocupacao") &&
         dkSyncJs.includes("redis_sinal") &&
+        dkSyncJs.includes("abrirCanalPrivado") &&
+        dkSyncJs.includes("dk_changed") &&
         dkSyncJs.includes("REALTIME_AUTH_BLOCKED"),
-      "PG autoridade; Redis só avisa seq"
+      "PG autoridade; WS avisa seq; Redis fallback"
     );
     const syncPresencaVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
     const portalSyncPresencaJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncPresencaVer}`, {

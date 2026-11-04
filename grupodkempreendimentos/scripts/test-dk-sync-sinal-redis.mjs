@@ -74,6 +74,9 @@ assert.match(syncSrc, /dkSyncAplicarSinalRedis/);
 assert.match(syncSrc, /dk-area-ocupacao/);
 assert.match(syncSrc, /redis_sinal/);
 assert.match(syncSrc, /REALTIME_AUTH_BLOCKED/);
+assert.match(syncSrc, /abrirCanalPrivado/);
+assert.match(syncSrc, /dk_changed/);
+assert.match(syncSrc, /dkSyncTentarRealtime\(\{ login/);
 
 const areaSrc = fs.readFileSync(new URL("../api/dk-area-trabalho.js", import.meta.url), "utf8");
 assert.match(areaSrc, /server_event_seq/);
