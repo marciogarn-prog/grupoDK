@@ -21504,11 +21504,26 @@
     if (display) inpCod.value = display;
   }
 
-  function applyOperacaoLocacaoClienteFromCodigo(rawOpt) {
+  async function applyOperacaoLocacaoClienteFromCodigoAsync(rawOpt) {
+    const raw = rawOpt != null ? String(rawOpt) : String(document.getElementById("operacaoLocacaoClienteCodigo")?.value || "");
+    let hit = findPortalClienteByCodigoBusca(raw);
+    if (!hit && portalClienteCodigoDigitsKey(raw)) {
+      try {
+        await portalAlinharClientesAoEntrarNaTela();
+        refreshOperacaoLocacaoCodigoDatalist();
+      } catch {
+        /* ignore */
+      }
+      hit = findPortalClienteByCodigoBusca(raw);
+    }
+    return applyOperacaoLocacaoClienteFromCodigo(raw, hit);
+  }
+
+  function applyOperacaoLocacaoClienteFromCodigo(rawOpt, hitOpt) {
     const inpCod = document.getElementById("operacaoLocacaoClienteCodigo");
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     const raw = rawOpt != null ? String(rawOpt) : String(inpCod?.value || "");
-    const hit = findPortalClienteByCodigoBusca(raw);
+    const hit = hitOpt || findPortalClienteByCodigoBusca(raw);
     if (!hit) {
       if (msg && portalClienteCodigoDigitsKey(raw)) {
         msg.textContent = `Nenhum cliente encontrado com o código «${String(raw).trim()}».`;
@@ -29676,7 +29691,8 @@
           '<p class="portal-cliente-prefix-list__title">Nenhum cadastro encontrado com esse texto — clique numa linha para confirmar quando aparecer.</p>';
         return;
       }
-      renderPortalSugestoesLista(panel, linhas, "contrato");
+      const titulo = linhas.some((r) => String(r.proto || "").trim()) ? "contrato" : "cadastro";
+      renderPortalSugestoesLista(panel, linhas, titulo);
     }
 
     function aplicarSugestaoOperacaoLocacao(btn) {
@@ -29882,17 +29898,19 @@
     const inpCodigo = document.getElementById("operacaoLocacaoClienteCodigo");
     inpCodigo?.addEventListener("focus", () => refreshOperacaoLocacaoCodigoDatalist(), { passive: true });
     inpCodigo?.addEventListener("input", () => refreshOperacaoLocacaoSugestoesLista());
-    inpCodigo?.addEventListener("change", () => applyOperacaoLocacaoClienteFromCodigo());
+    inpCodigo?.addEventListener("change", () => {
+      void applyOperacaoLocacaoClienteFromCodigoAsync();
+    });
     inpCodigo?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        applyOperacaoLocacaoClienteFromCodigo();
+        void applyOperacaoLocacaoClienteFromCodigoAsync();
       }
     });
     inpCodigo?.addEventListener("blur", () => {
       const raw = String(inpCodigo.value || "").trim();
       if (!raw) return;
-      applyOperacaoLocacaoClienteFromCodigo(raw);
+      void applyOperacaoLocacaoClienteFromCodigoAsync(raw);
     });
 
     inpNome?.addEventListener("blur", () => {
@@ -30843,10 +30861,31 @@
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     refreshOperacaoLocacaoDatalists();
-    void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
-      refreshOperacaoLocacaoProtocoloPicker({ force: true });
-      refreshOperacaoLocacaoProtocoloAdminPlaceholder();
-    });
+    /* Clientes (ex.: 0432 UILIAN) têm de estar alinhados à nuvem — a pesquisa por Cód./nome
+       não usa só contratos; sem este passo o cadastro sem locação some nesta tela. */
+    void (async () => {
+      try {
+        await portalAlinharClientesAoEntrarNaTela();
+      } catch {
+        /* ignore */
+      }
+      try {
+        refreshOperacaoLocacaoDatalists();
+        refreshOperacaoLocacaoCodigoDatalist();
+      } catch {
+        /* ignore */
+      }
+      void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+        refreshOperacaoLocacaoProtocoloPicker({ force: true });
+        refreshOperacaoLocacaoProtocoloAdminPlaceholder();
+        try {
+          refreshOperacaoLocacaoDatalists();
+          refreshOperacaoLocacaoCodigoDatalist();
+        } catch {
+          /* ignore */
+        }
+      });
+    })();
     });
   });
 
