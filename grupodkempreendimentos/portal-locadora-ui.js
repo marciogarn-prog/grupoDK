@@ -2753,21 +2753,23 @@
       openLocadoraEmpresa();
       return;
     }
-    hideAllPanels();
-    panelLog?.classList.remove("hidden");
-    showView("unit");
-    setPortalHash("locadora/log");
-    portalPersistirAreaAtiva("log");
-    portalMostrarLogVazio();
-    portalAtualizarBannerAdmin();
-    portalAndroidSyncNavegacao();
-    const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
-    fetch("/api/dk-log", { cache: "no-store", headers })
-      .then((r) => {
-        if (!panelLog || panelLog.classList.contains("hidden")) return;
-        if (r.status !== 200) openLocadoraEmpresa();
-      })
-      .catch(() => {});
+    portalAbrirSeAreaLivre("log", () => {
+      hideAllPanels();
+      panelLog?.classList.remove("hidden");
+      showView("unit");
+      setPortalHash("locadora/log");
+      portalPersistirAreaAtiva("log");
+      portalMostrarLogVazio();
+      portalAtualizarBannerAdmin();
+      portalAndroidSyncNavegacao();
+      const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+      fetch("/api/dk-log", { cache: "no-store", headers })
+        .then((r) => {
+          if (!panelLog || panelLog.classList.contains("hidden")) return;
+          if (r.status !== 200) openLocadoraEmpresa();
+        })
+        .catch(() => {});
+    });
   }
 
   function openLocadoraFinanceiro() {
@@ -3267,6 +3269,7 @@
     "operacao-lancamento-multas": "Lançamento de multas",
     "operacao-cadastro-colaborador": "Cadastro de colaborador",
     "operacao-cadastro-administrador": "Cadastro de administrador",
+    log: "Log DK",
   };
   const PORTAL_TELA_ATIVA_KEY = "dk_portal_tela_ativa";
   const PORTAL_OCUPACAO_INTERVALO_MS = 4000;
@@ -3300,6 +3303,7 @@
 
   async function portalAreaTrabalhoPedido(area, acao, marca) {
     const headers = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    const presenca = typeof portalCorpoPresencaEquipa === "function" ? portalCorpoPresencaEquipa(true) : {};
     const res = await fetch("/api/dk-area-trabalho", {
       method: "POST",
       cache: "no-store",
@@ -3308,8 +3312,13 @@
       body: JSON.stringify({
         area,
         acao,
-        nome: portalNomeSessaoArea(),
+        nome: portalNomeSessaoArea() || presenca.perfil || "",
         marca: marca || portalAreaLockMarca || Date.now(),
+        tela: presenca.tela,
+        maquina: presenca.maquina,
+        perfil: presenca.perfil,
+        navegador: presenca.navegador,
+        sistema: presenca.sistema,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -3507,6 +3516,15 @@
       .then(({ res, data }) => {
         if (!res.ok || !data || typeof data.areas !== "object" || !data.areas) return;
         portalAplicarMapaOcupacao(data.areas);
+        try {
+          window.dispatchEvent(
+            new CustomEvent("dk-area-ocupacao", {
+              detail: { areas: data.areas, sessoes: Array.isArray(data.sessoes) ? data.sessoes : [] },
+            })
+          );
+        } catch {
+          /* ignore */
+        }
       })
       .catch(() => {})
       .finally(() => {

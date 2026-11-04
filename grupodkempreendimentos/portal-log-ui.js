@@ -479,6 +479,12 @@
     window.addEventListener("dk:log:recarregar", function () {
       if (painelAberto()) carregar(0);
     });
+    /* Mesmo Redis/ciclo da ocupação das abas — Usuários ativos sem pulso extra. */
+    window.addEventListener("dk-area-ocupacao", function (ev) {
+      if (!painelAberto()) return;
+      var sessoes = ev && ev.detail && ev.detail.sessoes;
+      if (Array.isArray(sessoes) && sessoes.length) pintarUsuarios(sessoes);
+    });
     var botao = document.getElementById("btn-verificar-sync");
     if (botao && botao.dataset.syncUi !== "1") {
       botao.dataset.syncUi = "1";

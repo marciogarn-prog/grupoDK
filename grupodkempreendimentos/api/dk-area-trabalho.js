@@ -1,5 +1,6 @@
 /**
  * Presença de área de trabalho (aviso). Não grava cadastro.
+ * Redis partilhado entre PCs — o mesmo mapa alimenta «OCUPADO POR…» e Usuários ativos.
  * Não bloqueia outros usuários: dois operadores podem usar a mesma área.
  * Concorrência de escrita fica no registro (version/409), não na tela.
  */
@@ -10,6 +11,8 @@ const {
   requireLiveSession,
   onlyDigits,
 } = require("../lib/dk-portal-auth.cjs");
+const { ordenarSessoes } = require("../lib/dk-log-apresentacao.cjs");
+const { tocarPresencaLive } = require("../lib/dk-live-presenca.cjs");
 
 const TTL_SEC = 90;
 const AREAS = new Set([
@@ -20,6 +23,7 @@ const AREAS = new Set([
   "documentos",
   "financeiro",
   "financeiro-ceo",
+  "log",
   "operacao-cadastro-cliente",
   "operacao-cadastro-veiculo",
   "operacao-cadastro-locacao",
@@ -30,6 +34,25 @@ const AREAS = new Set([
   "operacao-cadastro-colaborador",
   "operacao-cadastro-administrador",
 ]);
+
+const AREA_TELA = {
+  manutencao: "Manutenção",
+  estoque: "Estoque",
+  localizacao: "Localização de clientes",
+  documentos: "Documentos",
+  financeiro: "Financeiro",
+  "financeiro-ceo": "Financeiro CEO",
+  log: "Log DK",
+  "operacao-cadastro-cliente": "Cadastro de cliente",
+  "operacao-cadastro-veiculo": "Cadastro de veículo",
+  "operacao-cadastro-locacao": "Cadastro de locação",
+  "operacao-relatorio-rotatividade": "Relatório de rotatividade",
+  "operacao-relatorio-inatividade": "Relatório de inatividade",
+  "operacao-lancamento-aluguel": "Lançamento de aluguel",
+  "operacao-lancamento-multas": "Lançamento de multas",
+  "operacao-cadastro-colaborador": "Cadastro de colaborador",
+  "operacao-cadastro-administrador": "Cadastro de administrador",
+};
 
 function chave(area) {
   return `dk:portal:area_trabalho:v1:${area}`;
@@ -64,6 +87,10 @@ function lerDono(raw) {
     cpf,
     nome: String(data.nome || "").trim().slice(0, 80),
     at: Number(data.at) || 0,
+    entrada: Number(data.entrada) || Number(data.at) || 0,
+    role: String(data.role || "").trim().slice(0, 40),
+    maquina: String(data.maquina || "").trim().slice(0, 40),
+    tela: String(data.tela || "").trim().slice(0, 60),
   };
 }
 
@@ -74,12 +101,78 @@ function nomeExibicao(body) {
     .slice(0, 80);
 }
 
+function textoCurto(valor, max) {
+  return String(valor || "")
+    .replace(/[\r\n\t]/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function telaDaArea(area, body) {
+  const doCliente = textoCurto(body && body.tela, 60);
+  if (doCliente) return doCliente;
+  return AREA_TELA[area] || area || "DK Locadora";
+}
+
+function pacotePresenca(gate, body, area, marca, entradaAnterior) {
+  const at = Number(marca) || Date.now();
+  return {
+    cpf: onlyDigits(gate.cpf).slice(0, 11),
+    nome: nomeExibicao(body) || textoCurto(gate.nome, 80),
+    at,
+    entrada: Number(entradaAnterior) || at,
+    role: textoCurto(body.perfil || gate.role, 40),
+    maquina: textoCurto(body.maquina, 40),
+    tela: telaDaArea(area, body),
+  };
+}
+
+function sessoesDoMapa(areasRaw) {
+  const rows = [];
+  for (const [area, dono] of Object.entries(areasRaw || {})) {
+    if (!dono || !dono.cpf) continue;
+    const atMs = Number(dono.at) || Date.now();
+    const entradaMs = Number(dono.entrada) || atMs;
+    rows.push({
+      session_id: "area:" + dono.cpf,
+      user_id: dono.cpf,
+      user_name: dono.nome || "",
+      role: dono.role || "",
+      device_label: dono.maquina || "",
+      session_started_at: new Date(entradaMs).toISOString(),
+      last_activity_at: new Date(atMs).toISOString(),
+      current_screen: dono.tela || AREA_TELA[area] || area,
+      status: "ONLINE",
+    });
+  }
+  return ordenarSessoes(rows, new Date());
+}
+
 async function soltarOutras(redis, cpf, areaAtual) {
   for (const area of AREAS) {
     if (area === areaAtual) continue;
     const key = chave(area);
     const dono = lerDono(await redis.get(key));
     if (dono && dono.cpf === cpf) await redis.del(key);
+  }
+}
+
+async function espelharLive(gate, body, area, vivo) {
+  try {
+    await tocarPresencaLive({
+      sid: gate && gate.sid,
+      cpf: gate && gate.cpf,
+      nome: (body && body.nome) || (gate && gate.nome),
+      role: gate && gate.role,
+      perfil: body && body.perfil,
+      maquina: body && body.maquina,
+      tela: vivo === false ? undefined : telaDaArea(area, body),
+      status: vivo === false ? "OFFLINE" : "ONLINE",
+      navegador: body && body.navegador,
+      sistema: body && body.sistema,
+    });
+  } catch (err) {
+    console.error("[DK area] live sessions", err && err.message ? err.message : err);
   }
 }
 
@@ -105,12 +198,16 @@ module.exports = async function handler(req, res) {
     try {
       redisLista = createRedisClient();
       const areas = {};
+      const areasRaw = {};
       for (const id of AREAS) {
         if (id === "operacao") continue;
         const dono = lerDono(await redisLista.get(chave(id)));
-        if (dono && dono.nome) areas[id] = dono.nome;
+        if (dono && dono.nome) {
+          areas[id] = dono.nome;
+          areasRaw[id] = dono;
+        }
       }
-      return res.status(200).json({ ok: true, areas });
+      return res.status(200).json({ ok: true, areas, sessoes: sessoesDoMapa(areasRaw) });
     } catch (e) {
       const reason = e && e.reason === "cloud_budget" ? "cloud_budget" : "area_indisponivel";
       return res.status(503).json({ ok: false, reason });
@@ -133,29 +230,32 @@ module.exports = async function handler(req, res) {
     }
 
     const marca = Number(body.marca) || Date.now();
-    const pacote = JSON.stringify({ cpf, nome: nomeExibicao(body), at: marca });
     if (acao === "renovar") {
       const donoRenova = lerDono(await redis.get(key));
       if (!donoRenova || donoRenova.cpf !== cpf) {
         return res.status(200).json({ ok: true, livre: false, expirada: true });
       }
-      await redis.set(key, JSON.stringify({ cpf, nome: nomeExibicao(body), at: donoRenova.at || marca }), {
-        ex: TTL_SEC,
-      });
+      const pacote = pacotePresenca(gate, body, area, donoRenova.at || marca, donoRenova.entrada);
+      await redis.set(key, JSON.stringify(pacote), { ex: TTL_SEC });
+      await espelharLive(gate, body, area, true);
       return res.status(200).json({ ok: true, livre: true, marca: donoRenova.at || marca });
     }
     if (acao === "entrar") {
-      const reservou = await redis.set(key, pacote, { nx: true, ex: TTL_SEC });
+      const pacote = pacotePresenca(gate, body, area, marca, marca);
+      const reservou = await redis.set(key, JSON.stringify(pacote), { nx: true, ex: TTL_SEC });
       if (reservou) {
         await soltarOutras(redis, cpf, area);
+        await espelharLive(gate, body, area, true);
         return res.status(200).json({ ok: true, livre: true, marca });
       }
     }
 
     const dono = lerDono(await redis.get(key));
     if (!dono || dono.cpf === cpf) {
-      await redis.set(key, pacote, { ex: TTL_SEC });
+      const pacote = pacotePresenca(gate, body, area, marca, dono && dono.cpf === cpf ? dono.entrada : marca);
+      await redis.set(key, JSON.stringify(pacote), { ex: TTL_SEC });
       if (acao === "entrar") await soltarOutras(redis, cpf, area);
+      await espelharLive(gate, body, area, true);
       return res.status(200).json({ ok: true, livre: true, marca });
     }
 

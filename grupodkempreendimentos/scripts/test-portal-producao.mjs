@@ -128,6 +128,22 @@ async function runSuite() {
         portalUiOpsJs.includes('tela: portalTelaPresencaNome()'),
       "estado do utilizador vai junto ao sync de aba/ação"
     );
+    record(
+      "Usuários ativos reutiliza ocupação Redis das abas",
+      portalUiOpsJs.includes("dk-area-ocupacao") &&
+        portalUiOpsJs.includes("data.sessoes") &&
+        portalUiOpsJs.includes("/api/dk-area-trabalho"),
+      "mesmo ciclo OCUPADO POR → Log"
+    );
+    const logUiVer = html.match(/portal-log-ui\.js\?v=([^"]+)/)?.[1] || "latest";
+    const logUiJs = await fetch(`${BASE_URL}portal-log-ui.js?v=${logUiVer}`, { cache: "no-store" }).then((r) =>
+      r.text()
+    );
+    record(
+      "Log pinta Usuários ativos no evento dk-area-ocupacao",
+      logUiJs.includes("dk-area-ocupacao") && logUiJs.includes("pintarUsuarios"),
+      "via Redis partilhado"
+    );
     const syncPresencaVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
     const portalSyncPresencaJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncPresencaVer}`, {
       cache: "no-store",
