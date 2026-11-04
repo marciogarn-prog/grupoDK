@@ -2665,17 +2665,20 @@
   async function enviarLocacaoMaisRecenteNaNuvem(loc) {
     const nc = ncLocacaoSync(loc);
     if (!nc || !hasUsableCloudToken()) return;
-    const headers = dkCloudFetchHeaders();
-    try {
-      await fetch("/api/dk-cloud-snapshot?nocache=" + Date.now(), {
-        method: "POST",
-        cache: "no-store",
-        headers: { Accept: "application/json", "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ locacao: loc, confirm: { kind: "locacao", value: nc } }),
-      });
-    } catch (e) {
-      console.warn("[DK cloud] regravar locação mais recente", e);
+    /* Cutover: locação não grava no snapshot — só /api/dk-locacao. */
+    if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      try {
+        window.__DK_LOCACAO_PG = true;
+        await window.__DK_locacaoSalvarConfirmada(loc, {
+          op: loc && loc.pgId ? "atualizar" : "criar",
+          numero: nc,
+        });
+      } catch (e) {
+        console.warn("[DK cloud] regravar locação via /api/dk-locacao", e);
+      }
+      return;
     }
+    console.warn("[DK cloud] regravar locação ignorada: módulo /api/dk-locacao ainda não carregou");
   }
 
   function enviarPagamentosReanexadosSeHouver() {

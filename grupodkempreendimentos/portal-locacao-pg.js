@@ -8,6 +8,9 @@
 (function portalLocacaoPg() {
   if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
 
+  /* Fonte oficial é Postgres desde o cutover — não esperar a 1ª lista para gravar. */
+  window.__DK_LOCACAO_PG = true;
+
   const CHAVE = "dk_locacoes_cadastro";
   let fila = Promise.resolve();
   let selo = "";

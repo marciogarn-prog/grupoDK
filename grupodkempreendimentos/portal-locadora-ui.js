@@ -20350,9 +20350,11 @@
     return Boolean(
       push.redisOk ||
         push.supaOk ||
+        push.confirmed === true ||
         push.source === "redis" ||
         push.source === "both" ||
-        push.source === "supabase"
+        push.source === "supabase" ||
+        push.source === "postgres"
     );
   }
 
@@ -20360,7 +20362,8 @@
     const nc = portalNuvemNormProto(ncRaw);
     const loc = nc && typeof findPortalLocacaoByProtocolo === "function" ? findPortalLocacaoByProtocolo(nc) : null;
     if (!loc) return { ok: false, error: "O protocolo não está neste computador." };
-    if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+    if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      window.__DK_LOCACAO_PG = true;
       const r = await window.__DK_locacaoSalvarConfirmada(loc, {
         op: loc.pgId ? "atualizar" : "criar",
         numero: nc,
@@ -20368,6 +20371,7 @@
       if (!r || r.ok !== true) {
         return { ok: false, error: (r && r.message) || "Não foi possível salvar no servidor." };
       }
+      portalMarcarLocacaoConfirmadaNaNuvem(nc);
       return {
         ok: true,
         success: true,
@@ -20384,7 +20388,7 @@
     return {
       ok: false,
       error:
-        "LOCAÇÃO NÃO É GRAVADA NO SNAPSHOT. A FONTE OFICIAL É /API/DK-LOCACAO. A gravação só vale depois que o servidor confirmar.",
+        "Não foi possível gravar a locação: o módulo oficial (/api/dk-locacao) ainda não carregou. Recarregue a página e tente de novo.",
     };
   }
 
@@ -23922,7 +23926,8 @@
         portalLocacaoFinalizadoEmMs: finNow,
         updatedAt: finNow,
       };
-      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        window.__DK_LOCACAO_PG = true;
         portalNuvemSyncLockShow("A finalizar a locação no servidor oficial…");
         const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "finalizar", numero: ncNorm });
         if (!r || r.ok !== true) {
@@ -24084,7 +24089,8 @@
         portalLocacaoCanceladoEmMs: finNow,
         updatedAt: finNow,
       };
-      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        window.__DK_LOCACAO_PG = true;
         portalNuvemSyncLockShow("A cancelar o contrato no servidor oficial…");
         const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "atualizar", numero: ncNorm });
         if (!r || r.ok !== true) {
@@ -24261,7 +24267,8 @@
         portalLocacaoReativadoEmMs: finNow,
         updatedAt: finNow,
       };
-      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        window.__DK_LOCACAO_PG = true;
         portalNuvemSyncLockShow("A reativar o protocolo no servidor oficial…");
         const r = await window.__DK_locacaoSalvarConfirmada(registro, { op: "atualizar", numero: ncNorm });
         if (!r || r.ok !== true) {
@@ -25076,7 +25083,8 @@
             updatedAt: nowMs,
           };
 
-      if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoSalvarConfirmada === "function") {
+      if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
+        window.__DK_LOCACAO_PG = true;
         portalNuvemSyncLockShow(
           prev ? "A gravar a atualização no servidor oficial…" : "A gravar a locação no servidor oficial…"
         );
