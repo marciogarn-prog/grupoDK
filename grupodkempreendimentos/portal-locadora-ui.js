@@ -1158,11 +1158,14 @@
   }
 
   function getOperacaoProximoClienteNumero() {
+    const total = countOperacaoClientesCadastrados();
+    let fromNext = 0;
     if (typeof nextClienteCodigo === "function") {
       const n = Number(String(nextClienteCodigo()).replace(/\D/g, ""));
-      if (Number.isFinite(n) && n > 0) return n;
+      if (Number.isFinite(n) && n > 0) fromNext = n;
     }
-    return countOperacaoClientesCadastrados() + 1;
+    /* Sempre ≥ total+1: após alinhar a nuvem o contador e o Cód. ficam coerentes. */
+    return Math.max(fromNext, total + 1);
   }
 
   function getOperacaoProximoClientePlaceholder() {
@@ -1187,6 +1190,11 @@
     if (!codigo) return;
     refreshOperacaoClienteTotalCadastrados();
     const proximoPh = getOperacaoProximoClientePlaceholder();
+    /* Nunca deixar «proximo cliente N» como valor digitável (só placeholder). */
+    const valorAtual = String(codigo.value || "").trim();
+    if (/^proximo\s*cliente\b/i.test(valorAtual) || /^autom[aá]tico$/i.test(valorAtual)) {
+      codigo.value = "";
+    }
     const podeEditar = portalAdminPodeEditarCodigoCliente();
     if (podeEditar) {
       codigo.readOnly = false;

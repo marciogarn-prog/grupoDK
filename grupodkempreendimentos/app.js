@@ -9225,12 +9225,17 @@ function getBundledClienteCpfSet() {
 /**
  * Próximo Cód. no padrão de 4 dígitos: maior código da base + 1
  * (nuvem já puxada + bundles). Ex.: 0400 na nuvem → próximo 0401.
+ * Se a nuvem trouxe CPF sem `codigo` preenchido, o piso é a contagem de CPF
+ * (ex.: 448 cadastrados → próximo pelo menos 0449), para não cair em «0001».
  */
 function nextClienteCodigo() {
   const used = new Set();
+  const cpfs = new Set();
   const addCodes = (arr) => {
     if (!Array.isArray(arr)) return;
     for (const c of arr) {
+      const cpf = onlyDigits(String(c && c.cpf || "")).slice(0, 11);
+      if (cpf.length === 11) cpfs.add(cpf);
       if (
         typeof window.__DK_isClienteCodigoForaDaSequencia === "function" &&
         window.__DK_isClienteCodigoForaDaSequencia(c)
@@ -9249,11 +9254,18 @@ function nextClienteCodigo() {
   } catch {
     /* ignore */
   }
+  try {
+    if (typeof PORTAL_CLIENTES_KEY !== "undefined") addCodes(loadCadastro(PORTAL_CLIENTES_KEY));
+  } catch {
+    /* ignore */
+  }
 
   let max = getMaxClienteCodigoFromBundledSnapshots();
   used.forEach((n) => {
     if (n > max) max = n;
   });
+  /* Piso: total de CPF únicos alinhados com a nuvem (evita «proximo cliente 1»). */
+  if (cpfs.size > max) max = cpfs.size;
   let next = max + 1;
   while (used.has(next)) next += 1;
   return formatClienteCodigoPadrao(next);
