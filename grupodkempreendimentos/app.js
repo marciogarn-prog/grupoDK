@@ -3106,6 +3106,8 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
     "status",
     "numLinha",
   ];
+  /** Relógio puro — estado operacional (Disponíveis / reserva) segue o updatedAt mais recente. */
+  const scoreOp = (r) => Number(r?.updatedAt || r?.createdAt || r?.id || 0);
   const pick = (field) => {
     const a = String(ex?.[field] ?? "").trim();
     const b = String(incoming?.[field] ?? "").trim();
@@ -3123,6 +3125,27 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
     const v = pick(f);
     if (v !== undefined && String(v).trim() !== "") merged[f] = v;
   });
+  /* disponivelCategoria NÃO pode vir do spread `{...ex,...incoming}`: a nuvem/PG
+     antiga (incoming) apagava o «prontos» / «ativo-disponivel» mais recente do PC. */
+  const sEx = scoreOp(ex);
+  const sIn = scoreOp(incoming);
+  const newerOp = sIn >= sEx ? incoming : ex;
+  const olderOp = newerOp === incoming ? ex : incoming;
+  for (const f of ["disponivelCategoria", "categoriaDisponivel", "estadoDisponivel", "reservaOperacaoManual"]) {
+    const newerHas = newerOp && Object.prototype.hasOwnProperty.call(newerOp, f);
+    const olderHas = olderOp && Object.prototype.hasOwnProperty.call(olderOp, f);
+    if (newerHas) {
+      const v = newerOp[f];
+      if (v === undefined || v === null || v === "") delete merged[f];
+      else merged[f] = v;
+    } else if (scoreOp(newerOp) > scoreOp(olderOp)) {
+      delete merged[f];
+    } else if (olderHas && olderOp[f] != null && olderOp[f] !== "") {
+      merged[f] = olderOp[f];
+    } else {
+      delete merged[f];
+    }
+  }
   if (ex?.origemPortal || incoming?.origemPortal) merged.origemPortal = true;
   merged.updatedAt = Math.max(Number(ex?.updatedAt || 0), Number(incoming?.updatedAt || 0), Date.now());
   return merged;
@@ -3374,6 +3397,14 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         const pl = plateKey(r.placa);
         if (pl) byPlacaAtiva.delete(pl);
       }
+    }
+    /* Fecho sem id (legado) também tira a placa de «em manutenção» se for o registo mais recente. */
+    for (const r of closed) {
+      if (ativa(r)) continue;
+      const pl = plateKey(r.placa);
+      if (!pl) continue;
+      const open = byPlacaAtiva.get(pl);
+      if (open && scoreManut(r) >= scoreManut(open)) byPlacaAtiva.delete(pl);
     }
     return [...byPlacaAtiva.values(), ...byId.values(), ...closed];
   }

@@ -118,6 +118,28 @@ function mergeVeiculosCadastro(previousList, incomingList) {
   };
   const byK = new Map();
   const score = (v) => Number(v.updatedAt || v.createdAt || v.id || 0);
+  const OP_FIELDS = ["disponivelCategoria", "categoriaDisponivel", "estadoDisponivel", "reservaOperacaoManual"];
+  const mergeOp = (ex, v, merged) => {
+    const sEx = score(ex);
+    const sV = score(v);
+    const newer = sV >= sEx ? v : ex;
+    const older = newer === v ? ex : v;
+    for (const f of OP_FIELDS) {
+      const newerHas = newer && Object.prototype.hasOwnProperty.call(newer, f);
+      const olderHas = older && Object.prototype.hasOwnProperty.call(older, f);
+      if (newerHas) {
+        const val = newer[f];
+        if (val === undefined || val === null || val === "") delete merged[f];
+        else merged[f] = val;
+      } else if (score(newer) > score(older)) {
+        delete merged[f];
+      } else if (olderHas && older[f] != null && older[f] !== "") {
+        merged[f] = older[f];
+      } else {
+        delete merged[f];
+      }
+    }
+  };
   const add = (v) => {
     if (isVeiculoFantasmaCadastro(v)) return;
     const k = keyOf(v);
@@ -130,13 +152,21 @@ function mergeVeiculosCadastro(previousList, incomingList) {
       byK.set(k, merged);
       return;
     }
+    mergeOp(ex, v, merged);
     if (score(v) > score(ex)) {
       byK.set(k, merged);
       return;
     }
     if (score(v) === score(ex) && JSON.stringify(v).length >= JSON.stringify(ex).length) {
       byK.set(k, merged);
+      return;
     }
+    /* Mantém o mais antigo como base, mas com campos operacionais já reconciliados. */
+    const stay = { ...ex };
+    mergeOp(ex, v, stay);
+    const canonStay = normalizePlacaParaCadastro(stay.placa);
+    if (canonStay) stay.placa = canonStay;
+    byK.set(k, stay);
   };
   prev.forEach(add);
   incoming.forEach(add);
@@ -712,7 +742,7 @@ function mergeFinanceiroCeoSituacaoPag(previousList, incomingList) {
  * União irreversível dos cadastros operacionais: CPF, placa, protocolo,
  * colaboradores e lançamentos/auditoria nunca saem porque o snapshot incoming veio menor.
  */
-function neverLoseCadastroPayload(existing, incoming) {
+function neverLoseCadastroPayload(existing, incoming, opts) {
   if (!existing || typeof existing !== "object") {
     return incoming && typeof incoming === "object" ? incoming : existing;
   }
@@ -734,6 +764,7 @@ function neverLoseCadastroPayload(existing, incoming) {
     ["dk_financeiro_ceo_situacao_pag_v1", mergeFinanceiroCeoSituacaoPag],
   ];
   for (const [k, fn] of pairs) {
+    if (opts && opts.pularLocacao && k === "dk_locacoes_cadastro") continue;
     const hasEx = Array.isArray(existing[k]);
     const hasIn = Array.isArray(incoming[k]);
     if (!hasEx && !hasIn) continue;

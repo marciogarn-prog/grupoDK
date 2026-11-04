@@ -5530,6 +5530,7 @@
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
     portalBindDevolucao41Once();
     portalHealAtivoDisponivelFromManutencoes();
+    void portalPullManutencoesQuadroAoAbrir();
     const inp = document.getElementById("portalChecklistPlacaInput");
     window.setTimeout(() => {
       inp?.focus();
@@ -5560,6 +5561,8 @@
     const grid = document.getElementById("portalDisponiveisPlacasGrid");
     grid?.classList.toggle("portal-reserva-placas--operacao-info", sub === "reserva-operacao");
     portalRefreshManutencaoDisponiveisPlacas();
+    /* Sem este pull, um PC ficava com moto «disponível» e outro ainda em manutenção/reserva. */
+    void portalPullManutencoesQuadroAoAbrir();
   }
 
   function expandManutencaoDisponiveisReservaMenuOnly() {
@@ -7488,7 +7491,7 @@
     return { ok: true, placa: placaKey, categoria, em: agora };
   }
 
-  /** Download do quadro de manutenções da nuvem (union) e refresca a grelha. */
+  /** Download do quadro de manutenções/veículos da nuvem (union) e refresca as grelhas. */
   function portalPullManutencoesQuadroAoAbrir() {
     const pull =
       typeof window.__DK_pullFromCloudOnScreenChange === "function"
@@ -7498,7 +7501,11 @@
       .then(() => {
         try {
           refreshPortalChecklistPlacasAtivasCache();
+          if (typeof refreshOperacaoVeiculoPlacasCache === "function") refreshOperacaoVeiculoPlacasCache();
           if (portalChecklistUsesPlacasGrid()) portalRefreshManutencaoPlacasGrid(true);
+          const dispOpen = !document.getElementById("manutencaoInlineDisponiveis")?.classList.contains("hidden");
+          if (dispOpen) portalRefreshManutencaoDisponiveisPlacas();
+          portalHealAtivoDisponivelFromManutencoes();
         } catch {
           /* ignore */
         }
@@ -30810,7 +30817,33 @@
     window.__DK_suppressPortalCadastroPush = true;
     try {
       if (typeof saveCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
-        saveCadastro(CAD_VEICULOS_KEY, data.data, { allowShrink: true, bypassImmutabilidadeCadastro: true });
+        const local = typeof loadCadastro === "function" ? loadCadastro(CAD_VEICULOS_KEY) : [];
+        /* União por placa/updatedAt — nunca substituir a lista inteira (PG pode estar
+           atrás do snapshot no estado Disponíveis/Manutenção). */
+        const merged =
+          typeof mergeCadastroHistoricoImutavel === "function"
+            ? mergeCadastroHistoricoImutavel(CAD_VEICULOS_KEY, local, data.data)
+            : typeof window.__DK_mergeCadastroVeiculoHistorico === "function"
+              ? (() => {
+                  const by = new Map();
+                  const nk = (p) =>
+                    typeof normalizePlate === "function"
+                      ? normalizePlate(String(p || ""))
+                      : String(p || "")
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, "");
+                  const add = (v) => {
+                    const k = nk(v?.placa);
+                    if (!k) return;
+                    const ex = by.get(k);
+                    by.set(k, ex ? window.__DK_mergeCadastroVeiculoHistorico(ex, v) : { ...v });
+                  };
+                  (Array.isArray(local) ? local : []).forEach(add);
+                  data.data.forEach(add);
+                  return Array.from(by.values());
+                })()
+              : data.data;
+        saveCadastro(CAD_VEICULOS_KEY, merged, { allowShrink: true, bypassImmutabilidadeCadastro: true });
       }
     } finally {
       window.__DK_suppressPortalCadastroPush = prev;
