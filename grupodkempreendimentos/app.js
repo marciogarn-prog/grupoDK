@@ -7818,6 +7818,10 @@ function locacaoProtocoloTemIntegridadeMinima(loc, opts) {
   if (!(valor > 0)) return { ok: false, falta: "valor de aluguel" };
   if (o.requireClienteCadastro) {
     const cli = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpf) : null;
+    /* Atualização: nome já no registo/formulario basta — o cache local pode estar vazio após o cutover PG. */
+    if ((!cli || !String(cli.nome || "").trim()) && o.permitirNomeNoRegistro === true && nome) {
+      return { ok: true };
+    }
     if (!cli || !String(cli.nome || "").trim()) return { ok: false, falta: "cliente cadastrado" };
   }
   return { ok: true };

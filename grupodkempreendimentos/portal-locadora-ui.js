@@ -24664,6 +24664,10 @@
   /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
   function persistPortalOperacaoLocacaoInlineSubmit(ev) {
     ev.preventDefault();
+    void persistPortalOperacaoLocacaoInlineSubmitAsync();
+  }
+
+  async function persistPortalOperacaoLocacaoInlineSubmitAsync() {
     if (portalAndroidBloquearEscrita(document.getElementById("operacaoLocacaoInlineMsg"))) return;
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
@@ -24828,12 +24832,48 @@
     const tempoN = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
     const periodoLocacao = tempoN ? `${tempoN} dia(s)` : "";
     const marcaModelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
-    const cliente =
+    const locsPeek =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const prevPeek =
+      locsPeek.find((l) => normPortalNumeroContrato(l?.numeroContrato) === nc) ||
+      (ncOriginal && ncOriginal !== nc
+        ? locsPeek.find((l) => normPortalNumeroContrato(l?.numeroContrato) === ncOriginal)
+        : null) ||
+      (window.__DK_locacaoDetalheAtual &&
+      normPortalNumeroContrato(window.__DK_locacaoDetalheAtual.numeroContrato) === nc
+        ? window.__DK_locacaoDetalheAtual
+        : null);
+    const atualizandoExistente = Boolean(prevPeek) && !isNovo;
+
+    let cliente =
       (typeof findClienteByCpfCadastro === "function" && findClienteByCpfCadastro(cpfDigits)) ||
       (typeof getPortalClienteKnownRecord === "function" && getPortalClienteKnownRecord(cpfDigits)) ||
       null;
-    const nomeCliente = String(cliente?.nome || "").trim();
-    if (!nomeCliente) {
+    if (!cliente || !String(cliente.nome || "").trim()) {
+      try {
+        if (msg) msg.textContent = "A confirmar o cliente na nuvem…";
+        const nuvem = await portalLerClientesNuvem();
+        if (nuvem && nuvem.ok && Array.isArray(nuvem.lista) && nuvem.lista.length) {
+          portalAplicarClientesOficiaisNoPc(nuvem.lista);
+        }
+      } catch {
+        /* segue com formulário / protocolo já aberto */
+      }
+      cliente =
+        (typeof findClienteByCpfCadastro === "function" && findClienteByCpfCadastro(cpfDigits)) ||
+        (typeof getPortalClienteKnownRecord === "function" && getPortalClienteKnownRecord(cpfDigits)) ||
+        null;
+    }
+    const nomeForm = String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim();
+    const nomeCliente = String(
+      (cliente && cliente.nome) ||
+        nomeForm ||
+        (prevPeek && (prevPeek.nome || prevPeek.cliente)) ||
+        ""
+    ).trim();
+    if (!nomeCliente || (!cliente && !atualizandoExistente)) {
       if (msg) {
         msg.textContent =
           "Protocolo exige um cliente já cadastrado com este CPF. Cadastre o cliente antes da locação.";
@@ -24845,7 +24885,7 @@
       if (msg) msg.textContent = "Protocolo exige o KM inicial (ODOMETRO INICIO).";
       return;
     }
-    const veiculoCad =
+    let veiculoCad =
       (typeof findPortalVeiculoByPlaca === "function" && findPortalVeiculoByPlaca(plate)) ||
       (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
         ? loadCadastro(CAD_VEICULOS_KEY).find((v) => {
@@ -24859,6 +24899,46 @@
             return pl === plate;
           })
         : null);
+    if (!veiculoCad) {
+      try {
+        if (typeof window.__DK_veiculoPgRecarregar === "function") {
+          if (msg) msg.textContent = "A confirmar a placa na nuvem…";
+          await window.__DK_veiculoPgRecarregar();
+        }
+      } catch {
+        /* ignore */
+      }
+      veiculoCad =
+        (typeof findPortalVeiculoByPlaca === "function" && findPortalVeiculoByPlaca(plate)) ||
+        (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+          ? loadCadastro(CAD_VEICULOS_KEY).find((v) => {
+              const pl =
+                typeof normalizePlate === "function"
+                  ? normalizePlate(String(v?.placa || ""))
+                  : String(v?.placa || "")
+                      .trim()
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "");
+              return pl === plate;
+            })
+          : null);
+    }
+    if (!veiculoCad && atualizandoExistente) {
+      const prevPlate =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(prevPeek?.placa || ""))
+          : String(prevPeek?.placa || "")
+              .trim()
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      if (prevPlate && prevPlate === plate) {
+        veiculoCad = {
+          placa: plate,
+          tipo: prevPeek?.modalidade || prevPeek?.tipo || "MOTO",
+          modelo: prevPeek?.marcaModelo || marcaModelo,
+        };
+      }
+    }
     if (!veiculoCad) {
       if (msg) {
         msg.textContent = "Protocolo exige uma placa já cadastrada no Cadastro de veículo.";
@@ -24885,7 +24965,8 @@
     if (idxAll < 0 && ncOriginal && ncOriginal !== nc) {
       idxAll = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncOriginal);
     }
-    const prev = idxAll >= 0 ? locs[idxAll] : null;
+    let prev = idxAll >= 0 ? locs[idxAll] : null;
+    if (!prev && prevPeek) prev = prevPeek;
     if (!prev && !isNovo) {
       if (msg) msg.textContent = "Contrato não encontrado para atualizar. Use «NOVO» para criar um protocolo.";
       return;
@@ -25039,6 +25120,7 @@
       const gate = locacaoProtocoloTemIntegridadeMinima(baseRecord, {
         requireKmInicial: true,
         requireClienteCadastro: true,
+        permitirNomeNoRegistro: Boolean(prev),
       });
       if (!gate.ok) {
         if (msg) {
