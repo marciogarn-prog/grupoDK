@@ -113,6 +113,7 @@
 
   let portalPresencaEquipaTimer = 0;
   let portalPresencaOutrosCpfs = [];
+  const PORTAL_PRESENCA_PULSO_MS = 15 * 1000;
 
   function portalPintarBannerOperadoresCpfs() {
     const el = document.getElementById("portalAdminBannerOperadoresCpfs");
@@ -130,6 +131,81 @@
     el.hidden = false;
   }
 
+  function portalMaquinaPresenca() {
+    try {
+      const nav = typeof navigator !== "undefined" ? navigator : {};
+      const ua = String(nav.userAgent || "");
+      const plat = String(nav.platform || "");
+      if (/Android/i.test(ua)) return "Android";
+      if (/iPhone|iPad/i.test(ua)) return "iPhone";
+      if (/Win/i.test(plat) || /Windows/i.test(ua)) return "Windows";
+      if (/Mac/i.test(plat)) return "macOS";
+      if (/Linux/i.test(plat)) return "Linux";
+      return plat.slice(0, 40) || "Windows";
+    } catch {
+      return "Windows";
+    }
+  }
+
+  function portalPerfilPresenca() {
+    try {
+      const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      if (!s || s.tipo !== "admin") return "";
+      const cpf = String(s.cpf || "").replace(/\D/g, "").slice(0, 11);
+      if (s.role === "owner" && cpf === DK_LOCADORA_ADMIN_CPF) return "Administrador CEO";
+      if (s.role === "owner") return "Administrador";
+      const lista = typeof funcionariosAccess !== "undefined" && Array.isArray(funcionariosAccess) ? funcionariosAccess : [];
+      for (let i = 0; i < lista.length; i++) {
+        const item = lista[i];
+        const doc = String((item && item.cpf) || "").replace(/\D/g, "").slice(0, 11);
+        if (doc && doc === cpf) {
+          const funcao = String(item.funcao || "").replace(/[\r\n\t]/g, " ").trim();
+          if (funcao) return funcao.slice(0, 40);
+          break;
+        }
+      }
+      return "Colaborador";
+    } catch {
+      return "";
+    }
+  }
+
+  function portalTelaPresencaNome() {
+    const panelLogEl = document.getElementById("panel-log-locadora");
+    if (panelLogEl && !panelLogEl.classList.contains("hidden")) return "Log DK";
+    try {
+      if (typeof portalAndroidTituloAtual === "function") {
+        const t = String(portalAndroidTituloAtual() || "").trim();
+        if (t === "Log") return "Log DK";
+        if (t && t !== "Empresa") return t;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const area = sessionStorage.getItem("dk_portal_tela_ativa") || "";
+      if (area && typeof PORTAL_AREA_LOCK_NOME === "object" && PORTAL_AREA_LOCK_NOME[area]) {
+        return PORTAL_AREA_LOCK_NOME[area];
+      }
+    } catch {
+      /* ignore */
+    }
+    return "DK Locadora";
+  }
+
+  function portalCorpoPresencaEquipa(vivo) {
+    const nav = typeof navigator !== "undefined" ? navigator : {};
+    const ua = String(nav.userAgent || "");
+    return {
+      vivo: Boolean(vivo),
+      tela: portalTelaPresencaNome(),
+      maquina: portalMaquinaPresenca(),
+      perfil: portalPerfilPresenca(),
+      navegador: /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : "navegador",
+      sistema: portalMaquinaPresenca(),
+    };
+  }
+
   async function portalPresencaEquipaTick() {
     if (!portalTemSessaoEquipaAtiva()) return;
     if (typeof document !== "undefined" && document.hidden) return;
@@ -139,7 +215,7 @@
       const r = await fetch("/api/dk-equipa-presenca", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ vivo: true }),
+        body: JSON.stringify(portalCorpoPresencaEquipa(true)),
         cache: "no-store",
       });
       const j = await r.json().catch(() => ({}));
@@ -212,6 +288,11 @@
     if (!portalTemSessaoEquipaAtiva()) return;
     portalIdleLogoutOnce = false;
     portalIdleWatchStart();
+    if (!portalPresencaEquipaTimer) {
+      portalPresencaEquipaTimer = window.setInterval(() => {
+        void portalPresencaEquipaTick();
+      }, PORTAL_PRESENCA_PULSO_MS);
+    }
     void portalPresencaEquipaTick();
   }
 
@@ -226,7 +307,7 @@
       void fetch("/api/dk-equipa-presenca", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ vivo: false }),
+        body: JSON.stringify(portalCorpoPresencaEquipa(false)),
         keepalive: true,
         cache: "no-store",
       });
@@ -3435,6 +3516,7 @@
     } catch {
       /* ignore */
     }
+    if (portalTemSessaoEquipaAtiva()) void portalPresencaEquipaTick();
   }
 
   function portalAbrirTelaOperacao(area, abrir) {
@@ -3476,6 +3558,7 @@
     } catch {
       /* ignore */
     }
+    if (portalTemSessaoEquipaAtiva()) void portalPresencaEquipaTick();
   }
 
   function portalLimparAreaAtiva() {

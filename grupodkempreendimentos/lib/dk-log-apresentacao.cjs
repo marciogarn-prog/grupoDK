@@ -1,7 +1,8 @@
 /**
  * Apresentação do Log DK. Não lê cadastro e não grava evento.
  */
-const TTL_MS = 30 * 60 * 1000;
+/** Sessão some da lista se o pulso parar (pulso ~15s em todas as telas). */
+const TTL_MS = 5 * 60 * 1000;
 const SENSIVEIS = ["cpf", "cnh", "telefone", "endereco", "endereço", "senha", "foto", "pdf", "base64", "latitude", "longitude"];
 
 function mascararTexto(valor) {
@@ -124,10 +125,28 @@ function statusPresenca(row, agora) {
   return "ONLINE";
 }
 
+function chaveUsuarioSessao(row) {
+  const id = String((row && row.user_id) || "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+  if (id.length === 11) return id;
+  return String((row && row.session_id) || "").trim();
+}
+
 function ordenarSessoes(rows, agora) {
-  const lista = (Array.isArray(rows) ? rows : [])
+  const vivas = (Array.isArray(rows) ? rows : [])
     .map((row) => ({ ...row, status: statusPresenca(row, agora) }))
     .filter((row) => row.status === "ONLINE" || row.status === "INATIVO" || row.status === "RECONECTANDO");
+  const porUsuario = new Map();
+  for (const row of vivas) {
+    const chave = chaveUsuarioSessao(row);
+    if (!chave) continue;
+    const atual = porUsuario.get(chave);
+    const tNovo = new Date(row.last_activity_at || 0).getTime();
+    const tVelho = atual ? new Date(atual.last_activity_at || 0).getTime() : -1;
+    if (!atual || tNovo >= tVelho) porUsuario.set(chave, row);
+  }
+  const lista = Array.from(porUsuario.values());
   lista.sort((a, b) => new Date(a.session_started_at).getTime() - new Date(b.session_started_at).getTime());
   return lista.map((row, indice) => ({
     prioridade: indice + 1,

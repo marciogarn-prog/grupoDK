@@ -30,19 +30,21 @@ assert.strictEqual(evento.details.cpf, undefined);
 assert.strictEqual(evento.payload, undefined);
 
 const agora = new Date("2026-10-29T15:00:00Z");
-assert.strictEqual(app.statusPresenca({ status: "ONLINE", last_activity_at: "2026-10-29T14:50:00Z" }, agora), "ONLINE");
-assert.strictEqual(app.statusPresenca({ status: "ONLINE", last_activity_at: "2026-10-29T14:00:00Z" }, agora), "EXPIRADO");
-assert.strictEqual(app.statusPresenca({ status: "OFFLINE", last_activity_at: "2026-10-29T14:50:00Z" }, agora), "OFFLINE");
+assert.strictEqual(app.statusPresenca({ status: "ONLINE", last_activity_at: "2026-10-29T14:58:00Z" }, agora), "ONLINE");
+assert.strictEqual(app.statusPresenca({ status: "ONLINE", last_activity_at: "2026-10-29T14:50:00Z" }, agora), "EXPIRADO");
+assert.strictEqual(app.statusPresenca({ status: "OFFLINE", last_activity_at: "2026-10-29T14:58:00Z" }, agora), "OFFLINE");
 const ordem = app.ordenarSessoes(
   [
-    { user_name: "João", role: "op", device_label: "PC-3", session_started_at: "2026-10-29T11:30:00Z", last_activity_at: "2026-10-29T14:50:00Z", status: "ONLINE", current_screen: "Log DK" },
-    { user_name: "Márcio", role: "owner", device_label: "PC-1", session_started_at: "2026-10-29T11:00:00Z", last_activity_at: "2026-10-29T14:40:00Z", status: "ONLINE", current_screen: "Log DK" },
-    { user_name: "Ana", role: "op", device_label: "PC-2", session_started_at: "2026-10-29T12:00:00Z", last_activity_at: "2026-10-29T13:00:00Z", status: "ONLINE", current_screen: "Log DK" },
+    { user_id: "11111111111", user_name: "João", role: "op", device_label: "PC-3", session_started_at: "2026-10-29T11:30:00Z", last_activity_at: "2026-10-29T14:58:00Z", status: "ONLINE", current_screen: "Cadastro de locação" },
+    { user_id: "03037897430", user_name: "Márcio", role: "owner", device_label: "PC-1", session_started_at: "2026-10-29T11:00:00Z", last_activity_at: "2026-10-29T14:57:00Z", status: "ONLINE", current_screen: "Log DK" },
+    { user_id: "22222222222", user_name: "Ana", role: "op", device_label: "PC-2", session_started_at: "2026-10-29T12:00:00Z", last_activity_at: "2026-10-29T14:50:00Z", status: "ONLINE", current_screen: "Log DK" },
+    { user_id: "11111111111", user_name: "João Antigo", role: "op", device_label: "PC-9", session_started_at: "2026-10-29T10:00:00Z", last_activity_at: "2026-10-29T14:56:00Z", status: "ONLINE", current_screen: "Estoque" },
   ],
   agora
 );
 assert.deepStrictEqual(ordem.map((item) => item.usuario), ["Márcio", "João"]);
 assert.deepStrictEqual(ordem.map((item) => item.prioridade), [1, 2]);
+assert.strictEqual(ordem[1].tela, "Cadastro de locação");
 assert.strictEqual(app.doisPrimeirosNomes("MARCOS RAFAEL DA SILVA SANTOS"), "MARCOS RAFAEL");
 assert.strictEqual(app.perfilHumano("owner", ""), "Administrador");
 assert.strictEqual(app.perfilHumano("owner", "03037897430"), "Administrador CEO");

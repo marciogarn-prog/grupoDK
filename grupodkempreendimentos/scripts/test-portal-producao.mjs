@@ -119,6 +119,14 @@ async function runSuite() {
         portalUiOpsJs.includes("LOGADO COMO ADMINISTRADOR CEO 03037897430"),
       "pulso + CPF dos outros operadores"
     );
+    record(
+      "Usuários ativos: pulso com tela real em todas as áreas",
+      portalUiOpsJs.includes("portalTelaPresencaNome") &&
+        portalUiOpsJs.includes("portalCorpoPresencaEquipa") &&
+        portalUiOpsJs.includes("PORTAL_PRESENCA_PULSO_MS") &&
+        portalUiOpsJs.includes('tela: portalTelaPresencaNome()'),
+      "não só quem está no Log DK"
+    );
     const manutRapidaJs = await fetch(`${BASE_URL}portal-manutencao-rapida.js?v=20260911os-sync`, {
       cache: "no-store",
     }).then((r) => r.text());

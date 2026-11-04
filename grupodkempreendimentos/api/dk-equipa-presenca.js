@@ -14,6 +14,7 @@ const {
   onlyDigits,
   clearSessaoAtivaSeDona,
 } = require("../lib/dk-portal-auth.cjs");
+const { tocarPresencaLive } = require("../lib/dk-live-presenca.cjs");
 
 const REDIS_KEY = "dk:portal:equipa_presenca:v1";
 const SNAPSHOT_FIELD = "dk_equipa_presenca_v1";
@@ -62,6 +63,25 @@ function parseBody(req) {
     }
   }
   return body && typeof body === "object" ? body : {};
+}
+
+async function sincronizarPresencaLive(gate, body, vivo) {
+  try {
+    await tocarPresencaLive({
+      sid: gate && gate.sid,
+      cpf: gate && gate.cpf,
+      nome: gate && gate.nome,
+      role: gate && gate.role,
+      perfil: body && body.perfil,
+      maquina: body && body.maquina,
+      tela: body && body.tela,
+      status: vivo ? "ONLINE" : "OFFLINE",
+      navegador: body && body.navegador,
+      sistema: body && body.sistema,
+    });
+  } catch (err) {
+    console.error("[DK presenca] live sessions", err && err.message ? err.message : err);
+  }
 }
 
 function aplicarEquipaPresenca(payload, entrada) {
@@ -230,6 +250,7 @@ module.exports = async function handler(req, res) {
       }
       const body = parseBody(req);
       const vivo = body.vivo !== false && body.vivo !== 0 && String(body.vivo || "true") !== "false";
+      await sincronizarPresencaLive(gate, body, vivo);
       if (diskIoSafeModeAtivo()) {
         if (!vivo) {
           try {
