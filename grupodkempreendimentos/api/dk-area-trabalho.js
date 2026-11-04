@@ -13,6 +13,7 @@ const {
 } = require("../lib/dk-portal-auth.cjs");
 const { ordenarSessoes } = require("../lib/dk-log-apresentacao.cjs");
 const { tocarPresencaLive } = require("../lib/dk-live-presenca.cjs");
+const { lerSinalSync } = require("../lib/dk-sync-sinal-redis.cjs");
 
 const TTL_SEC = 90;
 const AREAS = new Set([
@@ -207,7 +208,15 @@ module.exports = async function handler(req, res) {
           areasRaw[id] = dono;
         }
       }
-      return res.status(200).json({ ok: true, areas, sessoes: sessoesDoMapa(areasRaw) });
+      const sinal = await lerSinalSync();
+      return res.status(200).json({
+        ok: true,
+        areas,
+        sessoes: sessoesDoMapa(areasRaw),
+        server_event_seq: sinal.seq || 0,
+        sinal_at: sinal.at || 0,
+        transport: "redis",
+      });
     } catch (e) {
       const reason = e && e.reason === "cloud_budget" ? "cloud_budget" : "area_indisponivel";
       return res.status(503).json({ ok: false, reason });

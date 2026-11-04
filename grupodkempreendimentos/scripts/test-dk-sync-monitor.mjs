@@ -14,6 +14,8 @@ const sync = require("../portal-dk-sync.js");
 assert.ok(!fonte.includes("localStorage"));
 assert.ok(!fonte.includes("setInterval"));
 assert.ok(!fonte.includes("setTimeout"));
+assert.ok(fonte.includes("dkSyncAplicarSinalRedis"));
+assert.ok(fonte.includes("dk-area-ocupacao"));
 assert.ok(fonte.includes("dk:sync:status"));
 assert.ok(!ui.includes("setInterval"));
 assert.ok(!ui.includes("innerHTML"));
@@ -46,9 +48,14 @@ assert.deepStrictEqual(Object.keys(inicial).sort(), [
   "lastCheckpointAt",
   "lastError",
   "lastServerSeq",
+  "realtimeBloqueado",
+  "realtimeConectado",
+  "realtimeMotivo",
   "syncInFlight",
   "syncPending",
 ].sort());
+assert.equal(inicial.realtimeBloqueado, true);
+assert.equal(inicial.realtimeConectado, false);
 assert.ok(!JSON.stringify(inicial).includes("token"));
 assert.ok(!JSON.stringify(inicial).includes("Bearer"));
 

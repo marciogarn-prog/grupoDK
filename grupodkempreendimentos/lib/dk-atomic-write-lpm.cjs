@@ -6,9 +6,16 @@ const { restRpc, uuidOk, hashPedido, classificarErroRpc, atomicWriteAtivo } = re
 const { normalizarOperacao } = require("./dk-pagamento-operacao.cjs");
 const { dkLocacaoAplicarPatch, dkLocacaoParaPersistencia } = require("./dk-locacao-fidelidade.cjs");
 const { dkManutencaoAplicarPatch, dkManutencaoParaPersistencia } = require("./dk-manutencao-fidelidade.cjs");
+const { publicarSinalSyncQuiet } = require("./dk-sync-sinal-redis.cjs");
 
 function sha(obj) {
   return crypto.createHash("sha256").update(JSON.stringify(obj), "utf8").digest("hex");
+}
+
+function rowComSinal(row) {
+  const seq = row && row.seq != null ? Number(row.seq) : null;
+  publicarSinalSyncQuiet(seq);
+  return row;
 }
 
 async function mutarLocacaoAtomico({
@@ -59,7 +66,7 @@ async function mutarLocacaoAtomico({
     const err = classificarErroRpc(rpc.data, rpc.status);
     return { ok: false, status: err.status, body: { ok: false, reason: err.reason, detalhe: rpc.data } };
   }
-  const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  const row = rowComSinal(Array.isArray(rpc.data) ? rpc.data[0] : rpc.data);
   return {
     ok: true,
     status: 200,
@@ -136,7 +143,7 @@ async function mutarPagamentoAtomico({
     const err = classificarErroRpc(rpc.data, rpc.status);
     return { ok: false, status: err.status, body: { ok: false, reason: err.reason, detalhe: rpc.data, mutated: false } };
   }
-  const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  const row = rowComSinal(Array.isArray(rpc.data) ? rpc.data[0] : rpc.data);
   return {
     ok: true,
     status: 200,
@@ -215,7 +222,7 @@ async function mutarManutencaoAtomico({
     const err = classificarErroRpc(rpc.data, rpc.status);
     return { ok: false, status: err.status, body: { ok: false, reason: err.reason, detalhe: rpc.data } };
   }
-  const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  const row = rowComSinal(Array.isArray(rpc.data) ? rpc.data[0] : rpc.data);
   return {
     ok: true,
     status: 200,

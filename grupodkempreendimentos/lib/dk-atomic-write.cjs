@@ -17,6 +17,7 @@ const {
   dkVeiculoEhResumo,
   dkVeiculoSubstituir,
 } = require("./dk-veiculo-fidelidade.cjs");
+const { publicarSinalSyncQuiet } = require("./dk-sync-sinal-redis.cjs");
 
 const DEFAULT_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const RPC_CLIENTE = "dk_cliente_mutate_with_event";
@@ -230,6 +231,8 @@ async function mutarClienteAtomico({
   }
 
   const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  const seq = row && row.seq != null ? Number(row.seq) : null;
+  publicarSinalSyncQuiet(seq);
   return {
     ok: true,
     status: 200,
@@ -244,7 +247,7 @@ async function mutarClienteAtomico({
       updated_at: row && row.record_revision,
       operation_id: row && row.operation_id,
       audit_no: row && row.audit_no != null ? Number(row.audit_no) : null,
-      seq: row && row.seq != null ? Number(row.seq) : null,
+      seq,
       idempotent: Boolean(row && row.idempotent),
       action: row && row.action,
       snapshot_gravacoes: 0,
@@ -359,6 +362,8 @@ async function mutarVeiculoAtomico({
   }
 
   const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+  const seq = row && row.seq != null ? Number(row.seq) : null;
+  publicarSinalSyncQuiet(seq);
   return {
     ok: true,
     status: 200,
@@ -373,7 +378,7 @@ async function mutarVeiculoAtomico({
       updated_at: row && row.record_revision,
       operation_id: row && row.operation_id,
       audit_no: row && row.audit_no != null ? Number(row.audit_no) : null,
-      seq: row && row.seq != null ? Number(row.seq) : null,
+      seq,
       idempotent: Boolean(row && row.idempotent),
       action: row && row.action,
       snapshot_gravacoes: 0,

@@ -30,7 +30,7 @@ assert(atomicLpm.includes("dk_manutencao_mutate_with_event"), "rpc_manutencao");
 assert(vei.includes("lerPorPlaca") && vei.includes("Placa é a chave"), "veiculo_por_placa");
 assert(cli.includes("operationId") || cli.includes("operation_id"), "cliente_op_id");
 assert(atomic.includes("oficial.id"), "forca_id_oficial");
-assert(sync.includes("dkSyncTentarRealtime") && sync.includes("dk_changed"), "ws_sinal");
+assert(sync.includes("dkSyncAplicarSinalRedis") && sync.includes("redis_sinal"), "ws_sinal");
 assert(sync.includes("__DK_clientePgRecarregar") && sync.includes("__DK_veiculoPgRecarregar"), "hooks_reload");
 assert(sync.includes("__DK_manutencaoRecarregar") || sync.includes("__DK_portalSyncManutencoesRapidas"), "hook_manut");
 assert(sync.includes("__DK_portalRepintarPagamentosAbertos"), "hook_pagamento");

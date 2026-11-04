@@ -144,6 +144,18 @@ async function runSuite() {
       logUiJs.includes("dk-area-ocupacao") && logUiJs.includes("pintarUsuarios"),
       "via Redis partilhado"
     );
+    const dkSyncVer = html.match(/portal-dk-sync\.js\?v=([^"]+)/)?.[1] || "latest";
+    const dkSyncJs = await fetch(`${BASE_URL}portal-dk-sync.js?v=${dkSyncVer}`, { cache: "no-store" }).then((r) =>
+      r.text()
+    );
+    record(
+      "webstock/Log usam sinal Redis (sem Realtime activo)",
+      dkSyncJs.includes("dkSyncAplicarSinalRedis") &&
+        dkSyncJs.includes("dk-area-ocupacao") &&
+        dkSyncJs.includes("redis_sinal") &&
+        dkSyncJs.includes("REALTIME_AUTH_BLOCKED"),
+      "PG autoridade; Redis só avisa seq"
+    );
     const syncPresencaVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
     const portalSyncPresencaJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncPresencaVer}`, {
       cache: "no-store",

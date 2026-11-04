@@ -5,6 +5,7 @@
  */
 const { applyApiCors, requireLiveSession, assertEquipaClientProtocol } = require("../lib/dk-portal-auth.cjs");
 const { ehAdministradorSync, interpretarAfter, interpretarLimit, lerCatchUp } = require("../lib/dk-sync-leitura.cjs");
+const { publicarSinalSyncQuiet } = require("../lib/dk-sync-sinal-redis.cjs");
 
 function vazio(reason) {
   return {
@@ -40,5 +41,6 @@ module.exports = async function handler(req, res) {
   if (!limit.ok) return res.status(limit.status).json(vazio(limit.reason));
   const lido = await lerCatchUp({ after: after.after, limit: limit.limit, admin: ehAdministradorSync(gate) });
   if (!lido.ok) return res.status(lido.status || 503).json(vazio(lido.reason || "sync_leitura"));
+  publicarSinalSyncQuiet(lido.server_event_seq);
   return res.status(200).json(lido);
 };

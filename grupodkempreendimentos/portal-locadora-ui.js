@@ -3519,7 +3519,12 @@
         try {
           window.dispatchEvent(
             new CustomEvent("dk-area-ocupacao", {
-              detail: { areas: data.areas, sessoes: Array.isArray(data.sessoes) ? data.sessoes : [] },
+              detail: {
+                areas: data.areas,
+                sessoes: Array.isArray(data.sessoes) ? data.sessoes : [],
+                server_event_seq: Number(data.server_event_seq) || 0,
+                transport: data.transport || "redis",
+              },
             })
           );
         } catch {

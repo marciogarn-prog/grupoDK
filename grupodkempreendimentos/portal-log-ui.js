@@ -233,7 +233,7 @@
     var nota = document.getElementById("portal-log-nota");
     if (nota) {
       nota.textContent =
-        "Clientes, veículos, locações e pagamentos geram eventos no Log (PG + audit_no). O sinal Realtime só avisa; a lista vem do servidor.";
+        "Clientes, veículos, locações e pagamentos geram eventos no Log (PG + audit_no). O Redis das abas só sinaliza; a lista vem do servidor.";
     }
     if (!lista) return;
     var visiveis = (Array.isArray(eventos) ? eventos : []).filter(passaFiltro);

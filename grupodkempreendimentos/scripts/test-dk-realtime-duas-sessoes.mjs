@@ -162,8 +162,9 @@ const winB = makeWin(storeB, { sid: "sid-B", empresa: "locadora" });
 const apiA = loadApi(winA, makeFetch("A"), makeFactory("A", bus));
 const apiB = loadApi(winB, makeFetch("B"), makeFactory("B", bus));
 
-assert.equal((await apiB.dkSyncTentarRealtime()).ok, true);
-assert.equal(apiB.dkSyncGetStatus().realtimeConectado, true);
+assert.equal((await apiB.dkSyncTentarRealtime()).ok, false);
+assert.equal(apiB.dkSyncGetStatus().realtimeConectado, false);
+assert.equal(apiB.dkSyncGetStatus().realtimeBloqueado, true);
 
 const e1 = pushEvent({
   event_type: "locacao.updated",
@@ -171,8 +172,9 @@ const e1 = pushEvent({
   module: "locacao",
   entity_id: "2099010001",
 });
-bus.broadcast({ seq: e1.seq, kind: "dk_event" });
-await apiB.dkSyncCatchUp("broadcast");
+assert.equal(apiB.dkSyncAplicarSinalRedis({ server_event_seq: e1.seq }).catchup, true);
+await Promise.resolve();
+await apiB.dkSyncCatchUp("redis_sinal");
 assert.equal(apiB.dkSyncGetStatus().lastAppliedSeq, 1);
 
 apiB.dkSyncEncerrarRealtime();
@@ -183,7 +185,7 @@ pushEvent({
   module: "cliente",
   entity_id: "DK-FX-1",
 });
-assert.equal((await apiB.dkSyncTentarRealtime()).ok, true);
+assert.equal((await apiB.dkSyncTentarRealtime()).ok, false);
 await apiB.dkSyncCatchUp("reconnect");
 assert.equal(apiB.dkSyncGetStatus().lastAppliedSeq, 2);
 
@@ -226,7 +228,7 @@ winB.addEventListener("dk:sync:conflito-edicao", () => {
 });
 winB.__DK_locacaoFormularioSujo = true;
 winB.__DK_portalSessao = { sid: "sid-B", empresa: "locadora" };
-assert.equal((await apiB.dkSyncTentarRealtime()).ok, true);
+assert.equal((await apiB.dkSyncTentarRealtime()).ok, false);
 pushEvent({
   event_type: "locacao.updated",
   entity_type: "locacao",
@@ -237,7 +239,7 @@ await apiB.dkSyncCatchUp("edit");
 assert.ok(conflito >= 1);
 
 /** Sessão A isolada — cursor próprio */
-assert.equal((await apiA.dkSyncTentarRealtime()).ok, true);
+assert.equal((await apiA.dkSyncTentarRealtime()).ok, false);
 await apiA.dkSyncCatchUp("A");
 assert.equal(apiA.dkSyncGetStatus().lastAppliedSeq, serverSeq);
 

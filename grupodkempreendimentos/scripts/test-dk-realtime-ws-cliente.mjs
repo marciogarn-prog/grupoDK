@@ -1,6 +1,6 @@
 /**
- * Cliente WebSocket privado — simulação (não plataforma Realtime real).
- * TESTE SIMULADO ≠ TESTE WEBSOCKET REAL ≠ PRODUÇÃO.
+ * Cliente sync — Realtime Supabase desligado; sinal Redis + catch-up PG.
+ * TESTE SIMULADO ≠ PRODUÇÃO.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,18 +12,18 @@ const syncSrc = fs.readFileSync(path.join(root, "portal-dk-sync.js"), "utf8");
 const initSrc = fs.readFileSync(path.join(root, "supabase-init.js"), "utf8");
 const scope = fs.readFileSync(path.join(root, "lib", "dk-realtime-scope.cjs"), "utf8");
 
-assert.match(syncSrc, /abrirCanalPrivado/);
-assert.match(syncSrc, /config:\s*\{\s*private:\s*true\s*\}/);
+assert.match(syncSrc, /dkSyncAplicarSinalRedis/);
+assert.match(syncSrc, /dk-area-ocupacao/);
+assert.match(syncSrc, /redis_sinal/);
 assert.match(syncSrc, /dkSyncEncerrarRealtime/);
-assert.match(syncSrc, /SCOPE_ISOLATION_BLOCKED/);
-assert.match(syncSrc, /agendarRenovacao/);
+assert.match(syncSrc, /REALTIME_AUTH_BLOCKED/);
 assert.doesNotMatch(syncSrc, /cpf \+ ":" \+ sid/);
 assert.match(initSrc, /__DK_criarClienteRealtime/);
 assert.match(initSrc, /persistSession:\s*false/);
 assert.match(scope, /SCOPE_ISOLATION_BLOCKED/);
 assert.match(scope, /dk:events:/);
 
-function loadSync(win, fetchImpl, factory) {
+function loadSync(win, fetchImpl) {
   win.fetch = fetchImpl;
   const moduleObj = { exports: {} };
   const sandbox = {
@@ -31,8 +31,6 @@ function loadSync(win, fetchImpl, factory) {
     module: moduleObj,
     console,
     fetch: fetchImpl,
-    setTimeout: (fn, ms) => setTimeout(fn, ms || 0),
-    clearTimeout,
     Date,
     Number,
     String,
@@ -48,13 +46,11 @@ function loadSync(win, fetchImpl, factory) {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(syncSrc, sandbox);
-  const api = moduleObj.exports;
-  if (factory) api.configurar({ realtimeFactory: factory });
-  return api;
+  return moduleObj.exports;
 }
 
 function makeWin(store, sessao) {
-  const listeners = {};
+  const listeners = new Map();
   return {
     sessionStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -62,26 +58,30 @@ function makeWin(store, sessao) {
       removeItem: (k) => store.delete(k),
     },
     __DK_portalSessao: sessao,
-    __DK_portalApiHeaders: () => ({ Authorization: "Bearer fake" }),
-    CustomEvent: function (name, init) {
-      this.type = name;
-      this.detail = init && init.detail;
+    __DK_portalApiHeaders() {
+      return {};
     },
-    dispatchEvent(ev) {
-      (listeners[ev.type] || []).forEach((fn) => fn(ev));
-      return true;
+    __DK_portalApiTokenGet() {
+      return "tok";
     },
     addEventListener(type, fn) {
-      listeners[type] = listeners[type] || [];
-      listeners[type].push(fn);
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(fn);
     },
-    document: { visibilityState: "visible", activeElement: null },
-    setTimeout,
-    clearTimeout,
+    dispatchEvent(ev) {
+      const list = listeners.get(ev.type) || [];
+      list.forEach((fn) => fn(ev));
+      return true;
+    },
+    CustomEvent: class CustomEvent {
+      constructor(type, init) {
+        this.type = type;
+        this.detail = init && init.detail;
+      }
+    },
   };
 }
 
-/** Credencial bloqueada → não abre canal */
 {
   const store = new Map();
   const win = makeWin(store, { sid: "sid-A", empresa: "locadora" });
@@ -95,16 +95,22 @@ function makeWin(store, sessao) {
   const r = await api.dkSyncTentarRealtime();
   assert.equal(r.ok, false);
   assert.equal(api.dkSyncGetStatus().realtimeConectado, false);
+  assert.equal(r.transport, "redis");
 }
 
-/** Credencial ok + factory simulada → SUBSCRIBED + catch-up */
 {
   const store = new Map();
   const win = makeWin(store, { sid: "sid-B", empresa: "locadora" });
-  let subscribed = false;
   let catchUps = 0;
   const eventos = [
-    { seq: 1, audit_no: 1, event_type: "locacao.updated", entity_type: "locacao", module: "locacao", entity_id: "2099010001" },
+    {
+      seq: 1,
+      audit_no: 1,
+      event_type: "locacao.updated",
+      entity_type: "locacao",
+      module: "locacao",
+      entity_id: "2099010001",
+    },
   ];
   const fetchImpl = async (url) => {
     if (String(url).includes("dk-realtime-credencial")) {
@@ -137,62 +143,38 @@ function makeWin(store, sessao) {
       },
     };
   };
-  const factory = (getToken) => {
-    assert.ok(getToken);
-    return {
-      realtime: { setAuth() {} },
-      channel(name, opts) {
-        assert.equal(name, "dk:events");
-        assert.equal(opts.config.private, true);
-        const handlers = [];
-        return {
-          on(type, filter, fn) {
-            handlers.push({ type, filter, fn });
-            return this;
-          },
-          subscribe(cb) {
-            subscribed = true;
-            cb("SUBSCRIBED");
-            return this;
-          },
-        };
-      },
-      async removeChannel() {},
-    };
-  };
-  const api = loadSync(win, fetchImpl, factory);
+  const api = loadSync(win, fetchImpl);
+  api.reset();
   const r = await api.dkSyncTentarRealtime();
-  assert.equal(r.ok, true, JSON.stringify(r));
-  assert.equal(subscribed, true);
-  assert.equal(api.dkSyncGetStatus().realtimeConectado, true);
-  await api.dkSyncCatchUp("teste");
+  assert.equal(r.ok, false);
+  assert.equal(api.dkSyncGetStatus().realtimeConectado, false);
+  assert.equal(api.dkSyncGetStatus().realtimeBloqueado, true);
+
+  const sinal = api.dkSyncAplicarSinalRedis({ server_event_seq: 1 });
+  assert.equal(sinal.ok, true);
+  assert.equal(sinal.catchup === true || sinal.skipped === true, true);
+  await api.dkSyncCatchUp("redis_sinal");
   assert.ok(catchUps >= 1);
   assert.equal(api.dkSyncGetStatus().lastAppliedSeq, 1);
 
-  /** Encerrar */
   api.dkSyncEncerrarRealtime();
   assert.equal(api.dkSyncGetStatus().realtimeConectado, false);
 }
 
-/** Canal inválido rejeitado */
 {
   const store = new Map();
   const win = makeWin(store, { sid: "sid-C", empresa: "locadora" });
-  const api = loadSync(
-    win,
-    async () => ({
-      ok: true,
-      status: 200,
-      async json() {
-        return { ok: true, token: "x", exp: 9e9, canal: "publico-inseguro", private: true };
-      },
-    }),
-    () => ({ channel() { return { on() { return this; }, subscribe(cb) { cb("SUBSCRIBED"); } }; }, async removeChannel() {} })
-  );
+  const api = loadSync(win, async () => ({
+    ok: true,
+    status: 200,
+    async json() {
+      return { ok: true, token: "x", exp: 9e9, canal: "publico-inseguro", private: true };
+    },
+  }));
   const r = await api.dkSyncTentarRealtime();
   assert.equal(r.ok, false);
-  assert.match(String(r.reason), /SCOPE_ISOLATION/);
+  assert.match(String(r.reason), /REALTIME_AUTH_BLOCKED|SCOPE_ISOLATION|canal|auth/i);
 }
 
-console.log("ok dk-realtime-ws-cliente simulado");
+console.log("ok dk-realtime-ws-cliente simulado (redis sinal)");
 process.exit(0);
