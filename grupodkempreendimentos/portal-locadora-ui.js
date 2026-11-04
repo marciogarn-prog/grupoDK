@@ -20958,7 +20958,7 @@
   }
   portalVigiarRevisaoPagamentosAberta();
   /**
-   * Troca de aba: imediata. A nuvem sincroniza em segundo plano — sem modal e sem delay.
+   * Troca de aba: imediata. sync da nuvem só em segundo plano — sem modal e sem delay.
    */
   function portalOperacaoOnScreenChange() {
     const gen = ++portalScreenPullGen;
