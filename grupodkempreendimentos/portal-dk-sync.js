@@ -593,6 +593,8 @@
       if (afetaManut) {
         if (formularioSujo("manutencao")) sinalizarConflito("manutencao", detalhe);
         else if (typeof root.__DK_manutencaoRecarregar === "function") void root.__DK_manutencaoRecarregar();
+        else if (typeof root.__DK_portalSyncManutencoesRapidas === "function") void root.__DK_portalSyncManutencoesRapidas();
+        else if (typeof root.__DK_portalPullManutencoesRapidas === "function") void root.__DK_portalPullManutencoesRapidas();
       }
       if (
         (afetaCliente || afetaVeiculo || afetaManut || afetaLocacao || afetaPagamento) &&

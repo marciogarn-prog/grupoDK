@@ -32,10 +32,17 @@ assert(cli.includes("operationId") || cli.includes("operation_id"), "cliente_op_
 assert(atomic.includes("oficial.id"), "forca_id_oficial");
 assert(sync.includes("dkSyncTentarRealtime") && sync.includes("dk_changed"), "ws_sinal");
 assert(sync.includes("__DK_clientePgRecarregar") && sync.includes("__DK_veiculoPgRecarregar"), "hooks_reload");
+assert(sync.includes("__DK_manutencaoRecarregar") || sync.includes("__DK_portalSyncManutencoesRapidas"), "hook_manut");
+assert(sync.includes("__DK_portalRepintarPagamentosAbertos"), "hook_pagamento");
+assert(sync.includes("__DK_locacaoPgRecarregar"), "hook_locacao");
 assert(ui.includes("__DK_clientePgRecarregar") && ui.includes("__DK_veiculoPgRecarregar"), "hooks_ui");
 assert(ui.includes("dkSyncCatchUp(\"cliente_gravado\")") || ui.includes('dkSyncCatchUp("cliente_gravado")'), "catchup_cliente");
 assert(ui.includes("dkSyncCatchUp(\"veiculo_gravado\")") || ui.includes('dkSyncCatchUp("veiculo_gravado")'), "catchup_veiculo");
 assert(!ui.includes("O cadastro ficou neste PC."), "sem_ficou_neste_pc");
+const manutJs = fs.readFileSync(path.join(root, "portal-manutencao-rapida.js"), "utf8");
+assert(manutJs.includes("__DK_manutencaoRecarregar"), "manut_reload_export");
+const locPg = fs.readFileSync(path.join(root, "portal-locacao-pg.js"), "utf8");
+assert(locPg.includes("dkSyncCatchUp") && locPg.includes("dk:log:recarregar"), "locacao_catchup_log");
 
 const jwt = require("../lib/dk-realtime-jwt-es256.cjs");
 const jwkPath = path.join(process.env.LOCALAPPDATA || "", "DK-secrets", "dk-realtime-es256-jwk.json");

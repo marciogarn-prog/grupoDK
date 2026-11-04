@@ -1362,6 +1362,16 @@
   window.__DK_portalManutRapidaRefreshDia = renderDia;
   window.__DK_portalPullManutencoesRapidas = pullManutencoesDaNuvem;
   window.__DK_portalSyncManutencoesRapidas = syncManutencoesComNuvem;
+  /* Catch-up Realtime (portal-dk-sync) chama este nome após dk_changed de manutenção. */
+  window.__DK_manutencaoRecarregar = async function __DK_manutencaoRecarregar() {
+    const ok = await pullManutencoesDaNuvem();
+    try {
+      renderDia();
+    } catch {
+      /* ignore */
+    }
+    return { ok: Boolean(ok) };
+  };
   window.__DK_manutOsFormat = formatOs;
   window.__DK_manutOsProximoNumero = proximoOsNumero;
   window.__DK_manutOsBackfill = backfillOs;
