@@ -105,6 +105,11 @@ module.exports = async function handler(req, res) {
         if (!veiculo) return res.status(400).json({ ok: false, success: false, reason: "um_veiculo", source: veiculosPg.FONTE });
         const um = await veiculosPg.upsertUm(veiculo, body.base_revision || body.revision || "", null, {
           operationId: body.operation_id || body.operationId,
+          expectedUpdatedAt:
+            body.expected_updated_at ||
+            body.expected_record_version ||
+            (veiculo && (veiculo.updated_at || veiculo.record_version)) ||
+            null,
           actorUserId: gate.cpf || gate.userId || null,
           actorSessionId: gate.sid || gate.sessionId || null,
           route: "/api/cadastro-veiculos",

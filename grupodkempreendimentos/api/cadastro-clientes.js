@@ -222,6 +222,11 @@ module.exports = async function handler(req, res) {
         if (umCliente) {
           const um = await clientesPg.upsertUm(body.cliente, body.base_revision || body.revision || "", null, {
             operationId: body.operation_id || body.operationId,
+            expectedUpdatedAt:
+              body.expected_updated_at ||
+              body.expected_record_version ||
+              (body.cliente && (body.cliente.updated_at || body.cliente.record_version)) ||
+              null,
             actorUserId: writeGate.cpf || writeGate.userId || null,
             actorSessionId: writeGate.sid || writeGate.sessionId || null,
             route: "/api/cadastro-clientes",

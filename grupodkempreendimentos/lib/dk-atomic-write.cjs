@@ -50,6 +50,65 @@ function hashPedido(partes) {
   return crypto.createHash("sha256").update(JSON.stringify(partes), "utf8").digest("hex");
 }
 
+function normalizarVersaoLinha(v) {
+  if (v == null) return "";
+  const s = String(v).trim();
+  return s;
+}
+
+/**
+ * Versão da linha vista no formulário (§9.3 / R04) — soft.
+ * Preferência: expected_* explícito → updated_at/revision do registo → leitura oficial.
+ * Nunca usa baseRevision global do snapshot (__DK_CLOUD_REVISION).
+ */
+function resolverExpectedVersaoLinha({
+  expectedUpdatedAt,
+  expected_record_version,
+  expected_updated_at,
+  recebido,
+  oficial,
+} = {}) {
+  const candidatos = [
+    expectedUpdatedAt,
+    expected_record_version,
+    expected_updated_at,
+    recebido && recebido.expected_updated_at,
+    recebido && recebido.expected_record_version,
+    recebido && recebido.__expected_updated_at,
+    recebido && recebido.updated_at,
+    recebido && recebido.record_version,
+    recebido && recebido.revision,
+  ];
+  for (const c of candidatos) {
+    const n = normalizarVersaoLinha(c);
+    if (n) return n;
+  }
+  const oficialV = normalizarVersaoLinha(oficial && oficial.updated_at);
+  return oficialV || null;
+}
+
+function versaoFormularioConflita(esperadoForm, oficialUpdatedAt) {
+  const a = normalizarVersaoLinha(esperadoForm);
+  const b = normalizarVersaoLinha(oficialUpdatedAt);
+  if (!a || !b) return false;
+  return a !== b;
+}
+
+function respostaConflitoRevisao(oficialUpdatedAt) {
+  return {
+    ok: false,
+    status: 409,
+    body: {
+      ok: false,
+      success: false,
+      reason: "revisao_conflito",
+      revision: oficialUpdatedAt || null,
+      updated_at: oficialUpdatedAt || null,
+      message: "A nuvem tem uma versão mais nova. Recarregue antes de gravar.",
+    },
+  };
+}
+
 function camposAlterados(antes, depois) {
   const a = antes && typeof antes === "object" ? antes : {};
   const b = depois && typeof depois === "object" ? depois : {};
@@ -117,6 +176,9 @@ async function mutarClienteAtomico({
   cliente,
   patch,
   baseRevision,
+  expectedUpdatedAt,
+  expected_record_version,
+  expected_updated_at,
   operationId,
   actorUserId,
   actorSessionId,
@@ -150,8 +212,23 @@ async function mutarClienteAtomico({
       };
     }
     oficial = lido.cliente || null;
-    /* baseRevision do browser (snapshot/__DK_CLOUD_REVISION) não entra aqui:
-       a concorrência usa só oficial.updated_at lido agora → p_expected_updated_at. */
+    /* baseRevision global do snapshot NÃO decide conflito (§9.3). */
+    void baseRevision;
+  }
+
+  const expectedForm = resolverExpectedVersaoLinha({
+    expectedUpdatedAt,
+    expected_record_version,
+    expected_updated_at,
+    recebido,
+    oficial: null,
+  });
+  if (
+    oficial &&
+    expectedForm &&
+    versaoFormularioConflita(expectedForm, oficial.updated_at)
+  ) {
+    return respostaConflitoRevisao(oficial.updated_at);
   }
 
   const anterior = oficial && typeof oficial === "object" ? { ...oficial } : {};
@@ -178,8 +255,11 @@ async function mutarClienteAtomico({
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "cpf" } };
   }
 
-  /* Sempre a revisão lida agora — nunca a revisão global do snapshot. */
-  const expected = action === "update" ? oficial.updated_at || null : null;
+  /* Preferência: versão vista no formulário; soft fallback = linha lida agora. */
+  const expected =
+    action === "update"
+      ? expectedForm || (oficial && oficial.updated_at) || null
+      : null;
   const changed = camposAlterados(anterior, persistido.payload);
   const requestHash = hashPedido({
     domain: "cliente",
@@ -259,6 +339,9 @@ async function mutarVeiculoAtomico({
   veiculo,
   patch,
   baseRevision,
+  expectedUpdatedAt,
+  expected_record_version,
+  expected_updated_at,
   operationId,
   actorUserId,
   actorSessionId,
@@ -285,7 +368,23 @@ async function mutarVeiculoAtomico({
       };
     }
     oficial = lido.veiculo || null;
-    /* baseRevision global do browser não decide conflito; usa-se a linha lida agora. */
+    /* baseRevision global do snapshot NÃO decide conflito (§9.3). */
+    void baseRevision;
+  }
+
+  const expectedForm = resolverExpectedVersaoLinha({
+    expectedUpdatedAt,
+    expected_record_version,
+    expected_updated_at,
+    recebido,
+    oficial: null,
+  });
+  if (
+    oficial &&
+    expectedForm &&
+    versaoFormularioConflita(expectedForm, oficial.updated_at)
+  ) {
+    return respostaConflitoRevisao(oficial.updated_at);
   }
 
   const anterior = oficial && typeof oficial === "object" ? { ...oficial } : {};
@@ -310,7 +409,10 @@ async function mutarVeiculoAtomico({
     return { ok: false, status: 400, body: { ok: false, success: false, reason: "veiculo" } };
   }
 
-  const expected = action === "update" ? oficial.updated_at || null : null;
+  const expected =
+    action === "update"
+      ? expectedForm || (oficial && oficial.updated_at) || null
+      : null;
   const changed = camposAlterados(anterior, persistido.payload);
   const requestHash = hashPedido({
     domain: "veiculo",
@@ -421,6 +523,9 @@ module.exports = {
   exigirOperationId,
   hashPedido,
   camposAlterados,
+  normalizarVersaoLinha,
+  resolverExpectedVersaoLinha,
+  versaoFormularioConflita,
   mutarClienteAtomico,
   mutarVeiculoAtomico,
   fixtureAtomicaMemoria,

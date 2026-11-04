@@ -239,6 +239,11 @@ async function upsertUm(cliente, baseRevision, ioRest, opts) {
       cliente: recebido,
       patch: recebido,
       baseRevision,
+      expectedUpdatedAt:
+        (opts && (opts.expectedUpdatedAt || opts.expected_updated_at || opts.expected_record_version)) ||
+        recebido.updated_at ||
+        recebido.record_version ||
+        null,
       operationId: opId,
       actorUserId: opts && opts.actorUserId,
       actorSessionId: opts && opts.actorSessionId,

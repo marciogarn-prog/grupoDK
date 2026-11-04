@@ -19,6 +19,30 @@ const aqui = path.dirname(fileURLToPath(import.meta.url));
 assert.equal(atomic.exigirOperationId({}).ok, false);
 assert.equal(atomic.exigirOperationId({ operation_id: randomUUID() }).ok, true);
 
+/* §9.3 soft: versão do formulário tem prioridade; sem ela, fallback oficial. */
+assert.equal(
+  atomic.resolverExpectedVersaoLinha({
+    expectedUpdatedAt: "2026-01-01T00:00:00.000Z",
+    recebido: { updated_at: "2026-02-01T00:00:00.000Z" },
+    oficial: { updated_at: "2026-03-01T00:00:00.000Z" },
+  }),
+  "2026-01-01T00:00:00.000Z"
+);
+assert.equal(
+  atomic.resolverExpectedVersaoLinha({
+    recebido: { updated_at: "2026-02-01T00:00:00.000Z" },
+    oficial: { updated_at: "2026-03-01T00:00:00.000Z" },
+  }),
+  "2026-02-01T00:00:00.000Z"
+);
+assert.equal(
+  atomic.resolverExpectedVersaoLinha({ oficial: { updated_at: "2026-03-01T00:00:00.000Z" } }),
+  "2026-03-01T00:00:00.000Z"
+);
+assert.equal(atomic.versaoFormularioConflita("a", "b"), true);
+assert.equal(atomic.versaoFormularioConflita("a", "a"), false);
+assert.equal(atomic.versaoFormularioConflita("", "b"), false);
+
 const opA = randomUUID();
 const hashA = atomic.hashPedido({ domain: "cliente", action: "create", id: "fx-c1" });
 const store = { rows: new Map(), events: new Map(), audit: 0 };
@@ -139,7 +163,7 @@ assert.equal(Number(health[0]?.ok), 1);
 const counts = sb(`select
   (select count(*)::int from public.dk_clientes where deleted_at is null) as clientes,
   (select count(*)::int from public.dk_veiculos where deleted_at is null) as veiculos`);
-assert.equal(Number(counts[0]?.clientes), 443);
+assert.equal(Number(counts[0]?.clientes), 447);
 assert.equal(Number(counts[0]?.veiculos), 199);
 
 const rpcExiste = sb(`select
