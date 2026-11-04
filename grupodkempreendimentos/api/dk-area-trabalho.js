@@ -246,7 +246,7 @@ module.exports = async function handler(req, res) {
       }
       const pacote = pacotePresenca(gate, body, area, donoRenova.at || marca, donoRenova.entrada);
       await redis.set(key, JSON.stringify(pacote), { ex: TTL_SEC });
-      await espelharLive(gate, body, area, true);
+      void espelharLive(gate, body, area, true);
       return res.status(200).json({ ok: true, livre: true, marca: donoRenova.at || marca });
     }
     if (acao === "entrar") {
@@ -254,7 +254,7 @@ module.exports = async function handler(req, res) {
       const reservou = await redis.set(key, JSON.stringify(pacote), { nx: true, ex: TTL_SEC });
       if (reservou) {
         await soltarOutras(redis, cpf, area);
-        await espelharLive(gate, body, area, true);
+        void espelharLive(gate, body, area, true);
         return res.status(200).json({ ok: true, livre: true, marca });
       }
     }
@@ -264,7 +264,7 @@ module.exports = async function handler(req, res) {
       const pacote = pacotePresenca(gate, body, area, marca, dono && dono.cpf === cpf ? dono.entrada : marca);
       await redis.set(key, JSON.stringify(pacote), { ex: TTL_SEC });
       if (acao === "entrar") await soltarOutras(redis, cpf, area);
-      await espelharLive(gate, body, area, true);
+      void espelharLive(gate, body, area, true);
       return res.status(200).json({ ok: true, livre: true, marca });
     }
 

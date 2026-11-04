@@ -3405,34 +3405,28 @@
     const id = portalAreaLockId(area);
     if (!id) return true;
     if (portalAreaLockIdAtual === id) return true;
-    for (let tentativa = 0; tentativa < 4; tentativa++) {
-      if (portalAreaLockIdAtual === id) return true;
-      try {
-        const marca = Date.now();
-        const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
-        if (res.ok && (data?.livre || data?.compartilhada || data?.ok !== false)) {
-          if (data?.nome && (data.compartilhada || data.aviso)) {
-            portalRegistrarOcupacaoVista(id, data.nome);
-          }
-          if (!data?.compartilhada) {
-            portalIniciarRenovacaoArea(id, data?.marca || marca);
+    /* Presença Redis é só aviso (OCUPADO POR…). Nunca bloqueia a abertura da aba. */
+    try {
+      const marca = Date.now();
+      const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
+      if (res && res.ok && data) {
+        if (data.nome && (data.compartilhada || data.aviso || data.ocupada)) {
+          portalRegistrarOcupacaoVista(id, data.nome);
+        }
+        if (data.livre || data.ok !== false) {
+          if (!data.compartilhada) {
+            portalIniciarRenovacaoArea(id, data.marca || marca);
           } else {
             portalPintarOcupacaoBotoes(portalOcupacaoCache);
           }
-          return true;
         }
-        if (res.status === 409 || data?.ocupada) {
-          portalRegistrarOcupacaoVista(id, data?.nome);
-          return true;
-        }
-        if (!portalRespostaAreaTransitoria(res.status)) break;
-      } catch {
-        /* a nuvem recusou o pedido; tenta outra vez antes de avisar */
+      } else if (data && data.nome) {
+        portalRegistrarOcupacaoVista(id, data.nome);
       }
-      if (tentativa < 3) await portalEsperar(1200 * (tentativa + 1));
+    } catch {
+      /* Redis/nuvem falhou — a tela abre na mesma */
     }
-    window.alert("Não foi possível confirmar se a área está livre. Tente de novo.");
-    return false;
+    return true;
   }
 
   function portalSairAreaExclusiva() {

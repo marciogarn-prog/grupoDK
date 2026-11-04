@@ -1976,7 +1976,8 @@ body.portal-body--admin-ceo {
 .btn-operacao-cmd.is-ocupado {
   border-color: #e6b325;
   background: rgba(230, 179, 37, 0.16);
-  cursor: not-allowed;
+  /* Aviso visual apenas — clique continua a abrir a aba */
+  cursor: pointer;
 }
 
 .btn-operacao-cmd.is-ocupado-pulso {
