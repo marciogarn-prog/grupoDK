@@ -537,16 +537,15 @@
 
   function formularioSujo(modulo) {
     if (modulo === "locacao") {
+      /* Só bloqueia com sujo explícito — foco no formulário NÃO impede o catch-up (evita precisar F5). */
       if (root.__DK_locacaoFormularioSujo === true) return true;
       if (root.__DK_locacaoDetalheAtual && root.__DK_locacaoDetalheAtual.__dkEditando === true) return true;
+      return false;
     }
     if (root.__DK_formularioSujoModulo === modulo) return true;
     try {
       var el = root.document && root.document.activeElement;
       if (!el || !el.closest) return false;
-      if (modulo === "locacao" && el.closest("#operacaoInlineLocacao, #operacaoLocacaoForm, form[data-dk-locacao-form]")) {
-        return true;
-      }
       if (modulo === "cliente" && el.closest("#operacaoInlineCliente, form[data-dk-cliente-form]")) return true;
       if (modulo === "veiculo" && el.closest("#operacaoInlineVeiculo, form[data-dk-veiculo-form]")) return true;
       if (modulo === "pagamento" && el.closest("#operacaoInlineLancamentoAluguel, form[data-dk-pagamento-form]")) {
@@ -571,9 +570,13 @@
     try {
       if (afetaLocacao) {
         if (formularioSujo("locacao")) sinalizarConflito("locacao", detalhe);
-        else if (typeof root.__DK_locacaoPgRecarregar === "function") void root.__DK_locacaoPgRecarregar();
-        else if (typeof root.__DK_locacaoPgDetalhe === "function" && detalhe.entity_id) {
-          void root.__DK_locacaoPgDetalhe(detalhe.entity_id);
+        else {
+          if (typeof root.__DK_locacaoPgRecarregar === "function") void root.__DK_locacaoPgRecarregar();
+          if (typeof root.__DK_locacaoAplicarEventoRemoto === "function" && detalhe.entity_id) {
+            void root.__DK_locacaoAplicarEventoRemoto(detalhe.entity_id);
+          } else if (typeof root.__DK_locacaoPgDetalhe === "function" && detalhe.entity_id) {
+            void root.__DK_locacaoPgDetalhe(detalhe.entity_id);
+          }
         }
       }
       if (afetaPagamento) {
@@ -601,6 +604,18 @@
         typeof root.__DK_portalRefreshOperacaoDeferred === "function"
       ) {
         root.__DK_portalRefreshOperacaoDeferred();
+      }
+      if (
+        (afetaCliente || afetaVeiculo || afetaManut || afetaLocacao || afetaPagamento) &&
+        root &&
+        typeof root.dispatchEvent === "function" &&
+        typeof root.CustomEvent === "function"
+      ) {
+        root.dispatchEvent(
+          new root.CustomEvent("dk:log:recarregar", {
+            detail: { motivo: "catchup", audit_no: detalhe.audit_no, seq: detalhe.seq },
+          })
+        );
       }
     } catch (e) {
       /* a tela não pode derrubar o cursor */

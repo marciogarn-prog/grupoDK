@@ -2665,17 +2665,8 @@
   async function enviarLocacaoMaisRecenteNaNuvem(loc) {
     const nc = ncLocacaoSync(loc);
     if (!nc || !hasUsableCloudToken()) return;
-    /* Cutover: locação não grava no snapshot — só /api/dk-locacao. */
-    if (typeof window.__DK_locacaoSalvarConfirmada === "function") {
-      try {
-        window.__DK_LOCACAO_PG = true;
-        await window.__DK_locacaoSalvarConfirmada(loc, {
-          op: loc && loc.pgId ? "atualizar" : "criar",
-          numero: nc,
-        });
-      } catch (e) {
-        console.warn("[DK cloud] regravar locação via /api/dk-locacao", e);
-      }
+    /* Cutover PG: não regravar em silêncio — cada POST gera Log# e parecia «3 atualizações». */
+    if (window.__DK_LOCACAO_PG === true || typeof window.__DK_locacaoSalvarConfirmada === "function") {
       return;
     }
     console.warn("[DK cloud] regravar locação ignorada: módulo /api/dk-locacao ainda não carregou");

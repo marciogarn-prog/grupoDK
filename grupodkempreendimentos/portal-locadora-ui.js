@@ -23727,6 +23727,7 @@
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
     refreshOperacaoLocacaoApagarProtocoloBtn();
+    window.__DK_locacaoFormularioSujo = false;
     if (msg) msg.textContent = `Protocolo ${nc} carregado. Pode corrigir os dados e clicar em «Atualizar locação».`;
     const jaNaNuvem =
       (window.__DK_locacoesNuvemProtocolos instanceof Set &&
@@ -23747,6 +23748,33 @@
     }
     return { ok: true, loc };
   }
+
+  /** Catch-up Realtime: repinta o protocolo aberto sem F5, se o formulário não estiver sujo. */
+  window.__DK_locacaoAplicarEventoRemoto = async function __DK_locacaoAplicarEventoRemoto(entityId) {
+    const nc = normPortalNumeroContrato(entityId);
+    if (!nc) return { ok: false, reason: "protocolo" };
+    if (window.__DK_locacaoFormularioSujo === true) return { ok: false, reason: "form_sujo" };
+    const aberto = normPortalNumeroContrato(
+      document.getElementById("operacaoLocacaoProtocolo")?.value ||
+        window.__DK_locacaoDetalheAtual?.numeroContrato ||
+        ""
+    );
+    if (aberto && aberto !== nc) return { ok: true, skipped: true };
+    if (typeof window.__DK_locacaoPgDetalhe !== "function") return { ok: false, reason: "sem_detalhe" };
+    const det = await window.__DK_locacaoPgDetalhe(nc);
+    if (!(det && det.ok === true && det.locacao)) return { ok: false, reason: "leitura" };
+    if (window.__DK_locacaoFormularioSujo === true) return { ok: false, reason: "form_sujo" };
+    applyPortalLocacaoRowFromRecord(det.locacao);
+    window.__DK_locacaoFormularioSujo = false;
+    try {
+      refreshOperacaoLocacaoSubmitBtn();
+      refreshOperacaoLocacaoFinalizarBtn();
+      refreshOperacaoLocacaoVisualizarContratoBtn();
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, locacao: det.locacao };
+  };
 
   let portalDistratoFinalizacaoPendente = null;
 
@@ -25186,6 +25214,7 @@
           return;
         }
         portalNuvemSyncLockHide();
+        window.__DK_locacaoFormularioSujo = false;
         if (typeof addAuditLog === "function") {
           try {
             addAuditLog(
@@ -29392,9 +29421,11 @@
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", onOperacaoLocacaoProtocoloSelectChange);
     document.getElementById("formOperacaoLocacaoInline")?.addEventListener("input", () => {
+      window.__DK_locacaoFormularioSujo = true;
       refreshOperacaoLocacaoVisualizarContratoBtn();
     });
     document.getElementById("formOperacaoLocacaoInline")?.addEventListener("change", () => {
+      window.__DK_locacaoFormularioSujo = true;
       refreshOperacaoLocacaoVisualizarContratoBtn();
     });
     document.getElementById("operacaoLocacaoModalidadeWrap")?.addEventListener("change", () => {
