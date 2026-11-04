@@ -20801,8 +20801,7 @@
   }
 
   /**
-   * Trocar de tela: puxa a última atualização da nuvem em fundo.
-   * Não mostra o overlay preto — o operador continua a trabalhar.
+   * Trocar de tela: bloqueia até o download da última atualização da nuvem terminar.
    */
   function portalRepintarPagamentosAbertos() {
     try {
@@ -20858,28 +20857,42 @@
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
     if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
-    const textoDownload = "A nuvem não devolveu a atualização. Pode continuar e tentar de novo.";
-    const textoEnvioPendente = "Um envio anterior ainda não terminou. Pode continuar.";
-    void Promise.resolve(window.__DK_pullFromCloudOnScreenChange())
-      .then((r) => {
-        if (gen !== portalScreenPullGen) return;
-        if (r && r.reason === "await_push_failed") {
-          console.warn("[DK portal]", textoEnvioPendente);
-          return;
-        }
-        if (r && r.ok === false) {
-          console.warn("[DK portal]", textoDownload);
-          return;
-        }
-        portalRefreshOperacaoLocal();
-        portalRepintarPagamentosAbertos();
-        if (r && (r.applied || r.changed || r.mesmaRevisao)) {
-          portalRefreshOperacaoDeferred();
-        }
-        refreshOperacaoClienteCodigoEditavel();
-      })
-      .catch(() => {});
-    return true;
+    portalNuvemSyncLockShow(
+      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar."
+    );
+    try {
+      const r = await window.__DK_pullFromCloudOnScreenChange();
+      if (gen !== portalScreenPullGen) return false;
+      if (r && r.ok === false) {
+        const falha =
+          r.reason === "await_push_failed"
+            ? "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar."
+            : "Não foi possível receber a última atualização da nuvem.";
+        portalNuvemSyncLockShow(falha, {
+          retry: true,
+          onRetry: () => {
+            void portalOperacaoOnScreenChange();
+          },
+        });
+        return false;
+      }
+      portalRefreshOperacaoLocal();
+      if (r && (r.applied || r.changed)) {
+        portalRefreshOperacaoDeferred();
+      }
+      refreshOperacaoClienteCodigoEditavel();
+      portalNuvemSyncLockHide();
+      return true;
+    } catch {
+      if (gen !== portalScreenPullGen) return false;
+      portalNuvemSyncLockShow("Falha ao receber a nuvem.", {
+        retry: true,
+        onRetry: () => {
+          void portalOperacaoOnScreenChange();
+        },
+      });
+      return false;
+    }
   }
 
   try {

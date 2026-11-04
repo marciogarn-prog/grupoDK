@@ -389,6 +389,21 @@
     root.addEventListener("dk:sessao:troca-empresa", function () {
       reset();
     });
+    root.addEventListener("dk:sessao:pronta", function () {
+      void dkSyncCheckpoint("login");
+      void dkSyncTentarRealtime({ login: true });
+    });
+    /* Sessão já existente (F5 / PWA): tenta Realtime sem polling global. */
+    root.setTimeout(function () {
+      try {
+        if (root.__DK_portalApiTokenGet && root.__DK_portalApiTokenGet()) {
+          void dkSyncCheckpoint("bootstrap");
+          void dkSyncTentarRealtime({ bootstrap: true });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }, 1500);
   }
 
   function dkSyncRotulo(status) {

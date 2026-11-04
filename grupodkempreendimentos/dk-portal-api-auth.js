@@ -87,6 +87,11 @@
         if (typeof window.__DK_resumeCloudSyncAfterRemoteLogin === "function") {
           window.__DK_resumeCloudSyncAfterRemoteLogin();
         }
+        try {
+          window.dispatchEvent(new CustomEvent("dk:sessao:pronta"));
+        } catch {
+          /* ignore */
+        }
       } else {
         localStorage.removeItem(KEY);
         sessionStorage.removeItem(KEY);
