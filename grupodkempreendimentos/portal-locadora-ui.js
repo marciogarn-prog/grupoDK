@@ -20957,56 +20957,33 @@
     }, 20000);
   }
   portalVigiarRevisaoPagamentosAberta();
-  async function portalOperacaoOnScreenChange() {
+  /**
+   * Troca de aba: imediata. A nuvem sincroniza em segundo plano — sem modal e sem delay.
+   */
+  function portalOperacaoOnScreenChange() {
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
-    if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
-    portalNuvemSyncLockShow(
-      "A receber a última atualização da nuvem. Só pode trabalhar quando o download terminar."
-    );
     try {
-      const r = await window.__DK_pullFromCloudOnScreenChange();
-      if (gen !== portalScreenPullGen) return false;
-      const bloqueia =
-        r &&
-        r.ok === false &&
-        !r.skipped &&
-        (r.reason === "await_push_failed" ||
-          r.reason === "session_revoked" ||
-          r.reason === "unauthorized" ||
-          r.reason === "cloud_halted");
-      if (bloqueia) {
-        const falha =
-          r.reason === "await_push_failed"
-            ? "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar."
-            : r.reason === "session_revoked" || r.reason === "unauthorized"
-              ? "Sessão inválida ou sem permissão. Entre de novo e tente outra vez."
-              : "Não foi possível receber a última atualização da nuvem.";
-        portalNuvemSyncLockShow(falha, {
-          retry: true,
-          onRetry: () => {
-            void portalOperacaoOnScreenChange();
-          },
-        });
-        return false;
-      }
-      portalRefreshOperacaoLocal();
-      if (r && (r.applied || r.changed)) {
-        portalRefreshOperacaoDeferred();
-      }
-      refreshOperacaoClienteCodigoEditavel();
       portalNuvemSyncLockHide();
-      return true;
     } catch {
-      if (gen !== portalScreenPullGen) return false;
-      portalNuvemSyncLockShow("Falha ao receber a nuvem.", {
-        retry: true,
-        onRetry: () => {
-          void portalOperacaoOnScreenChange();
-        },
-      });
-      return false;
+      /* ignore */
     }
+    if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return true;
+    void Promise.resolve(window.__DK_pullFromCloudOnScreenChange())
+      .then((r) => {
+        if (gen !== portalScreenPullGen) return;
+        portalRefreshOperacaoLocal();
+        if (r && (r.applied || r.changed)) portalRefreshOperacaoDeferred();
+        try {
+          refreshOperacaoClienteCodigoEditavel();
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch((e) => {
+        console.warn("[DK portal] sync em segundo plano ao mudar aba", e);
+      });
+    return true;
   }
 
   try {
