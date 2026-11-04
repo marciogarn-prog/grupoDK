@@ -599,11 +599,21 @@
     void pushManutencoesParaNuvem(next, { registroUnico: rec }).then((ok) => {
       if (ok && ok.audit_no != null) {
         setMsg(`Manutenção rápida gravada na nuvem — Log #${ok.audit_no} · ${os} · ${placa}.`, true);
+        try {
+          if (typeof window.dkSyncCatchUp === "function") void window.dkSyncCatchUp("manutencao_gravada");
+          window.dispatchEvent(
+            new CustomEvent("dk:log:recarregar", { detail: { motivo: "manutencao", audit_no: ok.audit_no } })
+          );
+        } catch {
+          /* ignore */
+        }
+      } else {
+        setMsg("Não foi possível salvar a manutenção no servidor. Nada foi confirmado. Tente de novo.", false);
       }
     });
     limparForm();
     renderDia();
-    setMsg(`Manutenção rápida gravada — ${os} · ${placa}.`, true);
+    setMsg(`A gravar manutenção na nuvem — ${os} · ${placa}…`, true);
   }
 
   function apiHeadersManut() {

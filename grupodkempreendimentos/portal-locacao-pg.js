@@ -385,6 +385,12 @@
 
     try {
       if (typeof window.dkSyncCheckpoint === "function") void window.dkSyncCheckpoint("locacao_salva");
+      if (typeof window.dkSyncCatchUp === "function") void window.dkSyncCatchUp("locacao_salva");
+      if (data.audit_no != null) {
+        window.dispatchEvent(
+          new CustomEvent("dk:log:recarregar", { detail: { motivo: "locacao", audit_no: data.audit_no } })
+        );
+      }
     } catch {
       /* ignore */
     }

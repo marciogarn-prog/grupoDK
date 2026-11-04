@@ -17366,6 +17366,7 @@
         window.dispatchEvent(
           new CustomEvent("dk:log:recarregar", { detail: { motivo: "cliente", audit_no: envio.audit_no } })
         );
+        if (typeof window.dkSyncCatchUp === "function") void window.dkSyncCatchUp("cliente_gravado");
       } catch {
         /* ignore */
       }
@@ -17380,6 +17381,24 @@
     }
     return envio;
   }
+
+  window.__DK_clientePgRecarregar = async function __DK_clientePgRecarregar() {
+    try {
+      const nuvem = await portalLerClientesNuvem();
+      if (nuvem && nuvem.ok && Array.isArray(nuvem.lista)) {
+        portalAplicarClientesOficiaisNoPc(nuvem.lista);
+        try {
+          refreshOperacaoClienteTotalCadastrados();
+        } catch {
+          /* ignore */
+        }
+        return { ok: true, count: nuvem.lista.length };
+      }
+      return { ok: false, reason: (nuvem && nuvem.reason) || "leitura" };
+    } catch (e) {
+      return { ok: false, reason: String(e && e.message ? e.message : e) };
+    }
+  };
 
   async function portalAlinharClientesAoEntrarNaTela() {
     const geracao = ++portalClienteMsgGeracao;
@@ -24518,14 +24537,17 @@
         return {
           status: res.status,
           ok: res.ok && data?.ok !== false && data?.success !== false,
-          reason: String(data?.reason || ""),
+          reason: String(data?.reason || data?.message || ""),
+          message: String(data?.message || ""),
           revision: String(data?.revision || data?.updated_at || ""),
           audit_no: data?.audit_no != null ? data.audit_no : null,
           seq: data?.seq != null ? data.seq : null,
           operation_id: data?.operation_id || null,
+          entity_id: data?.entity_id || (data?.veiculo && data.veiculo.id) || null,
         };
       };
-      const revisao = typeof window.__DK_VEICULO_REVISAO === "string" ? window.__DK_VEICULO_REVISAO : "";
+      /* Revisão da entidade, nunca a revisão global de outro veículo. */
+      const revisao = String((veiculo && (veiculo.updated_at || veiculo.updatedAt || veiculo.revision)) || "").trim();
       const operation_id =
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
           ? crypto.randomUUID()
@@ -24534,69 +24556,91 @@
               const v = c === "x" ? r : (r & 0x3) | 0x8;
               return v.toString(16);
             });
-      const ultimo = await post({ operacao: "upsert", veiculo, base_revision: revisao, operation_id });
-      if (ultimo.revision && ultimo.status !== 409) window.__DK_VEICULO_REVISAO = ultimo.revision;
-      return ultimo;
+      return post({ operacao: "upsert", veiculo, base_revision: revisao, operation_id });
     }
 
     const doSaveVeiculo = () => {
-      try {
-        if (typeof upsertPortalVeiculoByPlaca === "function") {
-          upsertPortalVeiculoByPlaca(novo);
-        } else if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
-          const idx = veiculos.findIndex((v) => {
-            const p =
-              typeof normalizePlate === "function"
-                ? normalizePlate(String(v.placa || ""))
-                : String(v.placa || "")
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9]/g, "");
-            return p === plate;
-          });
-          if (idx >= 0) veiculos[idx] = { ...veiculos[idx], ...novo };
-          else veiculos.push(novo);
-          saveCadastro(PORTAL_VEICULOS_KEY, veiculos);
-        } else {
-          veiculos.push(novo);
-          saveCadastro(CAD_VEICULOS_KEY, veiculos);
-        }
-      } catch (err) {
-        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
-        console.error(err);
-        return;
-      }
-      if (window.__DK_VEICULOS_PG === true) {
-        void portalEnviarUmVeiculoParaNuvem(novo).then((envio) => {
-          if (!msg) return;
-          if (envio && envio.ok) {
-            msg.textContent =
-              envio.audit_no != null
-                ? `Veículo gravado na nuvem — Log #${envio.audit_no}`
-                : "Veículo gravado na nuvem.";
+      void (async () => {
+        try {
+          if (typeof upsertPortalVeiculoByPlaca === "function") {
+            upsertPortalVeiculoByPlaca(novo);
+          } else if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
+            const idx = veiculos.findIndex((v) => {
+              const p =
+                typeof normalizePlate === "function"
+                  ? normalizePlate(String(v.placa || ""))
+                  : String(v.placa || "")
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "");
+              return p === plate;
+            });
+            if (idx >= 0) veiculos[idx] = { ...veiculos[idx], ...novo };
+            else veiculos.push(novo);
+            saveCadastro(PORTAL_VEICULOS_KEY, veiculos);
           } else {
-            msg.textContent =
-              "Não foi possível salvar o veículo no servidor. Nada foi confirmado. Tente de novo.";
+            veiculos.push(novo);
+            saveCadastro(CAD_VEICULOS_KEY, veiculos);
           }
-        });
-      } else {
-        portalPushCloudSnapshotAfterPersist();
-        if (msg) {
-          msg.textContent = existenteVeiculo
-            ? "Veículo atualizado. Enviando para a nuvem."
-            : "Veículo cadastrado. Enviando para a nuvem.";
+        } catch (err) {
+          if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+          console.error(err);
+          return;
         }
-      }
-      portalApplyAmbienteVisualForm("Veiculo", novo);
-      refreshOperacaoVeiculoApagarBtn(plate);
-      setOperacaoVeiculoCadastradoPorDisplay(novo);
-      const form = document.getElementById("formOperacaoVeiculoInline");
-      if (form && typeof form.reset === "function" && !existenteVeiculo) {
-        form.reset();
-        portalResetAmbienteForm("Veiculo");
-        refreshOperacaoVeiculoTagPreview();
-        setOperacaoVeiculoCadastradoPorDisplay("");
-      }
-      renderOperacaoVeiculoResumoFrota();
+        if (window.__DK_VEICULOS_PG === true) {
+          if (msg) msg.textContent = "A gravar o veículo na nuvem…";
+          const envio = await portalEnviarUmVeiculoParaNuvem(novo);
+          const okNuvem = Boolean(envio && envio.ok && Number(envio.status) >= 200 && Number(envio.status) < 300);
+          if (okNuvem && envio.audit_no != null) {
+            if (envio.entity_id) novo.id = envio.entity_id;
+            if (envio.revision) novo.updated_at = envio.revision;
+            try {
+              if (typeof upsertPortalVeiculoByPlaca === "function") upsertPortalVeiculoByPlaca(novo);
+            } catch {
+              /* ignore */
+            }
+            if (msg) msg.textContent = `Veículo gravado na nuvem — Log #${envio.audit_no}`;
+            try {
+              window.dispatchEvent(
+                new CustomEvent("dk:log:recarregar", { detail: { motivo: "veiculo", audit_no: envio.audit_no } })
+              );
+              if (typeof window.dkSyncCatchUp === "function") void window.dkSyncCatchUp("veiculo_gravado");
+            } catch {
+              /* ignore */
+            }
+          } else {
+            if (msg) {
+              msg.textContent =
+                "Não foi possível salvar o veículo no servidor. Nada foi confirmado. Tente de novo.";
+            }
+            if (typeof window.__DK_veiculoPgRecarregar === "function") {
+              try {
+                await window.__DK_veiculoPgRecarregar();
+              } catch {
+                /* ignore */
+              }
+            }
+            return;
+          }
+        } else {
+          portalPushCloudSnapshotAfterPersist();
+          if (msg) {
+            msg.textContent = existenteVeiculo
+              ? "Veículo atualizado. Enviando para a nuvem."
+              : "Veículo cadastrado. Enviando para a nuvem.";
+          }
+        }
+        portalApplyAmbienteVisualForm("Veiculo", novo);
+        refreshOperacaoVeiculoApagarBtn(plate);
+        setOperacaoVeiculoCadastradoPorDisplay(novo);
+        const form = document.getElementById("formOperacaoVeiculoInline");
+        if (form && typeof form.reset === "function" && !existenteVeiculo) {
+          form.reset();
+          portalResetAmbienteForm("Veiculo");
+          refreshOperacaoVeiculoTagPreview();
+          setOperacaoVeiculoCadastradoPorDisplay("");
+        }
+        renderOperacaoVeiculoResumoFrota();
+      })();
     };
     if (existenteVeiculo && isPortalTitularAdministrador()) {
       const changes = portalBuildAlteracoesLista(
@@ -30532,6 +30576,10 @@
       window.__DK_VEICULO_TELA = false;
     }
   }
+
+  window.__DK_veiculoPgRecarregar = async function __DK_veiculoPgRecarregar() {
+    return portalAlinharVeiculosAoEntrarNaTela();
+  };
 
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     window.__DK_VEICULO_TELA = true;
