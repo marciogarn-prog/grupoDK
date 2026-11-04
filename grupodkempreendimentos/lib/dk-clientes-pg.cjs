@@ -248,7 +248,8 @@ async function upsertUm(cliente, baseRevision, ioRest, opts) {
       lerOficial: async () => ({ ok: true, cliente: oficial }),
     });
     if (atom.ok && atom.body) {
-      atom.body.cliente = ecoDe(recebido);
+      const idOficial = atom.body.entity_id || (oficial && oficial.id) || recebido.id;
+      atom.body.cliente = ecoDe({ ...recebido, id: idOficial });
       atom.body.duracao_ms = Date.now() - t0;
     }
     return atom;

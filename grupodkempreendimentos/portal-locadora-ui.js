@@ -17317,7 +17317,15 @@
     }
     if (geracao !== portalClienteMsgGeracao) return envio;
     if (portalEnvioClienteConfirmado(envio)) {
-      if (envio.revision || envio.updated_at) {
+      const pgObrigatorio = window.__DK_CLIENTES_PG === true;
+      if (pgObrigatorio && (envio.audit_no == null || envio.audit_no === "")) {
+        portalMsgCliente(
+          "O servidor respondeu sem Log. A alteração não foi confirmada. Tente de novo.",
+          geracao
+        );
+        return { ok: false, success: false, status: 502, reason: "sem_audit_no" };
+      }
+      if (envio.revision || envio.updated_at || (envio.cliente && envio.cliente.id)) {
         try {
           const lista = portalLerClientesLocais();
           const idx = lista.findIndex((item) => {
@@ -17328,9 +17336,11 @@
             return cpf === dig;
           });
           if (idx >= 0) {
+            const eco = envio.cliente && typeof envio.cliente === "object" ? envio.cliente : {};
             lista[idx] = {
               ...lista[idx],
-              updated_at: envio.revision || envio.updated_at,
+              ...(eco.id != null ? { id: eco.id } : {}),
+              updated_at: envio.revision || envio.updated_at || lista[idx].updated_at,
             };
             if (typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
               const prev = window.__DK_suppressPortalCadastroPush;
