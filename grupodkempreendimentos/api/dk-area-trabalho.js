@@ -200,9 +200,17 @@ module.exports = async function handler(req, res) {
       redisLista = createRedisClient();
       const areas = {};
       const areasRaw = {};
-      for (const id of AREAS) {
-        if (id === "operacao") continue;
-        const dono = lerDono(await redisLista.get(chave(id)));
+      /* R07: um MGET em vez de N GETs — mesma leitura, menos comandos Redis. */
+      const idsListar = [...AREAS].filter((id) => id !== "operacao");
+      const chavesListar = idsListar.map((id) => chave(id));
+      const valores =
+        chavesListar.length > 0
+          ? await redisLista.mget(...chavesListar)
+          : [];
+      const listaValores = Array.isArray(valores) ? valores : [];
+      for (let i = 0; i < idsListar.length; i += 1) {
+        const id = idsListar[i];
+        const dono = lerDono(listaValores[i]);
         if (dono && dono.nome) {
           areas[id] = dono.nome;
           areasRaw[id] = dono;
