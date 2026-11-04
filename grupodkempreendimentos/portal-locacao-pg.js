@@ -203,8 +203,24 @@
     if (err && /failed to fetch|networkerror|load failed|conexão|connection/i.test(String(err.message || err))) {
       return "Sem ligação ao servidor. Nada foi confirmado. Os campos digitados foram mantidos.";
     }
-    if (status === 401 || status === 403 || reason === "unauthorized" || reason === "auth") {
+    if (
+      status === 401 ||
+      reason === "unauthorized" ||
+      reason === "auth" ||
+      reason === "client_stale" ||
+      reason === "forbidden" ||
+      reason === "module_forbidden"
+    ) {
       return "Sessão inválida ou sem permissão. Entre de novo e tente gravar outra vez.";
+    }
+    if (status === 403 && /permission denied|42501|dk_audit_state/i.test(String((data && data.detalhe && (data.detalhe.message || data.detalhe.hint || data.detalhe.code)) || reason))) {
+      return "O servidor ainda não tem permissão para gravar o Log. Nada foi confirmado. Avise o administrador técnico.";
+    }
+    if (reason === "permissao_postgres") {
+      return "O servidor ainda não tem permissão para gravar o Log. Nada foi confirmado. Avise o administrador técnico.";
+    }
+    if (reason === "gravacao") {
+      return "O servidor não confirmou a gravação. Nada ficou salvo só neste computador. Tente de novo.";
     }
     if (status === 409 || (data && data.conflict)) {
       return "Conflito de versão: outro computador alterou este contrato. Os campos digitados foram mantidos — compare antes de gravar de novo.";
