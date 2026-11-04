@@ -128,15 +128,15 @@ async function runSuite() {
         portalUiOpsJs.includes('tela: portalTelaPresencaNome()'),
       "estado do utilizador vai junto ao sync de aba/ação"
     );
-    const syncJsVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
-    const syncJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncJsVer}`, {
+    const syncPresencaVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
+    const portalSyncPresencaJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncPresencaVer}`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "download da nuvem também envia presença",
-      syncJs.includes("presencaAoSincronizarNuvem") &&
-        syncJs.includes("__DK_portalPresencaAoSincronizar") &&
-        syncJs.includes("pullCloudSnapshotSilentMerge"),
+      portalSyncPresencaJs.includes("presencaAoSincronizarNuvem") &&
+        portalSyncPresencaJs.includes("__DK_portalPresencaAoSincronizar") &&
+        portalSyncPresencaJs.includes("pullCloudSnapshotSilentMerge"),
       "via de mão dupla no pull/push"
     );
     const manutRapidaJs = await fetch(`${BASE_URL}portal-manutencao-rapida.js?v=20260911os-sync`, {
