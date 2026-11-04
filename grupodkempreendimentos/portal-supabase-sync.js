@@ -5976,12 +5976,15 @@
       console.warn("[DK cloud] a tela baixa mesmo com um envio ainda pendente", gate.reason);
     }
     if (dkBgLeituraInterativa()) return { ok: true, skipped: true, reason: "leitura_interativa" };
+    let cadastroFalhou = false;
     const cadastro =
       typeof window.__DK_portalPullCadastroFromCloud === "function"
         ? Promise.resolve(window.__DK_portalPullCadastroFromCloud()).catch((e) => {
+            cadastroFalhou = true;
             console.warn("[DK cloud] pull cadastro API ao mudar ecrã", e);
+            return { ok: false, error: e };
           })
-        : Promise.resolve();
+        : Promise.resolve({ ok: true, skipped: true });
     const revNuvem = await lerRevisaoSyncNuvem();
     const revLocal = lerRevisaoPagamentosLocal();
     if (revNuvem && revLocal && revNuvem === revLocal) {
@@ -5989,16 +5992,42 @@
       return { ok: true, unchanged: true, revision: revNuvem, mesmaRevisao: true };
     }
     if (dkBgLeituraInterativa()) return { ok: true, skipped: true, reason: "leitura_interativa" };
-    const snapshot = await pullCloudSnapshotSilentMerge({
-      force: true,
-      bypassLocalAuthority: true,
-      completo: true,
-      automatico: true,
-    });
+    let snapshot = null;
+    try {
+      snapshot = await pullCloudSnapshotSilentMerge({
+        force: true,
+        bypassLocalAuthority: true,
+        completo: true,
+        automatico: true,
+      });
+    } catch (e) {
+      console.warn("[DK cloud] snapshot ao mudar ecrã", e);
+      snapshot = { ok: false, error: e, reason: "snapshot_erro" };
+    }
     const aplicada = String((snapshot && snapshot.revision) || revNuvem || "").trim();
     if (snapshot && snapshot.ok !== false && aplicada) gravarRevisaoPagamentosLocal(aplicada);
     await Promise.race([cadastro, new Promise((resolve) => setTimeout(resolve, 4000))]);
-    return snapshot;
+    /* Cutover PG: clientes/veículos/locação oficiais não dependem do snapshot legado.
+       Não bloquear a Operação com «não foi possível receber a nuvem» se a API PG respondeu
+       ou se o snapshot só foi skipped. */
+    if (snapshot && snapshot.ok !== false) return snapshot;
+    const pgOficial =
+      window.__DK_CLIENTES_PG === true ||
+      window.__DK_LOCACAO_PG === true ||
+      window.__DK_VEICULOS_PG === true ||
+      typeof window.__DK_locacaoSalvarConfirmada === "function";
+    if (snapshot && snapshot.skipped) {
+      return { ok: true, skipped: true, reason: snapshot.reason || "snapshot_skipped", warning: true };
+    }
+    if (pgOficial && !cadastroFalhou) {
+      return {
+        ok: true,
+        degraded: true,
+        reason: (snapshot && snapshot.reason) || "snapshot_legado",
+        revision: aplicada || revLocal || "",
+      };
+    }
+    return snapshot || { ok: false, reason: "snapshot_erro" };
   }
 
   function pullFromCloudOnScreenChangeAgora() {

@@ -20967,11 +20967,21 @@
     try {
       const r = await window.__DK_pullFromCloudOnScreenChange();
       if (gen !== portalScreenPullGen) return false;
-      if (r && r.ok === false) {
+      const bloqueia =
+        r &&
+        r.ok === false &&
+        !r.skipped &&
+        (r.reason === "await_push_failed" ||
+          r.reason === "session_revoked" ||
+          r.reason === "unauthorized" ||
+          r.reason === "cloud_halted");
+      if (bloqueia) {
         const falha =
           r.reason === "await_push_failed"
             ? "O envio deste PC ainda não confirmou. Sem a última atualização da nuvem não pode continuar."
-            : "Não foi possível receber a última atualização da nuvem.";
+            : r.reason === "session_revoked" || r.reason === "unauthorized"
+              ? "Sessão inválida ou sem permissão. Entre de novo e tente outra vez."
+              : "Não foi possível receber a última atualização da nuvem.";
         portalNuvemSyncLockShow(falha, {
           retry: true,
           onRetry: () => {
