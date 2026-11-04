@@ -111,9 +111,9 @@
     }
   }
 
-  let portalPresencaEquipaTimer = 0;
   let portalPresencaOutrosCpfs = [];
-  const PORTAL_PRESENCA_PULSO_MS = 15 * 1000;
+  let portalPresencaUltimoEnvioMs = 0;
+  const PORTAL_PRESENCA_MIN_GAP_MS = 1500;
 
   function portalPintarBannerOperadoresCpfs() {
     const el = document.getElementById("portalAdminBannerOperadoresCpfs");
@@ -206,9 +206,17 @@
     };
   }
 
-  async function portalPresencaEquipaTick() {
+  /**
+   * Presença só no sync (aba / download / ação) — sem pulso periódico.
+   * Via de mão dupla: ao baixar ou enviar dados, manda também o estado do utilizador.
+   */
+  async function portalPresencaEquipaTick(opts) {
     if (!portalTemSessaoEquipaAtiva()) return;
     if (typeof document !== "undefined" && document.hidden) return;
+    const force = Boolean(opts && opts.force);
+    const agora = Date.now();
+    if (!force && agora - portalPresencaUltimoEnvioMs < PORTAL_PRESENCA_MIN_GAP_MS) return;
+    portalPresencaUltimoEnvioMs = agora;
     const headers =
       typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
     try {
@@ -246,6 +254,18 @@
     } catch {
       /* ignore */
     }
+  }
+
+  function portalPresencaAoSincronizar() {
+    if (!portalTemSessaoEquipaAtiva()) return;
+    void portalPresencaEquipaTick();
+  }
+
+  try {
+    window.__DK_portalPresencaEquipaTick = portalPresencaEquipaTick;
+    window.__DK_portalPresencaAoSincronizar = portalPresencaAoSincronizar;
+  } catch {
+    /* ignore */
   }
 
   const PORTAL_IDLE_LIMIT_MS = 30 * 60 * 1000;
@@ -288,19 +308,10 @@
     if (!portalTemSessaoEquipaAtiva()) return;
     portalIdleLogoutOnce = false;
     portalIdleWatchStart();
-    if (!portalPresencaEquipaTimer) {
-      portalPresencaEquipaTimer = window.setInterval(() => {
-        void portalPresencaEquipaTick();
-      }, PORTAL_PRESENCA_PULSO_MS);
-    }
-    void portalPresencaEquipaTick();
+    void portalPresencaEquipaTick({ force: true });
   }
 
   function portalPresencaEquipaStop() {
-    if (portalPresencaEquipaTimer) {
-      clearInterval(portalPresencaEquipaTimer);
-      portalPresencaEquipaTimer = 0;
-    }
     const headers =
       typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
     try {
@@ -363,7 +374,7 @@
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente");
     portalPintarBannerOperadoresCpfs();
     if (portalTemSessaoEquipaAtiva()) portalPresencaEquipaStart();
-    else if (portalPresencaEquipaTimer) portalPresencaEquipaStop();
+    else portalPresencaEquipaStop();
     portalSyncAmbienteCadastroAdminUi();
     refreshPortalMielHomeAcesso();
     refreshPortalEstoqueAcesso();
@@ -20883,6 +20894,7 @@
   }
 
   function portalPushCloudSnapshotAfterPersist() {
+    portalPresencaAoSincronizar();
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") {
       return Promise.resolve({ ok: false, reason: "sem_envio" });
     }
@@ -21046,6 +21058,7 @@
   function portalOperacaoOnScreenChange() {
     const gen = ++portalScreenPullGen;
     portalRefreshOperacaoLocal();
+    portalPresencaAoSincronizar();
     try {
       portalNuvemSyncLockHide();
     } catch {

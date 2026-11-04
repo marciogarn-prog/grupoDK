@@ -120,12 +120,24 @@ async function runSuite() {
       "pulso + CPF dos outros operadores"
     );
     record(
-      "Usuários ativos: pulso com tela real em todas as áreas",
+      "Usuários ativos: presença no sync (sem pulso periódico)",
       portalUiOpsJs.includes("portalTelaPresencaNome") &&
+        portalUiOpsJs.includes("portalPresencaAoSincronizar") &&
         portalUiOpsJs.includes("portalCorpoPresencaEquipa") &&
-        portalUiOpsJs.includes("PORTAL_PRESENCA_PULSO_MS") &&
+        !portalUiOpsJs.includes("PORTAL_PRESENCA_PULSO_MS") &&
         portalUiOpsJs.includes('tela: portalTelaPresencaNome()'),
-      "não só quem está no Log DK"
+      "estado do utilizador vai junto ao sync de aba/ação"
+    );
+    const syncJsVer = html.match(/portal-supabase-sync\.js\?v=([^"]+)/)?.[1] || portalUiVer || "latest";
+    const syncJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=${syncJsVer}`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "download da nuvem também envia presença",
+      syncJs.includes("presencaAoSincronizarNuvem") &&
+        syncJs.includes("__DK_portalPresencaAoSincronizar") &&
+        syncJs.includes("pullCloudSnapshotSilentMerge"),
+      "via de mão dupla no pull/push"
     );
     const manutRapidaJs = await fetch(`${BASE_URL}portal-manutencao-rapida.js?v=20260911os-sync`, {
       cache: "no-store",

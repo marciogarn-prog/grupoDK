@@ -5643,6 +5643,7 @@
       markCloudLocalOnly();
       return { ok: false, skipped: true, reason: "unauthorized" };
     }
+    presencaAoSincronizarNuvem();
     if (typeof window.__DK_portalAndroidSomenteLeitura === "function" && window.__DK_portalAndroidSomenteLeitura()) {
       return { ok: true, skipped: true, reason: "android_somente_leitura" };
     }
@@ -5801,10 +5802,21 @@
     return Boolean(window.__DK_BG_READ_STATE && window.__DK_BG_READ_STATE.interactiveReads > 0);
   }
 
+  function presencaAoSincronizarNuvem() {
+    try {
+      if (typeof window.__DK_portalPresencaAoSincronizar === "function") {
+        window.__DK_portalPresencaAoSincronizar();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function pullCloudSnapshotSilentMerge(opts) {
     if (opts && opts.automatico && dkBgLeituraInterativa()) {
       return { ok: true, skipped: true, reason: "leitura_interativa" };
     }
+    if (!isClienteAppPage()) presencaAoSincronizarNuvem();
     if (basePacotesPronta() && !(opts && opts.completo)) {
       try {
         return await puxarPacoteDoDia(window.__DK_pacotes.hojeYmd());
@@ -5964,6 +5976,7 @@
    * baixa o cadastro inteiro e une os pagamentos pela alteração mais recente.
    */
   async function pullFromCloudOnScreenChangeCore() {
+    presencaAoSincronizarNuvem();
     const gate = await Promise.race([
       awaitAutoCloudPushConfirmed(),
       new Promise((resolve) => setTimeout(() => resolve({ ok: true, reason: "download_nao_espera_envio" }), 800)),
