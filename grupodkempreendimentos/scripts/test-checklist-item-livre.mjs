@@ -38,12 +38,24 @@ record(
   ""
 );
 record(
+  "comentário permanece ao voltar a marcação para A",
+    ui.includes("A marcação pode voltar para A") &&
+    ui.includes("portalRestaurarChecklistObsMemoria") &&
+    ui.includes('portalSyncChecklistObsUi(n, "radio")') &&
+    ui.includes("portalConsolidarChecklistObsMemoriaAposSalvar") &&
+    !ui.includes('if (estado !== "R") return "";') &&
+    !ui.includes("if (!isR && !v)") &&
+    mov.includes("Comentário permanece mesmo depois de a marcação voltar para A") &&
+    !mov.includes('if (estado !== "R") return "";'),
+  ""
+);
+record(
   "R do item extra entra em manutenção e bloqueia disponível",
   ui.includes("function portalChecklistTemItemReprovado") &&
     ui.includes("portalChecklistOleoSim() || temItemR") &&
     ui.includes("A placa só fica disponível para locação se nenhum item estiver em R") &&
-    ui.includes("const destDisp = alvo === \"prontos\" || alvo === \"reserva-patio\"") &&
-    ui.includes("btn.disabled = !(val.ok && formOk && (!destDisp || !temItemR))"),
+    ui.includes("const destDisp = alvo === \"prontos\" || alvo === \"reserva-patio\" || alvo === \"ativo-disponivel\"") &&
+    ui.includes("let okDest = val.ok && formOk && (!destDisp || !temItemR)"),
   ""
 );
 record(
@@ -63,9 +75,8 @@ record(
 );
 record(
   "cache-bust",
-  html.includes("portal-locadora-ui.js?v=20260915itemlivre") &&
-    html.includes("styles.css?v=20260915itemlivre") &&
-    html.includes("portal-movimentacoes-manutencao.js?v=20260915itemlivre"),
+  html.includes("portal-locadora-ui.js?v=20261106obsB") &&
+    html.includes("portal-movimentacoes-manutencao.js?v=20261106obsA"),
   ""
 );
 

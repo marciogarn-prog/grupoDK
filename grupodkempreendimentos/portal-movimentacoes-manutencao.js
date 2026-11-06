@@ -84,9 +84,8 @@
     return String(sel.options[sel.selectedIndex]?.textContent || "").trim();
   }
 
+  /** Comentário permanece mesmo depois de a marcação voltar para A. */
   function getObsValor(n) {
-    const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
-    if (estado !== "R") return "";
     const sel = document.getElementById(`portalChecklistObsSelect${n}`);
     if (!sel) {
       return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();

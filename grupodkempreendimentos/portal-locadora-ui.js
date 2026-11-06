@@ -7348,23 +7348,11 @@
       if (it.estado === "R") {
         if (r) r.checked = true;
         if (a) a.checked = false;
-        const sel = document.getElementById(`portalChecklistObsSelect${n}`);
-        const inp = document.getElementById(`portalChecklistObs${n}`);
-        const obs = String(it.obs || "").trim();
-        if (sel && obs) {
-          const opt = [...sel.options].find((o) => o.value === obs);
-          if (opt) sel.value = obs;
-          else if (obs) {
-            sel.value = "OUTRO";
-            if (inp) inp.value = obs;
-          }
-        } else if (inp && obs) {
-          inp.value = obs;
-        }
       } else {
         if (a) a.checked = true;
         if (r) r.checked = false;
       }
+      portalAplicarChecklistObsNoDom(n, it.obs);
       portalSyncChecklistObsUi(n);
     });
     portalSyncChecklistObsUi(PORTAL_CHECKLIST_ITEM_LIVRE_N);
@@ -7406,24 +7394,7 @@
         if (a) a.checked = true;
         if (r) r.checked = false;
       }
-      const obs = String(it.obs || "").trim();
-      if (portalChecklistItemEhLivre(n)) {
-        const inp = document.getElementById(`portalChecklistObs${n}`);
-        if (inp && obs) inp.value = obs;
-      } else {
-        const sel = document.getElementById(`portalChecklistObsSelect${n}`);
-        const inp = document.getElementById(`portalChecklistObs${n}`);
-        if (sel && obs) {
-          const opt = [...sel.options].find((o) => o.value === obs);
-          if (opt) sel.value = obs;
-          else {
-            sel.value = "OUTRO";
-            if (inp) inp.value = obs;
-          }
-        } else if (inp && obs) {
-          inp.value = obs;
-        }
-      }
+      portalAplicarChecklistObsNoDom(n, it.obs);
       portalSyncChecklistObsUi(n);
     });
     portalSyncChecklistObsUi(PORTAL_CHECKLIST_ITEM_LIVRE_N);
@@ -7488,6 +7459,7 @@
       para: categoria,
       motivo: "salvar alterações check-list",
     });
+    portalConsolidarChecklistObsMemoriaAposSalvar();
     return { ok: true, placa: placaKey, categoria, em: agora };
   }
 
@@ -7529,7 +7501,7 @@
       if (sel) sel.value = "";
       const o = document.getElementById(`portalChecklistObs${n}`);
       if (o) o.value = "";
-      portalSyncChecklistObsUi(n);
+      portalSyncChecklistObsUi(n, "limpar");
     }
     document.querySelectorAll('input[name="portalChecklistOleo"]').forEach((el) => {
       el.checked = false;
@@ -7557,53 +7529,146 @@
     portalRefreshChecklistOdometroUltimo(portalGetPlacaChecklistAtual());
   }
 
-  /** Obs. do item: só com R; lista SUBSTITUIR/REGULAR/OUTRO; OUTRO libera digitação. Item extra: caixa amarela livre. */
-  function portalSyncChecklistObsUi(n) {
+  /**
+   * Comentário do item. Trocar A/R não apaga.
+   * Some da tela e do registo só se o utilizador esvaziar o campo e clicar «Salvar alterações».
+   */
+  const portalChecklistObsMemoria = Object.create(null);
+
+  function portalAplicarChecklistObsNoDom(n, obsRaw) {
+    const obs = String(obsRaw || "").trim();
+    if (!obs) return;
+    if (portalChecklistItemEhLivre(n)) {
+      const inp = document.getElementById(`portalChecklistObs${n}`);
+      if (inp) inp.value = obs;
+      return;
+    }
+    const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+    const inp = document.getElementById(`portalChecklistObs${n}`);
+    if (sel) {
+      const opt = [...sel.options].find((o) => o.value === obs);
+      if (opt) sel.value = obs;
+      else {
+        sel.value = "OUTRO";
+        if (inp) inp.value = obs;
+      }
+    } else if (inp) {
+      inp.value = obs;
+    }
+  }
+
+  function portalLerChecklistObsDom(n) {
+    if (portalChecklistItemEhLivre(n)) {
+      return { sel: "", texto: String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim() };
+    }
+    const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+    const inp = document.getElementById(`portalChecklistObs${n}`);
+    const v = String(sel?.value || "").trim();
+    const texto = String(inp?.value || "").trim();
+    if (v === "OUTRO") return { sel: "OUTRO", texto };
+    if (v) return { sel: v, texto: v };
+    if (texto) return { sel: "OUTRO", texto };
+    return { sel: "", texto: "" };
+  }
+
+  function portalChecklistObsTemConteudo(rec) {
+    if (!rec) return false;
+    if (rec.sel === "OUTRO") return Boolean(String(rec.texto || "").trim());
+    return Boolean(String(rec.sel || "").trim() || String(rec.texto || "").trim());
+  }
+
+  function portalCapturarChecklistObsMemoria(n) {
+    const rec = portalLerChecklistObsDom(n);
+    if (portalChecklistObsTemConteudo(rec)) portalChecklistObsMemoria[n] = rec;
+  }
+
+  function portalRestaurarChecklistObsMemoria(n) {
+    const mem = portalChecklistObsMemoria[n];
+    if (!mem || (!mem.sel && !mem.texto)) return;
+    if (portalChecklistItemEhLivre(n)) {
+      const inp = document.getElementById(`portalChecklistObs${n}`);
+      if (inp) inp.value = mem.texto || "";
+      return;
+    }
+    const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+    const inp = document.getElementById(`portalChecklistObs${n}`);
+    if (!sel || !inp) return;
+    if (mem.sel === "OUTRO" || (!mem.sel && mem.texto)) {
+      sel.value = "OUTRO";
+      inp.value = mem.texto || "";
+      return;
+    }
+    if (mem.sel && [...sel.options].some((o) => o.value === mem.sel)) {
+      sel.value = mem.sel;
+    }
+  }
+
+  function portalConsolidarChecklistObsMemoriaAposSalvar() {
+    for (let n = 1; n <= portalChecklistItensTotal(); n++) {
+      const rec = portalLerChecklistObsDom(n);
+      if (portalChecklistObsTemConteudo(rec)) portalChecklistObsMemoria[n] = rec;
+      else delete portalChecklistObsMemoria[n];
+    }
+  }
+
+  /**
+   * Obs. abre em R (SUBSTITUIR/REGULAR/OUTRO; OUTRO libera digitação).
+   * A marcação pode voltar para A: o comentário permanece.
+   * origem "radio" repõe o último comentário; "limpar" zera ao abrir outra placa.
+   * Item extra: caixa amarela livre.
+   */
+  function portalSyncChecklistObsUi(n, origem) {
+    if (origem === "limpar") {
+      delete portalChecklistObsMemoria[n];
+    } else if (origem === "radio") {
+      portalRestaurarChecklistObsMemoria(n);
+    } else {
+      portalCapturarChecklistObsMemoria(n);
+    }
     const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
     const isR = estado === "R";
     if (portalChecklistItemEhLivre(n)) {
       const inp = document.getElementById(`portalChecklistObs${n}`);
       const wrap = document.getElementById("portalChecklistItemLivreObsWrap");
-      wrap?.classList.toggle("portal-checklist-item-livre-obs--aberto", isR);
+      const temObs = Boolean(String(inp?.value || "").trim());
+      const mostrar = isR || temObs;
+      wrap?.classList.toggle("portal-checklist-item-livre-obs--aberto", mostrar);
       if (inp) {
-        inp.readOnly = !isR;
+        inp.readOnly = !mostrar;
         inp.placeholder = isR ? "Escreva o problema…" : "";
-        if (!isR) inp.value = "";
       }
       return;
     }
     const sel = document.getElementById(`portalChecklistObsSelect${n}`);
     const inp = document.getElementById(`portalChecklistObs${n}`);
     if (!sel || !inp) return;
-    sel.classList.toggle("hidden", !isR);
-    sel.hidden = !isR;
-    if (!isR) {
-      sel.value = "";
-      inp.value = "";
+    const v = String(sel.value || "").trim();
+    const texto = String(inp.value || "").trim();
+    const temObs = Boolean(v) || Boolean(texto);
+    if (!isR && !temObs) {
+      sel.classList.add("hidden");
+      sel.hidden = true;
       inp.classList.add("hidden");
       inp.hidden = true;
       inp.readOnly = true;
       return;
     }
-    const v = String(sel.value || "");
+    sel.classList.remove("hidden");
+    sel.hidden = false;
     const isOutro = v === "OUTRO";
-    if (v && v !== "OUTRO") {
-      inp.value = v;
-      inp.classList.add("hidden");
-      inp.hidden = true;
-      inp.readOnly = true;
-    } else {
-      inp.classList.toggle("hidden", !isOutro);
-      inp.hidden = !isOutro;
-      inp.readOnly = !isOutro;
-      if (!isOutro) inp.value = "";
-      if (isOutro) inp.placeholder = "Descreva…";
+    if (isOutro) {
+      inp.classList.remove("hidden");
+      inp.hidden = false;
+      inp.readOnly = false;
+      inp.placeholder = "Descreva…";
+      return;
     }
+    inp.classList.add("hidden");
+    inp.hidden = true;
+    inp.readOnly = true;
   }
 
   function portalGetChecklistObsValor(n) {
-    const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
-    if (estado !== "R") return "";
     if (portalChecklistItemEhLivre(n)) {
       return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
     }
@@ -10127,7 +10192,7 @@
           "Há serviço necessário (troca de óleo e/ou item em R). Pode imprimir, guardar PDF ou enviar para 7 — Oficina própria.";
       } else if (portalChecklistIsOficinaPropriaMode()) {
         hint.textContent = temItemR
-          ? "Ainda há item em R. Corrija (tudo em A) antes de enviar para 4 / 4.1. Pode encaminhar para 8, 9 ou 10 se precisar."
+          ? "Ainda há item em R. Grave o comentário e volte a marcação para A (o comentário permanece). Só com tudo em A dá para salvar e enviar para 4 / 4.1. Pode encaminhar para 8, 9 ou 10 se precisar."
           : portalChecklistPlacaTemProtocoloAtivo()
             ? "Formulário completo. «4 — Pronto para alugar» encerra o contrato e deixa a placa disponível para locação. «4.1 — Ativo disponível» mantém o contrato."
             : "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
@@ -10493,15 +10558,28 @@
       }
       if (t && t.name && String(t.name).startsWith("portalChecklistItem")) {
         const n = parseInt(String(t.name).replace(/\D/g, ""), 10);
-        if (Number.isFinite(n)) portalSyncChecklistObsUi(n);
+        if (Number.isFinite(n)) portalSyncChecklistObsUi(n, "radio");
       }
       if (t && t.id && String(t.id).startsWith("portalChecklistObsSelect")) {
         const n = parseInt(String(t.id).replace(/\D/g, ""), 10);
-        if (Number.isFinite(n)) portalSyncChecklistObsUi(n);
+        if (Number.isFinite(n)) {
+          if (!String(t.value || "").trim()) {
+            const inp = document.getElementById(`portalChecklistObs${n}`);
+            if (inp) inp.value = "";
+          }
+          portalSyncChecklistObsUi(n, "usuario");
+        }
       }
       portalValidateChecklistCompleto();
     });
-    root?.addEventListener("input", () => portalValidateChecklistCompleto());
+    root?.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t && t.id && String(t.id).startsWith("portalChecklistObs") && !String(t.id).includes("Select")) {
+        const n = parseInt(String(t.id).replace(/\D/g, ""), 10);
+        if (Number.isFinite(n)) portalSyncChecklistObsUi(n, "usuario");
+      }
+      portalValidateChecklistCompleto();
+    });
 
     document.getElementById("portalChecklistBtnImprimir")?.addEventListener("click", () => {
       if (!portalValidateChecklistCompleto()) return;
