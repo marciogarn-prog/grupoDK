@@ -52,6 +52,21 @@ record(
   "Picker chama appendOperacaoLocacaoOptNovo",
   ui.includes("const { protoNovo } = appendOperacaoLocacaoOptNovo(sel)")
 );
+record(
+  "Cliente com locação antiga entra em locação nova sem ficha separada",
+  ui.includes("function portalClienteRegistroDasLocacoes") &&
+    ui.includes("return portalClienteRegistroDasLocacoes(cpfDigits);") &&
+    ui.includes("syncPortalLocacaoCpfFromNomeField();") &&
+    ui.includes("Cliente confirmado. Informe a data de início") &&
+    ui.includes("const emNovo = !selProto || String(selProto.value || \"\") === PORTAL_PROTO_NOVO;") &&
+    ui.includes("Protocolo exige um cliente já cadastrado")
+);
+record(
+  "Nova versão encerra a sessão anterior",
+  ui.includes('const PORTAL_SESSAO_BUILD_ID = "20261106locacao-cpf"') &&
+    ui.includes("Nova versão do portal encerra a sessão anterior") &&
+    html.includes("portal-locadora-ui.js?v=20261106locacaoCpf")
+);
 
 const port = 3059;
 const child = spawn(process.execPath, ["server.cjs"], {

@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20260521admin-nav";
+  const PORTAL_SESSAO_BUILD_ID = "20261106locacao-cpf";
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
   const PORTAL_TITULAR_VER_COMO_KEY = "dk_titular_ver_como";
 
@@ -46,16 +46,17 @@
     }
   }
 
+  /** Nova versão do portal encerra a sessão anterior (equipa e cliente) para entrar no código atual. */
   function portalInvalidarSessaoSeBuildAntigo() {
     try {
       const raw = localStorage.getItem("dk_sessao_cliente");
       if (!raw) return;
-      const s = JSON.parse(raw);
-      if (s?.tipo !== "admin") return;
       const marca = localStorage.getItem(PORTAL_SESSAO_BUILD_KEY);
-      if (!marca || marca === PORTAL_SESSAO_BUILD_ID) return;
+      if (marca === PORTAL_SESSAO_BUILD_ID) return;
       if (typeof clearSession === "function") clearSession();
+      else localStorage.removeItem("dk_sessao_cliente");
       localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);
+      sessionStorage.removeItem("dk_portal_sessao_viva_v1");
     } catch {
       /* ignore */
     }
@@ -12167,7 +12168,31 @@
       });
       if (hit) return hit;
     }
-    return null;
+    return portalClienteRegistroDasLocacoes(cpfDigits);
+  }
+
+  /** Cliente que já tem protocolo conta como cadastrado, mesmo sem ficha em dk_clientes_cadastro. */
+  function portalClienteRegistroDasLocacoes(cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (cpf.length !== 11 || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return null;
+    }
+    let nome = "";
+    let codigo = "";
+    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+      if (dig(String(l?.cpf || "")).slice(0, 11) !== cpf) return;
+      if (!nome) nome = String(l.nome || l.cliente || l.clienteNome || "").trim();
+      if (!codigo) {
+        codigo =
+          (typeof formatPortalClienteCodigoPadrao === "function"
+            ? formatPortalClienteCodigoPadrao(l.clienteCodigo)
+            : "") || String(l.clienteCodigo || "").trim();
+      }
+    });
+    if (!nome && !codigo) return null;
+    return { cpf, nome, codigo, clienteCodigo: codigo, origem: "locacao" };
   }
 
   /** Índices 0,1,… para CPFs só no navegador (fora dos bundles) — alinhado ao relatório unificado. */
@@ -21464,6 +21489,21 @@
     } else if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
       loadCadastro(CAD_CLIENTES_KEY).forEach(add);
     }
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        const cpf = dig(String(l?.cpf || "")).slice(0, 11);
+        if (cpf.length !== 11) return;
+        const nome = String(l.nome || l.cliente || "").trim();
+        const codigo = String(l.clienteCodigo || "").trim();
+        const prev = byCpf.get(cpf);
+        if (!prev) {
+          byCpf.set(cpf, { cpf, nome, codigo });
+          return;
+        }
+        if (!prev.nome && nome) prev.nome = nome;
+        if (!prev.codigo && codigo) prev.codigo = codigo;
+      });
+    }
     return Array.from(byCpf.values());
   }
 
@@ -21981,6 +22021,13 @@
       const cpf = onlyDigits(String(porPrefixo[0].cpf || ""));
       return cpf.length === 11 ? cpf : null;
     }
+    const dasLocacoes = new Set();
+    collectOperacaoLocacaoSugestoesLinhas().forEach((row) => {
+      if (portalNomeRankBusca(row?.nome, key) >= 99) return;
+      const cpf = onlyDigits(String(row?.cpf || "")).slice(0, 11);
+      if (cpf.length === 11) dasLocacoes.add(cpf);
+    });
+    if (dasLocacoes.size === 1) return Array.from(dasLocacoes)[0];
     return null;
   }
 
@@ -21991,6 +22038,7 @@
     const digits = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
     const resolved = resolvePortalLocacaoCpfFromNomeDigitado(inpNome.value);
     if (!resolved) return;
+    if (digits === resolved) return;
     if (digits.length === 11 && digits !== resolved) return;
     inpCpf.value = formatCpf(resolved);
     syncOperacaoLocacaoCodigoFromCpf(resolved);
@@ -24922,7 +24970,20 @@
       return;
     }
     const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const cpfDigits = dig(String(document.getElementById("operacaoLocacaoCpf")?.value || ""));
+    let cpfDigits = dig(String(document.getElementById("operacaoLocacaoCpf")?.value || ""));
+    if (cpfDigits.length !== 11) {
+      const peloNome = resolvePortalLocacaoCpfFromNomeDigitado(
+        document.getElementById("operacaoLocacaoCliente")?.value || ""
+      );
+      if (peloNome && String(peloNome).length === 11) {
+        cpfDigits = peloNome;
+        const inpCpfNome = document.getElementById("operacaoLocacaoCpf");
+        if (inpCpfNome) {
+          inpCpfNome.value = typeof formatCpf === "function" ? formatCpf(peloNome) : peloNome;
+        }
+        syncOperacaoLocacaoCodigoFromCpf(peloNome);
+      }
+    }
     if (cpfDigits.length !== 11) {
       if (msg) msg.textContent = "Informe um CPF válido (11 dígitos).";
       return;
@@ -29786,10 +29847,18 @@
       const nome = String(btn.getAttribute("data-nome") || "").trim();
       const proto = String(btn.getAttribute("data-proto") || "").trim();
       const placa = String(btn.getAttribute("data-placa") || "").trim();
-      /* Lista do Cód. = só cliente; não carregar locação de outra pessoa com o mesmo código. */
-      if (!proto && cpf.length === 11) {
-        operacaoLocacaoCpfEscolher(cpf, nome);
+      const selProto = document.getElementById("operacaoLocacaoProtocoloSelect");
+      const emNovo = !selProto || String(selProto.value || "") === PORTAL_PROTO_NOVO;
+      /* Lista do Cód. = só cliente; não carregar locação de outra pessoa com o mesmo código.
+         Em NOVO, a linha confirma o cliente (CPF, nome e código) e não abre o protocolo antigo. */
+      if (emNovo || !proto) {
+        if (cpf.length === 11) operacaoLocacaoCpfEscolher(cpf, nome);
         hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
+        const aviso = document.getElementById("operacaoLocacaoInlineMsg");
+        if (aviso && emNovo) {
+          aviso.textContent =
+            "Cliente confirmado. Informe a data de início, a placa e os valores para gravar a nova locação.";
+        }
         return;
       }
       if (proto && isPortalTitularAdministrador()) {
@@ -29829,7 +29898,10 @@
       el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists({ skipCpfLista: true }), {
         passive: true,
       });
-      el.addEventListener("input", () => refreshOperacaoLocacaoSugestoesLista());
+      el.addEventListener("input", () => {
+        refreshOperacaoLocacaoSugestoesLista();
+        syncPortalLocacaoCpfFromNomeField();
+      });
       el.addEventListener("keydown", (ev) => {
         portalSugestoesEnterConfirmaUnica(ev, document.getElementById("operacaoLocacaoPesquisaLista"), (btn) =>
           aplicarSugestaoOperacaoLocacao(btn)
