@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261106locacao-cpf";
+  const PORTAL_SESSAO_BUILD_ID = "20261107obs-rapida";
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
   const PORTAL_TITULAR_VER_COMO_KEY = "dk_titular_ver_como";
 

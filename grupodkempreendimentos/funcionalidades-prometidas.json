@@ -3104,6 +3104,24 @@
       }
     },
     {
+      "id": "manutencao-rapida-observacoes",
+      "descricao": "Na Manutenção rápida, à direita dos valores pagos e do Total existe o campo Observações (textarea); grava com o lançamento, limpa com Limpar dados e aparece no registro/relatório quando preenchido. Os demais campos não mudam de lugar.",
+      "ficheiros": {
+        "index.html": [
+          "portalManutRapidaObs",
+          "portal-manut-rapida__obs",
+          "Observações"
+        ],
+        "portal-manutencao-rapida.js": [
+          "portalManutRapidaObs",
+          "observacoes"
+        ],
+        "styles.css": [
+          "portal-manut-rapida__obs"
+        ]
+      }
+    },
+    {
       "id": "manutencao-relatorio-visualizar-pdf",
       "descricao": "No Relatório geral / por moto da Manutenção rápida, o botão é Visualizar. Abre o relatório em tela cheia, com PDF e Imprimir.",
       "ficheiros": {

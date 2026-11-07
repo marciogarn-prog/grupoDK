@@ -507,12 +507,14 @@
     const valor = document.getElementById("portalManutRapidaValor");
     const valor2 = document.getElementById("portalManutRapidaValor2");
     const data = document.getElementById("portalManutRapidaData");
+    const obs = document.getElementById("portalManutRapidaObs");
     if (placa) placa.value = "";
     if (km) km.value = "";
     if (kmOleo) kmOleo.value = "";
     if (valor) valor.value = "";
     if (valor2) valor2.value = "";
     if (data) data.value = ymdToBr(todayYmd());
+    if (obs) obs.value = "";
     document
       .querySelectorAll("[data-manut-rapida-serv], [data-manut-rapida-pag], [data-manut-rapida-pag2]")
       .forEach((el) => {
@@ -569,6 +571,7 @@
     const os = formatOs(proximoOsNumero(atuais));
     const kmAtual = onlyDigits(document.getElementById("portalManutRapidaKm")?.value || "");
     const kmOleo = onlyDigits(document.getElementById("portalManutRapidaKmOleo")?.value || "");
+    const observacoes = String(document.getElementById("portalManutRapidaObs")?.value || "").trim().slice(0, 800);
     const rec = {
       id: `MR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       tipo: "rapida",
@@ -584,6 +587,7 @@
       formas,
       formas1: g1,
       formas2: g2,
+      observacoes,
       dataLancamento: dataLancamentoYmd(),
       plano: typeof window.__DK_portalGetManutSetorAtivo === "function" ? window.__DK_portalGetManutSetorAtivo() : "",
       criadoEm: new Date().toISOString(),
@@ -756,20 +760,25 @@
   }
 
   function linhasDoPeriodo(deYmd, ateYmd, placaFiltro) {
-    const rapidas = persistOsBackfill().map((r) => ({
-      createdAt: r.criadoEm,
-      dataLancamento: r.dataLancamento || "",
-      tipo: "Rápida",
-      os: r.os || "",
-      placa: r.placa,
-      detalhe: labelsServicos(r),
-      servicos: listaLabelsServicos(r),
-      valor: r.valorPago,
-      forma: labelsFormas(r),
-      km: r.kmAtual || r.km || "",
-      operador: r.cadastradoPorNome || "—",
-      operadorCpf: r.cadastradoPorCpf || "",
-    }));
+    const rapidas = persistOsBackfill().map((r) => {
+      const obs = String(r.observacoes || r.obs || "").trim();
+      const serv = labelsServicos(r);
+      return {
+        createdAt: r.criadoEm,
+        dataLancamento: r.dataLancamento || "",
+        tipo: "Rápida",
+        os: r.os || "",
+        placa: r.placa,
+        detalhe: obs ? `${serv} · Obs: ${obs}` : serv,
+        observacoes: obs,
+        servicos: listaLabelsServicos(r),
+        valor: r.valorPago,
+        forma: labelsFormas(r),
+        km: r.kmAtual || r.km || "",
+        operador: r.cadastradoPorNome || "—",
+        operadorCpf: r.cadastradoPorCpf || "",
+      };
+    });
     const corretivas = loadArr(SETOR_KEY)
       .filter((r) => {
         const de = String(r.de || "");
@@ -853,6 +862,7 @@
           servs.forEach((s) => {
             parts.push(`<p class="portal-manut-os-grupo__serv">${esc(s)}</p>`);
           });
+          if (r.observacoes) parts.push(`<p class="portal-manut-os-grupo__serv">Obs: ${esc(r.observacoes)}</p>`);
         });
         parts.push(`</article>`);
       });
@@ -883,6 +893,7 @@
         servs.forEach((s) => {
           parts.push(`<p class="portal-manut-os-grupo__serv">${esc(s)}</p>`);
         });
+        if (r.observacoes) parts.push(`<p class="portal-manut-os-grupo__serv">Obs: ${esc(r.observacoes)}</p>`);
         parts.push(`<p class="portal-manut-os-grupo__valor">${esc(formatBrl(r.valor))}</p>`);
         parts.push(`</article>`);
       });
