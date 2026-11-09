@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261107obs-rapida";
+  const PORTAL_SESSAO_BUILD_ID = "20261109cpf-duplo";
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
   const PORTAL_TITULAR_VER_COMO_KEY = "dk_titular_ver_como";
 
@@ -1667,6 +1667,59 @@
       endereco: getVal("operacaoClienteEndereco"),
       senha: isPortalTitularAdministrador() ? getVal("operacaoClienteSenha") : "",
     };
+  }
+
+  function portalClienteCpfCampoDigits(id) {
+    const raw = String(document.getElementById(id)?.value || "");
+    return typeof onlyDigits === "function" ? onlyDigits(raw).slice(0, 11) : raw.replace(/\D/g, "").slice(0, 11);
+  }
+
+  function portalClienteValidarCpfDuplo(msgEl) {
+    const cpf = portalClienteCpfCampoDigits("operacaoClienteCpf");
+    const conf = portalClienteCpfCampoDigits("operacaoClienteCpfConfirm");
+    if (cpf.length !== 11) {
+      if (msgEl) msgEl.textContent = "Informe o CPF completo (11 dígitos).";
+      document.getElementById("operacaoClienteCpf")?.focus();
+      return false;
+    }
+    if (conf.length !== 11) {
+      if (msgEl) msgEl.textContent = "Digite o CPF outra vez no campo Confirme o CPF.";
+      document.getElementById("operacaoClienteCpfConfirm")?.focus();
+      return false;
+    }
+    if (cpf !== conf) {
+      if (msgEl) msgEl.textContent = "Os dois campos de CPF devem ser iguais. Digite de novo (colar não é permitido).";
+      document.getElementById("operacaoClienteCpfConfirm")?.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function portalBloquearColarNosCamposCpfCliente() {
+    const bloquear = (el) => {
+      if (!el || el.dataset.dkCpfColarBloqueado === "1") return;
+      el.dataset.dkCpfColarBloqueado = "1";
+      const avisar = () => {
+        const msg = document.getElementById("operacaoClienteInlineMsg");
+        if (msg) msg.textContent = "Não é permitido colar o CPF. Digite os números nos dois campos.";
+      };
+      el.addEventListener("paste", (e) => {
+        e.preventDefault();
+        avisar();
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        avisar();
+      });
+      el.addEventListener("beforeinput", (e) => {
+        if (e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop") {
+          e.preventDefault();
+          avisar();
+        }
+      });
+    };
+    bloquear(document.getElementById("operacaoClienteCpf"));
+    bloquear(document.getElementById("operacaoClienteCpfConfirm"));
   }
 
   function portalClienteValidarNovoCadastro(msgEl) {
@@ -12243,6 +12296,7 @@
   function bindOperacaoClienteCpfAssist() {
     const form = document.getElementById("formOperacaoClienteInline");
     const inpCpf = document.getElementById("operacaoClienteCpf");
+    const inpCpfConfirm = document.getElementById("operacaoClienteCpfConfirm");
     const inpNome = document.getElementById("operacaoClienteNome");
     const inpDataCadastro = document.getElementById("operacaoClienteDataCadastro");
     const dlCpf = document.getElementById("operacaoClienteCpfSugestoes");
@@ -12250,6 +12304,20 @@
     const btnAtualizar = document.getElementById("operacaoClienteAtualizarBtn");
     const msg = document.getElementById("operacaoClienteCadastroDetectMsg");
     if (!inpCpf || !inpNome || !dlNome) return;
+    portalBloquearColarNosCamposCpfCliente();
+
+    function setCpfConfirmValue(digitsOrFormatted) {
+      if (!inpCpfConfirm) return;
+      const dig =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(digitsOrFormatted || "")).slice(0, 11)
+          : String(digitsOrFormatted || "").replace(/\D/g, "").slice(0, 11);
+      if (!dig) {
+        inpCpfConfirm.value = "";
+        return;
+      }
+      inpCpfConfirm.value = typeof formatCpf === "function" && dig.length === 11 ? formatCpf(dig) : dig;
+    }
 
     /** Evita repetir popup para o mesmo CPF em sequência. */
     let lastAlertedCpf = "";
@@ -12527,7 +12595,7 @@
         el.classList.toggle("portal-input-immutable", Boolean(on));
       };
       if (isPortalTitularAdministrador()) {
-        ["operacaoClienteCpf", "operacaoClienteNome", "operacaoClienteDataCadastro"].forEach((id) => {
+        ["operacaoClienteCpf", "operacaoClienteCpfConfirm", "operacaoClienteNome", "operacaoClienteDataCadastro"].forEach((id) => {
           const el = document.getElementById(id);
           if (el) {
             el.readOnly = false;
@@ -12545,6 +12613,9 @@
       if (inpCpf) {
         inpCpf.readOnly = Boolean(known);
       }
+      if (inpCpfConfirm) {
+        inpCpfConfirm.readOnly = Boolean(known);
+      }
       if (inpNome) {
         const nomeFix = String(fixed.nome || "").trim();
         inpNome.readOnly = Boolean(known && nomeFix);
@@ -12556,10 +12627,12 @@
       }
       if (inpCpf && known && fixed.cpf && typeof formatCpf === "function") {
         inpCpf.value = formatCpf(fixed.cpf);
+        setCpfConfirmValue(fixed.cpf);
       }
       markImmutableInput("operacaoClienteCodigo", known);
       markImmutableInput("operacaoClienteNome", known);
       markImmutableInput("operacaoClienteDataCadastro", false);
+      markImmutableInput("operacaoClienteCpfConfirm", known);
     }
 
     function fillOperacaoClienteFormFromRecord(cliente) {
@@ -12567,6 +12640,7 @@
       const get = (id) => document.getElementById(id);
       const cpfDigits = typeof onlyDigits === "function" ? onlyDigits(String(cliente.cpf || "")) : String(cliente.cpf || "").replace(/\D/g, "");
       if (inpCpf && cpfDigits.length === 11 && typeof formatCpf === "function") inpCpf.value = formatCpf(cpfDigits);
+      setCpfConfirmValue(cpfDigits);
       if (inpNome) inpNome.value = String(cliente.nome || "").trim();
       const dataPreferida = portalClienteDataLabelPreferido(cliente, cpfDigits, getPrimeiraLocacaoDateLabelByCpf);
       if (inpDataCadastro && dataPreferida) inpDataCadastro.value = dataPreferida;
@@ -12620,10 +12694,22 @@
       return formatPortalCadastroDateLabel(first.inicio || first.createdAt || first.id || "");
     }
 
+    inpCpfConfirm?.addEventListener("input", () => {
+      const digits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(inpCpfConfirm.value).slice(0, 11)
+          : String(inpCpfConfirm.value || "").replace(/\D/g, "").slice(0, 11);
+      if (digits.length === 11 && typeof formatCpf === "function") inpCpfConfirm.value = formatCpf(digits);
+      else inpCpfConfirm.value = digits;
+    });
+
     inpCpf.addEventListener("input", () => {
       const digits = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
       const codigoEl = document.getElementById("operacaoClienteCodigo");
+      const confDigits = portalClienteCpfCampoDigits("operacaoClienteCpfConfirm");
+      if (confDigits && confDigits !== digits.slice(0, 11)) setCpfConfirmValue("");
       if (!digits) {
+        setCpfConfirmValue("");
         if (dlCpf) dlCpf.innerHTML = "";
         dlNome.innerHTML = "";
         renderOperacaoClienteNomeListaPrefixo("", []);
@@ -12804,6 +12890,7 @@
     }
 
     function iniciarConfirmacaoCliente(digits, known) {
+      if (!portalClienteValidarCpfDuplo(msg)) return;
       const nome = String(document.getElementById("operacaoClienteNome")?.value || "").trim();
       if (!nome) {
         if (msg) msg.textContent = "Informe o nome do cliente no campo NOME antes de guardar.";

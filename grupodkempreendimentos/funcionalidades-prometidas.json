@@ -904,6 +904,24 @@
       }
     },
     {
+      "id": "cadastro-cliente-cpf-duplo",
+      "descricao": "No Cadastro de cliente existem dois campos de CPF (CPF e Confirme o CPF). Os dois devem ser iguais para guardar; colar (e soltar texto) é bloqueado nos dois campos para evitar CPF digitado errado.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoClienteCpf",
+          "operacaoClienteCpfConfirm",
+          "Confirme o CPF",
+          "data-dk-bloquear-colar"
+        ],
+        "portal-locadora-ui.js": [
+          "portalClienteValidarCpfDuplo",
+          "portalBloquearColarNosCamposCpfCliente",
+          "operacaoClienteCpfConfirm",
+          "colar não é permitido"
+        ]
+      }
+    },
+    {
       "id": "manutencao-relatorio-movimentacao-setor",
       "descricao": "Em Manutenção, todas as opções 1 a 10 têm botão RELATÓRIO que mostra quem movimentou cada placa de um setor para outro (data, placa, origem, destino e operador).",
       "ficheiros": {

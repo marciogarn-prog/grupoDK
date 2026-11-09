@@ -1150,7 +1150,7 @@
             <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
             <p id="operacaoClienteTotalCadastrados" class="operacao-cliente-total" aria-live="polite">— clientes cadastrados</p>
           </div>
-          <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Digite <strong>nome</strong>, <strong>CPF</strong> ou <strong>código</strong> já cadastrado — a lista suspensa aparece para confirmar. Depois preencha ou altere os dados.</p>
+          <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Digite <strong>nome</strong>, <strong>CPF</strong> ou <strong>código</strong> já cadastrado — a lista suspensa aparece para confirmar. O CPF deve ser digitado duas vezes (iguais); colar não é permitido. Depois preencha ou altere os dados.</p>
           <p id="operacaoClienteCadastradoPor" class="operacao-responsavel-por" role="status" aria-live="polite" hidden></p>
           <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
@@ -1163,8 +1163,12 @@
             </label>
             <label class="portal-field">
               <span>CPF</span>
-              <input type="text" id="operacaoClienteCpf" name="cpf" list="operacaoClienteCpfSugestoes" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00" aria-label="CPF" aria-autocomplete="list">
+              <input type="text" id="operacaoClienteCpf" name="cpf" list="operacaoClienteCpfSugestoes" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00" aria-label="CPF" aria-autocomplete="list" data-dk-bloquear-colar="cpf">
               <datalist id="operacaoClienteCpfSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>Confirme o CPF</span>
+              <input type="text" id="operacaoClienteCpfConfirm" name="cpfConfirm" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="Digite o CPF outra vez" aria-label="Confirme o CPF" data-dk-bloquear-colar="cpf">
             </label>
             <label class="portal-field">
               <span>NOME</span>
@@ -6358,7 +6362,7 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261107obsRapida" defer></script>
+  <script src="portal-locadora-ui.js?v=20261109cpfDuplo" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
