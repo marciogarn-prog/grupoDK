@@ -922,6 +922,24 @@
       }
     },
     {
+      "id": "cadastro-veiculo-placa-dupla",
+      "descricao": "No Cadastro de veículo existem dois campos de placa (Placa e Confirme a placa). Os dois devem ser iguais para guardar; colar (e soltar texto) é bloqueado nos dois campos para evitar placa digitada errada.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoVeiculoPlaca",
+          "operacaoVeiculoPlacaConfirm",
+          "Confirme a placa",
+          "data-dk-bloquear-colar=\"placa\""
+        ],
+        "portal-locadora-ui.js": [
+          "portalVeiculoValidarPlacaDupla",
+          "portalBloquearColarNosCamposPlacaVeiculo",
+          "operacaoVeiculoPlacaConfirm",
+          "Os dois campos de placa devem ser iguais"
+        ]
+      }
+    },
+    {
       "id": "manutencao-relatorio-movimentacao-setor",
       "descricao": "Em Manutenção, todas as opções 1 a 10 têm botão RELATÓRIO que mostra quem movimentou cada placa de um setor para outro (data, placa, origem, destino e operador).",
       "ficheiros": {

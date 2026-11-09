@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261109cpf-duplo";
+  const PORTAL_SESSAO_BUILD_ID = "20261109placa-dupla";
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
   const PORTAL_TITULAR_VER_COMO_KEY = "dk_titular_ver_como";
 
@@ -858,6 +858,58 @@
       if (portalPlacaMercosulOk(norm)) return norm;
     }
     return digitado;
+  }
+
+  function portalVeiculoPlacaCampoNorm(id) {
+    return portalSanitizePlacaInput(document.getElementById(id)?.value || "");
+  }
+
+  function portalVeiculoValidarPlacaDupla(msgEl) {
+    const placa = portalVeiculoPlacaCampoNorm("operacaoVeiculoPlaca");
+    const conf = portalVeiculoPlacaCampoNorm("operacaoVeiculoPlacaConfirm");
+    if (!placa) {
+      if (msgEl) msgEl.textContent = "Informe a placa do veículo.";
+      document.getElementById("operacaoVeiculoPlaca")?.focus();
+      return false;
+    }
+    if (!conf) {
+      if (msgEl) msgEl.textContent = "Digite a placa outra vez no campo Confirme a placa.";
+      document.getElementById("operacaoVeiculoPlacaConfirm")?.focus();
+      return false;
+    }
+    if (placa !== conf) {
+      if (msgEl) msgEl.textContent = "Os dois campos de placa devem ser iguais. Digite de novo (colar não é permitido).";
+      document.getElementById("operacaoVeiculoPlacaConfirm")?.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function portalBloquearColarNosCamposPlacaVeiculo() {
+    const bloquear = (el) => {
+      if (!el || el.dataset.dkPlacaColarBloqueado === "1") return;
+      el.dataset.dkPlacaColarBloqueado = "1";
+      const avisar = () => {
+        const msg = document.getElementById("operacaoVeiculoInlineMsg");
+        if (msg) msg.textContent = "Não é permitido colar a placa. Digite nos dois campos.";
+      };
+      el.addEventListener("paste", (e) => {
+        e.preventDefault();
+        avisar();
+      });
+      el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        avisar();
+      });
+      el.addEventListener("beforeinput", (e) => {
+        if (e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop") {
+          e.preventDefault();
+          avisar();
+        }
+      });
+    };
+    bloquear(document.getElementById("operacaoVeiculoPlaca"));
+    bloquear(document.getElementById("operacaoVeiculoPlacaConfirm"));
   }
 
   const unitTitle = document.getElementById("unit-page-title");
@@ -13476,6 +13528,7 @@
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, "");
     set("operacaoVeiculoPlaca", plate);
+    set("operacaoVeiculoPlacaConfirm", plate);
     const tipo = portalInferTipoVeiculoFromRecord(veiculo);
     const tipoEl = document.getElementById("operacaoVeiculoTipo");
     if (tipoEl) tipoEl.value = tipo;
@@ -13549,9 +13602,16 @@
 
   function bindOperacaoVeiculoPlacaAssist() {
     const inpPlaca = document.getElementById("operacaoVeiculoPlaca");
+    const inpPlacaConfirm = document.getElementById("operacaoVeiculoPlacaConfirm");
     const panelPlaca = document.getElementById("operacaoVeiculoPlacaLista");
     const comboPlaca = document.getElementById("operacaoVeiculoPlacaCombo");
     if (!inpPlaca || !panelPlaca) return;
+    portalBloquearColarNosCamposPlacaVeiculo();
+
+    function setPlacaConfirmValue(plate) {
+      if (!inpPlacaConfirm) return;
+      inpPlacaConfirm.value = portalSanitizePlacaInput(plate);
+    }
 
     inpPlaca.addEventListener("focus", () => {
       refreshOperacaoVeiculoPlacasCache();
@@ -13560,7 +13620,15 @@
 
     inpPlaca.addEventListener("input", () => {
       inpPlaca.value = portalSanitizePlacaInput(inpPlaca.value);
+      const conf = portalSanitizePlacaInput(inpPlacaConfirm?.value || "");
+      if (conf && conf !== inpPlaca.value) setPlacaConfirmValue("");
+      if (!inpPlaca.value) setPlacaConfirmValue("");
       renderOperacaoVeiculoPlacaDropdown(inpPlaca.value);
+      refreshOperacaoVeiculoTagPreview();
+    });
+
+    inpPlacaConfirm?.addEventListener("input", () => {
+      inpPlacaConfirm.value = portalSanitizePlacaInput(inpPlacaConfirm.value);
     });
 
     inpPlaca.addEventListener("blur", () => {
@@ -13570,6 +13638,16 @@
       const digitado = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
       if (norm && portalPlacaMercosulOk(norm) && norm !== digitado) {
         inpPlaca.value = norm;
+      }
+    });
+
+    inpPlacaConfirm?.addEventListener("blur", () => {
+      const raw = String(inpPlacaConfirm.value || "").trim();
+      if (!raw) return;
+      const norm = portalResolvePlacaCadastro(raw);
+      const digitado = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (norm && portalPlacaMercosulOk(norm) && norm !== digitado) {
+        inpPlacaConfirm.value = norm;
       }
     });
 
@@ -13588,6 +13666,7 @@
       const placa = String(btn.getAttribute("data-placa") || "").trim();
       if (!placa) return;
       inpPlaca.value = placa;
+      setPlacaConfirmValue(placa);
       const hit = portalVeiculoPlacasCache.find((x) => x.placa === placa);
       if (hit?.record) fillOperacaoVeiculoFormFromRecord(hit.record);
       hideOperacaoVeiculoPlacaDropdown();
@@ -24781,6 +24860,7 @@
     }
     if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
     const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+    if (!portalVeiculoValidarPlacaDupla(msg)) return;
     const plateRaw = getVal("operacaoVeiculoPlaca");
     const plate = portalResolvePlacaCadastro(plateRaw);
     const modelo = getVal("operacaoVeiculoModelo");
@@ -24800,6 +24880,8 @@
     }
     const placaInput = document.getElementById("operacaoVeiculoPlaca");
     if (placaInput && placaInput.value !== plate) placaInput.value = plate;
+    const placaConfirmInput = document.getElementById("operacaoVeiculoPlacaConfirm");
+    if (placaConfirmInput) placaConfirmInput.value = plate;
     const marca = getVal("operacaoVeiculoMarca");
     const valor = getVal("operacaoVeiculoValor");
     const cor = getVal("operacaoVeiculoCor");

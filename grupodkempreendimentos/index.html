@@ -1254,7 +1254,7 @@
                 <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do veículo</h3>
                 <p id="operacaoVeiculoTotalCadastrados" class="operacao-cliente-total" aria-live="polite">— motos · — carros</p>
               </div>
-              <p class="subtext operacao-inline-form__lead">Preencha os campos do veículo. Tudo fica em <code>dk_veiculos_cadastro</code>.</p>
+              <p class="subtext operacao-inline-form__lead">Preencha os campos do veículo. A placa deve ser digitada duas vezes (iguais); colar não é permitido. Tudo fica em <code>dk_veiculos_cadastro</code>.</p>
               <p id="operacaoVeiculoCadastradoPor" class="operacao-responsavel-por operacao-veiculo-cadastrado-por" role="status" aria-live="polite" hidden></p>
               <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
@@ -1287,6 +1287,7 @@
                   aria-autocomplete="list"
                   aria-expanded="false"
                   aria-controls="operacaoVeiculoPlacaLista"
+                  data-dk-bloquear-colar="placa"
                 >
                 <div
                   id="operacaoVeiculoPlacaLista"
@@ -1297,6 +1298,22 @@
                 ></div>
               </div>
               <datalist id="operacaoVeiculoPlacaSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>Confirme a placa</span>
+              <input
+                type="text"
+                id="operacaoVeiculoPlacaConfirm"
+                name="placaConfirm"
+                maxlength="7"
+                required
+                placeholder="Digite a placa outra vez"
+                pattern="[A-Za-z]{3}[0-9][A-Za-z][0-9]{2}"
+                title="Digite a mesma placa Mercosul outra vez"
+                aria-label="Confirme a placa"
+                autocomplete="off"
+                data-dk-bloquear-colar="placa"
+              >
             </label>
             <label class="portal-field">
               <span>TIPO</span>
@@ -6362,7 +6379,7 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261109cpfDuplo" defer></script>
+  <script src="portal-locadora-ui.js?v=20261109placaDupla" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
