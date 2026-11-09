@@ -330,8 +330,9 @@ async function runSuite() {
       "protocolo 20260913 e logout aos 30 min de inatividade",
       apiAuthJs.includes("CLIENT_PROTOCOL = 20260913") &&
         apiAuthJs.includes("X-DK-Client-Protocol") &&
+        apiAuthJs.includes("USER_ACTIVE_RECENT_MS = 30 * 60 * 1000") &&
         html.includes('name="dk-client-protocol"'),
-      "versões antigas param; operador idle faz login de novo"
+      "versões antigas param; operador idle faz login de novo; uso recente renova a sessão"
     );
     record(
       "CPF da equipa com um único acesso por vez",

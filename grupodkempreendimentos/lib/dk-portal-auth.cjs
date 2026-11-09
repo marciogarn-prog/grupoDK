@@ -315,21 +315,35 @@ async function attachLiveSession(gate, req) {
   if (String(gate.typ || "") === "equipa") {
     const cpf = onlyDigits(gate.cpf).slice(0, 11);
     if (cpf.length === 11) {
-      const viva = await sessaoAtivaExiste(cpf);
-      if (!viva) {
-        return { ok: false, status: 401, reason: "session_idle" };
-      }
-      const rec = await readSessaoAtiva(cpf);
       const tokenSid = String(gate.sid || "").trim();
       const isCeoTitular = cpf === TITULAR_CEO_CPF || String(gate.role || "").trim() === "owner";
+      const ativoAgora = requestMarksUserActive(req);
+      let viva = await sessaoAtivaExiste(cpf);
+      /*
+       * Se o TTL Redis (30 min) caducar no meio do uso, um operador ainda ativo
+       * (header X-DK-User-Active) não pode ser expulso: reabre a sessão com o sid do token.
+       * Só encerra por inatividade quando a chave sumiu e o pedido não marca uso recente.
+       */
+      if (!viva) {
+        if (!ativoAgora) {
+          return { ok: false, status: 401, reason: "session_idle" };
+        }
+        await touchSessaoAtiva(cpf, {
+          sid: tokenSid,
+          ip: publicClientIp(req),
+          replace: true,
+        });
+        viva = true;
+      }
+      const rec = await readSessaoAtiva(cpf);
       if (!isCeoTitular && rec.sid && tokenSid && rec.sid !== tokenSid) {
         return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
       }
       if (!isCeoTitular && rec.sid && !tokenSid) {
         return { ok: false, status: 401, reason: "session_replaced", ip: rec.ip || "" };
       }
-      if (requestMarksUserActive(req)) {
-        await touchSessaoAtiva(cpf, { ip: publicClientIp(req) });
+      if (ativoAgora) {
+        await touchSessaoAtiva(cpf, { sid: tokenSid || rec.sid, ip: publicClientIp(req) });
       }
     }
   }

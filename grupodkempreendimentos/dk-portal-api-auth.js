@@ -6,7 +6,8 @@
   const KEY = "dk_portal_api_token_v1";
   const DEVICE_KEY = "dk_portal_device_id_v1";
   const CLIENT_PROTOCOL = 20260913;
-  const USER_ACTIVE_RECENT_MS = 90 * 1000;
+  /** Alinhado aos 30 min de inatividade: enquanto o operador ainda não está idle, as APIs renovam a sessão na nuvem. */
+  const USER_ACTIVE_RECENT_MS = 30 * 60 * 1000;
   let lastUserActivityAt = Date.now();
 
   function getPortalDeviceId() {
@@ -244,9 +245,18 @@
   }
 
   try {
-    ["pointerdown", "keydown", "click", "touchstart"].forEach((ev) => {
-      document.addEventListener(ev, markUserActivity, { passive: true, capture: true });
-    });
+    ["pointerdown", "keydown", "keyup", "click", "touchstart", "input", "change", "wheel", "scroll", "mousemove"].forEach(
+      (ev) => {
+        document.addEventListener(ev, markUserActivity, { passive: true, capture: true });
+      }
+    );
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (!document.hidden) markUserActivity();
+      },
+      { passive: true }
+    );
   } catch {
     /* ignore */
   }
