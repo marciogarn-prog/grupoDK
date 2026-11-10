@@ -1032,7 +1032,7 @@ async function runSuite() {
           "oficial: leitura fracionada do contrato histórico",
           pagNovo.status === 200 &&
             pagNovo.j?.source === "dk_pagamento_locacao" &&
-            pagNovo.j?.quantidade === 23 &&
+            pagNovo.j?.quantidade === 40 &&
             pagNovo.j?.fallback === false &&
             !pagNovoBody.includes("quarentena"),
           `status=${pagNovo.status} n=${pagNovo.j?.quantidade} fonte=${pagNovo.j?.source || "?"}`
