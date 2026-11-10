@@ -2678,6 +2678,14 @@
     const target = map[which] || viewHome;
     target.classList.add("view--active");
     target.setAttribute("aria-hidden", "false");
+    /* Troca de tela: consulta a VM e baixa só se houver novidade (seq). */
+    if (typeof window.__DK_vmNaTrocaDeTela === "function") {
+      try {
+        window.__DK_vmNaTrocaDeTela();
+      } catch (e) {
+        console.warn("[DK VM] troca tela", e);
+      }
+    }
   }
 
   function setPortalHash(fragment) {

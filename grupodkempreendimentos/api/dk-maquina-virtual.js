@@ -1,6 +1,7 @@
 /**
- * GET  /api/dk-maquina-virtual — lista ou lê a VM do CPF autenticado (?lista=1 | ?cpf=)
- * POST /api/dk-maquina-virtual — { acao: garantir | garantir-todos | login-espelhar | sincronizar-pc | espelhar-hub }
+ * GET  /api/dk-maquina-virtual — lista ou lê a VM (?lista=1 | ?cpf= | ?conferir=1)
+ * POST /api/dk-maquina-virtual — acao: garantir | garantir-todos | login-espelhar |
+ *   sincronizar-pc | espelhar-hub | consultar-delta | conferir
  */
 const { applyApiCors, enforceRateLimit, requireLiveSession, onlyDigits } = require("../lib/dk-portal-auth.cjs");
 const vm = require("../lib/dk-maquina-virtual.cjs");
@@ -25,19 +26,35 @@ module.exports = async function handler(req, res) {
   applyApiCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  if (await enforceRateLimit(req, res, "maquina-virtual", 90)) return;
-  const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
-  if (!gate.ok) return res.status(gate.status || 401).json({ ok: false, reason: gate.reason || "unauthorized" });
+  if (await enforceRateLimit(req, res, "maquina-virtual", 120)) return;
+
+  /* Cron / serviço pode conferir alinhamento com secret. */
+  const cronSecret = String(process.env.CRON_SECRET || "").trim();
+  const authHeader = String(req.headers.authorization || "");
+  const isCron =
+    Boolean(cronSecret) && (authHeader === `Bearer ${cronSecret}` || String(req.headers["x-dk-backup-secret"] || "") === cronSecret);
+
+  let gate = { ok: false };
+  if (!isCron) {
+    gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
+    if (!gate.ok) return res.status(gate.status || 401).json({ ok: false, reason: gate.reason || "unauthorized" });
+  } else {
+    gate = { ok: true, service: true, role: "owner", cpf: "" };
+  }
 
   const cpfSessao = onlyDigits(gate.cpf).slice(0, 11);
 
   try {
     if (req.method === "GET") {
+      if (String((req.query && req.query.conferir) || "") === "1") {
+        if (!isOwner(gate) && !isCron) return res.status(403).json({ ok: false, reason: "forbidden" });
+        const out = await vm.conferirAlinhamento();
+        return res.status(200).json({ ...out, success: out.ok });
+      }
       const lista = String((req.query && req.query.lista) || "") === "1";
       if (lista) {
-        if (!isOwner(gate)) {
-          return res.status(403).json({ ok: false, reason: "forbidden" });
-        }
+        if (!isOwner(gate) && !isCron) return res.status(403).json({ ok: false, reason: "forbidden" });
+        const conf = await vm.conferirAlinhamento();
         const metas = await vm.listarMetas();
         const maquinas = [];
         for (const m of metas) {
@@ -45,13 +62,12 @@ module.exports = async function handler(req, res) {
           const resumo = m.resumo && typeof m.resumo === "object" ? m.resumo : vm.resumirClone(estado || {});
           maquinas.push({ ...m, resumo });
         }
-        const refs = maquinas.map((m) => JSON.stringify(m.resumo || {}));
-        const alinhadas = refs.length > 0 && refs.every((r) => r === refs[0]);
         return res.status(200).json({
           ok: true,
           success: true,
           total: maquinas.length,
-          alinhadas,
+          alinhadas: conf.alinhadas,
+          seq: conf.seq,
           maquinas,
         });
       }
@@ -69,6 +85,7 @@ module.exports = async function handler(req, res) {
         existe: Boolean(meta),
         meta: meta || null,
         resumo,
+        seq: await vm.lerSeqGlobal(),
         estado: estado || {},
       });
     }
@@ -82,9 +99,7 @@ module.exports = async function handler(req, res) {
       if (acao === "garantir") {
         const dig = vm.cpfOk(body.cpf || cpfSessao);
         if (!dig) return res.status(400).json({ ok: false, reason: "cpf" });
-        if (dig !== cpfSessao && !isOwner(gate)) {
-          return res.status(403).json({ ok: false, reason: "forbidden" });
-        }
+        if (dig !== cpfSessao && !isOwner(gate)) return res.status(403).json({ ok: false, reason: "forbidden" });
         const out = await vm.garantirVm(dig, { nome: body.nome, role: body.role });
         return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
       }
@@ -98,9 +113,7 @@ module.exports = async function handler(req, res) {
       if (acao === "login-espelhar") {
         const dig = vm.cpfOk(body.cpf || cpfSessao);
         if (!dig) return res.status(400).json({ ok: false, reason: "cpf" });
-        if (dig !== cpfSessao && !isOwner(gate)) {
-          return res.status(403).json({ ok: false, reason: "forbidden" });
-        }
+        if (dig !== cpfSessao && !isOwner(gate)) return res.status(403).json({ ok: false, reason: "forbidden" });
         const out = await vm.loginEspelhar(dig, {
           nome: body.nome,
           role: body.role || gate.role,
@@ -112,9 +125,7 @@ module.exports = async function handler(req, res) {
       if (acao === "sincronizar-pc") {
         const dig = vm.cpfOk(body.cpf || cpfSessao);
         if (!dig) return res.status(400).json({ ok: false, reason: "cpf" });
-        if (dig !== cpfSessao && !isOwner(gate)) {
-          return res.status(403).json({ ok: false, reason: "forbidden" });
-        }
+        if (dig !== cpfSessao && !isOwner(gate)) return res.status(403).json({ ok: false, reason: "forbidden" });
         const out = await vm.sincronizarPcParaVm(dig, body.estado || body.payload || {}, {
           nome: body.nome,
           role: body.role || gate.role,
@@ -123,21 +134,36 @@ module.exports = async function handler(req, res) {
         return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
       }
 
+      if (acao === "consultar-delta") {
+        const dig = vm.cpfOk(body.cpf || cpfSessao);
+        if (!dig) return res.status(400).json({ ok: false, reason: "cpf" });
+        if (dig !== cpfSessao && !isOwner(gate)) return res.status(403).json({ ok: false, reason: "forbidden" });
+        const out = await vm.consultarDelta(dig, body.lastSeq);
+        if (out.ok && out.haNovidade) await vm.limparPendente(dig);
+        return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
+      }
+
+      if (acao === "conferir") {
+        if (!isOwner(gate) && !isCron) return res.status(403).json({ ok: false, reason: "forbidden" });
+        const out = await vm.conferirAlinhamento();
+        return res.status(200).json({ ...out, success: out.ok });
+      }
+
       if (acao === "espelhar-hub") {
         if (!isOwner(gate) && !body.cpf) {
-          /* operador espelha só a própria */
           const out = await vm.espelharHubNasVms({ cpf: cpfSessao });
           return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
         }
         if (!isOwner(gate)) return res.status(403).json({ ok: false, reason: "forbidden" });
-        const out = await vm.espelharHubNasVms({ cpf: body.cpf || "" });
+        const out = await vm.espelharHubNasVms({ cpf: body.cpf || "", merge: Boolean(body.merge) });
         return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
       }
 
       return res.status(400).json({
         ok: false,
         reason: "acao",
-        message: "Use acao: garantir | garantir-todos | login-espelhar | sincronizar-pc | espelhar-hub",
+        message:
+          "Use acao: garantir | garantir-todos | login-espelhar | sincronizar-pc | consultar-delta | conferir | espelhar-hub",
       });
     }
   } catch (e) {

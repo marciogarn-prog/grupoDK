@@ -9,6 +9,10 @@ const { mergeVeiculosCadastro, neverLoseCadastroPayload } = require("./dk-append
 const INDICE_KEY = "dk:portal:vms:indice:v1";
 const CLONE_PREFIX = "dk:portal:vm:clone:v1:";
 const HUB_KEY = "dk:portal:cloud_snapshot:v1";
+/** Sequência global do cluster de VMs (sobe a cada Salvar redistribuído). */
+const SEQ_KEY = "dk:portal:vms:seq:v1";
+/** Pendências de download PC: hash cpf → { seq, fromCpf, at }. */
+const PENDENTE_KEY = "dk:portal:vms:pendente:v1";
 
 /**
  * Banco completo do clone: tudo o que existe no hub oficial.
@@ -304,26 +308,162 @@ async function loginEspelhar(cpf, extra) {
   if (!dig) return { ok: false, reason: "cpf" };
   const g = await garantirVm(dig, extra);
   if (!g.ok) return g;
-  await espelharHubNasVms({ cpf: dig });
+  /* Alinha com o cluster (outras VMs podem ter avançado enquanto offline). */
+  const conf = await conferirAlinhamento();
+  if (conf.ok && !conf.alinhadas) {
+    await espelharHubNasVms({});
+  } else {
+    await espelharHubNasVms({ cpf: dig, merge: true });
+  }
   const client = redis();
   const meta = await lerMeta(dig, client);
   if (meta) {
     meta.lastLoginAt = agoraIso();
     meta.lastDeviceId = String((extra && extra.deviceId) || "").trim();
+    meta.clusterSeq = await lerSeqGlobal(client);
     await gravarMeta(meta, client);
   }
+  await limparPendente(dig, client);
   const estado = (await lerClone(dig, client)) || {};
   return {
     ok: true,
     meta: (await lerMeta(dig, client)) || g.meta,
     estado,
+    seq: await lerSeqGlobal(client),
+    resumo: resumirClone(estado),
     criada: g.criada,
   };
 }
 
+async function lerSeqGlobal(r) {
+  const client = r || redis();
+  if (!client) return 0;
+  try {
+    const n = Number(await client.get(SEQ_KEY));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function bumpSeqGlobal(r) {
+  const client = r || redis();
+  if (!client) return 0;
+  try {
+    const next = await client.incr(SEQ_KEY);
+    return Number(next) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function marcarPendentesDownload(fromCpf, seq, r) {
+  const client = r || redis();
+  if (!client || !seq) return 0;
+  const metas = await listarMetas(client);
+  const digFrom = cpfOk(fromCpf);
+  let n = 0;
+  const agora = agoraIso();
+  for (const m of metas) {
+    if (!m.cpf || m.cpf === digFrom) continue;
+    await client.hset(PENDENTE_KEY, {
+      [m.cpf]: JSON.stringify({ seq, fromCpf: digFrom, at: agora }),
+    });
+    n += 1;
+  }
+  return n;
+}
+
+async function limparPendente(cpf, r) {
+  const dig = cpfOk(cpf);
+  if (!dig) return;
+  const client = r || redis();
+  if (!client) return;
+  try {
+    await client.hdel(PENDENTE_KEY, dig);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function lerPendente(cpf, r) {
+  const dig = cpfOk(cpf);
+  if (!dig) return null;
+  const client = r || redis();
+  if (!client) return null;
+  try {
+    return lerJson(await client.hget(PENDENTE_KEY, dig), null);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * PC envia estado operacional → funde na VM → propaga para as outras VMs via hub-espelho.
- * Não grava o hub completo aqui (o sync oficial continua a fazê-lo); só alinha clones.
+ * Confere se todas as VMs têm o mesmo resumo (banco clone alinhado).
+ */
+async function conferirAlinhamento() {
+  const client = redis();
+  if (!client) return { ok: false, alinhadas: false, reason: "kv_not_configured" };
+  const metas = await listarMetas(client);
+  if (!metas.length) return { ok: true, alinhadas: true, total: 0, seq: await lerSeqGlobal(client) };
+  const linhas = [];
+  for (const m of metas) {
+    const estado = (await lerClone(m.cpf, client)) || {};
+    const resumo = resumirClone(estado);
+    linhas.push({
+      cpf: m.cpf,
+      nome: m.nome,
+      hubRevision: m.hubRevision || "",
+      resumo,
+      fingerprint: JSON.stringify(resumo),
+    });
+  }
+  const ref = linhas[0].fingerprint;
+  const alinhadas = linhas.every((l) => l.fingerprint === ref);
+  const divergencias = alinhadas
+    ? []
+    : linhas.filter((l) => l.fingerprint !== ref).map((l) => ({ cpf: l.cpf, nome: l.nome, resumo: l.resumo }));
+  return {
+    ok: true,
+    alinhadas,
+    total: linhas.length,
+    seq: await lerSeqGlobal(client),
+    resumo: linhas[0].resumo,
+    divergencias,
+  };
+}
+
+/**
+ * PC consulta a VM: há novidade desde lastSeq? Se sim, devolve o clone (download do delta lógico).
+ */
+async function consultarDelta(cpf, lastSeq) {
+  const dig = cpfOk(cpf);
+  if (!dig) return { ok: false, reason: "cpf" };
+  const client = redis();
+  if (!client) return { ok: false, reason: "kv_not_configured" };
+  await garantirVm(dig, {});
+  const seq = await lerSeqGlobal(client);
+  const visto = Number(lastSeq) || 0;
+  const pendente = await lerPendente(dig, client);
+  const haNovidade = seq > visto || (pendente && Number(pendente.seq) > visto);
+  if (!haNovidade) {
+    return { ok: true, haNovidade: false, seq, resumo: null, estado: null };
+  }
+  const estado = (await lerClone(dig, client)) || {};
+  const resumo = resumirClone(estado);
+  return {
+    ok: true,
+    haNovidade: true,
+    seq,
+    resumo,
+    estado,
+    pendente: pendente || null,
+  };
+}
+
+/**
+ * PC envia estado (Salvar) → funde na VM → redistribui clone idêntico a todas as VMs.
+ * Marca pendência de download nas outras (login ou troca de tela / poll entrega no PC).
  */
 async function sincronizarPcParaVm(cpf, estadoPc, extra) {
   const dig = cpfOk(cpf);
@@ -334,25 +474,38 @@ async function sincronizarPcParaVm(cpf, estadoPc, extra) {
   const atual = (await lerClone(dig, client)) || {};
   const pedacoPc = extrairCloneDoHub(estadoPc || {});
   const fundido = fundirClones(atual, pedacoPc);
-  await gravarClone(dig, fundido, client);
-  const meta = (await lerMeta(dig, client)) || metaVazia(dig, extra);
-  meta.updatedAt = agoraIso();
-  if (extra && extra.deviceId) meta.lastDeviceId = String(extra.deviceId).trim();
-  await gravarMeta(meta, client);
+  const resumo = resumirClone(fundido);
+  const seq = await bumpSeqGlobal(client);
 
-  /* Propaga o que este PC trouxe para as restantes VMs (mesmo offline recebem no clone). */
+  /* Redistribuição na nuvem: todas as VMs ficam com o mesmo banco. */
   const metas = await listarMetas(client);
   let propagadas = 0;
   for (const m of metas) {
-    if (m.cpf === dig) continue;
-    const outro = (await lerClone(m.cpf, client)) || {};
-    const uniao = fundirClones(outro, pedacoPc);
-    await gravarClone(m.cpf, uniao, client);
-    m.updatedAt = agoraIso();
-    await gravarMeta(m, client);
-    propagadas += 1;
+    await gravarClone(m.cpf, fundido, client);
+    const metaRow = (await lerMeta(m.cpf, client)) || metaVazia(m.cpf, m);
+    metaRow.updatedAt = agoraIso();
+    metaRow.resumo = resumo;
+    metaRow.clusterSeq = seq;
+    if (m.cpf === dig) {
+      if (extra && extra.deviceId) metaRow.lastDeviceId = String(extra.deviceId).trim();
+      if (extra && extra.nome) metaRow.nome = String(extra.nome).trim() || metaRow.nome;
+    }
+    await gravarMeta(metaRow, client);
+    if (m.cpf !== dig) propagadas += 1;
   }
-  return { ok: true, meta, propagadas };
+
+  const pendentes = await marcarPendentesDownload(dig, seq, client);
+  /* Quem salvou já tem os dados no PC — limpa pendência própria. */
+  await limparPendente(dig, client);
+
+  return {
+    ok: true,
+    seq,
+    resumo,
+    propagadas,
+    pendentes,
+    meta: await lerMeta(dig, client),
+  };
 }
 
 /**
@@ -379,6 +532,8 @@ module.exports = {
   INDICE_KEY,
   CLONE_PREFIX,
   CLONE_KEYS,
+  SEQ_KEY,
+  PENDENTE_KEY,
   cpfOk,
   garantirVm,
   garantirTodasDoHub,
@@ -390,4 +545,8 @@ module.exports = {
   lerClone,
   extrairCloneDoHub,
   resumirClone,
+  lerSeqGlobal,
+  consultarDelta,
+  conferirAlinhamento,
+  limparPendente,
 };

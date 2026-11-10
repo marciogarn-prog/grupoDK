@@ -19,6 +19,12 @@
     "api/dk-pagamento-locacao.js": {
       "maxDuration": 60,
       "includeFiles": "lib/dk-pagamento-locacao-store.cjs"
+    },
+    "api/dk-maquina-virtual.js": {
+      "maxDuration": 60
+    },
+    "api/cron-daily-backup.js": {
+      "maxDuration": 60
     }
   },
   "env": {

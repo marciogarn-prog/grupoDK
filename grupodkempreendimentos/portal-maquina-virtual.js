@@ -1,6 +1,8 @@
 /**
- * Clone na nuvem por colaborador (máquina virtual).
- * No login: espelha a VM no PC. Após sync: PC → VM → outras VMs.
+ * Máquina virtual por colaborador.
+ * Salvar → PC sobe para a VM → redistribui na nuvem.
+ * Troca de tela / poll → PC consulta a VM e baixa só se houver novidade (seq).
+ * Offline → novidade fica na VM até o próximo login.
  */
 (function () {
   const CLONE_KEYS = [
@@ -27,6 +29,12 @@
     "dk_audit_log",
     "dk_pagamentos_auditoria_v1",
   ];
+
+  const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
+  let aplicandoDelta = false;
+  let syncSalvarTimer = null;
+  let pollTimer = null;
+  let trocaTelaTimer = null;
 
   function digitos(v) {
     return String(v ?? "").replace(/\D/g, "").slice(0, 11);
@@ -64,6 +72,22 @@
     return s && s.tipo === "admin" ? String(s.nome || "").trim() : "";
   }
 
+  function lerSeqLocal() {
+    try {
+      return Number(sessionStorage.getItem(SEQ_LS_KEY) || 0) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function gravarSeqLocal(seq) {
+    try {
+      sessionStorage.setItem(SEQ_LS_KEY, String(Number(seq) || 0));
+    } catch {
+      /* ignore */
+    }
+  }
+
   function coletarEstadoPc() {
     const out = {};
     for (const k of CLONE_KEYS) {
@@ -85,21 +109,8 @@
   function aplicarEstadoNoPc(estado) {
     if (!estado || typeof estado !== "object") return { ok: false, aplicadas: 0 };
     let aplicadas = 0;
-    const suppress = () => {
-      try {
-        if (typeof window.__DK_suppressCloudHook === "boolean") window.__DK_suppressCloudHook = true;
-      } catch {
-        /* ignore */
-      }
-    };
-    const unsuppress = () => {
-      try {
-        if (typeof window.__DK_suppressCloudHook === "boolean") window.__DK_suppressCloudHook = false;
-      } catch {
-        /* ignore */
-      }
-    };
-    suppress();
+    aplicandoDelta = true;
+    window.__DK_vmAplicandoDelta = true;
     try {
       for (const k of CLONE_KEYS) {
         if (!Object.prototype.hasOwnProperty.call(estado, k)) continue;
@@ -117,6 +128,8 @@
             merged = window.__DK_mergeManutencoesCloudManda(localArr, cloudArr);
           } else if (k.includes("veiculos")) {
             merged = mergeCadastroHistoricoImutavel(k, cloudArr, localArr);
+          } else if (k === "dk_locacoes_cadastro") {
+            merged = mergeCadastroHistoricoImutavel(k, cloudArr, localArr);
           } else {
             merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
           }
@@ -127,7 +140,8 @@
         }
       }
     } finally {
-      unsuppress();
+      aplicandoDelta = false;
+      window.__DK_vmAplicandoDelta = false;
     }
     return { ok: aplicadas > 0, aplicadas };
   }
@@ -135,7 +149,7 @@
   async function postAcao(acao, extra) {
     const body = { acao, deviceId: deviceId(), ...(extra && typeof extra === "object" ? extra : {}) };
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 20000);
+    const t = setTimeout(() => ctrl.abort(), 45000);
     try {
       const r = await fetch("/api/dk-maquina-virtual?nocache=" + Date.now(), {
         method: "POST",
@@ -153,9 +167,6 @@
     }
   }
 
-  /**
-   * Chamado após login da equipa: cria/atualiza a VM e espelha no PC físico.
-   */
   async function espelharNoLogin(opts) {
     const cpf = digitos((opts && opts.cpf) || cpfSessao());
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
@@ -166,30 +177,95 @@
     });
     if (!res.ok) return res;
     const aplicado = aplicarEstadoNoPc(res.data && res.data.estado);
+    if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
     try {
       window.__DK_VM_META = res.data && res.data.meta;
       window.dispatchEvent(
         new CustomEvent("dk-maquina-virtual-espelhada", {
-          detail: { meta: res.data.meta, aplicadas: aplicado.aplicadas },
+          detail: { meta: res.data.meta, aplicadas: aplicado.aplicadas, seq: res.data.seq },
         })
       );
     } catch {
       /* ignore */
     }
-    return { ok: true, meta: res.data.meta, aplicadas: aplicado.aplicadas, criada: res.data.criada };
+    iniciarPollVm();
+    return { ok: true, meta: res.data.meta, aplicadas: aplicado.aplicadas, criada: res.data.criada, seq: res.data.seq };
   }
 
-  /**
-   * Após push/sync local: envia o estado do PC para a VM e propaga às outras VMs.
-   */
+  /** Salvar: PC → VM → redistribui a todas as VMs na nuvem. */
   async function sincronizarPcComClone() {
+    if (aplicandoDelta || window.__DK_vmAplicandoDelta) {
+      return { ok: true, skipped: true, reason: "aplicando_delta" };
+    }
     const cpf = cpfSessao();
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
-    return postAcao("sincronizar-pc", {
+    const res = await postAcao("sincronizar-pc", {
       cpf,
       nome: nomeSessao(),
       estado: coletarEstadoPc(),
     });
+    if (res.ok && res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+    return res;
+  }
+
+  function agendarSyncAposSalvar() {
+    if (aplicandoDelta || window.__DK_vmAplicandoDelta) return;
+    if (cpfSessao().length !== 11) return;
+    clearTimeout(syncSalvarTimer);
+    syncSalvarTimer = setTimeout(() => {
+      sincronizarPcComClone().catch((e) => console.warn("[DK VM] salvar→VM", e));
+    }, 400);
+  }
+
+  /**
+   * Troca de tela / poll: consulta só se a seq da VM avançou; baixa o clone novo.
+   */
+  async function consultarEBaixarDelta(motivo) {
+    if (aplicandoDelta) return { ok: true, skipped: true };
+    const cpf = cpfSessao();
+    if (cpf.length !== 11) return { ok: false, reason: "cpf" };
+    const lastSeq = lerSeqLocal();
+    const res = await postAcao("consultar-delta", { cpf, lastSeq });
+    if (!res.ok) return res;
+    if (!res.data || !res.data.haNovidade) {
+      if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+      return { ok: true, haNovidade: false, seq: res.data && res.data.seq, motivo };
+    }
+    const aplicado = aplicarEstadoNoPc(res.data.estado);
+    if (res.data.seq != null) gravarSeqLocal(res.data.seq);
+    try {
+      window.dispatchEvent(
+        new CustomEvent("dk-maquina-virtual-delta", {
+          detail: { seq: res.data.seq, resumo: res.data.resumo, aplicadas: aplicado.aplicadas, motivo },
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, haNovidade: true, seq: res.data.seq, aplicadas: aplicado.aplicadas, motivo };
+  }
+
+  function naTrocaDeTela() {
+    if (cpfSessao().length !== 11) return;
+    clearTimeout(trocaTelaTimer);
+    trocaTelaTimer = setTimeout(() => {
+      consultarEBaixarDelta("troca-tela").catch((e) => console.warn("[DK VM] troca tela", e));
+    }, 250);
+  }
+
+  function iniciarPollVm() {
+    pararPollVm();
+    if (cpfSessao().length !== 11) return;
+    pollTimer = setInterval(() => {
+      if (document.hidden) return;
+      if (cpfSessao().length !== 11) return;
+      consultarEBaixarDelta("poll").catch(() => {});
+    }, 45000);
+  }
+
+  function pararPollVm() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
   }
 
   async function garantirVmColaborador(cpf, nome, role) {
@@ -204,7 +280,14 @@
 
   window.__DK_vmEspelharNoLogin = espelharNoLogin;
   window.__DK_vmSincronizarPc = sincronizarPcComClone;
+  window.__DK_vmAposSalvar = agendarSyncAposSalvar;
+  window.__DK_vmNaTrocaDeTela = naTrocaDeTela;
+  window.__DK_vmConsultarDelta = consultarEBaixarDelta;
   window.__DK_vmGarantirColaborador = garantirVmColaborador;
   window.__DK_vmGarantirTodas = garantirTodas;
   window.__DK_vmColetarEstadoPc = coletarEstadoPc;
+  window.__DK_vmIniciarPoll = iniciarPollVm;
+  window.__DK_vmPararPoll = pararPollVm;
+
+  if (cpfSessao().length === 11) iniciarPollVm();
 })();

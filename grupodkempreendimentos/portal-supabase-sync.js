@@ -3376,6 +3376,14 @@
   }
 
   function scheduleCloudPushDebounced(meta) {
+    /* Salvar no PC → agenda upload à VM do operador (independente do push do hub). */
+    if (typeof window.__DK_vmAposSalvar === "function" && window.__DK_vmAplicandoDelta !== true) {
+      try {
+        window.__DK_vmAposSalvar();
+      } catch {
+        /* ignore */
+      }
+    }
     cloudPushDirty = false;
     if (cloudPushTimer) {
       clearTimeout(cloudPushTimer);
@@ -5715,7 +5723,10 @@
       }
     }
     if (enviado && enviado.ok !== false && (enviado.success === true || enviado.skipped === true)) {
-      if (typeof window.__DK_vmSincronizarPc === "function") {
+      /* Salvar confirmado na nuvem → sobe para a VM do operador e redistribui. */
+      if (typeof window.__DK_vmAposSalvar === "function") {
+        window.__DK_vmAposSalvar();
+      } else if (typeof window.__DK_vmSincronizarPc === "function") {
         window.__DK_vmSincronizarPc().catch((e) => console.warn("[DK VM] sync PC→clone", e));
       }
     }
