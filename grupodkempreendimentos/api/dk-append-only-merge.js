@@ -127,9 +127,8 @@ function mergeVeiculosCadastro(previousList, incomingList) {
         const val = newer[f];
         if (val === undefined || val === null || val === "") delete merged[f];
         else merged[f] = val;
-      } else if (score(newer) > score(older)) {
-        delete merged[f];
       } else if (olderHas && older[f] != null && older[f] !== "") {
+        /* Omissão no lado mais novo não apaga 4.1 / prontos / reserva. */
         merged[f] = older[f];
       } else {
         delete merged[f];

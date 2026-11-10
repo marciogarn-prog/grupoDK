@@ -3126,7 +3126,8 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
     if (v !== undefined && String(v).trim() !== "") merged[f] = v;
   });
   /* disponivelCategoria NÃO pode vir do spread `{...ex,...incoming}`: a nuvem/PG
-     antiga (incoming) apagava o «prontos» / «ativo-disponivel» mais recente do PC. */
+     antiga (incoming) apagava o «prontos» / «ativo-disponivel» mais recente do PC.
+     Se o lado mais novo OMITIR o campo, mantém o valor do outro (omissão ≠ limpar). */
   const sEx = scoreOp(ex);
   const sIn = scoreOp(incoming);
   const newerOp = sIn >= sEx ? incoming : ex;
@@ -3138,8 +3139,6 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
       const v = newerOp[f];
       if (v === undefined || v === null || v === "") delete merged[f];
       else merged[f] = v;
-    } else if (scoreOp(newerOp) > scoreOp(olderOp)) {
-      delete merged[f];
     } else if (olderHas && olderOp[f] != null && olderOp[f] !== "") {
       merged[f] = olderOp[f];
     } else {
