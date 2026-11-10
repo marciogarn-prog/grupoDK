@@ -171,6 +171,11 @@ module.exports = async function handler(req, res) {
         if (!lido.ok) {
           return res.status(502).json({ ok: false, reason: "leitura", source: clientesPg.FONTE });
         }
+        try {
+          void clientesPg.purgarCpfsExcluidos(lido.clientes);
+        } catch {
+          /* purge não bloqueia a leitura */
+        }
         return res.status(200).json({
           ok: true,
           data: dropClientesCpfExcluidos(lido.clientes),

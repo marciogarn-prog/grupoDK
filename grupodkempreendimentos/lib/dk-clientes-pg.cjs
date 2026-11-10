@@ -203,6 +203,42 @@ async function lerPorCpf(cpf, ioRest) {
   return { ok: true, duplicado: linhas.length > 1, row: linhas[0] || null };
 }
 
+async function softDeleteByCpf(cpf, ioRest) {
+  const pedido = ioRest || rest;
+  const dig = onlyDigits(cpf).slice(0, 11);
+  if (dig.length !== 11) return { ok: false, reason: "cpf" };
+  const agora = new Date().toISOString();
+  const res = await pedido(TABELA + "?cpf=eq." + encodeURIComponent(dig) + "&deleted_at=is.null", {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { deleted_at: agora, updated_at: agora },
+  });
+  return { ok: Boolean(res && res.ok), status: res && res.status, data: res && res.data };
+}
+
+/** Apaga (soft) na tabela oficial os CPF já rejeitados pela lista de exclusão. */
+async function purgarCpfsExcluidos(clientes, ioRest) {
+  let excluidos;
+  try {
+    excluidos = require("./dk-deploy-channel-api.cjs").OFICIAL_CLIENTES_CPF_EXCLUIDOS;
+  } catch {
+    return { ok: false, apagados: 0 };
+  }
+  const lista = Array.isArray(clientes) ? clientes : [];
+  const alvos = [];
+  for (const c of lista) {
+    const dig = onlyDigits(c && c.cpf).slice(0, 11);
+    if (dig.length === 11 && excluidos && excluidos.has(dig)) alvos.push(dig);
+  }
+  const unicos = [...new Set(alvos)];
+  let apagados = 0;
+  for (const dig of unicos) {
+    const r = await softDeleteByCpf(dig, ioRest);
+    if (r && r.ok) apagados += 1;
+  }
+  return { ok: true, apagados, tentados: unicos.length };
+}
+
 async function gravarLinha(linha, ioRest) {
   const pedido = ioRest || rest;
   return pedido(TABELA + "?on_conflict=id", {
@@ -434,6 +470,8 @@ module.exports = {
   listarLinhas,
   lerPorCpf,
   lerClienteCompleto,
+  softDeleteByCpf,
+  purgarCpfsExcluidos,
   upsertUm,
   resumirLista,
   copiarLista,

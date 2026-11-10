@@ -71,6 +71,8 @@ const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set([
   "11369128423",
   /* José Cândido — cadastro de teste no fim do relatório. O titular mandou apagar em 14/10/2026. */
   "19174403400",
+  /* 0456 — CPF digitado errado pela operadora Wylkaline. Titular autorizou apagar em 10/11/2026. */
+  "15713555484",
   /* teste 4–7 repetem os códigos 0312–0315. O último cliente oficial é 0427. */
   "12345678910",
   "23456789012",
@@ -116,12 +118,11 @@ function dropLocacoesCpfExcluidos(list) {
     });
 }
 
-async function fetchPortalCadastrosFromRedis(redis) {
-  const [rawSnap, rawClientes, rawLocs] = await Promise.all([
-    redis.get(REDIS_SNAPSHOT_KEY),
-    redis.get(LEGACY_CLIENTES_KEY),
-    redis.get(LEGACY_LOCACOES_KEY),
-  ]);
+async function fetchPortalCadastrosFromRedis(redis, channel, opts) {
+  const semLocacoes = Boolean(opts && opts.semLocacoes);
+  const leituras = [redis.get(REDIS_SNAPSHOT_KEY), redis.get(LEGACY_CLIENTES_KEY)];
+  if (!semLocacoes) leituras.push(redis.get(LEGACY_LOCACOES_KEY));
+  const [rawSnap, rawClientes, rawLocs] = await Promise.all(leituras);
   const payload = parseSnapshotPayload(rawSnap);
   const snapCli = Array.isArray(payload?.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
   const snapPortal = Array.isArray(payload?.dk_portal_clientes_cadastro)
@@ -131,6 +132,9 @@ async function fetchPortalCadastrosFromRedis(redis) {
   const clientes = dropClientesCpfExcluidos(
     mergeClientesCadastro(mergeClientesCadastro(snapCli, snapPortal), legacyCli)
   );
+  if (semLocacoes) {
+    return { clientes, locs: [], source: payload ? "snapshot+legacy" : "legacy", channel: channel || "default" };
+  }
   const snapLocs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
   const locs = dropLocacoesCpfExcluidos(
     snapLocs.length ? mergeLocacoesCadastro(snapLocs, parseRedisArray(rawLocs)) : parseRedisArray(rawLocs)
