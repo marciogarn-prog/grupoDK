@@ -31,6 +31,7 @@
   ];
 
   const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
+  const SYNC_AT_KEY = "dk_vm_last_sync_at_v1";
   let aplicandoDelta = false;
   let syncSalvarTimer = null;
   let pollTimer = null;
@@ -38,6 +39,52 @@
 
   function digitos(v) {
     return String(v ?? "").replace(/\D/g, "").slice(0, 11);
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function formatarTextoSyncVm(quando) {
+    const d = quando instanceof Date ? quando : new Date(quando);
+    if (Number.isNaN(d.getTime())) return "";
+    const hh = pad2(d.getHours());
+    const mm = pad2(d.getMinutes());
+    const ss = pad2(d.getSeconds());
+    const dd = pad2(d.getDate());
+    const mo = pad2(d.getMonth() + 1);
+    const aa = pad2(d.getFullYear() % 100);
+    return `SINCRONIZADO COM VM AS ${hh}:${mm}:${ss} DO DIA ${dd}-${mo}-${aa}.`;
+  }
+
+  function marcarSincronizadoComVm(quando) {
+    const d = quando instanceof Date ? quando : new Date();
+    const iso = d.toISOString();
+    try {
+      sessionStorage.setItem(SYNC_AT_KEY, iso);
+    } catch {
+      /* ignore */
+    }
+    const el = document.getElementById("portalVmSyncStatus");
+    if (el) el.textContent = formatarTextoSyncVm(d);
+    try {
+      window.__DK_vmUltimoSyncAt = iso;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function restaurarStatusSyncVm() {
+    let iso = "";
+    try {
+      iso = String(sessionStorage.getItem(SYNC_AT_KEY) || "");
+    } catch {
+      iso = "";
+    }
+    if (!iso) return;
+    const el = document.getElementById("portalVmSyncStatus");
+    const txt = formatarTextoSyncVm(iso);
+    if (el && txt) el.textContent = txt;
   }
 
   function headers() {
@@ -178,6 +225,7 @@
     if (!res.ok) return res;
     const aplicado = aplicarEstadoNoPc(res.data && res.data.estado);
     if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+    marcarSincronizadoComVm();
     try {
       window.__DK_VM_META = res.data && res.data.meta;
       window.dispatchEvent(
@@ -204,7 +252,10 @@
       nome: nomeSessao(),
       estado: coletarEstadoPc(),
     });
-    if (res.ok && res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+    if (res.ok) {
+      if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+      marcarSincronizadoComVm();
+    }
     return res;
   }
 
@@ -227,6 +278,7 @@
     const lastSeq = lerSeqLocal();
     const res = await postAcao("consultar-delta", { cpf, lastSeq });
     if (!res.ok) return res;
+    marcarSincronizadoComVm();
     if (!res.data || !res.data.haNovidade) {
       if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
       return { ok: true, haNovidade: false, seq: res.data && res.data.seq, motivo };
@@ -288,6 +340,11 @@
   window.__DK_vmColetarEstadoPc = coletarEstadoPc;
   window.__DK_vmIniciarPoll = iniciarPollVm;
   window.__DK_vmPararPoll = pararPollVm;
+  window.__DK_vmMarcarSincronizado = marcarSincronizadoComVm;
 
-  if (cpfSessao().length === 11) iniciarPollVm();
+  restaurarStatusSyncVm();
+  if (cpfSessao().length === 11) {
+    iniciarPollVm();
+    consultarEBaixarDelta("inicio").catch(() => {});
+  }
 })();

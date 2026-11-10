@@ -3862,6 +3862,24 @@
           "fin-ceo-rel-tabela"
         ]
       }
+    },
+    {
+      "id": "banner-sincronizado-com-vm",
+      "descricao": "Na barra vermelha do administrador, entre VER COMO CLIENTE e Voltar, aparece SINCRONIZADO COM VM AS HH:MM:SS DO DIA DD-MM-AA. Fonte reduzida; sem mudar o layout da tela. Atualiza no login (espelhar), no Salvar e na consulta de delta da VM.",
+      "ficheiros": {
+        "index.html": [
+          "portalVmSyncStatus",
+          "portal-admin-banner__vm-sync"
+        ],
+        "portal-maquina-virtual.js": [
+          "marcarSincronizadoComVm",
+          "formatarTextoSyncVm",
+          "SINCRONIZADO COM VM AS"
+        ],
+        "styles.css": [
+          "portal-admin-banner__vm-sync"
+        ]
+      }
     }
   ]
 }
