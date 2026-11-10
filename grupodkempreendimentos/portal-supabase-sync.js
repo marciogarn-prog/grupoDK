@@ -5714,6 +5714,11 @@
         }
       }
     }
+    if (enviado && enviado.ok !== false && (enviado.success === true || enviado.skipped === true)) {
+      if (typeof window.__DK_vmSincronizarPc === "function") {
+        window.__DK_vmSincronizarPc().catch((e) => console.warn("[DK VM] sync PC→clone", e));
+      }
+    }
     return enviado;
   }
 

@@ -2545,6 +2545,22 @@
       window.__DK_iniciarAvisoHorarioFimColab(funcionario);
     }
     portalAndroidSyncNavegacao();
+    /* Espelha a máquina virtual do colaborador (nuvem → PC físico). */
+    if (typeof window.__DK_vmEspelharNoLogin === "function") {
+      window
+        .__DK_vmEspelharNoLogin({
+          cpf: funcionario.cpf,
+          nome: funcionario.nome,
+          role: funcionario.role,
+        })
+        .then((r) => {
+          if (r && r.ok && portalFuncionarioEhCeo(funcionario) && typeof window.__DK_vmGarantirTodas === "function") {
+            return window.__DK_vmGarantirTodas();
+          }
+          return r;
+        })
+        .catch((e) => console.warn("[DK VM] espelho no login", e));
+    }
   }
 
   function portalAplicarVisibilidadeEquipaPorPerfil() {

@@ -15250,6 +15250,9 @@ if (funcionarioCadastroForm) {
     });
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
+    if (typeof window.__DK_vmGarantirColaborador === "function") {
+      window.__DK_vmGarantirColaborador(cpf, nome, role).catch((e) => console.warn("[DK VM] criar", e));
+    }
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
     sairModoEdicaoFuncionario();
     clearFuncionarioNomeDatalist();
