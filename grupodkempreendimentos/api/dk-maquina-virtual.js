@@ -39,7 +39,21 @@ module.exports = async function handler(req, res) {
           return res.status(403).json({ ok: false, reason: "forbidden" });
         }
         const metas = await vm.listarMetas();
-        return res.status(200).json({ ok: true, success: true, total: metas.length, maquinas: metas });
+        const maquinas = [];
+        for (const m of metas) {
+          const estado = await vm.lerClone(m.cpf);
+          const resumo = m.resumo && typeof m.resumo === "object" ? m.resumo : vm.resumirClone(estado || {});
+          maquinas.push({ ...m, resumo });
+        }
+        const refs = maquinas.map((m) => JSON.stringify(m.resumo || {}));
+        const alinhadas = refs.length > 0 && refs.every((r) => r === refs[0]);
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          total: maquinas.length,
+          alinhadas,
+          maquinas,
+        });
       }
       let dig = vm.cpfOk((req.query && req.query.cpf) || cpfSessao);
       if (dig !== cpfSessao && !isOwner(gate)) {
@@ -48,11 +62,13 @@ module.exports = async function handler(req, res) {
       if (!dig) return res.status(400).json({ ok: false, reason: "cpf" });
       const meta = await vm.lerMeta(dig);
       const estado = await vm.lerClone(dig);
+      const resumo = vm.resumirClone(estado || {});
       return res.status(200).json({
         ok: true,
         success: true,
         existe: Boolean(meta),
         meta: meta || null,
+        resumo,
         estado: estado || {},
       });
     }

@@ -4,13 +4,28 @@
  */
 (function () {
   const CLONE_KEYS = [
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_clientes_validacao_pendente",
     "dk_veiculos_cadastro",
     "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
+    "dk_locacoes_cadastro",
+    "dk_locacoes_quadro_geral",
+    "dk_funcionarios_access",
     "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
+    "dk_lancamentos_aluguel",
     "dk_portal_setor_movimentacoes_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_checklist_historico_v1",
+    "dk_comprovantes_banco",
+    "dk_comprovantes_cliente_pendentes",
+    "dk_financeiro_extratos_v1",
+    "dk_financeiro_despesas_v1",
+    "dk_financeiro_ceo_despesas_v1",
+    "dk_audit_log",
+    "dk_pagamentos_auditoria_v1",
   ];
 
   function digitos(v) {
