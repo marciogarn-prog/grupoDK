@@ -3561,6 +3561,64 @@ try {
   /* ignore */
 }
 
+/**
+ * Oficial: activos da nuvem mandam no quadro de manutenção (todas as máquinas iguais).
+ * Histórico fechado une por id; activos só locais somem se a nuvem trouxe activos.
+ */
+function mergeManutencoesCloudManda(localList, cloudList) {
+  const plateKey = (p) =>
+    typeof normalizePlate === "function"
+      ? normalizePlate(String(p || ""))
+      : String(p || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+  const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+  const local = Array.isArray(localList) ? localList : [];
+  const cloud = Array.isArray(cloudList) ? cloudList : [];
+  if (!cloud.length) return local.slice();
+  const byPlaca = new Map();
+  const byId = new Map();
+  const closed = [];
+  const putClosed = (r) => {
+    if (!r || typeof r !== "object") return;
+    const id = String(r.id || "").trim();
+    if (id) {
+      const ex = byId.get(id);
+      byId.set(id, ex ? { ...ex, ...r } : { ...r });
+      return;
+    }
+    closed.push({ ...r });
+  };
+  local.forEach((r) => {
+    if (!r || typeof r !== "object") return;
+    if (ativa(r)) return;
+    putClosed(r);
+  });
+  cloud.forEach((r) => {
+    if (!r || typeof r !== "object") return;
+    if (ativa(r)) {
+      const pl = plateKey(r.placa);
+      if (pl) byPlaca.set(pl, { ...r });
+      return;
+    }
+    putClosed(r);
+  });
+  const cloudHasActivos = cloud.some(ativa);
+  if (!cloudHasActivos) {
+    local.forEach((r) => {
+      if (!r || typeof r !== "object" || !ativa(r)) return;
+      const pl = plateKey(r.placa);
+      if (pl && !byPlaca.has(pl)) byPlaca.set(pl, { ...r });
+    });
+  }
+  return [...byPlaca.values(), ...byId.values(), ...closed];
+}
+try {
+  window.__DK_mergeManutencoesCloudManda = mergeManutencoesCloudManda;
+} catch {
+  /* ignore */
+}
+
 function saveCadastro(key, list, opts) {
   const allowShrink = opts && typeof opts === "object" && opts.allowShrink === true;
   const isProtectedCadastroKey =

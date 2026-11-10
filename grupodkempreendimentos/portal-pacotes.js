@@ -15,7 +15,6 @@
     "dk_financeiro_despesas_v1",
     "dk_financeiro_ceo_despesas_v1",
     "dk_manutencoes_rapidas_v1",
-    "dk_manutencoes_cadastro",
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_setor_movimentacoes_v1",
@@ -24,6 +23,8 @@
     "dk_cliente_notificacoes",
     "dk_comunicacao_operacao_v1",
   ];
+  /** Estado operacional completo em todo pacote do dia (não filtrar por data). */
+  const ESTADO_KEYS = ["dk_manutencoes_cadastro"];
   const FICHA_KEYS = [
     "dk_clientes_cadastro",
     "dk_portal_clientes_cadastro",
@@ -198,6 +199,53 @@
     return [...by.values(), ...semId];
   }
 
+  function fundirEstadoManutencoes(existing, incoming) {
+    const plateKey = (p) =>
+      String(p || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    const ativa = (x) => !String((x && x.dataRealSaida) || "").trim();
+    const base = Array.isArray(existing) ? existing : [];
+    const parte = Array.isArray(incoming) ? incoming : [];
+    if (!parte.length) return base.slice();
+    const byPlaca = new Map();
+    const byId = new Map();
+    const closed = [];
+    const putClosed = (r) => {
+      if (!r || typeof r !== "object") return;
+      const id = String(r.id || "").trim();
+      if (id) {
+        const ex = byId.get(id);
+        byId.set(id, ex ? { ...ex, ...r } : { ...r });
+        return;
+      }
+      closed.push({ ...r });
+    };
+    base.forEach((r) => {
+      if (!r || typeof r !== "object") return;
+      if (ativa(r)) return;
+      putClosed(r);
+    });
+    parte.forEach((r) => {
+      if (!r || typeof r !== "object") return;
+      if (ativa(r)) {
+        const pl = plateKey(r.placa);
+        if (pl) byPlaca.set(pl, { ...r });
+        return;
+      }
+      putClosed(r);
+    });
+    const incomingActivos = parte.some(ativa);
+    if (!incomingActivos) {
+      base.forEach((r) => {
+        if (!r || typeof r !== "object" || !ativa(r)) return;
+        const pl = plateKey(r.placa);
+        if (pl && !byPlaca.has(pl)) byPlaca.set(pl, { ...r });
+      });
+    }
+    return [...byPlaca.values(), ...byId.values(), ...closed];
+  }
+
   function extrairPacoteDia(payload, dia) {
     const ymd = ymdDeTexto(dia) || String(dia || "");
     const out = {};
@@ -216,6 +264,11 @@
       });
       out[chave] = doDia;
     });
+    ESTADO_KEYS.forEach((chave) => {
+      const arr = payload[chave];
+      if (!Array.isArray(arr)) return;
+      out[chave] = arr.map(semBinario);
+    });
     FICHA_KEYS.forEach((chave) => {
       const arr = payload[chave];
       if (!Array.isArray(arr)) return;
@@ -232,11 +285,21 @@
     const parte = pacote && typeof pacote === "object" ? pacote : {};
     if (!ymd) return out;
     Object.keys(parte).forEach((chave) => {
+      if (ESTADO_KEYS.indexOf(chave) >= 0 && Array.isArray(parte[chave])) {
+        out[chave] =
+          typeof window !== "undefined" && typeof window.__DK_mergeManutencoesCloudManda === "function"
+            ? window.__DK_mergeManutencoesCloudManda(base[chave], parte[chave])
+            : fundirEstadoManutencoes(base[chave], parte[chave]);
+        return;
+      }
       if (DIA_KEYS.indexOf(chave) >= 0 && Array.isArray(parte[chave])) {
         out[chave] = fundirListaDia(base[chave], parte[chave], ymd);
         return;
       }
       if (FICHA_KEYS.indexOf(chave) >= 0 && Array.isArray(parte[chave])) {
+        if (chave === "dk_locacoes_cadastro" && window.__DK_locacaoPgAtiva && window.__DK_locacaoPgAtiva()) {
+          return;
+        }
         out[chave] = fundirListaFicha(chave, base[chave], parte[chave]);
       }
     });
@@ -358,12 +421,14 @@
 
   return {
     DIA_KEYS,
+    ESTADO_KEYS,
     FICHA_KEYS,
     FICHEIRO_CHAVES,
     hojeYmd,
     ymdDoRegisto,
     extrairPacoteDia,
     fundirPacoteDia,
+    fundirEstadoManutencoes,
     fundirFicheiro,
     lerFicheiro,
     listasClientesIguais,

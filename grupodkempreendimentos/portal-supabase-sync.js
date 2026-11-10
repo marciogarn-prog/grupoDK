@@ -1327,6 +1327,14 @@
             cloudArr = mergeFn(localArr, cloudArr);
           }
           consolidateLocacoesPagamentosInPlace(cloudArr, opts);
+        } else if (k === "dk_manutencoes_cadastro" && window.__DK_IS_DEMO_DEPLOY__ !== true && cloudArr.length) {
+          const localArr = readLocalJsonArray(k);
+          cloudArr =
+            typeof window.__DK_mergeManutencoesCloudManda === "function"
+              ? window.__DK_mergeManutencoesCloudManda(localArr, cloudArr)
+              : typeof mergeCadastroHistoricoImutavel === "function"
+                ? mergeCadastroHistoricoImutavel(k, cloudArr, localArr)
+                : cloudArr;
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           cloudArr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), cloudArr);
         }
@@ -1338,6 +1346,12 @@
               ? cloudArr
               : fundirPagamentosLocaisAusentesNaNuvem(cloudArr);
           localStorage.setItem(k, JSON.stringify(gravar));
+        } else if (k === "dk_manutencoes_cadastro" && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+          if (typeof saveCadastro === "function") {
+            saveCadastro(k, cloudArr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+          } else {
+            localStorage.setItem(k, JSON.stringify(cloudArr));
+          }
         } else {
           const localArr = readLocalJsonArray(k);
           const mergedCli =
@@ -5197,13 +5211,22 @@
               ? mergeLocacoesCadastroBeforePush(localArr, cloudArr)
               : fundirPagamentosLocaisAusentesNaNuvem(normalizeLocacoesContratoAtivoList(cloudArr));
         } else if (k === "dk_manutencoes_cadastro") {
-          // União local+nuvem (placa activa / id); nuvem vazia não apaga manutenção local.
-          merged =
-            typeof mergeCadastroHistoricoImutavel === "function"
-              ? mergeCadastroHistoricoImutavel(k, localArr, cloudArr)
-              : localArr.length
-                ? localArr
-                : cloudArr;
+          // Oficial: activos da nuvem mandam (todas as máquinas iguais na Oficina 7).
+          if (window.__DK_IS_DEMO_DEPLOY__ !== true && cloudArr.length > 0) {
+            merged =
+              typeof window.__DK_mergeManutencoesCloudManda === "function"
+                ? window.__DK_mergeManutencoesCloudManda(localArr, cloudArr)
+                : typeof mergeCadastroHistoricoImutavel === "function"
+                  ? mergeCadastroHistoricoImutavel(k, cloudArr, localArr)
+                  : cloudArr;
+          } else {
+            merged =
+              typeof mergeCadastroHistoricoImutavel === "function"
+                ? mergeCadastroHistoricoImutavel(k, localArr, cloudArr)
+                : localArr.length
+                  ? localArr
+                  : cloudArr;
+          }
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
         } else {
@@ -5211,7 +5234,10 @@
         }
         if (JSON.stringify(merged) === JSON.stringify(localArr)) continue;
         if (typeof saveCadastro === "function") {
-          if (k === "dk_locacoes_cadastro" && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+          if (
+            (k === "dk_locacoes_cadastro" || k === "dk_manutencoes_cadastro") &&
+            window.__DK_IS_DEMO_DEPLOY__ !== true
+          ) {
             saveCadastro(k, merged, { bypassImmutabilidadeCadastro: true, allowShrink: true });
           } else {
             saveCadastro(k, merged);
@@ -6200,6 +6226,7 @@
     window.__DK_ensurePortalCadastrosFromCloud = ensurePortalCadastrosFromCloud;
     window.__DK_trimClienteLocacoesLocal = trimLocalLocacoesToClienteCpf;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
+    window.__DK_pullCadastroOperacionalFromCloud = pullCadastroOperacionalFromCloud;
     window.__DK_compararRevisaoPagamentos = compararRevisaoPagamentosAgora;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;

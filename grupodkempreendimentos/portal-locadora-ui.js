@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261110cli0435";
+  const PORTAL_SESSAO_BUILD_ID = "20261110manut7";
   /** Mantido alinhado a lib/dk-deploy-channel-api.cjs — CPF apagados/bloqueados não entram na contagem. */
   const PORTAL_CLIENTES_CPF_EXCLUIDOS = new Set([
     "00000000001",
@@ -5155,11 +5155,16 @@
         ...m,
         categoriaManutencao: destino,
         encaminhadoDeTriagem: true,
+        updatedAt: Date.now(),
       };
       changed = true;
     }
     if (!changed) return false;
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_migrar_setor",
+      motivo: "promocao_local_para_nuvem",
+    });
     return true;
   }
 
@@ -5733,7 +5738,6 @@
 
   function openManutencaoEmManutencaoSub(subRaw) {
     portalOperacaoOnScreenChange();
-    portalMigrateManutencaoEntradaParaTriagem();
     const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "triagem";
     portalManutEmManutSubAtivo = sub;
     portalRefreshOperacaoLocal();
@@ -5762,6 +5766,7 @@
       document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
       portalRefreshManutencaoPlacasGrid(false);
     }
+    /* Pull canónico primeiro; migração local só depois (evita inflar oficina só neste PC). */
     void portalPullManutencoesQuadroAoAbrir();
     window.setTimeout(() => {
       if (usesGrid) return;
@@ -7626,13 +7631,17 @@
 
   /** Download do quadro de manutenções/veículos da nuvem (union) e refresca as grelhas. */
   function portalPullManutencoesQuadroAoAbrir() {
-    const pull =
-      typeof window.__DK_pullFromCloudOnScreenChange === "function"
-        ? window.__DK_pullFromCloudOnScreenChange()
-        : Promise.resolve({ ok: true, skipped: true });
-    return Promise.resolve(pull)
+    /* Pacote do dia sozinho deixava PWA com 1 placa e o CEO com dezenas — força quadro completo. */
+    const pullOps =
+      typeof window.__DK_pullCadastroOperacionalFromCloud === "function"
+        ? window.__DK_pullCadastroOperacionalFromCloud()
+        : typeof window.__DK_pullFromCloudOnScreenChange === "function"
+          ? window.__DK_pullFromCloudOnScreenChange()
+          : Promise.resolve({ ok: true, skipped: true });
+    return Promise.resolve(pullOps)
       .then(() => {
         try {
+          portalMigrateManutencaoEntradaParaTriagem();
           refreshPortalChecklistPlacasAtivasCache();
           if (typeof refreshOperacaoVeiculoPlacasCache === "function") refreshOperacaoVeiculoPlacasCache();
           if (portalChecklistUsesPlacasGrid()) portalRefreshManutencaoPlacasGrid(true);
@@ -9297,6 +9306,7 @@
       ...manutencoes[idx],
       categoriaManutencao: categoria,
       encaminhadoDeTriagem: categoria !== "triagem",
+      updatedAt: Date.now(),
       ...(triagemSnap ? { checklistTriagemSnapshot: triagemSnap, checklistTriagemCongeladoEm: Date.now() } : {}),
       ...(handoffSnap ? { checklistHandoffSnapshot: handoffSnap, checklistHandoffEm: Date.now() } : {}),
     };
