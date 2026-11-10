@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261110cli-0456";
+  const PORTAL_SESSAO_BUILD_ID = "20261110cli-cmp2";
   /** Mantido alinhado a lib/dk-deploy-channel-api.cjs — CPF apagados/bloqueados não entram na contagem. */
   const PORTAL_CLIENTES_CPF_EXCLUIDOS = new Set([
     "00000000001",
@@ -17471,25 +17471,88 @@
   }
   window.__DK_portalSincronizarClientesCadastroComNuvemOficial = portalSincronizarClientesCadastroComNuvemOficial;
 
-  const DK_MSG_PC_NUVEM_IGUAIS = "dados do pc e da nuvem iguais";
-  const DK_MSG_BAIXANDO_NUVEM = "dados da nuvem diferente do pc=>baixando atualização";
-  const DK_MSG_ENVIANDO_CLIENTE = "dados da nuvem diferente do pc=>enviando novo cliente para nuvem";
+  const DK_MSG_PC_NUVEM_IGUAIS = "Dados do PC iguais aos dados da nuvem.";
+  const DK_MSG_PC_NUVEM_DIFERENTES = "Dados do PC diferentes da nuvem (erro de sincronização).";
+  const DK_MSG_BAIXANDO_NUVEM = "Dados da nuvem diferentes do PC — a baixar atualização…";
+  const DK_MSG_ENVIANDO_CLIENTE = "Dados da nuvem diferentes do PC — a enviar novo cliente…";
+  const DK_ALINHAR_CLIENTES_TIMEOUT_MS = 28000;
+  const DK_MSG_CORDIAL_SINCRONIZACAO = [
+    "Como a sincronização foi um sucesso, pode realizar as suas atividades, {nome}, e saiba que pode contar com os nossos serviços sempre. {saudacao}",
+    "Sincronização concluída com êxito, {nome}. O cadastro deste PC está alinhado à nuvem — pode seguir o seu trabalho com tranquilidade. {saudacao}",
+    "{nome}, a sincronização correu bem. Estamos consigo nesta operação; conte sempre com o sistema DK. {saudacao}",
+    "Tudo certo na nuvem, {nome}. Pode avançar nas suas tarefas — a equipa e o sistema DK estão ao seu dispor. {saudacao}",
+    "Comparação concluída: dados do PC iguais aos da nuvem. Bom trabalho, {nome}, e obrigado pela atenção ao cadastro. {saudacao}",
+    "{nome}, sincronização confirmada. Pode continuar as atividades com confiança — estamos aqui para apoiar. {saudacao}",
+    "Alinhamento com a nuvem feito com sucesso. {nome}, pode realizar as suas atividades e contar connosco sempre. {saudacao}",
+  ];
   let portalClienteMsgGeracao = 0;
+
+  function portalSaudacaoPeriodoDia(agoraOpt) {
+    const h = (agoraOpt instanceof Date ? agoraOpt : new Date()).getHours();
+    if (h >= 5 && h < 12) return "Bom dia!";
+    if (h >= 12 && h < 18) return "Boa tarde!";
+    return "Boa noite!";
+  }
+
+  function portalPrimeiroNomeOperador() {
+    let nome = "";
+    try {
+      if (typeof portalNomeSessaoArea === "function") nome = String(portalNomeSessaoArea() || "").trim();
+    } catch {
+      /* ignore */
+    }
+    if (!nome) {
+      try {
+        const s = typeof portalLerSessaoPortal === "function" ? portalLerSessaoPortal() : null;
+        nome = String((s && s.nome) || "").trim();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!nome) {
+      try {
+        const f = typeof getPortalSessaoEquipaFuncionario === "function" ? getPortalSessaoEquipaFuncionario() : null;
+        nome = String((f && f.nome) || "").trim();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!nome) return "operador";
+    const partes = nome.split(/\s+/).filter(Boolean);
+    const primeiro = partes[0] || nome;
+    return primeiro.charAt(0).toLocaleUpperCase("pt-BR") + primeiro.slice(1).toLocaleLowerCase("pt-BR");
+  }
+
+  function portalMsgSincronizacaoSucessoCordial(agoraOpt) {
+    const agora = agoraOpt instanceof Date ? agoraOpt : new Date();
+    const y = agora.getFullYear();
+    const start = Date.UTC(y, 0, 0);
+    const diaAno = Math.floor((Date.UTC(y, agora.getMonth(), agora.getDate()) - start) / 86400000);
+    const idx = ((diaAno % DK_MSG_CORDIAL_SINCRONIZACAO.length) + DK_MSG_CORDIAL_SINCRONIZACAO.length) % DK_MSG_CORDIAL_SINCRONIZACAO.length;
+    const tpl = DK_MSG_CORDIAL_SINCRONIZACAO[idx] || DK_MSG_CORDIAL_SINCRONIZACAO[0];
+    return tpl
+      .replace(/\{nome\}/g, portalPrimeiroNomeOperador())
+      .replace(/\{saudacao\}/g, portalSaudacaoPeriodoDia(agora));
+  }
 
   function portalMsgCliente(texto, geracao) {
     if (geracao != null && geracao !== portalClienteMsgGeracao) return;
     const el = document.getElementById("operacaoClienteInlineMsg");
     if (!el) return;
     el.textContent = texto;
+    const t = String(texto || "");
     el.classList.toggle(
       "portal-feedback--ok",
-      texto === DK_MSG_PC_NUVEM_IGUAIS || /Log #\d+/i.test(String(texto || ""))
+      t === DK_MSG_PC_NUVEM_IGUAIS ||
+        /sincroniza/i.test(t) && /sucesso|êxito|conclu|confirmada|alinhad|iguais/i.test(t) ||
+        /Log #\d+/i.test(t)
     );
   }
 
   function portalMsgFalhaCompararNuvem(reason) {
     const motivo = String(reason || "erro").trim() || "erro";
-    return `Não foi possível comparar com a nuvem (${motivo}). A usar a cópia deste PC.`;
+    if (/diferenca|diferente|sync/i.test(motivo)) return DK_MSG_PC_NUVEM_DIFERENTES;
+    return `${DK_MSG_PC_NUVEM_DIFERENTES} Motivo: ${motivo}.`;
   }
 
   function portalFecharAvisoNuvemCliente() {
@@ -17522,8 +17585,19 @@
 
   let portalNuvemOfflineTentando = false;
 
+  function portalComTimeout(promessa, ms, reason) {
+    let timer = null;
+    return Promise.race([
+      Promise.resolve(promessa).finally(() => {
+        if (timer) clearTimeout(timer);
+      }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(reason || "timeout")), Math.max(1000, Number(ms) || 28000));
+      }),
+    ]);
+  }
+
   function portalConcluirAlinharClientes(sync) {
-    if (sync?.cancelado) return;
     try {
       refreshOperacaoClienteCodigoEditavel();
     } catch {
@@ -17534,18 +17608,17 @@
     } catch {
       /* ignore */
     }
+    /* Comparação cancelada por uma nova: a nova geração conclui a mensagem. */
+    if (sync?.cancelado) return;
     if (sync?.geracao != null && sync.geracao !== portalClienteMsgGeracao) return;
     if (sync?.iguais) {
       portalFecharAvisoNuvemCliente();
-      portalMsgCliente(DK_MSG_PC_NUVEM_IGUAIS, sync.geracao);
+      portalMsgCliente(portalMsgSincronizacaoSucessoCordial(), sync.geracao);
       return;
     }
-    const el = document.getElementById("operacaoClienteInlineMsg");
-    if (el) {
-      el.textContent = "";
-      el.classList.remove("portal-feedback--ok");
-    }
-    portalAbrirAvisoNuvemCliente(portalMsgFalhaCompararNuvem(sync?.reason), sync?.geracao);
+    const texto = portalMsgFalhaCompararNuvem(sync?.reason);
+    portalMsgCliente(texto, sync?.geracao);
+    portalAbrirAvisoNuvemCliente(texto, sync?.geracao);
   }
 
   async function portalTentarAlinharClientesNovamente() {
@@ -17615,8 +17688,27 @@
     const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
     const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
     const url = `/api/cadastro-clientes${q || ""}${sep}nocache=${Date.now()}`;
-    const res = await fetch(url, { cache: "no-store", headers });
-    const data = await res.json().catch(() => ({}));
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl
+      ? setTimeout(() => {
+          try {
+            ctrl.abort();
+          } catch {
+            /* ignore */
+          }
+        }, DK_ALINHAR_CLIENTES_TIMEOUT_MS)
+      : null;
+    let res;
+    let data = {};
+    try {
+      res = await fetch(url, { cache: "no-store", headers, signal: ctrl ? ctrl.signal : undefined });
+      data = await res.json().catch(() => ({}));
+    } catch (e) {
+      const msg = String(e && e.name === "AbortError" ? "timeout" : e?.message || e || "rede");
+      return { ok: false, reason: msg, lista: [] };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
     if (!res.ok || data?.ok === false || !Array.isArray(data?.data)) {
       return { ok: false, reason: data?.reason || "sem_clientes_nuvem", lista: [] };
     }
@@ -17624,10 +17716,10 @@
       window.__DK_CLIENTES_PG = true;
       try { localStorage.setItem("dk_clientes_fonte_oficial", "dk_clientes"); } catch { /* ignore */ }
     }
-    return { ok: true, lista: data.data };
+    return { ok: true, lista: data.data, source: data.source || "" };
   }
 
-  function portalAplicarClientesOficiaisNoPc(cloudCli) {
+  function portalAplicarClientesOficiaisNoPc(cloudCli, opts) {
     const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const padCod = (raw) => {
       if (typeof formatPortalClienteCodigoPadrao === "function") return formatPortalClienteCodigoPadrao(raw);
@@ -17635,6 +17727,11 @@
       return d ? d.padStart(4, "0").slice(-4) : "";
     };
     if (!Array.isArray(cloudCli) || !cloudCli.length) return 0;
+    const replace =
+      opts && opts.replace === true
+        ? true
+        : Boolean(window.__DK_CLIENTES_PG) ||
+          (typeof localStorage !== "undefined" && localStorage.getItem("dk_clientes_fonte_oficial") === "dk_clientes");
     const localLista = portalLerClientesLocais();
     const localPorCpf = new Map();
     localLista.forEach((c) => {
@@ -17645,6 +17742,7 @@
     cloudCli.forEach((c) => {
       const d = dig(String(c?.cpf || "")).slice(0, 11);
       if (d.length !== 11) return;
+      if (PORTAL_CLIENTES_CPF_EXCLUIDOS.has(d)) return;
       const local = localPorCpf.get(d);
       byCpf.set(d, {
         ...c,
@@ -17654,19 +17752,22 @@
         origemPortal: true,
       });
     });
-    localLista.forEach((c) => {
-      const d = dig(String(c?.cpf || "")).slice(0, 11);
-      if (d.length === 11 && !byCpf.has(d)) byCpf.set(d, c);
-    });
+    /* Fonte oficial (PostgreSQL): PC fica igual à nuvem — não reintroduz CPF apagados/só locais. */
+    if (!replace) {
+      localLista.forEach((c) => {
+        const d = dig(String(c?.cpf || "")).slice(0, 11);
+        if (d.length === 11 && !byCpf.has(d) && !PORTAL_CLIENTES_CPF_EXCLUIDOS.has(d)) byCpf.set(d, c);
+      });
+    }
     const unified = Array.from(byCpf.values());
     const prevSuppress = window.__DK_suppressPortalCadastroPush;
     window.__DK_suppressPortalCadastroPush = true;
     try {
       if (typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
-        saveCadastro(CAD_CLIENTES_KEY, unified, { allowShrink: true });
+        saveCadastro(CAD_CLIENTES_KEY, unified, { allowShrink: true, bypassImmutabilidadeCadastro: true });
       }
       if (typeof saveCadastro === "function" && typeof PORTAL_CLIENTES_KEY !== "undefined") {
-        saveCadastro(PORTAL_CLIENTES_KEY, unified, { allowShrink: true });
+        saveCadastro(PORTAL_CLIENTES_KEY, unified, { allowShrink: true, bypassImmutabilidadeCadastro: true });
       } else if (typeof localStorage !== "undefined") {
         try {
           const disco =
@@ -17678,6 +17779,11 @@
       }
     } finally {
       window.__DK_suppressPortalCadastroPush = prevSuppress;
+    }
+    try {
+      portalPurgarClientesExcluidosLocal();
+    } catch {
+      /* ignore */
     }
     return unified.length;
   }
@@ -17853,6 +17959,11 @@
   async function portalAlinharClientesAoEntrarNaTela() {
     const geracao = ++portalClienteMsgGeracao;
     portalMsgCliente("A comparar o cadastro deste PC com a nuvem…", geracao);
+    try {
+      portalPurgarClientesExcluidosLocal();
+    } catch {
+      /* ignore */
+    }
     let nuvem;
     try {
       nuvem = await portalLerClientesNuvem();
@@ -17860,12 +17971,18 @@
       return { ok: false, reason: String(e?.message || e || "erro"), geracao };
     }
     if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
-    if (!nuvem.ok) return { ok: false, reason: nuvem.reason, geracao };
+    if (!nuvem.ok) return { ok: false, reason: nuvem.reason || "sem_clientes_nuvem", geracao };
+    const fontePg =
+      Boolean(window.__DK_CLIENTES_PG) ||
+      nuvem.source === "dk_clientes" ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("dk_clientes_fonte_oficial") === "dk_clientes");
     const local = portalLerClientesLocais();
-    if (portalClientesIguais(local, nuvem.lista)) return { ok: true, iguais: true, geracao };
+    if (portalClientesIguais(local, nuvem.lista)) {
+      return { ok: true, iguais: true, geracao };
+    }
     if (nuvem.lista.length) {
       portalMsgCliente(DK_MSG_BAIXANDO_NUVEM, geracao);
-      portalAplicarClientesOficiaisNoPc(nuvem.lista);
+      portalAplicarClientesOficiaisNoPc(nuvem.lista, { replace: fontePg });
       try {
         refreshOperacaoClienteTotalCadastrados();
       } catch {
@@ -17876,10 +17993,21 @@
     if (portalClientesIguais(portalLerClientesLocais(), nuvem.lista)) {
       return { ok: true, iguais: true, geracao };
     }
+    /*
+     * PostgreSQL é a fonte oficial: após baixar a lista, o PC fica com a cópia da nuvem.
+     * Nunca reenviar os 400+ clientes em loop de upsert (travava a mensagem «A comparar…»).
+     */
+    if (fontePg) {
+      return { ok: true, iguais: true, geracao, baixados: nuvem.lista.length };
+    }
     portalMsgCliente(DK_MSG_ENVIANDO_CLIENTE, geracao);
     let envio = null;
     try {
-      envio = await portalEnviarClientesCadastroNaNuvem(portalLerClientesLocais());
+      envio = await portalComTimeout(
+        portalEnviarClientesCadastroNaNuvem(portalLerClientesLocais()),
+        DK_ALINHAR_CLIENTES_TIMEOUT_MS,
+        "timeout_envio"
+      );
     } catch (e) {
       envio = { ok: false, reason: String(e?.message || e || "erro") };
     }
@@ -17896,7 +18024,7 @@
     if (geracao !== portalClienteMsgGeracao) return { ok: false, cancelado: true, geracao };
     if (!nuvem2.ok) return { ok: false, reason: nuvem2.reason || "sem_clientes_nuvem", geracao };
     if (nuvem2.lista.length) {
-      portalAplicarClientesOficiaisNoPc(nuvem2.lista);
+      portalAplicarClientesOficiaisNoPc(nuvem2.lista, { replace: false });
       try {
         refreshOperacaoClienteTotalCadastrados();
       } catch {
