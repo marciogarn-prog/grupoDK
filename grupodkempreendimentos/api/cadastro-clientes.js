@@ -171,17 +171,21 @@ module.exports = async function handler(req, res) {
         if (!lido.ok) {
           return res.status(502).json({ ok: false, reason: "leitura", source: clientesPg.FONTE });
         }
+        let purge = null;
         try {
-          void clientesPg.purgarCpfsExcluidos(lido.clientes);
+          purge = await clientesPg.purgarCpfsExcluidos(lido.clientes);
         } catch {
-          /* purge não bloqueia a leitura */
+          purge = { ok: false };
         }
+        const data = dropClientesCpfExcluidos(lido.clientes);
         return res.status(200).json({
           ok: true,
-          data: dropClientesCpfExcluidos(lido.clientes),
+          data,
           channel,
           source: clientesPg.FONTE,
           duracao_ms: Date.now() - t0,
+          quantidade: data.length,
+          ...(purge && purge.ok ? { purge } : {}),
         });
       }
 

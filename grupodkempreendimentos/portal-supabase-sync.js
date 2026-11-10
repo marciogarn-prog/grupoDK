@@ -5241,6 +5241,13 @@
     }
     enviarPagamentosReanexadosSeHouver();
     await mesclarFilaLancamentosNoPc();
+    if (typeof window.__DK_portalPurgarClientesExcluidosLocal === "function") {
+      try {
+        window.__DK_portalPurgarClientesExcluidosLocal();
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof window.__DK_refreshOperacaoClienteTotalCadastrados === "function") {
       try {
         window.__DK_refreshOperacaoClienteTotalCadastrados();

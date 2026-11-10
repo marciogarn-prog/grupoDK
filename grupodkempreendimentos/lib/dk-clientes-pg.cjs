@@ -4,6 +4,7 @@
  */
 const crypto = require("crypto");
 const { isSupabaseDoormanConfigured } = require("./dk-supabase-doorman.cjs");
+const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
 const { revisaoConflita } = require("./dk-persistencia-central.cjs");
 const { dkClienteAplicarPatch, dkClienteParaPersistencia, dkClienteParaTerminal } = require("./dk-cliente-fidelidade.cjs");
 
@@ -216,7 +217,52 @@ async function softDeleteByCpf(cpf, ioRest) {
   return { ok: Boolean(res && res.ok), status: res && res.status, data: res && res.data };
 }
 
-/** Apaga (soft) na tabela oficial os CPF já rejeitados pela lista de exclusão. */
+async function limparExcluidosDoRedis(excluidos) {
+  if (!excluidos || typeof excluidos.has !== "function") return { ok: false, removidos: 0 };
+  try {
+    if (!isRedisKvConfigured()) return { ok: false, removidos: 0, reason: "redis" };
+    const redis = createRedisClient();
+    const SNAP = "dk:portal:cloud_snapshot:v1";
+    const CLI = "dk:portal:clientes_cadastro:v1";
+    let removidos = 0;
+    const raw = await redis.get(SNAP);
+    const row = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (row && typeof row === "object") {
+      const payload = row.payload && typeof row.payload === "object" ? row.payload : row;
+      for (const key of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+        const arr = Array.isArray(payload[key]) ? payload[key] : null;
+        if (!arr) continue;
+        const next = arr.filter((c) => {
+          const dig = onlyDigits(c && c.cpf).slice(0, 11);
+          if (dig.length === 11 && excluidos.has(dig)) {
+            removidos += 1;
+            return false;
+          }
+          return true;
+        });
+        payload[key] = next;
+      }
+      row.payload = payload;
+      row.updated_at = new Date().toISOString();
+      await redis.set(SNAP, JSON.stringify(row));
+    }
+    const cliRaw = await redis.get(CLI);
+    let cliArr = typeof cliRaw === "string" ? JSON.parse(cliRaw) : cliRaw;
+    if (Array.isArray(cliArr)) {
+      const next = cliArr.filter((c) => {
+        const dig = onlyDigits(c && c.cpf).slice(0, 11);
+        return !(dig.length === 11 && excluidos.has(dig));
+      });
+      removidos += cliArr.length - next.length;
+      await redis.set(CLI, JSON.stringify(next));
+    }
+    return { ok: true, removidos };
+  } catch {
+    return { ok: false, removidos: 0 };
+  }
+}
+
+/** Soft-delete no PG + limpa snapshot Redis para todos os CPF da lista de exclusão. */
 async function purgarCpfsExcluidos(clientes, ioRest) {
   let excluidos;
   try {
@@ -225,18 +271,21 @@ async function purgarCpfsExcluidos(clientes, ioRest) {
     return { ok: false, apagados: 0 };
   }
   const lista = Array.isArray(clientes) ? clientes : [];
-  const alvos = [];
+  const alvos = new Set();
+  for (const dig of excluidos) {
+    if (onlyDigits(dig).slice(0, 11).length === 11) alvos.add(onlyDigits(dig).slice(0, 11));
+  }
   for (const c of lista) {
     const dig = onlyDigits(c && c.cpf).slice(0, 11);
-    if (dig.length === 11 && excluidos && excluidos.has(dig)) alvos.push(dig);
+    if (dig.length === 11 && excluidos.has(dig)) alvos.add(dig);
   }
-  const unicos = [...new Set(alvos)];
   let apagados = 0;
-  for (const dig of unicos) {
+  for (const dig of alvos) {
     const r = await softDeleteByCpf(dig, ioRest);
     if (r && r.ok) apagados += 1;
   }
-  return { ok: true, apagados, tentados: unicos.length };
+  const redisLimpo = await limparExcluidosDoRedis(excluidos);
+  return { ok: true, apagados, tentados: alvos.size, redisRemovidos: redisLimpo.removidos || 0 };
 }
 
 async function gravarLinha(linha, ioRest) {

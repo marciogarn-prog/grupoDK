@@ -22,7 +22,26 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261109sessao-ativa";
+  const PORTAL_SESSAO_BUILD_ID = "20261110cli-0456";
+  /** Mantido alinhado a lib/dk-deploy-channel-api.cjs — CPF apagados/bloqueados não entram na contagem. */
+  const PORTAL_CLIENTES_CPF_EXCLUIDOS = new Set([
+    "00000000001",
+    "00000000003",
+    "00000000004",
+    "06523244440",
+    "04292253420",
+    "07534147409",
+    "00445040556",
+    "01303628514",
+    "01503628514",
+    "11369128423",
+    "19174403400",
+    "15713555484",
+    "12345678910",
+    "23456789012",
+    "34567890123",
+    "45678901234",
+  ]);
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
   const PORTAL_TITULAR_VER_COMO_KEY = "dk_titular_ver_como";
 
@@ -1201,13 +1220,43 @@
         loadCadastro(key).forEach((c) => {
           const cpf =
             typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-          if (cpf.length === 11) seen.add(cpf);
+          if (cpf.length === 11 && !PORTAL_CLIENTES_CPF_EXCLUIDOS.has(cpf.slice(0, 11))) seen.add(cpf.slice(0, 11));
         });
       });
     } catch {
       /* ignore */
     }
     return seen.size;
+  }
+
+  function portalPurgarClientesExcluidosLocal() {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return 0;
+    const keys = [];
+    if (typeof CAD_CLIENTES_KEY !== "undefined") keys.push(CAD_CLIENTES_KEY);
+    if (typeof PORTAL_CLIENTES_KEY !== "undefined") keys.push(PORTAL_CLIENTES_KEY);
+    let removidos = 0;
+    keys.forEach((key) => {
+      try {
+        const arr = loadCadastro(key);
+        if (!Array.isArray(arr) || !arr.length) return;
+        const next = arr.filter((c) => {
+          const cpf =
+            typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+          if (cpf.length === 11 && PORTAL_CLIENTES_CPF_EXCLUIDOS.has(cpf.slice(0, 11))) {
+            removidos += 1;
+            return false;
+          }
+          return true;
+        });
+        if (next.length !== arr.length) {
+          saveCadastro(key, next, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+    if (removidos) refreshOperacaoClienteTotalCadastrados();
+    return removidos;
   }
 
   function getOperacaoProximoClienteNumero() {
@@ -1267,6 +1316,12 @@
 
   window.__DK_proximoClientePlaceholder = getOperacaoProximoClientePlaceholder;
   window.__DK_refreshOperacaoClienteTotalCadastrados = refreshOperacaoClienteTotalCadastrados;
+  window.__DK_portalPurgarClientesExcluidosLocal = portalPurgarClientesExcluidosLocal;
+  try {
+    portalPurgarClientesExcluidosLocal();
+  } catch {
+    /* ignore */
+  }
 
   function portalResolveClienteCodigoFromForm(fallback) {
     const codigoForm = String(document.getElementById("operacaoClienteCodigo")?.value || "").trim();
