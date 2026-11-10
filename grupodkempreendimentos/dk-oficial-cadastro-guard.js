@@ -146,6 +146,8 @@
     if (c > 1e12) return c;
     const id = Number(record?.id || 0);
     if (id > 1e12) return id;
+    const iso = Date.parse(String(record?.updated_at || record?.updatedAt || ""));
+    if (Number.isFinite(iso) && iso > 1e12) return iso;
     return 0;
   }
 
@@ -154,6 +156,8 @@
     const n = numeroCodigoCadastro(record[campo || "codigo"]);
     if (n <= SEQUENCIA_CLIENTE_TETO) return false;
     const ymd = parseAnyDateToYmd(record.dataCadastro || record.dataInicio || record.inicio);
+    /* 0428+ com data no/após o corte são reais — não sumir só porque falta createdAt. */
+    if (ymd && ymd >= SEQUENCIA_CLIENTE_CORTE_YMD) return false;
     if (ymd && ymd < SEQUENCIA_CLIENTE_CORTE_YMD) return true;
     const created = instanteCriacaoMs(record);
     if (created && created >= SEQUENCIA_CLIENTE_CORTE_MS) return false;

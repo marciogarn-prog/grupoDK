@@ -22,7 +22,7 @@
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
-  const PORTAL_SESSAO_BUILD_ID = "20261110cli-cmp2";
+  const PORTAL_SESSAO_BUILD_ID = "20261110cli0435";
   /** Mantido alinhado a lib/dk-deploy-channel-api.cjs — CPF apagados/bloqueados não entram na contagem. */
   const PORTAL_CLIENTES_CPF_EXCLUIDOS = new Set([
     "00000000001",
@@ -21833,10 +21833,11 @@
       if (cpf.length !== 11) return;
       if (!byCpf.has(cpf)) byCpf.set(cpf, c);
     };
-    if (typeof loadPortalClientesCadastro === "function") {
-      loadPortalClientesCadastro().forEach(add);
-    } else if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+    /* Toda a ficha de clientes (não só origemPortal) — senão cód. 0435+ some na locação. */
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
       loadCadastro(CAD_CLIENTES_KEY).forEach(add);
+    } else if (typeof loadPortalClientesCadastro === "function") {
+      loadPortalClientesCadastro().forEach(add);
     }
     if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
       loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
@@ -23547,17 +23548,15 @@
     }
     const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
     if (known && !sorted.length && digits.length === 11 && !opts.syncingCloud) {
-      if (msgEl) msgEl.textContent = "A carregar protocolos da nuvem…";
-      void portalEnsureLocacoesFromCloud({ force: true }).then((r) => {
-        if (r?.applied) {
-          refreshOperacaoLocacaoProtocoloPicker({ force: true, syncingCloud: true });
-          if (msgEl) msgEl.textContent = "";
-          return;
-        }
-        if (msgEl) {
-          msgEl.textContent =
-            "Nenhum protocolo para este CPF neste navegador. Use «Carregar da nuvem» ou confira o CPF (tem de ser o mesmo do contrato).";
-        }
+      /*
+       * Cliente cadastrado sem protocolo = estado normal para «NOVO».
+       * Não forçar pull nem acusar o CPF (ex.: 025.370.514-24 / cód. 0435).
+       */
+      if (msgEl && /carregar protocolos|confira o CPF|Nenhum protocolo para este CPF/i.test(String(msgEl.textContent || ""))) {
+        msgEl.textContent = "";
+      }
+      void portalEnsureLocacoesFromCloud({ force: false }).then((r) => {
+        if (r?.applied) refreshOperacaoLocacaoProtocoloPicker({ force: true, syncingCloud: true });
       });
     } else if (msgEl && sorted.length) {
       msgEl.textContent = "";

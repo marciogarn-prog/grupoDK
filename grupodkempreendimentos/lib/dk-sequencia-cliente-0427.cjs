@@ -34,6 +34,8 @@ function instanteCriacaoMs(record) {
   if (c > 1e12) return c;
   const id = Number(record?.id || 0);
   if (id > 1e12) return id;
+  const iso = Date.parse(String(record?.updated_at || record?.updatedAt || ""));
+  if (Number.isFinite(iso) && iso > 1e12) return iso;
   return 0;
 }
 
@@ -45,12 +47,16 @@ function cpfSoDigitoRepetido(cpf) {
 /**
  * true = este registo não entra no oficial (código furado acima de 0427, anterior à limpeza).
  * campo: "codigo" no cliente, "clienteCodigo" na locação.
+ * Cadastros reais 0428+ com dataCadastro/createdAt no/após o corte CONTINUAM válidos
+ * (ex.: 0435 ROBERTO JOÃO — CPF 025.370.514-24).
  */
 function isCodigoAcimaDoUltimoClienteOficial(record, campo) {
   if (!record || typeof record !== "object") return false;
   const n = numeroCodigoCadastro(record[campo || "codigo"]);
   if (n <= SEQUENCIA_CLIENTE_TETO) return false;
   const ymd = parseDataCadastroYmd(record.dataCadastro || record.dataInicio || record.inicio);
+  /* Data de cadastro no/após o corte = cliente real (não exige createdAt). */
+  if (ymd && ymd >= SEQUENCIA_CLIENTE_CORTE_YMD) return false;
   if (ymd && ymd < SEQUENCIA_CLIENTE_CORTE_YMD) return true;
   const created = instanteCriacaoMs(record);
   if (created && created >= SEQUENCIA_CLIENTE_CORTE_MS) return false;
