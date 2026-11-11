@@ -5,6 +5,7 @@
  * Se o Supabase estourar o tempo ou devolver erro 5xx, o pagamento entra no snapshot
  * oficial do Redis e na fila, para o operador não perder o clique.
  */
+const { moduloAtivo } = require("../lib/dk-locacao-pg.cjs");
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { CANONICAL_SNAPSHOT_KEY } = require("../lib/dk-locacoes-integrity.cjs");
 const { applyApiCors, enforceRateLimit, requireLiveSession } = require("../lib/dk-portal-auth.cjs");
@@ -295,6 +296,8 @@ module.exports = async function handler(req, res) {
   const gate = await requireLiveSession(req, { allowCliente: false, allowEquipa: true });
   if (!gate.ok) return res.status(gate.status).json({ ok: false, reason: gate.reason });
 
+  const pgAtivo = typeof moduloAtivo === "function" ? await moduloAtivo() : false;
+
   try {
     if (req.method === "GET") {
       const porProto = new Map();
@@ -307,21 +310,40 @@ module.exports = async function handler(req, res) {
         if (!supabaseIndisponivel(lido.reason) || !porProto.size) {
           return res.status(503).json({ ok: false, reason: lido.reason || "supabase_indisponivel" });
         }
-        return res.status(200).json({
-          ok: true,
-          success: true,
-          fonte: "redis",
-          supabasePendente: true,
-          itens: Array.from(porProto.values()),
-        });
+      } else {
+        for (const row of lido.rows) {
+          if (!String(row?.label || "").startsWith(PREFIXO) || row.label === "default") continue;
+          const item = itemDePayload(row.payload);
+          const proto = String(item?.pagamento?.protocoloLancamento || "").trim();
+          if (item && proto) porProto.set(proto, item);
+        }
       }
-      for (const row of lido.rows) {
-        if (!String(row?.label || "").startsWith(PREFIXO) || row.label === "default") continue;
-        const item = itemDePayload(row.payload);
-        const proto = String(item?.pagamento?.protocoloLancamento || "").trim();
-        if (item && proto) porProto.set(proto, item);
+      const itens = Array.from(porProto.values());
+      let reconcile = null;
+      if (pgAtivo && itens.length) {
+        try {
+          const { reconciliarItensParaPg } = require("../lib/dk-lancamento-reconcile-pg.cjs");
+          reconcile = await reconciliarItensParaPg(itens, {
+            actorUserId: gate.cpf,
+            actorSessionId: gate.sid,
+            route: "/api/dk-lancamento-nuvem",
+          });
+        } catch (err) {
+          reconcile = { ok: false, reason: String(err && err.message ? err.message : err) };
+        }
       }
-      return res.status(200).json({ ok: true, success: true, fonte: "supabase", itens: Array.from(porProto.values()) });
+      if (!lido.ok && !porProto.size) {
+        return res.status(503).json({ ok: false, reason: lido.reason || "supabase_indisponivel" });
+      }
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        fonte: lido.ok ? "supabase" : "redis",
+        supabasePendente: !lido.ok,
+        pgAtivo,
+        reconcile,
+        itens,
+      });
     }
 
     if (req.method === "POST") {
@@ -331,6 +353,59 @@ module.exports = async function handler(req, res) {
       const nc = onlyDigits(body.numeroContrato || body.nc);
       if (!pagamento || typeof pagamento !== "object" || !protocolo || !nc) {
         return res.status(400).json({ ok: false, reason: "lancamento_incompleto" });
+      }
+      /* Cutover PG: a mesma API que a tela já chama grava na fonte oficial. */
+      if (pgAtivo) {
+        const { gravarPagamentoNoPg, protocolosJaNoPg } = require("../lib/dk-lancamento-reconcile-pg.cjs");
+        const atuais = await protocolosJaNoPg(nc);
+        if (atuais.ok) {
+          const repetido = (atuais.pagamentos || []).some((pag) => mesmaCobranca(pag, pagamento));
+          if (repetido && !atuais.set.has(protocolo)) {
+            return res.status(409).json({
+              ok: false,
+              success: false,
+              reason: "duplicate_payment_same_day_value",
+              protocolo: nc,
+              message: "JÁ EXISTE UM PAGAMENTO IGUAL NESTE PROTOCOLO. O NOVO LANÇAMENTO NÃO FOI GRAVADO NA NUVEM.",
+            });
+          }
+        }
+        const item = {
+          nc,
+          cpf: onlyDigits(body.cpf).slice(0, 11),
+          placa: String(body.placa || "")
+            .trim()
+            .toUpperCase(),
+          pagamento,
+        };
+        const gravou = await gravarPagamentoNoPg(item, {
+          actorUserId: gate.cpf || pagamento.registradoPorCpf,
+          actorSessionId: gate.sid,
+          route: "/api/dk-lancamento-nuvem",
+        });
+        if (!gravou.ok) {
+          return res.status(gravou.status || 503).json({
+            ok: false,
+            success: false,
+            reason: gravou.reason || "pg_write_fail",
+            detalhe: gravou.body || null,
+          });
+        }
+        await cacheRedis(
+          {
+            ...item,
+            at: new Date().toISOString(),
+          },
+          protocolo
+        );
+        return res.status(200).json({
+          ok: true,
+          success: true,
+          fonte: "dk_pagamento_locacao",
+          protocolo,
+          idempotente: Boolean(gravou.idempotent),
+          entity_id: gravou.entity_id || null,
+        });
       }
       let label = "";
       try {

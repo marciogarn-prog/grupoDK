@@ -29830,6 +29830,7 @@
         entry,
       ],
     };
+    /* Com PG ativo, /api/dk-lancamento-nuvem grava em dk_pagamento_locacao (fonte oficial). */
     const enviado = await portalEnviarLocacaoLancamentoNaNuvem(previa, proto);
     const reason = String(enviado?.data?.reason || "");
     if (reason === "duplicate_payment_same_day_value" || reason === "active_plate_conflict") {
@@ -29846,10 +29847,22 @@
         msg: String(enviado?.data?.message || MSG_LANC_SERVIDOR_NAO_CONFIRMOU),
       };
     }
+    if (window.__DK_LOCACAO_PG === true && typeof window.__DK_locacaoPgDetalhe === "function") {
+      try {
+        const nc = normPortalNumeroContrato(loc?.numeroContrato);
+        const det = await window.__DK_locacaoPgDetalhe(nc);
+        if (det?.ok && det.locacao && Array.isArray(det.locacao.portalLancamentosAluguel)) {
+          loc.portalLancamentosAluguel = det.locacao.portalLancamentosAluguel.slice();
+        }
+      } catch {
+        /* mantém entry local já confirmado no servidor */
+      }
+    }
     return {
       ok: true,
       supabasePendente: enviado?.data?.supabasePendente === true,
       msg: String(enviado?.data?.message || ""),
+      fonte: String(enviado?.data?.fonte || ""),
     };
   }
 

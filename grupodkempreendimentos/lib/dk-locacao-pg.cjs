@@ -45,6 +45,11 @@ async function obterFonteLocacoes(opts) {
   return moduloPedido(await flagDoPedido(opts)) ? FONTE_LOCACAO : "snapshot";
 }
 
+/** true quando a fonte oficial de locação/pagamento é PostgreSQL (não snapshot). */
+async function moduloAtivo(opts) {
+  return (await obterFonteLocacoes(opts)) === FONTE_LOCACAO;
+}
+
 function decidirAcessoLocacao(gate, funcionarios) {
   if (!gate || gate.ok === false) {
     return {
@@ -844,13 +849,20 @@ async function lerDetalhe(numero, opts) {
   if (cpfPedido.length === 11 && digitos(row.cpf).slice(0, 11) !== cpfPedido) {
     return { ok: false, status: 404, reason: "nao_encontrada", ativado: true, fallback: false };
   }
+  let locacao = locacaoParaTela(row);
+  try {
+    const { hidratarPagamentosNoLoc } = require("./dk-lancamento-reconcile-pg.cjs");
+    locacao = await hidratarPagamentosNoLoc(locacao);
+  } catch {
+    /* mantém campos; a tela ainda pode ler a fila */
+  }
   return {
     ok: true,
     schema: true,
     ativado: true,
     source: FONTE_LOCACAO,
     quantidade: 1,
-    locacao: locacaoParaTela(row),
+    locacao,
     fallback: false,
   };
 }
@@ -895,6 +907,7 @@ module.exports = {
   FONTE_LOCACAO,
   moduloPedido,
   obterFonteLocacoes,
+  moduloAtivo,
   decidirAcessoLocacao,
   TIPOS,
   stripCampos,
