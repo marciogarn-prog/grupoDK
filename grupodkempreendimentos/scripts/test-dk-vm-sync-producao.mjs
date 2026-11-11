@@ -9,12 +9,13 @@ const BASE = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimentos.co
 );
 
 function assert(cond, msg, detail) {
+  const d = detail == null ? "" : String(detail).slice(0, 240);
   if (!cond) {
-    console.error("FAIL |", msg, detail || "");
+    console.error("FAIL |", msg, d);
     process.exitCode = 1;
     throw new Error(msg);
   }
-  console.log("PASS |", msg, detail || "");
+  console.log("PASS |", msg, d);
 }
 
 const login = await fetch(BASE + "api/dk-portal-auth", {

@@ -155,12 +155,15 @@ async function gravarClone(cpf, estado, r) {
   for (const [k, v] of Object.entries(slim)) {
     fields[k] = JSON.stringify(v == null ? null : v);
   }
-  /* Hash por chave: cada campo fica sob o limite de 10 MB do Upstash. */
+  /* Um HSET por campo — evita estouro se algum array crescer. */
+  const partsKey = clonePartsKey(dig);
   if (Object.keys(fields).length) {
-    await client.hset(clonePartsKey(dig), fields);
+    for (const [k, raw] of Object.entries(fields)) {
+      await client.hset(partsKey, { [k]: raw });
+    }
   } else {
     try {
-      await client.del(clonePartsKey(dig));
+      await client.del(partsKey);
     } catch {
       /* ignore */
     }

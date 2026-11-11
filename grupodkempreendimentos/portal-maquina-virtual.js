@@ -5,23 +5,14 @@
  * Offline → novidade fica na VM até o próximo login.
  */
 (function () {
-  /* Espelho VM: sem locações/pagamentos (Postgres + limite Redis 10 MB). */
+  /* Espelho VM: só manutenção/checklist (cabe no Redis; resto = Postgres). */
   const CLONE_KEYS = [
-    "dk_clientes_cadastro",
-    "dk_portal_clientes_cadastro",
-    "dk_clientes_validacao_pendente",
-    "dk_veiculos_cadastro",
-    "dk_portal_veiculos_cadastro",
-    "dk_veiculos_frota_planilha",
     "dk_funcionarios_access",
     "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
     "dk_portal_setor_movimentacoes_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_checklist_historico_v1",
-    "dk_financeiro_extratos_v1",
-    "dk_financeiro_despesas_v1",
-    "dk_financeiro_ceo_despesas_v1",
   ];
 
   const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
@@ -238,31 +229,6 @@
 
   function resumoLocalPc() {
     const e = coletarEstadoPc();
-    /* Locações ficam fora do clone VM — comparar só o que a VM realmente espelha. */
-    let locs = [];
-    try {
-      if (typeof loadCadastro === "function") locs = loadCadastro("dk_locacoes_cadastro") || [];
-    } catch {
-      locs = [];
-    }
-    let pagamentos = 0;
-    let ativos = 0;
-    let finalizados = 0;
-    for (const loc of Array.isArray(locs) ? locs : []) {
-      const pays = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
-      pagamentos += pays.length;
-      const st = String(loc.statusLocacao || loc.status || "")
-        .trim()
-        .toUpperCase();
-      const fim = String(loc.fim || loc.dataFim || "").trim();
-      const inativo =
-        st.includes("FINAL") ||
-        st.includes("INATIV") ||
-        st.includes("CANCEL") ||
-        (fim && fim !== "...");
-      if (inativo) finalizados += 1;
-      else ativos += 1;
-    }
     const manutList = Array.isArray(e.dk_manutencoes_cadastro) ? e.dk_manutencoes_cadastro : [];
     const manutAtivasAssinatura = manutList
       .filter((m) => !String(m?.dataRealSaida || "").trim())
@@ -278,14 +244,12 @@
       .filter(Boolean)
       .sort()
       .join("|");
+    const oficinaPropriaAtivas = manutList.filter(
+      (m) =>
+        !String(m?.dataRealSaida || "").trim() &&
+        /oficina.?propria/i.test(String(m?.categoriaManutencao || m?.categoria || ""))
+    ).length;
     return {
-      clientes: Array.isArray(e.dk_clientes_cadastro) ? e.dk_clientes_cadastro.length : 0,
-      veiculos: Array.isArray(e.dk_veiculos_cadastro) ? e.dk_veiculos_cadastro.length : 0,
-      /* Zeros alinhados ao clone slim (locações não vão na VM). */
-      protocolos: 0,
-      protocolosAtivos: 0,
-      protocolosFinalizados: 0,
-      pagamentos: 0,
       manutencoes: manutList.length,
       manutencoesRapidas: Array.isArray(e.dk_manutencoes_rapidas_v1) ? e.dk_manutencoes_rapidas_v1.length : 0,
       manutencoesAtivas: manutAtivasAssinatura.split("|").filter(Boolean).length,
@@ -296,6 +260,8 @@
       setorMovimentacoes: Array.isArray(e.dk_portal_setor_movimentacoes_v1)
         ? e.dk_portal_setor_movimentacoes_v1.length
         : 0,
+      oficinaPropriaAtivas,
+      funcionarios: Array.isArray(e.dk_funcionarios_access) ? e.dk_funcionarios_access.length : 0,
     };
   }
 
