@@ -3706,7 +3706,7 @@
     "operacao-relatorio-rotatividade": "Relatório de rotatividade",
     "operacao-relatorio-inatividade": "Relatório de inatividade",
     "operacao-lancamento-aluguel": "Lançamento de aluguel",
-    "operacao-lancamento-multas": "Lançamento de multas",
+    "operacao-lancamento-multas": "Lançamento de multa",
     "operacao-manutencao-cliente": "Lançamento de manutenção",
     "operacao-cadastro-colaborador": "Cadastro de colaborador",
     "operacao-cadastro-administrador": "Cadastro de administrador",
@@ -23746,6 +23746,9 @@
     if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
       window.__DK_manutClienteRefreshPendenteCadastro(loc);
     }
+    if (typeof window.__DK_multaClienteRefreshPendenteCadastro === "function") {
+      window.__DK_multaClienteRefreshPendenteCadastro(loc);
+    }
   }
 
   function clearPortalLocacaoCamposParaNovoContrato() {
@@ -23773,6 +23776,9 @@
     refreshOperacaoLocacaoApagarProtocoloBtn();
     if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
       window.__DK_manutClienteRefreshPendenteCadastro(null);
+    }
+    if (typeof window.__DK_multaClienteRefreshPendenteCadastro === "function") {
+      window.__DK_multaClienteRefreshPendenteCadastro(null);
     }
   }
 
@@ -24806,6 +24812,9 @@
     if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
       window.__DK_manutClienteRefreshPendenteCadastro(prev);
     }
+    if (typeof window.__DK_multaClienteRefreshPendenteCadastro === "function") {
+      window.__DK_multaClienteRefreshPendenteCadastro(prev);
+    }
     if (typeof window.__DK_manutClienteResumoLoc === "function") {
       const manutR = window.__DK_manutClienteResumoLoc(prev);
       if (manutR && Number(manutR.restante) > 0.009) {
@@ -24820,6 +24829,24 @@
         );
         if (!segue) {
           portalLocacaoFeedback(`VALOR PENDENTE DE MANUTENÇÃO: ${fmt}`);
+          return;
+        }
+      }
+    }
+    if (typeof window.__DK_multaClienteResumoLoc === "function") {
+      const multaR = window.__DK_multaClienteResumoLoc(prev);
+      if (multaR && Number(multaR.restante) > 0.009) {
+        const wrap = document.getElementById("operacaoLocacaoMultaPendenteWrap");
+        wrap?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+        const fmt =
+          typeof currencyBRL === "function"
+            ? currencyBRL(multaR.restante)
+            : Number(multaR.restante || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        const segue = window.confirm(
+          `VALOR PENDENTE DE MULTA: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
+        );
+        if (!segue) {
+          portalLocacaoFeedback(`VALOR PENDENTE DE MULTA: ${fmt}`);
           return;
         }
       }

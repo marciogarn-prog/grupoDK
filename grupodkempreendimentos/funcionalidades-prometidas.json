@@ -993,7 +993,7 @@
     },
     {
       "id": "lancamento-multas-scroll-mouse",
-      "descricao": "Na tela Lançamento de multas, rodar a bola do mouse move o conteúdo (pesquisa, dados do protocolo, documentos e formulário da multa).",
+      "descricao": "Na tela Lançamento de multa, rodar a bola do mouse move o conteúdo (pesquisa, despesa, pagamento e histórico).",
       "ficheiros": {
         "index.html": [
           "operacaoInlineLancamentoMultas",
@@ -1010,80 +1010,32 @@
       }
     },
     {
-      "id": "lancamento-multas-leitura-imagem",
-      "descricao": "No Lançamento de multas, a caixa Imagem da autuação fica no tamanho da tela para visualizar a captura; cole/anexe a imagem e Ler dados da imagem preenche placa, data, código, descrição e valor.",
+      "id": "lancamento-multa-igual-manutencao",
+      "descricao": "Lançamento de multa usa o mesmo layout e funcionalidade do Lançamento de manutenção: Registrar despesa, Registrar pagamento de multa, histórico e resumo TOTAL DE MULTAS / TOTAL PAGO / VALOR RESTANTE; se restante > 0, no Cadastro de locação aparece VALOR PENDENTE DE MULTA ao finalizar.",
       "ficheiros": {
         "index.html": [
-          "operacaoLancMultasOcrPanel",
-          "operacaoLancMultasOcrZone",
-          "Ler dados da imagem",
-          "Imagem da autuação"
+          "operacaoInlineLancamentoMultas",
+          "Lançamento de multa",
+          "Registrar despesa",
+          "Registrar pagamento de multa",
+          "TOTAL DE MULTAS",
+          "VALOR RESTANTE",
+          "operacaoLocacaoMultaPendenteWrap",
+          "VALOR PENDENTE DE MULTA"
         ],
-        "portal-multas-ocr.js": [
-          "Ler dados da imagem",
-          "__DK_aplicarLeituraMulta",
-          "ocrOpenAi",
-          "ocrLocal",
-          "Placa à época da infração",
-          "foraDaFrota"
+        "portal-lancamento-multa.js": [
+          "DESPESA_MULTA",
+          "PAGAMENTO_MULTA",
+          "portalMultaClienteLancamentos",
+          "__DK_multaClienteResumoLoc",
+          "__DK_multaClienteRefreshPendenteCadastro"
         ],
-        "portal-lancamentos-extras.js": [
-          "aplicarLeituraMulta",
-          "locCobreData",
-          "Placa não faz parte dos veículos da empresa."
-        ],
-        "styles.css": [
-          "portal-multas-ocr__zone",
-          "min-height: min(58vh, 36rem)"
-        ],
-        "dk-parse-autuacao-transito.js": [
-          "parseAutuacaoTransito",
-          "renainf",
-          "ehPlacaMercosulAtual",
-          "Placa [àa] [ée]poca da infra"
-        ]
-      }
-    },
-    {
-      "id": "lancamento-multas-form-autuacao",
-      "descricao": "Abaixo da imagem da autuação existe o formulário com os cabeçalhos da multa (placa, órgãos, local, data/hora, auto, código, RENAINF, valor, prazos). A leitura preenche as caixas só se a placa estiver no cadastro de veículos; placa+data+hora ligam ao protocolo; sem contrato ativo o Cliente mostra NESTE PERIODO VEICULO DISPONIVEL. Placa fora da frota: não preenche nada e informa só Placa não faz parte dos veículos da empresa.",
-      "ficheiros": {
-        "index.html": [
-          "operacaoLancMultasOcrForm",
-          "operacaoLancMultasOcrPlaca",
-          "Órgão Autuador",
-          "Número RENAINF",
-          "operacaoLancMultasOcrCliente"
-        ],
-        "portal-lancamentos-extras.js": [
-          "NESTE PERIODO VEICULO DISPONIVEL",
-          "preencherFormularioAutuacao",
-          "escolherLocacaoNaData",
-          "foraDaFrota"
+        "portal-locadora-ui.js": [
+          "__DK_multaClienteRefreshPendenteCadastro",
+          "VALOR PENDENTE DE MULTA"
         ],
         "styles.css": [
-          "portal-multas-ocr-form__row",
-          "color: #4ade80"
-        ]
-      }
-    },
-    {
-      "id": "lancamento-multas-botoes-autuacao",
-      "descricao": "No formulário Dados da autuação existem três botões: SALVAR DADOS, LIMPAR DADOS e EXCLUIR DADOS.",
-      "ficheiros": {
-        "index.html": [
-          "SALVAR DADOS",
-          "LIMPAR DADOS",
-          "EXCLUIR DADOS",
-          "operacaoLancMultasOcrSalvarBtn"
-        ],
-        "portal-lancamentos-extras.js": [
-          "salvarDadosAutuacaoForm",
-          "limparDadosAutuacaoForm",
-          "excluirDadosAutuacaoForm"
-        ],
-        "styles.css": [
-          "portal-multas-ocr-form__actions"
+          "portal-locacao-manut-pendente"
         ]
       }
     },

@@ -1378,6 +1378,8 @@
 
   function bindTipo(cfg) {
     if (cfg.key === "lancamentoManutencao") return;
+    /* Lançamento de multa passou a usar portal-lancamento-multa.js (mesmo modelo da manutenção). */
+    if (cfg.key === "lancamentoMultas") return;
     if (state.get(cfg.key)) return;
     state.set(cfg.key, true);
 

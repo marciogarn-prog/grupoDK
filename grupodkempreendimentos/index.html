@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261110lancManut">
+  <link rel="stylesheet" href="styles.css?v=20261110lancMulta">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -1066,9 +1066,9 @@
                 </button>
               </nav>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" data-area-ocupacao="operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
-                <span class="btn-operacao-cmd__title">Lançamento de multas</span>
+                <span class="btn-operacao-cmd__title">Lançamento de multa</span>
                 <span class="btn-operacao-cmd__ocupado" hidden></span>
-                <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
+                <span class="btn-operacao-cmd__hint">Despesa e pagamento de multa de responsabilidade do cliente</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-manutencao-cliente" data-area-ocupacao="operacao-manutencao-cliente" aria-expanded="false" aria-controls="operacaoInlineManutencaoCliente">
                 <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
@@ -1722,6 +1722,18 @@
                 tabindex="-1"
                 value=""
                 aria-label="VALOR PENDENTE DE MANUTENÇÃO"
+              >
+            </label>
+            <label id="operacaoLocacaoMultaPendenteWrap" class="portal-field portal-locacao-manut-pendente hidden" hidden role="status" aria-live="polite">
+              <span id="operacaoLocacaoMultaPendenteTxt">VALOR PENDENTE DE MULTA</span>
+              <input
+                type="text"
+                id="operacaoLocacaoMultaPendenteValor"
+                class="portal-locacao-manut-pendente__valor"
+                readonly
+                tabindex="-1"
+                value=""
+                aria-label="VALOR PENDENTE DE MULTA"
               >
             </label>
             <!-- Campos calculados movidos para «Lançamento de aluguel» (situação após pagamento). Mantidos ocultos para os cálculos/exports internos. -->
@@ -2766,219 +2778,116 @@
 
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
-          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Cole ou anexe a <strong>imagem da autuação</strong> na caixa abaixo — o sistema <strong>lê os dados</strong> e preenche o formulário. Também pode depositar o PDF em <strong>Documentos</strong> e usar <strong>Importar multa</strong>. As parcelas são a cada <strong>7 dias</strong>.</p>
-          <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
-            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
-              <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> &mdash; as sugestões cruzam-se. Com qualquer um concluído, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
-              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
-                <label class="portal-field portal-field--wide">
-                  <span>Nome do cliente</span>
-                  <input type="search" id="operacaoLancMultasNomeBusca" name="dk_lanc_multas_nome_cliente_busca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes" aria-autocomplete="list" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-dk-no-login-autofill="1" readonly>
-                  <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
-                </label>
-                  <label class="portal-field portal-field--combobox">
-                    <span>CPF</span>
-                    <div class="portal-combobox">
-                      <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" aria-autocomplete="list" aria-expanded="false" aria-controls="operacaoLancMultasCpfLista">
-                      <div id="operacaoLancMultasCpfLista" class="portal-placa-dropdown portal-admin-cpf-dropdown hidden" role="listbox" aria-label="CPFs com contrato" hidden></div>
+          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multa</h3>
+          <p class="subtext operacao-inline-form__lead">
+            Quando a multa for de responsabilidade do cliente: registre a <strong>despesa</strong> (valor + descrição) e, depois, o <strong>pagamento de multa</strong>.
+          </p>
+          <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multa-pesquisa-title">
+            <h4 id="portal-lanc-multa-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+            <div class="portal-lanc-aluguel-pesquisa__row">
+              <label class="portal-field portal-lanc-field--nome">
+                <span>Nome do cliente</span>
+                <input type="search" id="operacaoLancMultaNomeBusca" name="dk_lanc_multa_nome_busca" autocomplete="off" maxlength="120" placeholder="Nome do cliente" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--cpf">
+                <span>CPF</span>
+                <input type="search" id="operacaoLancMultaCpf" name="dk_lanc_multa_cpf_busca" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--protocolo">
+                <span>Nº do protocolo</span>
+                <input type="search" id="operacaoLancMultaProtocolo" name="dk_lanc_multa_protocolo_busca" maxlength="12" autocomplete="off" placeholder="2026010101" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--placa">
+                <span>Placa</span>
+                <input type="search" id="operacaoLancMultaPlaca" name="dk_lanc_multa_placa_busca" maxlength="7" autocomplete="off" placeholder="ABC1D23" autocapitalize="characters" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                <button type="button" class="btn-primary" id="operacaoLancMultaConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultaLimparPesquisaBtn">Limpar dados</button>
+              </div>
+            </div>
+            <div id="operacaoLancMultaPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões de contrato" hidden></div>
+          </section>
+          <div id="operacaoLancMultaPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento de multa" hidden>
+            <div id="operacaoLancMultaWorkspace" class="portal-lanc-avulso-workspace">
+              <div class="portal-lanc-avulso-workspace__forms">
+                <section id="operacaoLancMultaResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite" hidden>
+                  <p id="operacaoLancMultaResumoTexto" class="portal-lanc-aluguel-resumo-compact__text"></p>
+                </section>
+                <section id="operacaoLancMultaPagamentoPanel" class="portal-lanc-aluguel-pagamento portal-lanc-aluguel-pagamento--simples">
+                  <div class="portal-lanc-dual-cols">
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento">
+                      <h4 class="portal-lanc-aluguel-section__title">Registrar despesa</h4>
+                      <p class="subtext">Multa de responsabilidade do cliente — valor e descrição na observação.</p>
+                      <div class="portal-lanc-dual-col__grid portal-lanc-pagto-linha">
+                        <label class="portal-field portal-lanc-field--data">
+                          <span>DATA DA DESPESA</span>
+                          <input type="text" id="operacaoLancMultaDataDespesa" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DESPESA">
+                        </label>
+                        <label class="portal-field portal-lanc-field--valor">
+                          <span>VALOR (R$)</span>
+                          <input type="text" id="operacaoLancMultaValorDespesa" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da despesa de multa">
+                        </label>
+                      </div>
+                      <label class="portal-field portal-lanc-comentario-pagamento">
+                        <span>OBSERVAÇÃO / DESCRIÇÃO</span>
+                        <textarea id="operacaoLancMultaObsDespesa" rows="2" maxlength="500" placeholder="Descreva a multa…" aria-label="Observação da despesa de multa"></textarea>
+                      </label>
+                      <div class="portal-lanc-dual-col__actions">
+                        <button type="button" class="btn-primary" id="operacaoLancMultaConfirmarDespesaBtn">Confirmar despesa</button>
+                      </div>
                     </div>
-                    <datalist id="operacaoLancMultasCpfSugestoes" hidden></datalist>
-                  </label>
-                <label class="portal-field portal-field--combobox">
-                  <span>Nº do protocolo</span>
-                  <div class="portal-combobox">
-                    <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" aria-autocomplete="list" aria-expanded="false" aria-controls="operacaoLancMultasProtoLista">
-                    <div id="operacaoLancMultasProtoLista" class="portal-placa-dropdown portal-admin-cpf-dropdown hidden" role="listbox" aria-label="Protocolos de contrato" hidden></div>
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--credito-manut">
+                      <h4 class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--credito-manut">Registrar pagamento de multa</h4>
+                      <p class="subtext portal-lanc-credito-manut-hint">Abate o valor restante da multa devida pelo cliente.</p>
+                      <div class="portal-lanc-dual-col__grid">
+                        <label class="portal-field portal-lanc-field--data">
+                          <span>DATA DO PAGAMENTO</span>
+                          <input type="text" id="operacaoLancMultaDataPagamento" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO DE MULTA">
+                        </label>
+                        <label class="portal-field portal-lanc-field--valor">
+                          <span>VALOR (R$)</span>
+                          <input type="text" id="operacaoLancMultaValorPagamento" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento de multa">
+                        </label>
+                      </div>
+                      <label class="portal-field portal-lanc-comentario-pagamento">
+                        <span>COMENTÁRIO (opcional)</span>
+                        <textarea id="operacaoLancMultaObsPagamento" rows="2" maxlength="500" placeholder="Observação do pagamento…" aria-label="Comentário do pagamento de multa"></textarea>
+                      </label>
+                      <div class="portal-lanc-dual-col__actions">
+                        <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultaConfirmarPagamentoBtn">Confirmar pagamento de multa</button>
+                      </div>
+                    </div>
                   </div>
-                  <datalist id="operacaoLancMultasProtocoloSugestoes" hidden></datalist>
-                </label>
-                <label class="portal-field">
-                  <span>Placa da moto</span>
-                  <input type="text" id="operacaoLancMultasPlacaBusca" autocomplete="off" maxlength="8" placeholder="Ex.: ABC1D23" list="operacaoLancMultasPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
-                  <datalist id="operacaoLancMultasPlacaSugestoes"></datalist>
-                </label>
-                <div id="operacaoLancMultasPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Protocolos do cliente" hidden></div>
-                <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
-                  <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPesquisaBtn">Confirmar pesquisa</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparPesquisaBtn">Limpar dados</button>
-                </div>
+                  <div class="operacao-inline-form__actions">
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultaLimparFormBtn">Limpar</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultaVoltarPesquisaBtn">Voltar à pesquisa</button>
+                  </div>
+                  <p id="operacaoLancMultaMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+                </section>
               </div>
-            </section>
-            <section id="operacaoLancMultasOcrPanel" class="portal-multas-ocr" aria-labelledby="portal-lanc-multas-ocr-title">
-              <h4 id="portal-lanc-multas-ocr-title" class="portal-lanc-aluguel-section__title">Imagem da autuação</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Cole (Ctrl+V), arraste ou anexe a captura. A caixa fica neste tamanho para visualizar a multa. Depois clique em <strong>Ler dados da imagem</strong>.</p>
-              <div id="operacaoLancMultasOcrZone" class="portal-multas-ocr__zone" role="button" tabindex="0" aria-label="Área para colar ou anexar a imagem da multa">
-                <input type="file" id="operacaoLancMultasOcrFile" accept="image/*" hidden>
-                <p id="operacaoLancMultasOcrEmpty" class="portal-multas-ocr__empty">Cole ou solte a imagem da multa aqui</p>
-                <img id="operacaoLancMultasOcrImg" class="portal-multas-ocr__img hidden" alt="Imagem da autuação de trânsito" hidden>
-              </div>
-              <div class="operacao-inline-form__actions portal-multas-ocr__actions">
-                <button type="button" class="btn-primary" id="operacaoLancMultasOcrLerBtn">Ler dados da imagem</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasOcrLimparBtn">Limpar imagem</button>
-              </div>
-              <p id="operacaoLancMultasOcrMsg" class="portal-feedback" role="status" aria-live="polite"></p>
-              <section id="operacaoLancMultasOcrForm" class="portal-multas-ocr-form" aria-labelledby="portal-lanc-multas-ocr-form-title">
-                <h4 id="portal-lanc-multas-ocr-form-title" class="portal-lanc-aluguel-section__title">Dados da autuação</h4>
-                <p class="subtext portal-lanc-aluguel-section__hint">Cabeçalhos iguais à multa. As caixas recebem a leitura e podem ser corrigidas. Cliente e protocolo saem da placa + data/hora.</p>
-                <div class="portal-multas-ocr-form__table">
-                  <label class="portal-multas-ocr-form__row portal-multas-ocr-form__row--wide">
-                    <span>Infração</span>
-                    <input type="text" id="operacaoLancMultasOcrDescricao" maxlength="200" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Cliente</span>
-                    <input type="text" id="operacaoLancMultasOcrCliente" maxlength="160" autocomplete="off" placeholder="Ligado pelo protocolo da placa na data/hora">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Protocolo</span>
-                    <input type="text" id="operacaoLancMultasOcrProtocolo" maxlength="40" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Placa</span>
-                    <input type="text" id="operacaoLancMultasOcrPlaca" maxlength="8" autocomplete="off" autocapitalize="characters">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Órgão Autuador</span>
-                    <input type="text" id="operacaoLancMultasOcrOrgaoAutuador" maxlength="160" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Órgão Competente/Responsável</span>
-                    <input type="text" id="operacaoLancMultasOcrOrgaoCompetente" maxlength="160" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Local da Infração</span>
-                    <input type="text" id="operacaoLancMultasOcrLocal" maxlength="200" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Data/Hora do Cometimento da Infração</span>
-                    <input type="text" id="operacaoLancMultasOcrDataHora" maxlength="20" autocomplete="off" placeholder="DD/MM/AAAA HH:MM">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Número do Auto de Infração</span>
-                    <input type="text" id="operacaoLancMultasOcrAuto" maxlength="40" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Código da Infração</span>
-                    <input type="text" id="operacaoLancMultasOcrCodigo" maxlength="20" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Número RENAINF</span>
-                    <input type="text" id="operacaoLancMultasOcrRenainf" maxlength="20" autocomplete="off">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Valor Original</span>
-                    <input type="text" id="operacaoLancMultasOcrValor" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Data da Notificação de Autuação</span>
-                    <input type="text" id="operacaoLancMultasOcrNotificacao" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Data Limite para Interposição de Defesa Prévia</span>
-                    <input type="text" id="operacaoLancMultasOcrLimiteDefesa" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA">
-                  </label>
-                  <label class="portal-multas-ocr-form__row">
-                    <span>Data Limite para Identificação do Condutor Infrator</span>
-                    <input type="text" id="operacaoLancMultasOcrLimiteCondutor" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA">
-                  </label>
+              <aside class="portal-lanc-avulso-workspace__hist" aria-label="Resumo e lançamentos de multa">
+                <div id="operacaoLancMultaSaldosBox" class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" aria-live="polite">
+                  <div class="portal-lanc-aluguel-pagamento-saldo">
+                    <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DE MULTAS</span>
+                    <strong id="operacaoLancMultaTotalDespesas" class="portal-lanc-aluguel-pagamento-saldo__valor">R$ 0,00</strong>
+                  </div>
+                  <div class="portal-lanc-aluguel-pagamento-saldo">
+                    <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL PAGO</span>
+                    <strong id="operacaoLancMultaTotalPago" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--pago">R$ 0,00</strong>
+                    <div class="portal-lanc-aluguel-pagamento-saldo__foot portal-lanc-aluguel-pagamento-saldo__foot--total">
+                      <span class="portal-lanc-aluguel-pagamento-saldo__label">VALOR RESTANTE</span>
+                      <strong id="operacaoLancMultaValorRestante" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--total-geral">R$ 0,00</strong>
+                    </div>
+                  </div>
                 </div>
-                <div class="operacao-inline-form__actions portal-multas-ocr-form__actions" role="group" aria-label="Ações dos dados da autuação">
-                  <button type="button" class="btn-primary" id="operacaoLancMultasOcrSalvarBtn">SALVAR DADOS</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasOcrLimparDadosBtn">LIMPAR DADOS</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasOcrExcluirBtn">EXCLUIR DADOS</button>
-                </div>
-              </section>
-            </section>
-            <section id="operacaoLancMultasReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
-              <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
-              <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
-                <div class="portal-lanc-ref-row-top">
-                  <label class="portal-field portal-lanc-ref-proto">
-                    <span>PROTOCOLO</span>
-                    <select id="operacaoLancMultasProtocoloSelect" disabled><option value="">&mdash;</option></select>
-                  </label>
-                  <label class="portal-field portal-lanc-ref-placa">
-                    <span>PLACA</span>
-                    <input type="text" id="operacaoLancMultasPlaca" readonly tabindex="-1">
-                  </label>
-                </div>
-                <label class="portal-field"><span>DATA INÍCIO</span><input type="text" id="operacaoLancMultasDataInicio" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancMultasDataFim" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>TOTAL EM MULTAS (protocolo)</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1" title="Soma do valor das multas de trânsito registadas"></label>
-              </div>
-            </section>
-            <section id="operacaoLancMultasDocumentosDeposito" class="portal-lanc-multas-docs portal-loc-docs hidden" hidden aria-labelledby="portal-lanc-multas-docs-deposito-title">
-              <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Multas → app «Ver multas»</h4>
-              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong>. Pesquise, traga para o protocolo e depois <strong>Visualizar</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong>. Pode haver <strong>várias multas</strong> no mesmo protocolo.</p>
-              <div class="portal-loc-docs-busca" role="search">
-                <input type="search" class="portal-loc-docs-busca__input" id="operacaoLancMultasDocBusca" autocomplete="off" placeholder="Digite parte do nome ou placa…" aria-label="Pesquisar multa no depósito Documentos" disabled>
-                <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-busca__btn" id="operacaoLancMultasDocImportBtn" disabled>Importar multa</button>
-              </div>
-              <ul id="operacaoLancMultasDocSugestoes" class="portal-loc-docs-sugestoes hidden" role="listbox" aria-label="Sugestões de multas"></ul>
-              <p id="operacaoLancMultasDepositoMsg" class="subtext portal-loc-docs__msg" role="status"></p>
-              <ul id="operacaoLancMultasDocumentosLista" class="portal-loc-docs-list"></ul>
-            </section>
-            <section id="operacaoLancMultasLancamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden aria-labelledby="portal-lanc-multas-lancamento-title">
-              <h4 id="portal-lanc-multas-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da multa de trânsito</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Intervalo entre parcelas: <strong>7 dias</strong>. Última parcela = 1.ª parcela + (quantidade &mdash; 1) &times; 7 dias.</p>
-              <div class="operacao-inline-form__grid">
-                <label class="portal-field">
-                  <span>DATA DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasDataMulta" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
-                </label>
-                <label class="portal-field">
-                  <span>COD. DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasCodMulta" maxlength="40" autocomplete="off" placeholder="Código da autuação" required>
-                </label>
-                <label class="portal-field portal-field--wide">
-                  <span>DESCRI&Ccedil;&Atilde;O DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasDescricao" maxlength="200" autocomplete="off" placeholder="Ex.: excesso de velocidade" required>
-                </label>
-                <label class="portal-field">
-                  <span>VALOR DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasValorMulta" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required>
-                </label>
-                <label class="portal-field">
-                  <span>QUANTIDADE DE PARCELAS</span>
-                  <select id="operacaoLancMultasQtdParcelas" aria-label="Quantidade de parcelas de 1 a 10">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                  </select>
-                </label>
-                <label class="portal-field">
-                  <span>DATA DA PRIMEIRA PARCELA</span>
-                  <input type="text" id="operacaoLancMultasDataPrimeiraParcela" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
-                </label>
-                <label class="portal-field">
-                  <span>DATA DA &Uacute;LTIMA PARCELA</span>
-                  <input type="text" id="operacaoLancMultasDataUltimaParcela" readonly tabindex="-1" placeholder="Calculada automaticamente" title="Calculada: 1.ª parcela + (N&minus;1)&times;7 dias">
-                </label>
-                <div class="portal-field portal-field--wide">
-                  <p id="operacaoLancMultasCronogramaPreview" class="subtext portal-multas-cronograma-preview" role="status"></p>
-                </div>
-                <div class="operacao-inline-form__actions">
-                  <button type="button" class="btn-primary" id="operacaoLancMultasCadastrarBtn">Cadastrar multa</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparLancamentoBtn">Limpar formulário</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasVoltarBtn">Voltar</button>
-                </div>
-              </div>
-            </section>
-          </form>
-          <div id="operacaoLancMultasHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de multas do protocolo"></div>
-          <div id="operacaoLancMultasRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
-            <button type="button" class="btn-primary" id="operacaoLancMultasGerarRelatorioBtn">Relatório de multas (imprimir / PDF)</button>
+                <div id="operacaoLancMultaHistorico" class="operacao-lanc-historico" role="region" aria-label="Histórico de lançamento de multa"></div>
+              </aside>
+            </div>
           </div>
-          <p id="operacaoLancMultasInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+          <input type="hidden" id="operacaoLancMultaRefProto" value="">
+          <input type="hidden" id="operacaoLancMultaRefNome" value="">
+          <input type="hidden" id="operacaoLancMultaRefPlaca" value="">
         </div>
 
         <div id="operacaoInlineManutencaoCliente" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-manut-cliente-title">
@@ -6549,7 +6458,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261110lancManut" defer></script>
+  <script src="app.js?v=20261110lancMulta" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6563,8 +6472,9 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261110lancManut" defer></script>
-  <script src="portal-manutencao-cliente.js?v=20261110lancManut" defer></script>
+  <script src="portal-locadora-ui.js?v=20261110lancMulta" defer></script>
+  <script src="portal-manutencao-cliente.js?v=20261110lancMulta" defer></script>
+  <script src="portal-lancamento-multa.js?v=20261110lancMulta" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
@@ -6608,7 +6518,7 @@
   <script src="portal-contrato-pacote.js?v=20261007desconto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="dk-parse-autuacao-transito.js?v=20260904placa-ocr" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20261018cores" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20261110lancMulta" defer></script>
   <script src="portal-multas-ocr.js?v=20260904placa-frota" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20261106obsA" defer></script>
