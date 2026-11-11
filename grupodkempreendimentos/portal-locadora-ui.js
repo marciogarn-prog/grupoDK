@@ -1215,9 +1215,9 @@
     return portalTitularPodeUsarVerComo() && !portalTitularVerComo() && !portalFiscalVmAtivo();
   }
 
-  /** Liberação temporária: Lucelina (05780277478) pode apagar lançamentos de aluguel até 30/10/2026 (inclusive). */
+  /** Liberação temporária: Lucelina (05780277478) pode apagar lançamentos de aluguel até 31/12/2026 (inclusive). */
   const PORTAL_LUCELINA_APAGAR_LANC_CPF = "05780277478";
-  const PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO = "2026-10-30";
+  const PORTAL_LUCELINA_APAGAR_LANC_LIMITE_ISO = "2026-12-31";
 
   function portalHojeIsoLocalBr() {
     const n = new Date();
@@ -30191,7 +30191,7 @@
     const avisoApagar = document.getElementById("operacaoLancAluguelCeoApagarAviso");
     if (avisoApagar) {
       avisoApagar.textContent = portalLucelinaPodeApagarLancamentosAluguel()
-        ? "ATÉ 30/10/2026 A OPERADORA LUCELINA PODE APAGAR PAGAMENTOS (IGUAL AO CEO)"
+        ? "ATÉ 31/12/2026 A OPERADORA LUCELINA PODE APAGAR PAGAMENTOS (IGUAL AO CEO)"
         : "O ADMINISTRADOR CEO TEM O PODER DE APAGAR PAGAMENTOS";
     }
     renderOperacaoLancAluguelHistorico();
