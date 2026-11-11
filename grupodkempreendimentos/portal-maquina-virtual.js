@@ -608,7 +608,10 @@
           const cpf = digitos(m.cpf);
           const nome = String(m.nome || "Colaborador").trim() || "Colaborador";
           const resumo = m.resumo && typeof m.resumo === "object" ? m.resumo : {};
-          const meta = `${formatCpfMask(cpf)} · ${Number(resumo.clientes) || 0} clientes · ${Number(resumo.pagamentos) || 0} pag.`;
+          /* Clone da VM = manutenção/checklist (clientes e pagamentos vêm do PostgreSQL oficial). */
+          const manut = Number(resumo.manutencoesAtivas != null ? resumo.manutencoesAtivas : resumo.manutencoes) || 0;
+          const oficina = Number(resumo.oficinaPropriaAtivas) || 0;
+          const meta = `${formatCpfMask(cpf)} · ${manut} manut. activas · ${oficina} oficina própria`;
           const active = fiscal && fiscal.cpf === cpf ? " is-active" : "";
           return (
             `<button type="button" class="portal-admin-acessar-vm__item${active}" role="option" data-vm-cpf="${escapeHtml(cpf)}" data-vm-nome="${escapeHtml(nome)}">` +
