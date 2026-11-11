@@ -18490,3 +18490,73 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
     transform-origin: center top;
   }
 }
+
+/* Manutenção cliente — resumo + aviso no cadastro de locação */
+.portal-manut-cliente-resumo {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.portal-manut-cliente-resumo__kpi {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+.portal-manut-cliente-resumo__kpi span {
+  color: rgba(255, 255, 255, 0.72);
+  text-transform: uppercase;
+}
+.portal-manut-cliente-resumo__kpi strong {
+  color: #f5e6a8;
+  font-size: 1rem;
+}
+.portal-manut-cliente-resumo__kpi--resta strong,
+.portal-manut-cliente-resumo__resta--pendente {
+  color: #ff8b8b;
+}
+.portal-manut-cliente-hist__despesa {
+  color: #ffb4b4;
+  font-weight: 600;
+}
+.portal-manut-cliente-hist__pag {
+  color: #8fd4ff;
+  font-weight: 600;
+}
+.portal-lanc-dual-cols--manut-cliente {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 960px) {
+  .portal-lanc-dual-cols--manut-cliente {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.portal-locacao-manut-pendente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+  margin: 0.35rem 0 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border: 2px solid #2f6fff;
+  border-radius: 8px;
+  background: rgba(20, 60, 140, 0.35);
+  color: #dce9ff;
+  grid-column: 1 / -1;
+}
+.portal-locacao-manut-pendente strong {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ec1ff;
+}
+.portal-locacao-manut-pendente__valor {
+  font-weight: 700;
+  color: #fff;
+}

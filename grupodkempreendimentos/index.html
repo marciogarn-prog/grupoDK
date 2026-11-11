@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261110vm10">
+  <link rel="stylesheet" href="styles.css?v=20261110manutCli">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -1070,6 +1070,11 @@
                 <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-manutencao-cliente" data-area-ocupacao="operacao-manutencao-cliente" aria-expanded="false" aria-controls="operacaoInlineManutencaoCliente">
+                <span class="btn-operacao-cmd__title">Manutenção cliente</span>
+                <span class="btn-operacao-cmd__ocupado" hidden></span>
+                <span class="btn-operacao-cmd__hint">Despesa e pagamento de manutenção de responsabilidade do cliente</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-estoque" data-area-ocupacao="estoque" aria-expanded="false" aria-controls="panel-estoque-locadora">
                 <span class="btn-operacao-cmd__title">Estoque</span>
                 <span class="btn-operacao-cmd__ocupado" hidden></span>
@@ -1707,6 +1712,10 @@
                 title="Desconto se o pagamento cair no mesmo dia da semana do início do contrato. Depois desse dia, cobra o valor cheio."
               >
             </label>
+            <div id="operacaoLocacaoManutClientePendenteWrap" class="portal-locacao-manut-pendente hidden" hidden role="status" aria-live="polite">
+              <strong id="operacaoLocacaoManutClientePendenteTxt">VALOR PENDENTE DE MANUTENÇÃO</strong>
+              <span id="operacaoLocacaoManutClientePendenteValor" class="portal-locacao-manut-pendente__valor"></span>
+            </div>
             <!-- Campos calculados movidos para «Lançamento de aluguel» (situação após pagamento). Mantidos ocultos para os cálculos/exports internos. -->
             <div class="hidden" aria-hidden="true">
               <input type="text" id="operacaoLocacaoValorDevidoPlano" name="valorDevidoPlano" readonly tabindex="-1">
@@ -2964,7 +2973,91 @@
           <p id="operacaoLancMultasInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
 
-
+        <div id="operacaoInlineManutencaoCliente" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-manut-cliente-title">
+          <h3 id="operacao-inline-manut-cliente-title" class="operacao-inline-form__title">Manutenção cliente</h3>
+          <p class="subtext operacao-inline-form__lead">
+            Quando a manutenção do veículo for de responsabilidade do cliente: registre a <strong>despesa</strong> (valor + descrição) e, depois, o <strong>pagamento de manutenção</strong>.
+          </p>
+          <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-manut-cliente-pesquisa-title">
+            <h4 id="portal-manut-cliente-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+            <div class="portal-lanc-aluguel-pesquisa__row">
+              <label class="portal-field portal-lanc-field--nome">
+                <span>Nome do cliente</span>
+                <input type="search" id="operacaoManutClienteNomeBusca" name="dk_manut_cliente_nome_busca" autocomplete="off" maxlength="120" placeholder="Nome do cliente" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--cpf">
+                <span>CPF</span>
+                <input type="search" id="operacaoManutClienteCpf" name="dk_manut_cliente_cpf_busca" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--protocolo">
+                <span>Nº do protocolo</span>
+                <input type="search" id="operacaoManutClienteProtocolo" name="dk_manut_cliente_protocolo_busca" maxlength="12" autocomplete="off" placeholder="2026010101" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <label class="portal-field portal-lanc-field--placa">
+                <span>Placa</span>
+                <input type="search" id="operacaoManutClientePlaca" name="dk_manut_cliente_placa_busca" maxlength="7" autocomplete="off" placeholder="ABC1D23" autocapitalize="characters" data-dk-no-login-autofill="1" data-lpignore="true" data-form-type="other" readonly>
+              </label>
+              <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                <button type="button" class="btn-primary" id="operacaoManutClienteConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoManutClienteLimparPesquisaBtn">Limpar dados</button>
+              </div>
+            </div>
+            <div id="operacaoManutClientePesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões de contrato" hidden></div>
+          </section>
+          <section id="operacaoManutClienteRefPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
+            <div class="operacao-inline-form__grid">
+              <label class="portal-field"><span>PROTOCOLO</span><input type="text" id="operacaoManutClienteRefProto" readonly tabindex="-1"></label>
+              <label class="portal-field"><span>CLIENTE</span><input type="text" id="operacaoManutClienteRefNome" readonly tabindex="-1"></label>
+              <label class="portal-field"><span>PLACA</span><input type="text" id="operacaoManutClienteRefPlaca" readonly tabindex="-1"></label>
+            </div>
+          </section>
+          <div id="operacaoManutClienteWorkspace" class="portal-lanc-avulso-workspace portal-manut-cliente-workspace hidden" hidden>
+            <div class="portal-lanc-avulso-workspace__forms">
+              <div class="portal-lanc-dual-cols portal-lanc-dual-cols--manut-cliente">
+                <div class="portal-lanc-dual-col">
+                  <h4 class="portal-lanc-aluguel-section__title">Registrar despesa</h4>
+                  <p class="subtext">Manutenção de responsabilidade do cliente — valor e descrição na observação.</p>
+                  <div class="portal-lanc-dual-col__grid">
+                    <label class="portal-field"><span>DATA DA DESPESA</span><input type="text" id="operacaoManutClienteDataDespesa" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
+                    <label class="portal-field"><span>VALOR (R$)</span><input type="text" id="operacaoManutClienteValorDespesa" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00"></label>
+                  </div>
+                  <label class="portal-field portal-lanc-comentario-pagamento">
+                    <span>OBSERVAÇÃO / DESCRIÇÃO</span>
+                    <textarea id="operacaoManutClienteObsDespesa" rows="3" maxlength="500" placeholder="Descreva a manutenção realizada…"></textarea>
+                  </label>
+                  <div class="portal-lanc-dual-col__actions">
+                    <button type="button" class="btn-primary" id="operacaoManutClienteConfirmarDespesaBtn">Confirmar despesa</button>
+                  </div>
+                </div>
+                <div class="portal-lanc-dual-col">
+                  <h4 class="portal-lanc-aluguel-section__title">Registrar pagamento de manutenção</h4>
+                  <p class="subtext">Abate o valor restante da manutenção devida pelo cliente.</p>
+                  <div class="portal-lanc-dual-col__grid">
+                    <label class="portal-field"><span>DATA DO PAGAMENTO</span><input type="text" id="operacaoManutClienteDataPagamento" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
+                    <label class="portal-field"><span>VALOR (R$)</span><input type="text" id="operacaoManutClienteValorPagamento" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00"></label>
+                  </div>
+                  <label class="portal-field portal-lanc-comentario-pagamento">
+                    <span>COMENTÁRIO (opcional)</span>
+                    <textarea id="operacaoManutClienteObsPagamento" rows="3" maxlength="500" placeholder="Observação do pagamento…"></textarea>
+                  </label>
+                  <div class="portal-lanc-dual-col__actions">
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoManutClienteConfirmarPagamentoBtn">Confirmar pagamento de manutenção</button>
+                  </div>
+                </div>
+              </div>
+              <p id="operacaoManutClienteMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+            </div>
+            <aside class="portal-lanc-avulso-workspace__side" aria-label="Resumo e histórico de manutenção cliente">
+              <div class="portal-manut-cliente-resumo" id="operacaoManutClienteResumo" aria-live="polite">
+                <div class="portal-manut-cliente-resumo__kpi"><span>TOTAL DE MANUTENÇÕES</span><strong id="operacaoManutClienteTotalDespesas">R$ 0,00</strong></div>
+                <div class="portal-manut-cliente-resumo__kpi"><span>TOTAL PAGO</span><strong id="operacaoManutClienteTotalPago">R$ 0,00</strong></div>
+                <div class="portal-manut-cliente-resumo__kpi portal-manut-cliente-resumo__kpi--resta"><span>VALOR RESTANTE</span><strong id="operacaoManutClienteValorRestante">R$ 0,00</strong></div>
+              </div>
+              <h4 class="portal-lanc-aluguel-section__title">Lançamentos registrados</h4>
+              <div id="operacaoManutClienteHistorico" class="operacao-lanc-historico" role="region" aria-label="Histórico de manutenção cliente"></div>
+            </aside>
+          </div>
+        </div>
 
 <div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
           <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
@@ -6420,7 +6513,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261110vm10" defer></script>
+  <script src="app.js?v=20261110manutCli" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6434,7 +6527,8 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261110vm10" defer></script>
+  <script src="portal-locadora-ui.js?v=20261110manutCli" defer></script>
+  <script src="portal-manutencao-cliente.js?v=20261110manutCli" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>

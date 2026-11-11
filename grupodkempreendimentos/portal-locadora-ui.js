@@ -2336,6 +2336,7 @@
       ["btn-operacao-relatorio-inatividade", "operacaoInlineRelatorioInatividade", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
       ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
+      ["btn-operacao-manutencao-cliente", "operacaoInlineManutencaoCliente", "lancamentoAluguel"],
       ["btn-operacao-estoque", "panel-estoque-locadora", "estoque"],
       ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
     ];
@@ -2389,6 +2390,7 @@
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
+      "btn-operacao-manutencao-cliente",
       "btn-operacao-estoque",
     ];
     const visiveis = ids.filter((id) => {
@@ -3705,6 +3707,7 @@
     "operacao-relatorio-inatividade": "Relatório de inatividade",
     "operacao-lancamento-aluguel": "Lançamento de aluguel",
     "operacao-lancamento-multas": "Lançamento de multas",
+    "operacao-manutencao-cliente": "Manutenção cliente",
     "operacao-cadastro-colaborador": "Cadastro de colaborador",
     "operacao-cadastro-administrador": "Cadastro de administrador",
     log: "Log DK",
@@ -21066,6 +21069,7 @@
     document.getElementById("operacaoInlineRelatorioInatividade")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
+    document.getElementById("operacaoInlineManutencaoCliente")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
     document.getElementById("operacaoInlineAdministrador")?.classList.add("hidden");
     syncOperacaoLancAluguelSubnavVisible(false);
@@ -21090,6 +21094,7 @@
       "btn-operacao-relatorio-inatividade",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
+      "btn-operacao-manutencao-cliente",
       "btn-operacao-estoque",
       "btn-operacao-cadastro-colaborador",
       "btn-operacao-cadastro-administrador",
@@ -23738,6 +23743,9 @@
     if (lancForm) lancForm.classList.toggle("portal-registro-teste", portalRegistroEhTeste(loc));
     /* Depois de sync/refresh do picker: o protocolo carregado fica seleccionado (não NOVO). */
     pinOperacaoLocacaoProtocoloCarregado(nc);
+    if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
+      window.__DK_manutClienteRefreshPendenteCadastro(loc);
+    }
   }
 
   function clearPortalLocacaoCamposParaNovoContrato() {
@@ -23763,6 +23771,9 @@
     syncOperacaoLocacaoValorPlano();
     portalResetAmbienteForm("Locacao");
     refreshOperacaoLocacaoApagarProtocoloBtn();
+    if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
+      window.__DK_manutClienteRefreshPendenteCadastro(null);
+    }
   }
 
   function textoOperacaoLocacaoOptNovo() {
@@ -24792,6 +24803,27 @@
       return;
     }
     const prev = locs[idx];
+    if (typeof window.__DK_manutClienteRefreshPendenteCadastro === "function") {
+      window.__DK_manutClienteRefreshPendenteCadastro(prev);
+    }
+    if (typeof window.__DK_manutClienteResumoLoc === "function") {
+      const manutR = window.__DK_manutClienteResumoLoc(prev);
+      if (manutR && Number(manutR.restante) > 0.009) {
+        const wrap = document.getElementById("operacaoLocacaoManutClientePendenteWrap");
+        wrap?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+        const fmt =
+          typeof currencyBRL === "function"
+            ? currencyBRL(manutR.restante)
+            : Number(manutR.restante || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        const segue = window.confirm(
+          `VALOR PENDENTE DE MANUTENÇÃO: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
+        );
+        if (!segue) {
+          portalLocacaoFeedback(`VALOR PENDENTE DE MANUTENÇÃO: ${fmt}`);
+          return;
+        }
+      }
+    }
     const nomeCliente =
       String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
       String(prev.nome || "").trim();
@@ -34083,6 +34115,8 @@
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
+  window.__DK_hideOperacaoInlineFormsCore = hideOperacaoInlineFormsCore;
+  window.__DK_setOperacaoFormPlaceholderVisible = setOperacaoFormPlaceholderVisible;
   window.__DK_hideManutencaoInlineForms = () => {
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(true);
