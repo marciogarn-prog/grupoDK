@@ -8,7 +8,9 @@ import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ART = "/opt/cursor/artifacts";
+const ART = fs.existsSync("/opt/cursor/artifacts")
+  ? "/opt/cursor/artifacts"
+  : path.join(ROOT, "artifacts");
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -76,12 +78,17 @@ function cdpSession(wsUrl) {
 }
 
 async function withChromePage(fn) {
-  const chromeBin = ["/usr/bin/google-chrome-stable", "/usr/bin/google-chrome", "/usr/local/bin/google-chrome"].find(
-    (p) => fs.existsSync(p)
-  );
+  const chromeBin = [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/local/bin/google-chrome",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  ].find((p) => fs.existsSync(p));
   if (!chromeBin) throw new Error("Chrome não encontrado");
   const debugPort = 9237;
-  const userDir = fs.mkdtempSync("/tmp/dk-chrome-opcao-contratada-");
+  const tmpBase = process.env.TEMP || process.env.TMPDIR || "/tmp";
+  const userDir = fs.mkdtempSync(path.join(tmpBase, "dk-chrome-opcao-contratada-"));
   const child = spawn(
     chromeBin,
     [
@@ -237,7 +244,15 @@ const BUILD = `(() => {
     ? loadCadastro("dk_locacoes_cadastro")
     : JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]"))[0];
   const dados = window.__DK_contratoLocacaoResolverFromLoc(loc);
-  const html = window.__DK_contratoLocacaoBuildHtml(dados);
+  /* Regressão: base com 0000 + endereço placeholder não pode tapar o cadastro. */
+  const dadosBug = {
+    ...dados,
+    codigoCliente: "0000",
+    endereco: "endereço não cadastrado",
+    proprietarioCpfCnpj: "",
+  };
+  const enriquecido = window.__DK_contratoPacoteEnriquecer(dadosBug);
+  const html = window.__DK_contratoLocacaoBuildHtml(dadosBug);
   document.open();
   document.write(html);
   document.close();
@@ -254,9 +269,17 @@ const BUILD = `(() => {
     temValor: txt.includes("R$ 310,00") && txt.includes("R$ 20,00") && txt.includes("R$ 330,00"),
     temPlaca: txt.includes("UHJ1D50"),
     temProp: txt.includes("GRUPO DK"),
+    temPropCpf: /59\\.665\\.734\\/0001-32|59665734000132/.test(txt),
+    temCodigo: txt.includes("0392") && !/Código:\\s*0000/.test(txt),
+    temCelular: txt.includes("87991839851") || txt.includes("(87) 99183-9851"),
+    temEndereco: txt.includes("RUA TESTE") && !txt.toLowerCase().includes("endereço não cadastrado"),
     temOdometro: txt.includes("018452 Km(s)") || txt.includes("18452"),
     temRodape: (opcao?.querySelector(".pe-pagina")?.textContent || "").includes("Pág.: 1 / 1"),
     temImprimir: Boolean(document.getElementById("btnImprimir")),
+    enriquecidoCodigo: enriquecido?.codigoCliente,
+    enriquecidoCnh: enriquecido?.cnh,
+    enriquecidoEndereco: enriquecido?.endereco,
+    enriquecidoPropCpf: enriquecido?.proprietarioCpfCnpj,
     cnhCells: [...document.querySelectorAll(".opcao-grid--cnh .opcao-cell")].map((el) =>
       el.innerText.replace(/\s+/g, " ").trim()
     ),
@@ -281,6 +304,10 @@ async function main() {
       !textos.includes("Nº da CNH | Categoria")
   );
   record("grelha CNH em 4 colunas", /opcao-grid--cnh \{ grid-template-columns: 1\.5fr/.test(pacote));
+  record(
+    "pacote não deixa 0000 tapar código do cadastro",
+    pacote.includes("codigoClienteUtil(cliente?.codigo)") && pacote.includes("enderecoPacoteInutil")
+  );
 
   await withLocalServer(async (base) => {
     await withChromePage(async (session) => {
@@ -299,6 +326,26 @@ async function main() {
       record("locatário, veículo e proprietário", Boolean(built?.temNome && built?.temPlaca && built?.temProp));
       record("valores semanais e termo", Boolean(built?.temValor && built?.temTermo));
       record("rodapé Pág.: 1 / 1 e Imprimir", Boolean(built?.temRodape && built?.temImprimir));
+      record(
+        "código/CNH/celular/endereço do cadastro vencem placeholder 0000",
+        built?.enriquecidoCodigo === "0392" &&
+          built?.enriquecidoCnh === "4988259603" &&
+          Boolean(built?.temCodigo && built?.temCelular && built?.temEndereco && built?.temPropCpf) &&
+          String(built?.enriquecidoEndereco || "").includes("RUA TESTE") &&
+          /59665734000132|59\.665\.734\/0001-32/.test(String(built?.enriquecidoPropCpf || "")),
+        JSON.stringify({
+          codigo: built?.enriquecidoCodigo,
+          cnh: built?.enriquecidoCnh,
+          end: built?.enriquecidoEndereco,
+          prop: built?.enriquecidoPropCpf,
+          flags: {
+            temCodigo: built?.temCodigo,
+            temCelular: built?.temCelular,
+            temEndereco: built?.temEndereco,
+            temPropCpf: built?.temPropCpf,
+          },
+        })
+      );
       const cnh = built?.cnhCells || [];
       record(
         "linha CNH: 4 células com rótulo junto do valor",

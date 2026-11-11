@@ -64,26 +64,129 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function campoContratoUtil(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    if (text === "—" || text === "-" || text === "–" || text === "não informado") return false;
+    return true;
+  }
+
+  function codigoClienteUtil(raw) {
+    const fmt =
+      typeof window.formatClienteCodigoPadrao === "function"
+        ? window.formatClienteCodigoPadrao(raw)
+        : "";
+    if (fmt) return fmt;
+    const digits = onlyDigits(raw);
+    if (!digits) return "";
+    const n = Number(digits);
+    if (!Number.isFinite(n) || n <= 0) return "";
+    return String(Math.trunc(n)).padStart(4, "0");
+  }
+
+  function enderecoPacoteInutil(value) {
+    if (typeof window.__DK_portalEnderecoContratoValido === "function") {
+      return !window.__DK_portalEnderecoContratoValido(value);
+    }
+    const text = String(value ?? "").trim();
+    if (!text || text === "—") return true;
+    const norm = text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/\s+/g, " ");
+    return norm === "endereco nao cadastrado" || norm.includes("endereco do cliente");
+  }
+
+  function mergeClienteFontes(...fontes) {
+    const out = {};
+    for (const fonte of fontes) {
+      if (!fonte || typeof fonte !== "object") continue;
+      for (const [chave, valor] of Object.entries(fonte)) {
+        if (!campoContratoUtil(out[chave]) && campoContratoUtil(valor)) {
+          out[chave] = valor;
+        } else if (out[chave] === undefined && valor != null && String(valor).trim() !== "") {
+          out[chave] = valor;
+        }
+      }
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  function clienteDoFormularioAberto(cpfDigits) {
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return null;
+    const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
+    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+    if (formCpf !== d && locCpf !== d) return null;
+    return {
+      codigo: document.getElementById("operacaoClienteCodigo")?.value,
+      nome: document.getElementById("operacaoClienteNome")?.value,
+      celular: document.getElementById("operacaoClienteCelular")?.value,
+      recado1: document.getElementById("operacaoClienteRecado1")?.value,
+      recado2: document.getElementById("operacaoClienteRecado2")?.value,
+      cnh: document.getElementById("operacaoClienteCnh")?.value,
+      categoria: document.getElementById("operacaoClienteCategoria")?.value,
+      vencimento: document.getElementById("operacaoClienteVencimento")?.value,
+      ear: document.getElementById("operacaoClienteEar")?.value,
+      endereco: document.getElementById("operacaoClienteEndereco")?.value,
+      municipioUf: document.getElementById("operacaoClienteMunicipioUf")?.value,
+      cep: document.getElementById("operacaoClienteCep")?.value,
+      complemento: document.getElementById("operacaoClienteComplemento")?.value,
+      email: document.getElementById("operacaoClienteEmail")?.value,
+      rg: document.getElementById("operacaoClienteRg")?.value,
+    };
+  }
+
   function loadCliente(cpfDigits) {
     const d = onlyDigits(cpfDigits);
     if (d.length !== 11) return null;
+    const fontes = [];
+    const push = (obj) => {
+      if (obj && typeof obj === "object") fontes.push(obj);
+    };
     try {
-      if (typeof window.__DK_getClienteByCpfAny === "function") {
-        const hit = window.__DK_getClienteByCpfAny(d);
-        if (hit) return hit;
-      }
+      if (typeof window.__DK_getClienteByCpfAny === "function") push(window.__DK_getClienteByCpfAny(d));
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof window.findClienteByCpfCadastro === "function") push(window.findClienteByCpfCadastro(d));
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof window.findPortalClienteByCpf === "function") push(window.findPortalClienteByCpf(d));
     } catch {
       /* ignore */
     }
     try {
       if (typeof window.loadCadastro === "function") {
-        const list = window.loadCadastro("dk_clientes_cadastro") || [];
-        return list.find((c) => onlyDigits(c.cpf) === d) || null;
+        for (const key of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+          const list = window.loadCadastro(key) || [];
+          push(list.find((c) => onlyDigits(c?.cpf) === d));
+        }
       }
     } catch {
       /* ignore */
     }
-    return null;
+    try {
+      for (const key of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(arr)) push(arr.find((c) => onlyDigits(c?.cpf) === d));
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const banco = window.DK_BANCO_CADASTRO?.clientes;
+      if (Array.isArray(banco)) push(banco.find((c) => onlyDigits(c?.cpf) === d));
+    } catch {
+      /* ignore */
+    }
+    push(clienteDoFormularioAberto(d));
+    return mergeClienteFontes(...fontes);
   }
 
   function loadVeiculo(placa) {
@@ -119,7 +222,12 @@
   function pick(obj, keys, fallback = "") {
     for (const k of keys) {
       const v = obj?.[k];
-      if (v != null && String(v).trim()) return String(v).trim();
+      if (v == null) continue;
+      const text = String(v).trim();
+      if (!text) continue;
+      if (text === "—" || text === "-" || text === "–") continue;
+      if (text.toLowerCase() === "não informado" || text.toLowerCase() === "nao informado") continue;
+      return text;
     }
     return fallback;
   }
@@ -360,17 +468,59 @@
       uf: pick(cliente, ["uf", "estado"], "PE"),
     };
 
+    /* Nunca preferir «0000» / vazio do base sobre o código real do cadastro. */
     const codigoCliente =
-      (typeof window.formatClienteCodigoPadrao === "function"
-        ? window.formatClienteCodigoPadrao(base.codigoCliente || cliente?.codigo)
+      codigoClienteUtil(cliente?.codigo) ||
+      codigoClienteUtil(cliente?.clienteCodigo) ||
+      codigoClienteUtil(loc.clienteCodigo) ||
+      codigoClienteUtil(base.codigoCliente) ||
+      codigoClienteUtil(document.getElementById("operacaoClienteCodigo")?.value) ||
+      "0000";
+
+    const enderecoMontado = (() => {
+      if (typeof window.__DK_contratoLocacaoResolverEndereco === "function") {
+        const via = String(window.__DK_contratoLocacaoResolverEndereco(base.cpfDigits) || "").trim();
+        if (via && !enderecoPacoteInutil(via)) return via;
+      }
+      const end = pick(cliente, ["endereco", "enderecoBase", "logradouro", "enderecoResidencia"], "");
+      const comp = pick(cliente, ["complemento", "enderecoComplemento"], "");
+      const mun = pick(cliente, ["municipioUf", "municipio"], "");
+      const cepCli = pick(cliente, ["cep"], "");
+      const partes = [];
+      const linha = [end, comp].filter((x) => campoContratoUtil(x)).join(", ");
+      if (linha) partes.push(linha);
+      if (campoContratoUtil(mun)) partes.push(mun);
+      if (campoContratoUtil(cepCli)) {
+        const d = onlyDigits(cepCli);
+        partes.push(`cep ${d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : cepCli}`);
+      }
+      return partes.join(" ");
+    })();
+    const enderecoFinal = !enderecoPacoteInutil(base.endereco)
+      ? String(base.endereco).trim()
+      : enderecoMontado || "endereço não cadastrado";
+
+    const propDocRaw =
+      pick(base, ["proprietarioCpfCnpj"]) ||
+      pick(
+        {
+          form: document.getElementById("operacaoVeiculoProprietarioCpfCnpj")?.value,
+        },
+        ["form"]
+      ) ||
+      pick(veiculo, ["proprietarioCpfCnpj", "cpfCnpjProprietario", "cpfCnpj", "cpfProprietario"], "");
+    const propDocFmt =
+      (typeof window.__DK_formatPortalCpfCnpjExibicao === "function"
+        ? window.__DK_formatPortalCpfCnpjExibicao(propDocRaw)
         : "") ||
-      String(base.codigoCliente || cliente?.codigo || "0000").trim();
+      (campoContratoUtil(propDocRaw) ? String(propDocRaw).trim() : "") ||
+      "—";
 
     return {
       ...base,
       nome: String(base.nome || "").toUpperCase(),
       cpfFmt: base.cpfFmt || "",
-      endereco: base.endereco || "—",
+      endereco: enderecoFinal,
       placa: normPlaca(base.placa),
       marcaModelo,
       modalidade: base.modalidade || pick(loc, ["plano", "opcaoContrato"], "DK MEU TRANSPORTE"),
@@ -385,25 +535,25 @@
       celular: formatFoneOpcao(pick(cliente, ["celular", "telefone", "fone", "whatsapp"], "—")),
       recado1: formatFoneOpcao(pick(cliente, ["recado1", "recados01", "recado01"], "—")),
       recado2: formatFoneOpcao(pick(cliente, ["recado2", "recados02", "recado02"], "—")),
-      cnh: pick(cliente, ["cnh", "numeroCnh", "registroCnh"], "—"),
+      cnh: pick(cliente, ["cnh", "numeroCnh", "registroCnh", "cnhNumero"], "—"),
       cnhCategoria: pick(cliente, ["categoria", "cnhCategoria", "categoriaCnh"], "—").toUpperCase(),
       cnhValidade: pick(cliente, ["vencimento", "cnhValidade", "validadeCnh"], "—"),
       ear: formatEarOpcao(pick(cliente, ["ear"], "—")),
       rg: pick(cliente, ["rg", "identidade"], "—"),
       email: pick(cliente, ["email", "eMail"], "—"),
-      cep: enderecoParts.cep || "—",
+      cep: enderecoParts.cep || pick(cliente, ["cep"], "—") || "—",
       bairro: enderecoParts.bairro || "—",
       cidade: enderecoParts.cidade,
       uf: enderecoParts.uf,
-      proprietario: pick(base, ["proprietario"]) || pick(veiculo, ["proprietario"], "—"),
-      proprietarioCpfCnpj:
-        pick(base, ["proprietarioCpfCnpj"]) ||
-        (typeof window.__DK_formatPortalCpfCnpjExibicao === "function"
-          ? window.__DK_formatPortalCpfCnpjExibicao(
-              pick(veiculo, ["proprietarioCpfCnpj", "cpfCnpjProprietario", "cpfCnpj"])
-            )
-          : pick(veiculo, ["proprietarioCpfCnpj", "cpfCnpjProprietario", "cpfCnpj"], "—")) ||
-        "—",
+      proprietario:
+        pick(base, ["proprietario"]) ||
+        pick(veiculo, ["proprietario"], "—") ||
+        pick(
+          { form: document.getElementById("operacaoVeiculoProprietario")?.value },
+          ["form"],
+          "—"
+        ),
+      proprietarioCpfCnpj: propDocFmt,
       municipioVeiculo: pick(veiculo, ["local", "municipio", "municipioUf", "cidade"], "—"),
       valorAluguel: formatReaisBr(aluguelNum),
       valorInvestimento: formatReaisBr(invNum),

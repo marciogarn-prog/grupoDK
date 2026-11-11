@@ -389,7 +389,15 @@
     const statusLocacao = rawFim ? "FINALIZADO" : "ATIVO";
     const cliente = loadCliente(cpfDigits);
     const veiculo = loadVeiculoByPlaca(placa);
-    const codigoCliente = String(cliente?.codigo || "").trim() || "0000";
+    const codigoCliente =
+      (typeof formatClienteCodigoPadrao === "function"
+        ? formatClienteCodigoPadrao(cliente?.codigo)
+        : "") ||
+      (typeof formatClienteCodigoPadrao === "function"
+        ? formatClienteCodigoPadrao(document.getElementById("operacaoClienteCodigo")?.value)
+        : "") ||
+      String(cliente?.codigo || "").trim() ||
+      "0000";
     const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
     const proprietario = valorNaoVazio(
       document.getElementById("operacaoVeiculoProprietario")?.value,
@@ -400,7 +408,8 @@
         document.getElementById("operacaoVeiculoProprietarioCpfCnpj")?.value,
         veiculo?.proprietarioCpfCnpj,
         veiculo?.cpfCnpjProprietario,
-        veiculo?.cpfCnpj
+        veiculo?.cpfCnpj,
+        veiculo?.cpfProprietario
       )
     );
     const odometroInicio = formatOdometroContrato(
@@ -453,9 +462,12 @@
         modalidade,
         codigoCliente:
           (typeof formatClienteCodigoPadrao === "function"
-            ? formatClienteCodigoPadrao(loc.clienteCodigo || cliente?.codigo)
+            ? formatClienteCodigoPadrao(cliente?.codigo)
             : "") ||
-          String(loc.clienteCodigo || cliente?.codigo || "").trim() ||
+          (typeof formatClienteCodigoPadrao === "function"
+            ? formatClienteCodigoPadrao(loc.clienteCodigo)
+            : "") ||
+          String(cliente?.codigo || loc.clienteCodigo || "").trim() ||
           "0000",
         endereco: "",
         municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
@@ -468,7 +480,8 @@
             loc.proprietarioCpfCnpj,
             veiculo?.proprietarioCpfCnpj,
             veiculo?.cpfCnpjProprietario,
-            veiculo?.cpfCnpj
+            veiculo?.cpfCnpj,
+            veiculo?.cpfProprietario
           )
         ),
         odometroInicio: formatOdometroContrato(valorNaoVazio(loc.kmInicial, loc.odometroInicio)),
@@ -1579,6 +1592,7 @@ ${scriptPreviewInline(dados)}
 
   window.__DK_contratoLocacaoResolverFromForm = resolverDadosFromForm;
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
+  window.__DK_contratoLocacaoResolverEndereco = resolverEnderecoContrato;
   window.__DK_resolverEnderecoClienteContrato = resolverEnderecoContrato;
   window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
   window.__DK_contratoLocacaoCssPagina = cssContratoPagina;
