@@ -525,7 +525,7 @@
   function refreshPendenteCadastroLocacao(locOrNull) {
     const wrap = document.getElementById("operacaoLocacaoManutClientePendenteWrap");
     const valorEl = document.getElementById("operacaoLocacaoManutClientePendenteValor");
-    if (!wrap) return;
+    if (!wrap || !valorEl) return;
     let loc = locOrNull;
     if (!loc) {
       const hid = document.getElementById("operacaoLocacaoProtocolo");
@@ -535,18 +535,11 @@
         loc = collectLocs().find((l) => dig(l.cpf) === cpf && normNc(l.numeroContrato) === proto) || null;
       }
     }
-    if (!loc) {
-      show(wrap, false);
-      return;
-    }
-    const r = resumoLoc(loc);
-    if (r.restante > 0.009) {
-      if (valorEl) valorEl.value = fmtBrl(r.restante);
-      show(wrap, true);
-    } else {
-      if (valorEl) valorEl.value = "";
-      show(wrap, false);
-    }
+    const restante = loc ? Number(resumoLoc(loc).restante) || 0 : 0;
+    valorEl.value = fmtBrl(restante);
+    wrap.classList.toggle("is-zerado", !(restante > 0.009));
+    wrap.removeAttribute("hidden");
+    wrap.classList.remove("hidden");
   }
 
   function hideSiblingOperacaoPanels() {

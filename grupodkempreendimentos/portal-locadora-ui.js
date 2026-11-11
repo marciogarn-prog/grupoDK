@@ -24825,10 +24825,10 @@
             ? currencyBRL(manutR.restante)
             : Number(manutR.restante || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         const segue = window.confirm(
-          `VALOR PENDENTE DE MANUTENÇÃO: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
+          `PENDENCIA DE MANUTENÇÃO: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
         );
         if (!segue) {
-          portalLocacaoFeedback(`VALOR PENDENTE DE MANUTENÇÃO: ${fmt}`);
+          portalLocacaoFeedback(`PENDENCIA DE MANUTENÇÃO: ${fmt}`);
           return;
         }
       }
@@ -24843,10 +24843,10 @@
             ? currencyBRL(multaR.restante)
             : Number(multaR.restante || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         const segue = window.confirm(
-          `VALOR PENDENTE DE MULTA: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
+          `PENDENCIA DE MULTAS: ${fmt}\n\nDeseja continuar a finalização do contrato mesmo assim?`
         );
         if (!segue) {
-          portalLocacaoFeedback(`VALOR PENDENTE DE MULTA: ${fmt}`);
+          portalLocacaoFeedback(`PENDENCIA DE MULTAS: ${fmt}`);
           return;
         }
       }

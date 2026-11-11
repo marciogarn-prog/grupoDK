@@ -1872,9 +1872,11 @@ async function runSuite() {
         indexFresh.includes("operacaoLancMultaConfirmarDespesaBtn") &&
         indexFresh.includes("Registrar pagamento de multa") &&
         indexFresh.includes("TOTAL DE MULTAS") &&
-        indexFresh.includes("operacaoLocacaoMultaPendenteWrap") &&
+        indexFresh.includes("operacaoLocacaoPendenciasWrap") &&
+        indexFresh.includes("PENDENCIA DE MANUTENÇÃO") &&
+        indexFresh.includes("PENDENCIA DE MULTAS") &&
         indexFresh.includes("portal-lancamento-multa.js"),
-      "despesa + pagamento de multa; resumo TOTAL/PAGO/RESTANTE; pendente no cadastro"
+      "despesa + pagamento de multa; resumo TOTAL/PAGO/RESTANTE; pendências no cadastro"
     );
     const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob3`, {
       cache: "no-store",

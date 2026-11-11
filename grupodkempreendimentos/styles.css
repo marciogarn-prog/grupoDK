@@ -18538,6 +18538,17 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
     grid-template-columns: 1fr 1fr;
   }
 }
+.portal-locacao-pendencias {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.45rem 0.55rem;
+  min-width: 0;
+  align-items: stretch;
+}
+.portal-locacao-pendencias > .portal-field {
+  min-width: 0;
+  margin: 0;
+}
 .portal-locacao-manut-pendente {
   outline: 2px solid #e11d48;
   outline-offset: 1px;
@@ -18546,6 +18557,8 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
 .portal-locacao-manut-pendente > span {
   color: #fecaca;
   letter-spacing: 0.02em;
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 .portal-locacao-manut-pendente__valor,
 .portal-locacao-manut-pendente input.portal-locacao-manut-pendente__valor {
@@ -18553,4 +18566,11 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
   color: #fecaca !important;
   border-color: #e11d48 !important;
   background: rgba(127, 29, 29, 0.35) !important;
+}
+.portal-locacao-manut-pendente.is-zerado {
+  outline-color: rgba(225, 29, 72, 0.35);
+}
+.portal-locacao-manut-pendente.is-zerado > span,
+.portal-locacao-manut-pendente.is-zerado input.portal-locacao-manut-pendente__valor {
+  color: rgba(254, 202, 202, 0.65) !important;
 }

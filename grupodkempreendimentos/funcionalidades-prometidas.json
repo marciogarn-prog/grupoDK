@@ -1011,7 +1011,7 @@
     },
     {
       "id": "lancamento-multa-igual-manutencao",
-      "descricao": "Lançamento de multa usa o mesmo layout e funcionalidade do Lançamento de manutenção: Registrar despesa, Registrar pagamento de multa, histórico e resumo TOTAL DE MULTAS / TOTAL PAGO / VALOR RESTANTE; se restante > 0, no Cadastro de locação aparece VALOR PENDENTE DE MULTA ao finalizar.",
+      "descricao": "Lançamento de multa usa o mesmo layout e funcionalidade do Lançamento de manutenção: Registrar despesa, Registrar pagamento de multa, histórico e resumo TOTAL DE MULTAS / TOTAL PAGO / VALOR RESTANTE; no Cadastro de locação a caixa de pendências mostra PENDENCIA DE MULTAS com o valor restante.",
       "ficheiros": {
         "index.html": [
           "operacaoInlineLancamentoMultas",
@@ -1021,7 +1021,7 @@
           "TOTAL DE MULTAS",
           "VALOR RESTANTE",
           "operacaoLocacaoMultaPendenteWrap",
-          "VALOR PENDENTE DE MULTA"
+          "PENDENCIA DE MULTAS"
         ],
         "portal-lancamento-multa.js": [
           "DESPESA_MULTA",
@@ -1032,9 +1032,10 @@
         ],
         "portal-locadora-ui.js": [
           "__DK_multaClienteRefreshPendenteCadastro",
-          "VALOR PENDENTE DE MULTA"
+          "PENDENCIA DE MULTAS"
         ],
         "styles.css": [
+          "portal-locacao-pendencias",
           "portal-locacao-manut-pendente"
         ]
       }
@@ -3860,7 +3861,7 @@
     },
     {
       "id": "manutencao-cliente-operacao",
-      "descricao": "Em Operação, entre Lançamento de multas e Estoque, o botão Lançamento de manutenção abre painel como Lançamento de aluguel: Registrar despesa e Registrar pagamento de manutenção; histórico e resumo TOTAL DE MANUTENÇÕES / TOTAL PAGO / VALOR RESTANTE; se restante > 0, no Cadastro de locação aparece VALOR PENDENTE DE MANUTENÇÃO ao finalizar.",
+      "descricao": "Em Operação, entre Lançamento de multa e Estoque, o botão Lançamento de manutenção abre painel como Lançamento de aluguel: Registrar despesa e Registrar pagamento de manutenção; histórico e resumo TOTAL DE MANUTENÇÕES / TOTAL PAGO / VALOR RESTANTE; no Cadastro de locação a caixa dividida mostra PENDENCIA DE MANUTENÇÃO e PENDENCIA DE MULTAS com os valores restantes.",
       "ficheiros": {
         "index.html": [
           "btn-operacao-manutencao-cliente",
@@ -3872,8 +3873,10 @@
           "VALOR RESTANTE",
           "portal-lanc-avulso-workspace__hist",
           "portal-lanc-aluguel-pagamento-saldos--dual",
+          "operacaoLocacaoPendenciasWrap",
           "operacaoLocacaoManutClientePendenteWrap",
-          "VALOR PENDENTE DE MANUTENÇÃO"
+          "PENDENCIA DE MANUTENÇÃO",
+          "PENDENCIA DE MULTAS"
         ],
         "portal-manutencao-cliente.js": [
           "DESPESA_MANUTENCAO",
@@ -3887,10 +3890,11 @@
           "btn-operacao-manutencao-cliente",
           "operacaoInlineManutencaoCliente",
           "__DK_manutClienteRefreshPendenteCadastro",
-          "VALOR PENDENTE DE MANUTENÇÃO"
+          "PENDENCIA DE MANUTENÇÃO"
         ],
         "styles.css": [
           "portal-lanc-avulso-workspace__hist",
+          "portal-locacao-pendencias",
           "portal-locacao-manut-pendente"
         ]
       }
