@@ -2077,6 +2077,28 @@
       }
     },
     {
+      "id": "colaborador-permissao-lancamento-manutencao-cliente",
+      "descricao": "No Cadastro de colaborador, em Operações permitidas, existe a caixa Lançamento de manutenção (separada de Movimentações da manutenção). O colaborador com essa permissão vê o botão Lançamento de manutenção no menu Operação.",
+      "ficheiros": {
+        "index.html": [
+          "portalColabAceManutencaoCliente",
+          "Lançamento de manutenção",
+          "Operações permitidas"
+        ],
+        "portal-locadora-ui.js": [
+          "manutencaoCliente",
+          "portalColabAceManutencaoCliente",
+          "btn-operacao-manutencao-cliente"
+        ],
+        "app.js": [
+          "manutencaoCliente: Boolean(acessos?.manutencaoCliente)"
+        ],
+        "lib/dk-portal-module-access.cjs": [
+          "manutencaoCliente"
+        ]
+      }
+    },
+    {
       "id": "colab-horario-acesso",
       "descricao": "No Cadastro de colaborador: dias segunda a domingo com caixinha; Hora de início e Hora fim. Novos cadastros já vêm com seg a sex marcados, 08:00 a 18:00. Colaborador só entra no horário marcado. Em qualquer tela, 30 minutos antes do fim abre a janela O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS com botão ok.",
       "ficheiros": {

@@ -36,6 +36,10 @@ const MODULE_KEYS = {
     "dk_comprovantes_cliente_pendentes",
   ],
   lancamentoMultas: ["dk_lancamentos_multas", "dk_multas_cadastro"],
+  manutencaoCliente: [
+    "dk_locacoes_cadastro",
+    "dk_lancamentos_manutencao_cliente_v1",
+  ],
   lancamentoManutencao: [
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
@@ -98,6 +102,7 @@ function buildFullOperacaoAccess() {
     manutencao: false,
     lancamentoAluguel: false,
     lancamentoMultas: false,
+    manutencaoCliente: false,
     lancamentoManutencao: false,
     comunicacaoVendas: false,
     comunicacaoManutencao: false,
@@ -118,6 +123,7 @@ function normalizeOperacaoAccess(acessos, role) {
     manutencao: acessos?.manutencao ?? fallback.manutencao,
     lancamentoAluguel: acessos?.lancamentoAluguel ?? fallback.lancamentoAluguel,
     lancamentoMultas: acessos?.lancamentoMultas ?? fallback.lancamentoMultas,
+    manutencaoCliente: Boolean(acessos?.manutencaoCliente),
     lancamentoManutencao: acessos?.lancamentoManutencao ?? fallback.lancamentoManutencao,
     comunicacaoVendas: acessos?.comunicacaoVendas ?? fallback.comunicacaoVendas,
     comunicacaoManutencao: acessos?.comunicacaoManutencao ?? fallback.comunicacaoManutencao,

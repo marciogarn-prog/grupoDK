@@ -1023,9 +1023,10 @@
     { key: "veiculo", label: "Cadastro de veículo" },
     { key: "locacao", label: "Cadastro de locação" },
     { key: "lancamentoAluguel", label: "Lançamento de aluguel" },
-    { key: "lancamentoMultas", label: "Lançamento de multas" },
-    { key: "lancamentoManutencao", label: "Movimentações da manutenção" },
+    { key: "lancamentoMultas", label: "Lançamento de multa" },
+    { key: "manutencaoCliente", label: "Lançamento de manutenção" },
     { key: "estoque", label: "Estoque" },
+    { key: "lancamentoManutencao", label: "Movimentações da manutenção" },
     { key: "sistemaMiel", label: "Acesso ao sistema MIEL" },
   ];
 
@@ -1035,8 +1036,9 @@
     locacao: "portalColabAceLocacao",
     lancamentoAluguel: "portalColabAceLancAluguel",
     lancamentoMultas: "portalColabAceLancMultas",
-    lancamentoManutencao: "portalColabAceLancManutencao",
+    manutencaoCliente: "portalColabAceManutencaoCliente",
     estoque: "portalColabAceEstoque",
+    lancamentoManutencao: "portalColabAceLancManutencao",
     sistemaMiel: "portalColabAceSistemaMiel",
   };
 
@@ -1047,6 +1049,7 @@
       locacao: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.locacao)?.checked),
       lancamentoAluguel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoAluguel)?.checked),
       lancamentoMultas: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoMultas)?.checked),
+      manutencaoCliente: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.manutencaoCliente)?.checked),
       lancamentoManutencao: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoManutencao)?.checked),
       estoque: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.estoque)?.checked),
       sistemaMiel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.sistemaMiel)?.checked),
@@ -1070,6 +1073,7 @@
         a.locacao ||
         a.lancamentoAluguel ||
         a.lancamentoMultas ||
+        a.manutencaoCliente ||
         a.lancamentoManutencao ||
         a.estoque ||
         a.sistemaMiel
@@ -2149,6 +2153,7 @@
               manutencao: true,
               lancamentoAluguel: true,
               lancamentoMultas: true,
+              manutencaoCliente: true,
               lancamentoManutencao: true,
               comunicacaoVendas: true,
               comunicacaoManutencao: true,
@@ -2168,6 +2173,7 @@
         locacao: Boolean(rawFiscal?.locacao),
         lancamentoAluguel: Boolean(rawFiscal?.lancamentoAluguel),
         lancamentoMultas: Boolean(rawFiscal?.lancamentoMultas),
+        manutencaoCliente: Boolean(rawFiscal?.manutencaoCliente),
         lancamentoManutencao: Boolean(rawFiscal?.lancamentoManutencao),
         manutencao: false,
         lancamentoDespesa: false,
@@ -2183,6 +2189,7 @@
         locacao: true,
         lancamentoAluguel: true,
         lancamentoMultas: true,
+        manutencaoCliente: true,
         lancamentoManutencao: true,
         comunicacaoVendas: true,
         comunicacaoManutencao: true,
@@ -2204,6 +2211,7 @@
             manutencao: true,
             lancamentoAluguel: true,
             lancamentoMultas: true,
+            manutencaoCliente: true,
             lancamentoManutencao: true,
             comunicacaoVendas: true,
             comunicacaoManutencao: true,
@@ -2218,6 +2226,7 @@
             manutencao: true,
             lancamentoAluguel: true,
             lancamentoMultas: true,
+            manutencaoCliente: true,
             lancamentoManutencao: true,
             comunicacaoVendas: true,
             comunicacaoManutencao: true,
@@ -2238,6 +2247,7 @@
       locacao: Boolean(rawAcessos?.locacao),
       lancamentoAluguel: Boolean(rawAcessos?.lancamentoAluguel),
       lancamentoMultas: Boolean(rawAcessos?.lancamentoMultas),
+      manutencaoCliente: Boolean(rawAcessos?.manutencaoCliente),
       lancamentoManutencao: Boolean(rawAcessos?.lancamentoManutencao),
       manutencao: false,
       lancamentoDespesa: false,
@@ -2336,7 +2346,7 @@
       ["btn-operacao-relatorio-inatividade", "operacaoInlineRelatorioInatividade", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
       ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
-      ["btn-operacao-manutencao-cliente", "operacaoInlineManutencaoCliente", "lancamentoAluguel"],
+      ["btn-operacao-manutencao-cliente", "operacaoInlineManutencaoCliente", "manutencaoCliente"],
       ["btn-operacao-estoque", "panel-estoque-locadora", "estoque"],
       ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
     ];
@@ -11728,6 +11738,7 @@
     const c3 = document.getElementById("portalColabAceLocacao");
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
+    const cManCli = document.getElementById("portalColabAceManutencaoCliente");
     const c6 = document.getElementById("portalColabAceLancManutencao");
     const cEst = document.getElementById("portalColabAceEstoque");
     const c7 = document.getElementById("portalColabAceSistemaMiel");
@@ -11736,6 +11747,7 @@
     if (c3) c3.checked = true;
     if (c4) c4.checked = true;
     if (c5) c5.checked = true;
+    if (cManCli) cManCli.checked = true;
     if (c6) c6.checked = true;
     if (cEst) cEst.checked = false;
     if (c7) c7.checked = false;
@@ -11900,6 +11912,7 @@
     const c3 = document.getElementById("portalColabAceLocacao");
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
+    const cManCli = document.getElementById("portalColabAceManutencaoCliente");
     const c6 = document.getElementById("portalColabAceLancManutencao");
     const cEst = document.getElementById("portalColabAceEstoque");
     const c7 = document.getElementById("portalColabAceSistemaMiel");
@@ -11908,7 +11921,8 @@
     if (c3) c3.checked = Boolean(a.locacao);
     if (c4) c4.checked = Boolean(a.lancamentoAluguel);
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
-    if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
+    if (cManCli) cManCli.checked = Boolean(a.manutencaoCliente);
+    if (c6) c6.checked = Boolean(a.lancamentoManutencao);
     if (cEst) cEst.checked = Boolean(a.estoque);
     if (c7) c7.checked = Boolean(a.sistemaMiel);
     if (typeof window.__DK_aplicarHorarioColab === "function") {
@@ -12134,6 +12148,7 @@
       locacao: acessos.locacao ? "sim" : "não",
       lancamentoAluguel: acessos.lancamentoAluguel ? "sim" : "não",
       lancamentoMultas: acessos.lancamentoMultas ? "sim" : "não",
+      manutencaoCliente: acessos.manutencaoCliente ? "sim" : "não",
       lancamentoManutencao: acessos.lancamentoManutencao ? "sim" : "não",
       estoque: acessos.estoque ? "sim" : "não",
     };
