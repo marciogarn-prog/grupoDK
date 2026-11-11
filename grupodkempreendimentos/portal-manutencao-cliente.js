@@ -1,5 +1,5 @@
 /**
- * Manutenção cliente (Operação) — despesa + pagamento de manutenção
+ * Lançamento de manutenção (Operação) — despesa + pagamento de manutenção
  * de responsabilidade do cliente, por protocolo.
  * Campo na locação: portalManutencaoClienteLancamentos[]
  */
@@ -242,7 +242,7 @@
     const lancs = getLancamentos(loc);
     const proto = normNc(loc?.numeroContrato) || "—";
     if (!lancs.length) {
-      host.innerHTML = `<p class="subtext">Nenhum lançamento de manutenção cliente neste protocolo.</p>`;
+      host.innerHTML = `<p class="subtext">Nenhum lançamento de manutenção neste protocolo.</p>`;
       return;
     }
     const rows = lancs

@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261110manutPend">
+  <link rel="stylesheet" href="styles.css?v=20261110lancManut">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -1071,7 +1071,7 @@
                 <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-manutencao-cliente" data-area-ocupacao="operacao-manutencao-cliente" aria-expanded="false" aria-controls="operacaoInlineManutencaoCliente">
-                <span class="btn-operacao-cmd__title">Manutenção cliente</span>
+                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
                 <span class="btn-operacao-cmd__ocupado" hidden></span>
                 <span class="btn-operacao-cmd__hint">Despesa e pagamento de manutenção de responsabilidade do cliente</span>
               </button>
@@ -2982,7 +2982,7 @@
         </div>
 
         <div id="operacaoInlineManutencaoCliente" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-manut-cliente-title">
-          <h3 id="operacao-inline-manut-cliente-title" class="operacao-inline-form__title">Manutenção cliente</h3>
+          <h3 id="operacao-inline-manut-cliente-title" class="operacao-inline-form__title">Lançamento de manutenção</h3>
           <p class="subtext operacao-inline-form__lead">
             Quando a manutenção do veículo for de responsabilidade do cliente: registre a <strong>despesa</strong> (valor + descrição) e, depois, o <strong>pagamento de manutenção</strong>.
           </p>
@@ -3012,7 +3012,7 @@
             </div>
             <div id="operacaoManutClientePesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões de contrato" hidden></div>
           </section>
-          <div id="operacaoManutClientePaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Manutenção cliente" hidden>
+          <div id="operacaoManutClientePaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento de manutenção" hidden>
             <div id="operacaoManutClienteWorkspace" class="portal-lanc-avulso-workspace">
               <div class="portal-lanc-avulso-workspace__forms">
                 <section id="operacaoManutClienteResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite" hidden>
@@ -3070,7 +3070,7 @@
                   <p id="operacaoManutClienteMsg" class="portal-feedback" role="status" aria-live="polite"></p>
                 </section>
               </div>
-              <aside class="portal-lanc-avulso-workspace__hist" aria-label="Resumo e lançamentos de manutenção cliente">
+              <aside class="portal-lanc-avulso-workspace__hist" aria-label="Resumo e lançamentos de manutenção">
                 <div id="operacaoManutClienteSaldosBox" class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" aria-live="polite">
                   <div class="portal-lanc-aluguel-pagamento-saldo">
                     <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DE MANUTENÇÕES</span>
@@ -3085,7 +3085,7 @@
                     </div>
                   </div>
                 </div>
-                <div id="operacaoManutClienteHistorico" class="operacao-lanc-historico" role="region" aria-label="Histórico de manutenção cliente"></div>
+                <div id="operacaoManutClienteHistorico" class="operacao-lanc-historico" role="region" aria-label="Histórico de lançamento de manutenção"></div>
               </aside>
             </div>
           </div>
@@ -6549,7 +6549,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261110manutPend" defer></script>
+  <script src="app.js?v=20261110lancManut" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6563,8 +6563,8 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261110manutPend" defer></script>
-  <script src="portal-manutencao-cliente.js?v=20261110manutPend" defer></script>
+  <script src="portal-locadora-ui.js?v=20261110lancManut" defer></script>
+  <script src="portal-manutencao-cliente.js?v=20261110lancManut" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>

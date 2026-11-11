@@ -18491,7 +18491,7 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
   }
 }
 
-/* Manutenção cliente — resumo + aviso no cadastro de locação */
+/* Lançamento de manutenção — aviso no cadastro de locação */
 .portal-manut-cliente-resumo {
   display: grid;
   gap: 0.55rem;

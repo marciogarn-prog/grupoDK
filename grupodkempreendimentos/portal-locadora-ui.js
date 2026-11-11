@@ -3707,7 +3707,7 @@
     "operacao-relatorio-inatividade": "Relatório de inatividade",
     "operacao-lancamento-aluguel": "Lançamento de aluguel",
     "operacao-lancamento-multas": "Lançamento de multas",
-    "operacao-manutencao-cliente": "Manutenção cliente",
+    "operacao-manutencao-cliente": "Lançamento de manutenção",
     "operacao-cadastro-colaborador": "Cadastro de colaborador",
     "operacao-cadastro-administrador": "Cadastro de administrador",
     log: "Log DK",

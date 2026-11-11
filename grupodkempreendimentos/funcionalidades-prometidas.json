@@ -3908,11 +3908,12 @@
     },
     {
       "id": "manutencao-cliente-operacao",
-      "descricao": "Em Operação, entre Lançamento de multas e Estoque, o botão Manutenção cliente abre painel como Lançamento de aluguel: Registrar despesa e Registrar pagamento de manutenção; histórico e resumo TOTAL DE MANUTENÇÕES / TOTAL PAGO / VALOR RESTANTE; se restante > 0, no Cadastro de locação aparece VALOR PENDENTE DE MANUTENÇÃO ao finalizar.",
+      "descricao": "Em Operação, entre Lançamento de multas e Estoque, o botão Lançamento de manutenção abre painel como Lançamento de aluguel: Registrar despesa e Registrar pagamento de manutenção; histórico e resumo TOTAL DE MANUTENÇÕES / TOTAL PAGO / VALOR RESTANTE; se restante > 0, no Cadastro de locação aparece VALOR PENDENTE DE MANUTENÇÃO ao finalizar.",
       "ficheiros": {
         "index.html": [
           "btn-operacao-manutencao-cliente",
           "operacaoInlineManutencaoCliente",
+          "Lançamento de manutenção",
           "Registrar despesa",
           "Registrar pagamento de manutenção",
           "TOTAL DE MANUTENÇÕES",
