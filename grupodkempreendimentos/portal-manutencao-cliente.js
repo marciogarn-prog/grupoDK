@@ -541,10 +541,10 @@
     }
     const r = resumoLoc(loc);
     if (r.restante > 0.009) {
-      if (valorEl) valorEl.textContent = fmtBrl(r.restante);
+      if (valorEl) valorEl.value = fmtBrl(r.restante);
       show(wrap, true);
     } else {
-      if (valorEl) valorEl.textContent = "";
+      if (valorEl) valorEl.value = "";
       show(wrap, false);
     }
   }

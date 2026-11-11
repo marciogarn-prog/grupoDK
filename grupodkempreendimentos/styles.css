@@ -18539,24 +18539,18 @@ body.portal-body--admin-logado:has(#panel-log-locadora:not(.hidden)) #portal-adm
   }
 }
 .portal-locacao-manut-pendente {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 0.85rem;
-  margin: 0.35rem 0 0.85rem;
-  padding: 0.7rem 0.9rem;
-  border: 2px solid #2f6fff;
-  border-radius: 8px;
-  background: rgba(20, 60, 140, 0.35);
-  color: #dce9ff;
-  grid-column: 1 / -1;
+  outline: 2px solid #e11d48;
+  outline-offset: 1px;
+  border-radius: 6px;
 }
-.portal-locacao-manut-pendente strong {
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #9ec1ff;
+.portal-locacao-manut-pendente > span {
+  color: #fecaca;
+  letter-spacing: 0.02em;
 }
-.portal-locacao-manut-pendente__valor {
+.portal-locacao-manut-pendente__valor,
+.portal-locacao-manut-pendente input.portal-locacao-manut-pendente__valor {
   font-weight: 700;
-  color: #fff;
+  color: #fecaca !important;
+  border-color: #e11d48 !important;
+  background: rgba(127, 29, 29, 0.35) !important;
 }
