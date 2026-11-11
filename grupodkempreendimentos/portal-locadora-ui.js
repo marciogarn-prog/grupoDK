@@ -373,6 +373,16 @@
         if (modo === "admin") txt += " · VENDO COMO ADMINISTRADOR";
         else if (modo === "colaborador") txt += " · VENDO COMO COLABORADOR";
         else if (modo === "cliente") txt += " · VENDO COMO CLIENTE";
+        try {
+          const fiscal =
+            typeof window.__DK_vmFiscalAtual === "function" ? window.__DK_vmFiscalAtual() : null;
+          if (fiscal && fiscal.cpf) {
+            const nomeVm = String(fiscal.nome || "").trim() || fiscal.cpf;
+            txt += " · FISCAL VM " + nomeVm;
+          }
+        } catch {
+          /* ignore */
+        }
         label.textContent = txt;
       } else {
         label.textContent = "LOGADO COMO ADMINISTRADOR";
@@ -33797,6 +33807,7 @@
   window.__DK_portalPodeFinalizarLocacao = portalPodeFinalizarLocacao;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
+  window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
   window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
@@ -33907,6 +33918,7 @@
   window.__DK_portalAndroidSyncNavegacao = portalAndroidSyncNavegacao;
   window.__DK_portalAndroidVoltar = portalAndroidVoltar;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
+  window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
   window.__DK_portalOperadorPodeConferirComprovanteCliente = portalOperadorPodeConferirComprovanteCliente;

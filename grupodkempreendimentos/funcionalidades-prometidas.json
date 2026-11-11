@@ -2238,12 +2238,14 @@
     },
     {
       "id": "titular-ver-como-perfis",
-      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO; nesse fundo a fonte de destaque é amarela (não vermelha). Em VER COMO ADMINISTRADOR, VER COMO COLABORADOR ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO.",
+      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO; nesse fundo a fonte de destaque é amarela (não vermelha). Em VER COMO ADMINISTRADOR, ACESSAR VM ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO. ACESSAR VM abre lista suspensa das VMs; ao escolher uma, o PC sincroniza com essa VM (fiscal de sincronização).",
       "ficheiros": {
         "index.html": [
           "portalAdminVerComoWrap",
           "VER COMO ADMINISTRADOR",
-          "VER COMO COLABORADOR",
+          "ACESSAR VM",
+          "portalAdminAcessarVmBtn",
+          "portalAdminAcessarVmLista",
           "VER COMO CLIENTE",
           "VOLTAR A VER COMO CEO"
         ],
@@ -3865,7 +3867,7 @@
     },
     {
       "id": "banner-sincronizado-com-vm",
-      "descricao": "Na barra vermelha do administrador, entre VER COMO CLIENTE e Voltar, aparece SINCRONIZADO COM VM AS HH:MM:SS DO DIA DD-MM-AA. Fonte reduzida; sem mudar o layout da tela. Atualiza no login (espelhar), no Salvar e na consulta de delta da VM.",
+      "descricao": "Na barra vermelha do administrador, entre VER COMO CLIENTE e Voltar, aparece SINCRONIZADO COM VM AS HH:MM:SS DO DIA DD-MM-AA. Fonte bem pequena; sem mudar o layout da tela. Atualiza no login (espelhar), no Salvar, na consulta de delta e ao ACESSAR VM.",
       "ficheiros": {
         "index.html": [
           "portalVmSyncStatus",
@@ -3874,10 +3876,13 @@
         "portal-maquina-virtual.js": [
           "marcarSincronizadoComVm",
           "formatarTextoSyncVm",
-          "SINCRONIZADO COM VM AS"
+          "SINCRONIZADO COM VM AS",
+          "acessarVmPorCpf",
+          "abrirListaVms"
         ],
         "styles.css": [
-          "portal-admin-banner__vm-sync"
+          "portal-admin-banner__vm-sync",
+          "portal-admin-acessar-vm"
         ]
       }
     }

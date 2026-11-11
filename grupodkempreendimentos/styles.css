@@ -9955,16 +9955,16 @@ body.dk-pwa-update-bar-visible {
   box-shadow: 0 0 0 2px #fde68a;
 }
 
-/* Indicador de sync com a VM — fonte pequena, sem alterar o layout da barra. */
+/* Indicador de sync com a VM — fonte bem pequena, sem alterar o layout da barra. */
 .portal-admin-banner__vm-sync {
   flex: 1 1 8rem;
   min-width: 0;
   margin: 0 0.25rem;
   padding: 0;
-  font-size: 0.55rem;
+  font-size: 0.42rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.15;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
   text-transform: uppercase;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -9976,6 +9976,81 @@ body.dk-pwa-update-bar-visible {
 
 .portal-admin-banner__vm-sync:empty {
   display: none;
+}
+
+.portal-admin-acessar-vm {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.portal-admin-acessar-vm__lista {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 10050;
+  min-width: 16rem;
+  max-width: min(28rem, 92vw);
+  max-height: min(18rem, 55vh);
+  overflow: auto;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: #1f2937;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.portal-admin-acessar-vm__lista.hidden,
+.portal-admin-acessar-vm__lista[hidden] {
+  display: none !important;
+}
+
+.portal-admin-acessar-vm__item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f8fafc;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portal-admin-acessar-vm__item:hover,
+.portal-admin-acessar-vm__item:focus-visible {
+  background: #2563eb;
+  outline: none;
+}
+
+.portal-admin-acessar-vm__item.is-active {
+  background: #0f766e;
+}
+
+.portal-admin-acessar-vm__item-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.62rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.portal-admin-acessar-vm__vazio,
+.portal-admin-acessar-vm__erro {
+  padding: 0.45rem 0.55rem;
+  color: #e2e8f0;
+  font-size: 0.7rem;
+}
+
+.portal-admin-ver-como__btn.is-active-vm {
+  background: #0f766e;
+  border-color: #5eead4;
+  box-shadow: 0 0 0 2px #99f6e4;
 }
 
 .portal-admin-banner__nav {

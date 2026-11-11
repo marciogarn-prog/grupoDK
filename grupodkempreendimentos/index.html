@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261110vm4">
+  <link rel="stylesheet" href="styles.css?v=20261110vm5">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -67,7 +67,10 @@
       <button type="button" id="portalLocacoesIntegridadeAlerta" class="portal-admin-banner__integridade hidden" hidden aria-haspopup="dialog" aria-controls="portalLocacoesIntegridadeModal" title="Clique para ver o detalhe da auditoria de locações."></button>
       <div id="portalAdminVerComoWrap" class="portal-admin-ver-como hidden" hidden>
         <button type="button" id="portalAdminVerComoAdminBtn" class="portal-admin-ver-como__btn" data-ver-como="admin" title="Ver o sistema como administrador normal, sem permissões especiais.">VER COMO ADMINISTRADOR</button>
-        <button type="button" id="portalAdminVerComoColabBtn" class="portal-admin-ver-como__btn" data-ver-como="colaborador" title="Ver o sistema como colaborador.">VER COMO COLABORADOR</button>
+        <div id="portalAdminAcessarVmWrap" class="portal-admin-acessar-vm">
+          <button type="button" id="portalAdminAcessarVmBtn" class="portal-admin-ver-como__btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="portalAdminAcessarVmLista" title="Abrir lista das máquinas virtuais e sincronizar o PC com a VM escolhida (fiscal de sincronização).">ACESSAR VM</button>
+          <div id="portalAdminAcessarVmLista" class="portal-admin-acessar-vm__lista hidden" hidden role="listbox" aria-label="Máquinas virtuais disponíveis"></div>
+        </div>
         <button type="button" id="portalAdminVerComoClienteBtn" class="portal-admin-ver-como__btn" data-ver-como="cliente" title="Ver o sistema como cliente.">VER COMO CLIENTE</button>
         <button type="button" id="portalAdminVerComoCeoBtn" class="portal-admin-ver-como__btn portal-admin-ver-como__btn--ceo hidden" data-ver-como="ceo" hidden title="Voltar ao perfil completo de Administrador CEO.">VOLTAR A VER COMO CEO</button>
       </div>
@@ -6366,7 +6369,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261110vm4" defer></script>
+  <script src="app.js?v=20261110vm5" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6380,7 +6383,7 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261110vm4" defer></script>
+  <script src="portal-locadora-ui.js?v=20261110vm5" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
@@ -6432,9 +6435,9 @@
   <script src="portal-manutencao-rapida.js?v=20261107obsRapida" defer></script>
   <script src="portal-cliente-docs.js?v=20261027cliente-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-pacotes.js?v=20261110vm4" defer></script>
-  <script src="portal-maquina-virtual.js?v=20261110vm4" defer></script>
-  <script src="portal-supabase-sync.js?v=20261110vm4" defer></script>
+  <script src="portal-pacotes.js?v=20261110vm5" defer></script>
+  <script src="portal-maquina-virtual.js?v=20261110vm5" defer></script>
+  <script src="portal-supabase-sync.js?v=20261110vm5" defer></script>
   <script src="portal-locacao-pg.js?v=20261104ws9" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>

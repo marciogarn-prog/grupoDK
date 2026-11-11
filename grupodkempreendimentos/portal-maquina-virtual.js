@@ -32,10 +32,13 @@
 
   const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
   const SYNC_AT_KEY = "dk_vm_last_sync_at_v1";
+  const FISCAL_CPF_KEY = "dk_vm_fiscal_cpf_v1";
+  const FISCAL_NOME_KEY = "dk_vm_fiscal_nome_v1";
   let aplicandoDelta = false;
   let syncSalvarTimer = null;
   let pollTimer = null;
   let trocaTelaTimer = null;
+  let listaVmAberta = false;
 
   function digitos(v) {
     return String(v ?? "").replace(/\D/g, "").slice(0, 11);
@@ -119,6 +122,59 @@
     return s && s.tipo === "admin" ? String(s.nome || "").trim() : "";
   }
 
+  function lerFiscalVm() {
+    try {
+      const cpf = digitos(sessionStorage.getItem(FISCAL_CPF_KEY) || "");
+      if (cpf.length !== 11) return null;
+      return { cpf, nome: String(sessionStorage.getItem(FISCAL_NOME_KEY) || "").trim() };
+    } catch {
+      return null;
+    }
+  }
+
+  function gravarFiscalVm(cpf, nome) {
+    const dig = digitos(cpf);
+    try {
+      if (dig.length === 11) {
+        sessionStorage.setItem(FISCAL_CPF_KEY, dig);
+        sessionStorage.setItem(FISCAL_NOME_KEY, String(nome || "").trim());
+      } else {
+        sessionStorage.removeItem(FISCAL_CPF_KEY);
+        sessionStorage.removeItem(FISCAL_NOME_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.__DK_vmFiscal = dig.length === 11 ? { cpf: dig, nome: String(nome || "").trim() } : null;
+    } catch {
+      /* ignore */
+    }
+    const btn = document.getElementById("portalAdminAcessarVmBtn");
+    if (btn) btn.classList.toggle("is-active-vm", dig.length === 11);
+  }
+
+  /** CPF da VM sob fiscalização (ou a VM do operador logado). */
+  function cpfVmAtiva() {
+    const fiscal = lerFiscalVm();
+    if (fiscal && fiscal.cpf) return fiscal.cpf;
+    return cpfSessao();
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatCpfMask(cpf) {
+    const d = digitos(cpf);
+    if (d.length !== 11) return d;
+    return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  }
+
   function lerSeqLocal() {
     try {
       return Number(sessionStorage.getItem(SEQ_LS_KEY) || 0) || 0;
@@ -153,8 +209,9 @@
     return out;
   }
 
-  function aplicarEstadoNoPc(estado) {
+  function aplicarEstadoNoPc(estado, opts) {
     if (!estado || typeof estado !== "object") return { ok: false, aplicadas: 0 };
+    const fiscal = Boolean(opts && opts.fiscal);
     let aplicadas = 0;
     aplicandoDelta = true;
     window.__DK_vmAplicandoDelta = true;
@@ -162,7 +219,7 @@
       for (const k of CLONE_KEYS) {
         if (!Object.prototype.hasOwnProperty.call(estado, k)) continue;
         const cloudArr = Array.isArray(estado[k]) ? estado[k] : [];
-        if (!cloudArr.length && k !== "dk_manutencoes_cadastro") continue;
+        if (!fiscal && !cloudArr.length && k !== "dk_manutencoes_cadastro") continue;
         let localArr = [];
         try {
           localArr = typeof loadCadastro === "function" ? loadCadastro(k) || [] : [];
@@ -170,7 +227,7 @@
           localArr = [];
         }
         let merged = cloudArr;
-        if (typeof mergeCadastroHistoricoImutavel === "function") {
+        if (!fiscal && typeof mergeCadastroHistoricoImutavel === "function") {
           if (k === "dk_manutencoes_cadastro" && typeof window.__DK_mergeManutencoesCloudManda === "function") {
             merged = window.__DK_mergeManutencoesCloudManda(localArr, cloudArr);
           } else if (k.includes("veiculos")) {
@@ -182,7 +239,10 @@
           }
         }
         if (typeof saveCadastro === "function") {
-          saveCadastro(k, merged, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+          saveCadastro(k, Array.isArray(merged) ? merged : cloudArr, {
+            bypassImmutabilidadeCadastro: true,
+            allowShrink: true,
+          });
           aplicadas += 1;
         }
       }
@@ -245,11 +305,12 @@
     if (aplicandoDelta || window.__DK_vmAplicandoDelta) {
       return { ok: true, skipped: true, reason: "aplicando_delta" };
     }
-    const cpf = cpfSessao();
+    const cpf = cpfVmAtiva();
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
+    const fiscal = lerFiscalVm();
     const res = await postAcao("sincronizar-pc", {
       cpf,
-      nome: nomeSessao(),
+      nome: (fiscal && fiscal.nome) || nomeSessao(),
       estado: coletarEstadoPc(),
     });
     if (res.ok) {
@@ -273,7 +334,7 @@
    */
   async function consultarEBaixarDelta(motivo) {
     if (aplicandoDelta) return { ok: true, skipped: true };
-    const cpf = cpfSessao();
+    const cpf = cpfVmAtiva();
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
     const lastSeq = lerSeqLocal();
     const res = await postAcao("consultar-delta", { cpf, lastSeq });
@@ -330,6 +391,186 @@
     return postAcao("garantir-todos", {});
   }
 
+  function fecharListaVms() {
+    listaVmAberta = false;
+    const lista = document.getElementById("portalAdminAcessarVmLista");
+    const btn = document.getElementById("portalAdminAcessarVmBtn");
+    if (lista) {
+      lista.classList.add("hidden");
+      lista.hidden = true;
+      lista.innerHTML = "";
+    }
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  }
+
+  function renderListaVms(maquinas, alinhadas) {
+    const lista = document.getElementById("portalAdminAcessarVmLista");
+    if (!lista) return;
+    const fiscal = lerFiscalVm();
+    const rows = Array.isArray(maquinas) ? maquinas.slice() : [];
+    rows.sort((a, b) => String(a.nome || a.cpf || "").localeCompare(String(b.nome || b.cpf || ""), "pt-BR"));
+    if (!rows.length) {
+      lista.innerHTML = '<div class="portal-admin-acessar-vm__vazio">Nenhuma VM disponível.</div>';
+      return;
+    }
+    const status = alinhadas === false ? '<div class="portal-admin-acessar-vm__erro">Atenção: VMs com divergência.</div>' : "";
+    lista.innerHTML =
+      status +
+      rows
+        .map((m) => {
+          const cpf = digitos(m.cpf);
+          const nome = String(m.nome || "Colaborador").trim() || "Colaborador";
+          const resumo = m.resumo && typeof m.resumo === "object" ? m.resumo : {};
+          const meta = `${formatCpfMask(cpf)} · ${Number(resumo.clientes) || 0} clientes · ${Number(resumo.pagamentos) || 0} pag.`;
+          const active = fiscal && fiscal.cpf === cpf ? " is-active" : "";
+          return (
+            `<button type="button" class="portal-admin-acessar-vm__item${active}" role="option" data-vm-cpf="${escapeHtml(cpf)}" data-vm-nome="${escapeHtml(nome)}">` +
+            `<span>${escapeHtml(nome)}</span>` +
+            `<span class="portal-admin-acessar-vm__item-meta">${escapeHtml(meta)}</span>` +
+            `</button>`
+          );
+        })
+        .join("");
+  }
+
+  async function listarVmsNuvem() {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const r = await fetch("/api/dk-maquina-virtual?lista=1&nocache=" + Date.now(), {
+        method: "GET",
+        headers: { ...headers() },
+        signal: ctrl.signal,
+        cache: "no-store",
+      });
+      const data = await r.json().catch(() => ({}));
+      return { ok: Boolean(r.ok && (data.ok || data.success)), status: r.status, data };
+    } catch (e) {
+      return { ok: false, status: 0, data: { reason: "network", error: String(e && e.message ? e.message : e) } };
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  async function abrirListaVms() {
+    const lista = document.getElementById("portalAdminAcessarVmLista");
+    const btn = document.getElementById("portalAdminAcessarVmBtn");
+    if (!lista || !btn) return;
+    listaVmAberta = true;
+    lista.classList.remove("hidden");
+    lista.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    lista.innerHTML = '<div class="portal-admin-acessar-vm__vazio">A carregar VMs…</div>';
+    const res = await listarVmsNuvem();
+    if (!listaVmAberta) return;
+    if (!res.ok) {
+      lista.innerHTML =
+        '<div class="portal-admin-acessar-vm__erro">Não foi possível listar as VMs.</div>';
+      return;
+    }
+    renderListaVms(res.data.maquinas || [], res.data.alinhadas);
+  }
+
+  async function acessarVmPorCpf(cpf, nome) {
+    const dig = digitos(cpf);
+    if (dig.length !== 11) return { ok: false, reason: "cpf" };
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 45000);
+    try {
+      const r = await fetch(
+        "/api/dk-maquina-virtual?cpf=" + encodeURIComponent(dig) + "&nocache=" + Date.now(),
+        {
+          method: "GET",
+          headers: { ...headers() },
+          signal: ctrl.signal,
+          cache: "no-store",
+        }
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !(data.ok || data.success)) {
+        return { ok: false, status: r.status, data };
+      }
+      const label = String(nome || (data.meta && data.meta.nome) || "").trim();
+      gravarFiscalVm(dig, label);
+      const aplicado = aplicarEstadoNoPc(data.estado || {}, { fiscal: true });
+      if (data.seq != null) gravarSeqLocal(data.seq);
+      marcarSincronizadoComVm();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("dk-maquina-virtual-fiscal", {
+            detail: {
+              cpf: dig,
+              nome: label,
+              seq: data.seq,
+              resumo: data.resumo,
+              aplicadas: aplicado.aplicadas,
+            },
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      if (typeof window.__DK_portalAtualizarBannerAdmin === "function") {
+        try {
+          window.__DK_portalAtualizarBannerAdmin();
+        } catch {
+          /* ignore */
+        }
+      }
+      return { ok: true, cpf: dig, nome: label, aplicadas: aplicado.aplicadas, seq: data.seq, resumo: data.resumo };
+    } catch (e) {
+      return { ok: false, reason: "network", error: String(e && e.message ? e.message : e) };
+    } finally {
+      clearTimeout(t);
+      fecharListaVms();
+    }
+  }
+
+  function bindAcessarVmUi() {
+    if (window.__dkPortalAcessarVmBound) return;
+    window.__dkPortalAcessarVmBound = true;
+    const wrap = document.getElementById("portalAdminAcessarVmWrap");
+    const btn = document.getElementById("portalAdminAcessarVmBtn");
+    const lista = document.getElementById("portalAdminAcessarVmLista");
+    if (!wrap || !btn || !lista) return;
+
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (listaVmAberta) {
+        fecharListaVms();
+        return;
+      }
+      abrirListaVms().catch((e) => console.warn("[DK VM] lista", e));
+    });
+
+    lista.addEventListener("click", (ev) => {
+      const item = ev.target instanceof Element ? ev.target.closest("[data-vm-cpf]") : null;
+      if (!item) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const cpf = item.getAttribute("data-vm-cpf") || "";
+      const nome = item.getAttribute("data-vm-nome") || "";
+      lista.innerHTML = '<div class="portal-admin-acessar-vm__vazio">A sincronizar com a VM…</div>';
+      acessarVmPorCpf(cpf, nome)
+        .then((r) => {
+          if (!r.ok) console.warn("[DK VM] acessar", r);
+        })
+        .catch((e) => console.warn("[DK VM] acessar", e));
+    });
+
+    document.addEventListener("click", (ev) => {
+      if (!listaVmAberta) return;
+      const t = ev.target;
+      if (t instanceof Node && wrap.contains(t)) return;
+      fecharListaVms();
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && listaVmAberta) fecharListaVms();
+    });
+  }
+
   window.__DK_vmEspelharNoLogin = espelharNoLogin;
   window.__DK_vmSincronizarPc = sincronizarPcComClone;
   window.__DK_vmAposSalvar = agendarSyncAposSalvar;
@@ -341,8 +582,15 @@
   window.__DK_vmIniciarPoll = iniciarPollVm;
   window.__DK_vmPararPoll = pararPollVm;
   window.__DK_vmMarcarSincronizado = marcarSincronizadoComVm;
+  window.__DK_vmListar = listarVmsNuvem;
+  window.__DK_vmAcessar = acessarVmPorCpf;
+  window.__DK_vmFiscalAtual = lerFiscalVm;
+  window.__DK_vmCpfAtiva = cpfVmAtiva;
 
   restaurarStatusSyncVm();
+  const fiscalBoot = lerFiscalVm();
+  if (fiscalBoot) gravarFiscalVm(fiscalBoot.cpf, fiscalBoot.nome);
+  bindAcessarVmUi();
   if (cpfSessao().length === 11) {
     iniciarPollVm();
     consultarEBaixarDelta("inicio").catch(() => {});
