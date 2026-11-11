@@ -149,4 +149,48 @@ check(
 check("explicação cita ciclo segunda a segunda", /Ciclo segunda a segunda/.test(String(ex?.texto || "")));
 check("a devolver = pago − devido", approx(ex.aDevolver, ex.totalPago - ex.devidoAluguel));
 
+// DK MEU TRANSPORTE MOTO: mesma matemática sem investimento
+const locMtm = {
+  inicio: "02/11/2026",
+  plano: "DK MEU TRANSPORTE-MOTO",
+  valorLocacao: "360",
+  valorInvestimento: "0",
+  descontoPrazo: "30",
+  portalLancamentosAluguel: [{ data: "02/11/2026", valor: 330, tipoMovimento: "PAGAMENTO" }],
+};
+const pMtm = api.paramsFromLoc(locMtm);
+check("MEU TRANSPORTE: investimento 0", pMtm.investimento === 0);
+check("MEU TRANSPORTE: com desconto = 330", approx(pMtm.comDesconto, 330));
+check("MEU TRANSPORTE: sem desconto = 360", approx(pMtm.contratoCheio, 360));
+
+const rMtm5 = api.devidoAluguelAte(locMtm, null, { dias: 5 });
+check("MEU TRANSPORTE: 5 dias com desconto ≈ 235,71", approx(rMtm5.devidoAluguel, 5 * (330 / 7)));
+check("MEU TRANSPORTE: devolver ≈ 94,29", approx(rMtm5.aDevolver, 330 - 5 * (330 / 7)));
+
+const estMtm = api.buildSemanas(locMtm, { refDate: parseBrDate("16/11/2026"), weekCount: 3 });
+check("MEU TRANSPORTE: semana 0 com desconto", estMtm.semanas[0].comDesconto === true);
+check("MEU TRANSPORTE: semana 1 sem desconto cobra 360", approx(estMtm.semanas[1].cobrancaSemana, 360));
+
+const locMtmRec = {
+  ...locMtm,
+  portalLancamentosAluguel: [
+    { data: "02/11/2026", valor: 330, tipoMovimento: "PAGAMENTO" },
+    { data: "12/11/2026", valor: 360, tipoMovimento: "PAGAMENTO" },
+    { data: "16/11/2026", valor: 330, tipoMovimento: "PAGAMENTO" },
+  ],
+};
+const estMtmRec = api.buildSemanas(locMtmRec, { refDate: parseBrDate("20/11/2026"), weekCount: 5 });
+check("MEU TRANSPORTE: recuperação semana 2 com desconto após 360+330", estMtmRec.semanas[2].comDesconto === true);
+
+const sugMtm = api.sugestaoPagamentoNaData(locMtm, "02/11/2026");
+check(
+  "MEU TRANSPORTE: sugestão com desconto = 330",
+  sugMtm && sugMtm.comDesconto === true && approx(sugMtm.valorSugerido, 330)
+);
+
+// Mesmo se o cadastro trouxer investimento por engano, o plano zera na conta
+const locMtmInvErr = { ...locMtm, valorInvestimento: "30" };
+check("MEU TRANSPORTE: força investimento 0 mesmo com campo preenchido", api.paramsFromLoc(locMtmInvErr).investimento === 0);
+check("MEU TRANSPORTE: com desconto permanece 330", approx(api.paramsFromLoc(locMtmInvErr).comDesconto, 330));
+
 console.log(`\n--- ${passed}/${passed} testes dk-aluguel-ciclo-v2 ---`);

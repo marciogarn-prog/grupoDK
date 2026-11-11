@@ -3861,12 +3861,13 @@
     },
     {
       "id": "aluguel-ciclo-semanal-v2-outubro-2026",
-      "descricao": "Contratos com data início >= 01/10/2026 usam ciclo semanal no dia da semana do início: aluguel + investimento + desconto; semana com desconto cobra aluguel (diária = (aluguel-desconto)/7); sem desconto cobra aluguel+investimento (diária aluguel = aluguel/7); recuperação exige quitar semana cheia anterior + valor com desconto até o dia do ciclo; devolução = total pago − devido só de aluguel. Antes de 01/10/2026 nada muda.",
+      "descricao": "Contratos com data início >= 01/10/2026 usam ciclo semanal no dia da semana do início: semana com desconto cobra (aluguel−desconto)+investimento (diária aluguel = (aluguel−desconto)/7); sem desconto cobra aluguel+investimento (diária aluguel = aluguel/7); DK MEU TRANSPORTE (moto/carro) usa a mesma matemática com investimento 0; recuperação exige quitar semana cheia anterior + valor com desconto até o dia do ciclo; devolução = total pago − devido só de aluguel. Antes de 01/10/2026 nada muda.",
       "ficheiros": {
         "dk-aluguel-ciclo-v2.js": [
           "INICIO_REGRA_YMD",
           "2026-10-01",
           "locAplicaRegraV2",
+          "isPlanoMeuTransporte",
           "devidoAluguelAte",
           "sugestaoPagamentoNaData",
           "explicacaoDesistencia",

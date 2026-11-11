@@ -1,13 +1,16 @@
 /**
  * Ciclo semanal de aluguel (contratos com início >= 01/10/2026).
  *
- * - Semana com desconto: paga (aluguel) = (aluguel - desconto) + investimento
- *   diária só aluguel = (aluguel - desconto) / 7
+ * - Semana com desconto: paga (aluguel − desconto) + investimento
+ *   diária só aluguel = (aluguel − desconto) / 7
+ *   DK MINHA MOTO (ex.): 330 + 30 = 360 · DK MEU TRANSPORTE (sem investimento): 330 + 0 = 330
  * - Semana sem desconto: paga aluguel + investimento
  *   diária só aluguel = aluguel / 7
+ *   DK MINHA MOTO: 360 + 30 = 390 · DK MEU TRANSPORTE: 360 + 0 = 360
  * - Desbloqueio do desconto na semana W: pagamentos até o dia de início da semana W
  *   devem atingir a soma das cobranças das semanas anteriores + valor com desconto.
  * - Devolução = total pago de aluguel − devido só de aluguel.
+ * - DK MEU TRANSPORTE (moto/carro): mesma matemática, investimento forçado a 0.
  */
 (function dkAluguelCicloV2() {
   const INICIO_REGRA_YMD = "2026-10-01";
@@ -60,6 +63,13 @@
     return toYmd(inicio) >= INICIO_REGRA_YMD;
   }
 
+  function isPlanoMeuTransporte(loc) {
+    const k = String(loc?.plano || loc?.opcaoContrato || loc?.tipoPlano || "")
+      .trim()
+      .toUpperCase();
+    return k.includes("MEU") && k.includes("TRANSPORTE");
+  }
+
   function paramsFromLoc(loc) {
     const aluguel = Math.max(
       0,
@@ -67,14 +77,17 @@
         ? Number(window.__DK_portalValorAluguelNumFromLoc(loc)) || 0
         : parseMoney(loc?.valorLocacao ?? loc?.valorAluguel ?? 0)
     );
-    const investimento = Math.max(0, parseMoney(loc?.valorInvestimento ?? loc?.investimento ?? 0));
+    let investimento = Math.max(0, parseMoney(loc?.valorInvestimento ?? loc?.investimento ?? 0));
+    // DK MEU TRANSPORTE (moto/carro): mesma regra, sem investimento na conta.
+    if (isPlanoMeuTransporte(loc)) investimento = 0;
     let desconto = 30;
     if (loc?.descontoPrazo != null && String(loc.descontoPrazo).trim() !== "") {
       desconto = Math.max(0, parseMoney(loc.descontoPrazo));
     }
-    const comDesconto = Math.max(0, aluguel); // paga 360 quando tem desconto (aluguel cadastrado)
     const aluguelNaSemanaComDesc = Math.max(0, aluguel - desconto); // 330
-    const contratoCheio = aluguel + investimento; // 390
+    // Com desconto: (aluguel − desconto) + investimento (MINHA MOTO 360; MEU TRANSPORTE 330)
+    const comDesconto = Math.max(0, aluguelNaSemanaComDesc + investimento);
+    const contratoCheio = aluguel + investimento; // MINHA MOTO 390; MEU TRANSPORTE 360
     return {
       aluguel,
       investimento,
@@ -84,6 +97,7 @@
       contratoCheio,
       diariaAluguelComDesc: aluguelNaSemanaComDesc / 7,
       diariaAluguelSemDesc: aluguel / 7,
+      meuTransporte: isPlanoMeuTransporte(loc),
     };
   }
 
