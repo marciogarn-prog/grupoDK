@@ -110,7 +110,7 @@ console.log("\n--- GATE PRODUÇÃO VM: OK ---");
 console.log(
   JSON.stringify(
     {
-      totalVms: conf.j.total,
+      totalVms: conf2.j.total,
       seq: esp.j.seq,
       manutencoesAtivas: esp.j.resumo?.manutencoesAtivas,
       oficinaPropria: oficina.length,
