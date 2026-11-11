@@ -2099,6 +2099,33 @@
       }
     },
     {
+      "id": "vm-irmas-gemeas-manutencao-quadro",
+      "descricao": "As VMs do cluster são irmãs gémeas: ao informar sincronismo, o PC aplica o clone alinhado (manutenções activas unidas por placa, sem perder oficina própria). Poll/login detecta divergência local×VM e força o download; a grelha Em manutenção redesenha após o clone.",
+      "ficheiros": {
+        "lib/dk-append-only-merge.cjs": [
+          "mergeManutencoesCadastro",
+          "dk_manutencoes_cadastro"
+        ],
+        "lib/dk-maquina-virtual.cjs": [
+          "manutencoesAtivasAssinatura",
+          "consultarDelta"
+        ],
+        "portal-maquina-virtual.js": [
+          "gemeas",
+          "resumosDivergem",
+          "resumoLocalPc",
+          "refrescarUiAposCloneVm"
+        ],
+        "portal-locadora-ui.js": [
+          "portalRefreshAposCloneVmGemea",
+          "__DK_portalRefreshAposCloneVm"
+        ],
+        "app.js": [
+          "mergeManutencoesCloudManda"
+        ]
+      }
+    },
+    {
       "id": "colaborador-salvar-alteracoes-visivel-confirmacao",
       "descricao": "No Cadastro de colaborador, o botão Salvar alterações tem destaque amarelo de alto contraste. Ao clicar, abre janela com tabela Antes da alteração / Depois da alteração e botão Confirmar antes de guardar.",
       "ficheiros": {

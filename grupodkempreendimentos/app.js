@@ -3563,8 +3563,8 @@ try {
 }
 
 /**
- * Oficial: activos da nuvem mandam no quadro de manutenção (todas as máquinas iguais).
- * Histórico fechado une por id; activos só locais somem se a nuvem trouxe activos.
+ * União do quadro de manutenção (irmãs gémeas): activos por placa (updatedAt mais recente)
+ * + fechados por id. Nunca descarta placa activa só porque um clone/hub veio incompleto.
  */
 function mergeManutencoesCloudManda(localList, cloudList) {
   const plateKey = (p) =>
@@ -3574,44 +3574,49 @@ function mergeManutencoesCloudManda(localList, cloudList) {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "");
   const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+  const score = (x) => Number(x?.updatedAt) || Date.parse(x?.updated_at || x?.criadoEm || 0) || 0;
   const local = Array.isArray(localList) ? localList : [];
   const cloud = Array.isArray(cloudList) ? cloudList : [];
   if (!cloud.length) return local.slice();
+  if (!local.length) return cloud.slice();
   const byPlaca = new Map();
   const byId = new Map();
   const closed = [];
+  const putActive = (r) => {
+    if (!r || typeof r !== "object") return;
+    const pl = plateKey(r.placa);
+    if (!pl) return;
+    const ex = byPlaca.get(pl);
+    if (!ex) {
+      byPlaca.set(pl, { ...r });
+      return;
+    }
+    byPlaca.set(pl, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+  };
   const putClosed = (r) => {
     if (!r || typeof r !== "object") return;
     const id = String(r.id || "").trim();
     if (id) {
       const ex = byId.get(id);
-      byId.set(id, ex ? { ...ex, ...r } : { ...r });
+      if (!ex) {
+        byId.set(id, { ...r });
+        return;
+      }
+      byId.set(id, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
       return;
     }
     closed.push({ ...r });
   };
   local.forEach((r) => {
     if (!r || typeof r !== "object") return;
-    if (ativa(r)) return;
-    putClosed(r);
+    if (ativa(r)) putActive(r);
+    else putClosed(r);
   });
   cloud.forEach((r) => {
     if (!r || typeof r !== "object") return;
-    if (ativa(r)) {
-      const pl = plateKey(r.placa);
-      if (pl) byPlaca.set(pl, { ...r });
-      return;
-    }
-    putClosed(r);
+    if (ativa(r)) putActive(r);
+    else putClosed(r);
   });
-  const cloudHasActivos = cloud.some(ativa);
-  if (!cloudHasActivos) {
-    local.forEach((r) => {
-      if (!r || typeof r !== "object" || !ativa(r)) return;
-      const pl = plateKey(r.placa);
-      if (pl && !byPlaca.has(pl)) byPlaca.set(pl, { ...r });
-    });
-  }
   return [...byPlaca.values(), ...byId.values(), ...closed];
 }
 try {

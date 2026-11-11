@@ -654,6 +654,76 @@ function mergeManutencoesRapidas(previousList, incomingList) {
   return Array.from(byId.values());
 }
 
+/**
+ * União irreversível do cadastro de manutenção (Em manutenção / Oficina própria).
+ * Activos unem por placa (fica o updatedAt mais recente); fechados unem por id.
+ * Sem isto, fundir VMs descartava placas só presentes num dos clones.
+ */
+function mergeManutencoesCadastro(previousList, incomingList) {
+  const ativa = (x) => !String(x?.dataRealSaida || "").trim();
+  const score = (x) => Number(x?.updatedAt) || Date.parse(x?.updated_at || x?.criadoEm || 0) || 0;
+  const byPlaca = new Map();
+  const byId = new Map();
+  const closedSemId = [];
+  const putActive = (r) => {
+    if (!r || typeof r !== "object") return;
+    const pl = normalizePlate(r.placa);
+    if (!pl) return;
+    const ex = byPlaca.get(pl);
+    if (!ex) {
+      byPlaca.set(pl, { ...r });
+      return;
+    }
+    byPlaca.set(pl, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+  };
+  const putClosed = (r) => {
+    if (!r || typeof r !== "object") return;
+    const id = String(r.id || "").trim();
+    if (!id) {
+      closedSemId.push({ ...r });
+      return;
+    }
+    const ex = byId.get(id);
+    if (!ex) {
+      byId.set(id, { ...r });
+      return;
+    }
+    byId.set(id, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+  };
+  const add = (r) => {
+    if (!r || typeof r !== "object") return;
+    if (ativa(r)) putActive(r);
+    else putClosed(r);
+  };
+  (Array.isArray(previousList) ? previousList : []).forEach(add);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(add);
+  return [...byPlaca.values(), ...byId.values(), ...closedSemId];
+}
+
+/** União por id (checklist / setor / histórico de movimentação). */
+function mergeListaPorIdGenerica(previousList, incomingList) {
+  const byId = new Map();
+  const semId = [];
+  const score = (x) => Number(x?.updatedAt || x?.createdAt) || Date.parse(x?.at || x?.criadoEm || 0) || 0;
+  const add = (r) => {
+    if (!r || typeof r !== "object") return;
+    const id = String(r.id || r.key || "").trim();
+    if (!id) {
+      semId.push({ ...r });
+      return;
+    }
+    const ex = byId.get(id);
+    if (!ex) {
+      byId.set(id, { ...r });
+      return;
+    }
+    byId.set(id, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+  };
+  (Array.isArray(previousList) ? previousList : []).forEach(add);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(add);
+  return [...byId.values(), ...semId];
+}
+
 function scoreFinanceiroRegistro(x) {
   const u = Number(x && x.updatedAt) || 0;
   if (u > 0) return u;
@@ -756,6 +826,10 @@ function neverLoseCadastroPayload(existing, incoming, opts) {
     ["dk_locacoes_cadastro", mergeLocacoesCadastro],
     ["dk_funcionarios_access", mergeFuncionariosAccess],
     ["dk_manutencoes_rapidas_v1", mergeManutencoesRapidas],
+    ["dk_manutencoes_cadastro", mergeManutencoesCadastro],
+    ["dk_portal_checklist_movimentacoes_v1", mergeListaPorIdGenerica],
+    ["dk_portal_checklist_historico_v1", mergeListaPorIdGenerica],
+    ["dk_portal_setor_movimentacoes_v1", mergeListaPorIdGenerica],
     ["dk_financeiro_ceo_despesas_v1", mergeFinanceiroCeoDespesas],
     ["dk_financeiro_despesas_v1", mergeFinanceiroDespesas],
     ["dk_financeiro_ceo_fontes_v1", mergeFinanceiroById],
@@ -853,6 +927,8 @@ module.exports = {
   mergePagamentosAuditoria,
   neverLoseCadastroPayload,
   mergeManutencoesRapidas,
+  mergeManutencoesCadastro,
+  mergeListaPorIdGenerica,
   mergeFinanceiroById,
   mergeFinanceiroCeoDespesas,
   mergeFinanceiroDespesas,

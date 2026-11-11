@@ -2842,6 +2842,7 @@
     }
     portalAplicarVisibilidadeEquipaPorPerfil();
     portalAtualizarBannerAdmin();
+    portalRefreshAposCloneVmGemea();
     if (typeof openLocadoraEmpresa === "function") {
       try {
         const empresaAtiva = viewUnidadeEmpresa?.classList.contains("view--active");
@@ -2849,6 +2850,38 @@
       } catch {
         /* ignore */
       }
+    }
+  }
+
+  /** Após clone gémeo (login/poll/ACESSAR VM): redesenha grelhas de manutenção com o banco alinhado. */
+  function portalRefreshAposCloneVmGemea() {
+    try {
+      portalMigrateManutencaoEntradaParaTriagem();
+    } catch {
+      /* ignore */
+    }
+    try {
+      refreshPortalChecklistPlacasAtivasCache();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof refreshOperacaoVeiculoPlacasCache === "function") refreshOperacaoVeiculoPlacasCache();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const emManutOpen = !document.getElementById("manutencaoInlineEmManutencao")?.classList.contains("hidden");
+      if (emManutOpen && portalChecklistUsesPlacasGrid()) portalRefreshManutencaoPlacasGrid(true);
+      const dispOpen = !document.getElementById("manutencaoInlineDisponiveis")?.classList.contains("hidden");
+      if (dispOpen) portalRefreshManutencaoDisponiveisPlacas();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof portalRefreshOperacaoLocal === "function") portalRefreshOperacaoLocal();
+    } catch {
+      /* ignore */
     }
   }
 
@@ -34276,6 +34309,7 @@
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalFiscalVmAtivo = portalFiscalVmAtivo;
   window.__DK_portalAposAcessarVm = portalAposAcessarVmFiscal;
+  window.__DK_portalRefreshAposCloneVm = portalRefreshAposCloneVmGemea;
   window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
   window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
@@ -34391,6 +34425,7 @@
   window.__DK_portalTitularVerComo = portalTitularVerComo;
   window.__DK_portalFiscalVmAtivo = portalFiscalVmAtivo;
   window.__DK_portalAposAcessarVm = portalAposAcessarVmFiscal;
+  window.__DK_portalRefreshAposCloneVm = portalRefreshAposCloneVmGemea;
   window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;

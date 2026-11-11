@@ -226,9 +226,79 @@
     return out;
   }
 
+  function resumoLocalPc() {
+    const e = coletarEstadoPc();
+    const locs = Array.isArray(e.dk_locacoes_cadastro) ? e.dk_locacoes_cadastro : [];
+    let pagamentos = 0;
+    let ativos = 0;
+    let finalizados = 0;
+    for (const loc of locs) {
+      const pays = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      pagamentos += pays.length;
+      const st = String(loc.statusLocacao || loc.status || "")
+        .trim()
+        .toUpperCase();
+      const fim = String(loc.fim || loc.dataFim || "").trim();
+      const inativo =
+        st.includes("FINAL") ||
+        st.includes("INATIV") ||
+        st.includes("CANCEL") ||
+        (fim && fim !== "...");
+      if (inativo) finalizados += 1;
+      else ativos += 1;
+    }
+    const manutList = Array.isArray(e.dk_manutencoes_cadastro) ? e.dk_manutencoes_cadastro : [];
+    const manutAtivasAssinatura = manutList
+      .filter((m) => !String(m?.dataRealSaida || "").trim())
+      .map((m) => {
+        const pl = String(m?.placa || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+        const cat = String(m?.categoriaManutencao || m?.categoria || "triagem")
+          .trim()
+          .toLowerCase();
+        return pl ? `${pl}:${cat || "triagem"}` : "";
+      })
+      .filter(Boolean)
+      .sort()
+      .join("|");
+    return {
+      clientes: Array.isArray(e.dk_clientes_cadastro) ? e.dk_clientes_cadastro.length : 0,
+      veiculos: Array.isArray(e.dk_veiculos_cadastro) ? e.dk_veiculos_cadastro.length : 0,
+      protocolos: locs.length,
+      protocolosAtivos: ativos,
+      protocolosFinalizados: finalizados,
+      pagamentos,
+      manutencoes: manutList.length,
+      manutencoesRapidas: Array.isArray(e.dk_manutencoes_rapidas_v1) ? e.dk_manutencoes_rapidas_v1.length : 0,
+      manutencoesAtivas: manutAtivasAssinatura.split("|").filter(Boolean).length,
+      manutencoesAtivasAssinatura: manutAtivasAssinatura,
+      checklistMovimentacoes: Array.isArray(e.dk_portal_checklist_movimentacoes_v1)
+        ? e.dk_portal_checklist_movimentacoes_v1.length
+        : 0,
+      setorMovimentacoes: Array.isArray(e.dk_portal_setor_movimentacoes_v1)
+        ? e.dk_portal_setor_movimentacoes_v1.length
+        : 0,
+    };
+  }
+
+  function resumosDivergem(a, b) {
+    if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+    try {
+      return JSON.stringify(a) !== JSON.stringify(b);
+    } catch {
+      return true;
+    }
+  }
+
+  /**
+   * Aplica o clone da VM no PC.
+   * gemeas/fiscal/substituir: o banco da nuvem manda (irmãs gémeas) — não fica resto local a desalinhar.
+   */
   function aplicarEstadoNoPc(estado, opts) {
     if (!estado || typeof estado !== "object") return { ok: false, aplicadas: 0 };
     const fiscal = Boolean(opts && opts.fiscal);
+    const gemeas = Boolean(opts && (opts.gemeas || opts.substituir || opts.fiscal));
     let aplicadas = 0;
     aplicandoDelta = true;
     window.__DK_vmAplicandoDelta = true;
@@ -236,7 +306,7 @@
       for (const k of CLONE_KEYS) {
         if (!Object.prototype.hasOwnProperty.call(estado, k)) continue;
         const cloudArr = Array.isArray(estado[k]) ? estado[k] : [];
-        if (!fiscal && !cloudArr.length && k !== "dk_manutencoes_cadastro") continue;
+        if (!gemeas && !cloudArr.length && k !== "dk_manutencoes_cadastro") continue;
         let localArr = [];
         try {
           localArr = typeof loadCadastro === "function" ? loadCadastro(k) || [] : [];
@@ -244,7 +314,7 @@
           localArr = [];
         }
         let merged = cloudArr;
-        if (!fiscal && typeof mergeCadastroHistoricoImutavel === "function") {
+        if (!gemeas && typeof mergeCadastroHistoricoImutavel === "function") {
           if (k === "dk_manutencoes_cadastro" && typeof window.__DK_mergeManutencoesCloudManda === "function") {
             merged = window.__DK_mergeManutencoesCloudManda(localArr, cloudArr);
           } else if (k.includes("veiculos")) {
@@ -268,6 +338,22 @@
       window.__DK_vmAplicandoDelta = false;
     }
     return { ok: aplicadas > 0, aplicadas };
+  }
+
+  function refrescarUiAposCloneVm() {
+    try {
+      if (typeof window.__DK_portalRefreshAposCloneVm === "function") {
+        window.__DK_portalRefreshAposCloneVm();
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-maquina-virtual-ui-refresh"));
+    } catch {
+      /* ignore */
+    }
   }
 
   async function postAcao(acao, extra) {
@@ -300,14 +386,22 @@
       role: (opts && opts.role) || "",
     });
     if (!res.ok) return res;
-    const aplicado = aplicarEstadoNoPc(res.data && res.data.estado);
+    /* Clone gémeo: o banco da VM manda no PC (todas as máquinas iguais). */
+    const aplicado = aplicarEstadoNoPc(res.data && res.data.estado, { gemeas: true });
     if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
     marcarSincronizadoComVm();
+    refrescarUiAposCloneVm();
     try {
       window.__DK_VM_META = res.data && res.data.meta;
       window.dispatchEvent(
         new CustomEvent("dk-maquina-virtual-espelhada", {
-          detail: { meta: res.data.meta, aplicadas: aplicado.aplicadas, seq: res.data.seq },
+          detail: {
+            meta: res.data.meta,
+            aplicadas: aplicado.aplicadas,
+            seq: res.data.seq,
+            alinhadas: res.data.alinhadas,
+            resumo: res.data.resumo,
+          },
         })
       );
     } catch {
@@ -347,26 +441,44 @@
   }
 
   /**
-   * Troca de tela / poll: consulta só se a seq da VM avançou; baixa o clone novo.
+   * Troca de tela / poll: baixa o clone gémeo se a seq avançou OU se o PC divergiu do resumo da VM.
    */
   async function consultarEBaixarDelta(motivo) {
     if (aplicandoDelta) return { ok: true, skipped: true };
     const cpf = cpfVmAtiva();
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
     const lastSeq = lerSeqLocal();
-    const res = await postAcao("consultar-delta", { cpf, lastSeq });
+    let res = await postAcao("consultar-delta", { cpf, lastSeq });
     if (!res.ok) return res;
-    marcarSincronizadoComVm();
-    if (!res.data || !res.data.haNovidade) {
-      if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
-      return { ok: true, haNovidade: false, seq: res.data && res.data.seq, motivo };
+
+    let precisaBaixar = Boolean(res.data && res.data.haNovidade && res.data.estado);
+    if (!precisaBaixar && res.data && res.data.resumo && resumosDivergem(resumoLocalPc(), res.data.resumo)) {
+      /* Seq igual mas PC desalinhado (ex.: manutenção local incompleta) — força clone gémeo. */
+      res = await postAcao("consultar-delta", { cpf, lastSeq: 0 });
+      if (!res.ok) return res;
+      precisaBaixar = Boolean(res.data && res.data.estado);
     }
-    const aplicado = aplicarEstadoNoPc(res.data.estado);
+
+    if (!precisaBaixar) {
+      if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
+      marcarSincronizadoComVm();
+      return { ok: true, haNovidade: false, seq: res.data && res.data.seq, motivo, resumo: res.data && res.data.resumo };
+    }
+
+    const aplicado = aplicarEstadoNoPc(res.data.estado, { gemeas: true });
     if (res.data.seq != null) gravarSeqLocal(res.data.seq);
+    marcarSincronizadoComVm();
+    refrescarUiAposCloneVm();
     try {
       window.dispatchEvent(
         new CustomEvent("dk-maquina-virtual-delta", {
-          detail: { seq: res.data.seq, resumo: res.data.resumo, aplicadas: aplicado.aplicadas, motivo },
+          detail: {
+            seq: res.data.seq,
+            resumo: res.data.resumo,
+            aplicadas: aplicado.aplicadas,
+            motivo,
+            gemeas: true,
+          },
         })
       );
     } catch {
@@ -514,9 +626,10 @@
       }
       const label = String(nome || (data.meta && data.meta.nome) || "").trim();
       gravarFiscalVm(dig, label);
-      const aplicado = aplicarEstadoNoPc(data.estado || {}, { fiscal: true });
+      const aplicado = aplicarEstadoNoPc(data.estado || {}, { fiscal: true, gemeas: true });
       if (data.seq != null) gravarSeqLocal(data.seq);
       marcarSincronizadoComVm();
+      refrescarUiAposCloneVm();
       const detalhe = {
         cpf: dig,
         nome: label,
