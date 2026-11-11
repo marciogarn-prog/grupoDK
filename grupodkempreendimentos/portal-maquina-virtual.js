@@ -5,6 +5,7 @@
  * Offline → novidade fica na VM até o próximo login.
  */
 (function () {
+  /* Espelho VM: sem locações/pagamentos (Postgres + limite Redis 10 MB). */
   const CLONE_KEYS = [
     "dk_clientes_cadastro",
     "dk_portal_clientes_cadastro",
@@ -12,22 +13,15 @@
     "dk_veiculos_cadastro",
     "dk_portal_veiculos_cadastro",
     "dk_veiculos_frota_planilha",
-    "dk_locacoes_cadastro",
-    "dk_locacoes_quadro_geral",
     "dk_funcionarios_access",
     "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
-    "dk_lancamentos_aluguel",
     "dk_portal_setor_movimentacoes_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_checklist_historico_v1",
-    "dk_comprovantes_banco",
-    "dk_comprovantes_cliente_pendentes",
     "dk_financeiro_extratos_v1",
     "dk_financeiro_despesas_v1",
     "dk_financeiro_ceo_despesas_v1",
-    "dk_audit_log",
-    "dk_pagamentos_auditoria_v1",
   ];
 
   const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
@@ -244,11 +238,17 @@
 
   function resumoLocalPc() {
     const e = coletarEstadoPc();
-    const locs = Array.isArray(e.dk_locacoes_cadastro) ? e.dk_locacoes_cadastro : [];
+    /* Locações ficam fora do clone VM — comparar só o que a VM realmente espelha. */
+    let locs = [];
+    try {
+      if (typeof loadCadastro === "function") locs = loadCadastro("dk_locacoes_cadastro") || [];
+    } catch {
+      locs = [];
+    }
     let pagamentos = 0;
     let ativos = 0;
     let finalizados = 0;
-    for (const loc of locs) {
+    for (const loc of Array.isArray(locs) ? locs : []) {
       const pays = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
       pagamentos += pays.length;
       const st = String(loc.statusLocacao || loc.status || "")
@@ -281,10 +281,11 @@
     return {
       clientes: Array.isArray(e.dk_clientes_cadastro) ? e.dk_clientes_cadastro.length : 0,
       veiculos: Array.isArray(e.dk_veiculos_cadastro) ? e.dk_veiculos_cadastro.length : 0,
-      protocolos: locs.length,
-      protocolosAtivos: ativos,
-      protocolosFinalizados: finalizados,
-      pagamentos,
+      /* Zeros alinhados ao clone slim (locações não vão na VM). */
+      protocolos: 0,
+      protocolosAtivos: 0,
+      protocolosFinalizados: 0,
+      pagamentos: 0,
       manutencoes: manutList.length,
       manutencoesRapidas: Array.isArray(e.dk_manutencoes_rapidas_v1) ? e.dk_manutencoes_rapidas_v1.length : 0,
       manutencoesAtivas: manutAtivasAssinatura.split("|").filter(Boolean).length,
