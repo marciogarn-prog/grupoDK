@@ -132,26 +132,43 @@
     }
   }
 
-  function gravarFiscalVm(cpf, nome) {
-    const dig = digitos(cpf);
+  function limparFiscalVm() {
     try {
-      if (dig.length === 11) {
-        sessionStorage.setItem(FISCAL_CPF_KEY, dig);
-        sessionStorage.setItem(FISCAL_NOME_KEY, String(nome || "").trim());
-      } else {
-        sessionStorage.removeItem(FISCAL_CPF_KEY);
-        sessionStorage.removeItem(FISCAL_NOME_KEY);
-      }
+      sessionStorage.removeItem(FISCAL_CPF_KEY);
+      sessionStorage.removeItem(FISCAL_NOME_KEY);
     } catch {
       /* ignore */
     }
     try {
-      window.__DK_vmFiscal = dig.length === 11 ? { cpf: dig, nome: String(nome || "").trim() } : null;
+      window.__DK_vmFiscal = null;
     } catch {
       /* ignore */
     }
     const btn = document.getElementById("portalAdminAcessarVmBtn");
-    if (btn) btn.classList.toggle("is-active-vm", dig.length === 11);
+    if (btn) btn.classList.remove("is-active-vm");
+  }
+
+  function gravarFiscalVm(cpf, nome) {
+    const dig = digitos(cpf);
+    const proprio = dig && dig === cpfSessao();
+    /* Própria VM do CEO = sem modo fiscal (acesso completo). */
+    if (!dig || proprio) {
+      limparFiscalVm();
+      return;
+    }
+    try {
+      sessionStorage.setItem(FISCAL_CPF_KEY, dig);
+      sessionStorage.setItem(FISCAL_NOME_KEY, String(nome || "").trim());
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.__DK_vmFiscal = { cpf: dig, nome: String(nome || "").trim() };
+    } catch {
+      /* ignore */
+    }
+    const btn = document.getElementById("portalAdminAcessarVmBtn");
+    if (btn) btn.classList.add("is-active-vm");
   }
 
   /** CPF da VM sob fiscalização (ou a VM do operador logado). */
@@ -495,29 +512,29 @@
       const aplicado = aplicarEstadoNoPc(data.estado || {}, { fiscal: true });
       if (data.seq != null) gravarSeqLocal(data.seq);
       marcarSincronizadoComVm();
+      const detalhe = {
+        cpf: dig,
+        nome: label,
+        seq: data.seq,
+        resumo: data.resumo,
+        aplicadas: aplicado.aplicadas,
+        fiscal: Boolean(lerFiscalVm()),
+      };
       try {
-        window.dispatchEvent(
-          new CustomEvent("dk-maquina-virtual-fiscal", {
-            detail: {
-              cpf: dig,
-              nome: label,
-              seq: data.seq,
-              resumo: data.resumo,
-              aplicadas: aplicado.aplicadas,
-            },
-          })
-        );
+        window.dispatchEvent(new CustomEvent("dk-maquina-virtual-fiscal", { detail: detalhe }));
       } catch {
         /* ignore */
       }
-      if (typeof window.__DK_portalAtualizarBannerAdmin === "function") {
-        try {
+      try {
+        if (typeof window.__DK_portalAposAcessarVm === "function") {
+          window.__DK_portalAposAcessarVm(detalhe);
+        } else if (typeof window.__DK_portalAtualizarBannerAdmin === "function") {
           window.__DK_portalAtualizarBannerAdmin();
-        } catch {
-          /* ignore */
         }
+      } catch {
+        /* ignore */
       }
-      return { ok: true, cpf: dig, nome: label, aplicadas: aplicado.aplicadas, seq: data.seq, resumo: data.resumo };
+      return { ok: true, cpf: dig, nome: label, aplicadas: aplicado.aplicadas, seq: data.seq, resumo: data.resumo, fiscal: detalhe.fiscal };
     } catch (e) {
       return { ok: false, reason: "network", error: String(e && e.message ? e.message : e) };
     } finally {
@@ -585,12 +602,31 @@
   window.__DK_vmListar = listarVmsNuvem;
   window.__DK_vmAcessar = acessarVmPorCpf;
   window.__DK_vmFiscalAtual = lerFiscalVm;
+  window.__DK_vmLimparFiscal = limparFiscalVm;
   window.__DK_vmCpfAtiva = cpfVmAtiva;
 
   restaurarStatusSyncVm();
   const fiscalBoot = lerFiscalVm();
   if (fiscalBoot) gravarFiscalVm(fiscalBoot.cpf, fiscalBoot.nome);
   bindAcessarVmUi();
+  if (typeof window.__DK_portalAposAcessarVm === "function" && lerFiscalVm()) {
+    try {
+      window.__DK_portalAposAcessarVm({
+        cpf: lerFiscalVm().cpf,
+        nome: lerFiscalVm().nome,
+        fiscal: true,
+        boot: true,
+      });
+    } catch {
+      /* ignore */
+    }
+  } else if (typeof window.__DK_portalAtualizarBannerAdmin === "function") {
+    try {
+      window.__DK_portalAtualizarBannerAdmin();
+    } catch {
+      /* ignore */
+    }
+  }
   if (cpfSessao().length === 11) {
     iniciarPollVm();
     consultarEBaixarDelta("inicio").catch(() => {});

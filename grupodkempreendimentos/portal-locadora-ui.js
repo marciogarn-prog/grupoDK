@@ -358,31 +358,27 @@
     document.body.classList.toggle("portal-body--equipa-sessao", portalTemSessaoEquipaAtiva());
     const titularCeoSessao = on && portalTitularPodeUsarVerComo();
     const modo = portalTitularVerComo();
-    const titularCeoVisual = titularCeoSessao && !modo;
+    const fiscalAtivo = portalFiscalVmAtivo();
+    const titularCeoVisual = titularCeoSessao && !modo && !fiscalAtivo;
     document.body.classList.toggle("portal-body--admin-ceo", titularCeoVisual);
     document.documentElement.classList.toggle("portal-html--admin-ceo", titularCeoVisual);
+    document.body.classList.toggle("portal-body--fiscal-vm", Boolean(fiscalAtivo));
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
     const label = document.getElementById("portalAdminBannerLabel");
     const wrap = document.getElementById("portalAdminVerComoWrap");
     const btnVoltarCeo = document.getElementById("portalAdminVerComoCeoBtn");
+    const btnAcessarVm = document.getElementById("portalAdminAcessarVmBtn");
     const podeVerComo = titularCeoSessao;
     if (label) {
       if (podeVerComo) {
         let txt = "LOGADO COMO ADMINISTRADOR CEO 03037897430";
-        if (modo === "admin") txt += " · VENDO COMO ADMINISTRADOR";
+        if (fiscalAtivo) {
+          const nomeVm = String(fiscalAtivo.nome || "").trim() || fiscalAtivo.cpf;
+          txt += " · FISCAL VM " + nomeVm + " (visão do colaborador)";
+        } else if (modo === "admin") txt += " · VENDO COMO ADMINISTRADOR";
         else if (modo === "colaborador") txt += " · VENDO COMO COLABORADOR";
         else if (modo === "cliente") txt += " · VENDO COMO CLIENTE";
-        try {
-          const fiscal =
-            typeof window.__DK_vmFiscalAtual === "function" ? window.__DK_vmFiscalAtual() : null;
-          if (fiscal && fiscal.cpf) {
-            const nomeVm = String(fiscal.nome || "").trim() || fiscal.cpf;
-            txt += " · FISCAL VM " + nomeVm;
-          }
-        } catch {
-          /* ignore */
-        }
         label.textContent = txt;
       } else {
         label.textContent = "LOGADO COMO ADMINISTRADOR";
@@ -393,15 +389,16 @@
       wrap.hidden = !podeVerComo;
     }
     if (btnVoltarCeo) {
-      const showVoltar = Boolean(podeVerComo && modo);
+      const showVoltar = Boolean(podeVerComo && (modo || fiscalAtivo));
       btnVoltarCeo.classList.toggle("hidden", !showVoltar);
       btnVoltarCeo.hidden = !showVoltar;
     }
+    if (btnAcessarVm) btnAcessarVm.classList.toggle("is-active-vm", Boolean(fiscalAtivo));
     document.querySelectorAll(".portal-admin-ver-como__btn").forEach((btn) => {
       const v = btn.getAttribute("data-ver-como") || "";
-      btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo));
+      btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo && !fiscalAtivo));
     });
-    document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente");
+    document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente" && !fiscalAtivo);
     portalPintarBannerOperadoresCpfs();
     if (portalTemSessaoEquipaAtiva()) portalPresencaEquipaStart();
     else portalPresencaEquipaStop();
@@ -1087,8 +1084,53 @@
     }
   }
 
+  /** VM de colaborador sob fiscalização (ACESSAR VM). Null se for a própria VM do CEO. */
+  function portalFiscalVmAtivo() {
+    if (!portalTitularPodeUsarVerComo()) return null;
+    try {
+      let cpf = "";
+      let nome = "";
+      if (typeof window.__DK_vmFiscalAtual === "function") {
+        const fiscal = window.__DK_vmFiscalAtual();
+        cpf = onlyDigits(String(fiscal && fiscal.cpf ? fiscal.cpf : "")).slice(0, 11);
+        nome = String((fiscal && fiscal.nome) || "").trim();
+      } else if (window.__DK_vmFiscal && window.__DK_vmFiscal.cpf) {
+        cpf = onlyDigits(String(window.__DK_vmFiscal.cpf || "")).slice(0, 11);
+        nome = String(window.__DK_vmFiscal.nome || "").trim();
+      } else {
+        cpf = onlyDigits(String(sessionStorage.getItem("dk_vm_fiscal_cpf_v1") || "")).slice(0, 11);
+        nome = String(sessionStorage.getItem("dk_vm_fiscal_nome_v1") || "").trim();
+      }
+      if (cpf.length !== 11) return null;
+      if (cpf === DK_LOCADORA_ADMIN_CPF) return null;
+      return { cpf, nome };
+    } catch {
+      return null;
+    }
+  }
+
+  function portalCpfEfetivoOperador() {
+    const fiscal = portalFiscalVmAtivo();
+    if (fiscal && fiscal.cpf) return fiscal.cpf;
+    return portalGetSessaoCpfDigits();
+  }
+
+  function findFuncionarioPortalPorCpf(cpfDig) {
+    const dig = onlyDigits(String(cpfDig || "")).slice(0, 11);
+    if (dig.length !== 11 || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) {
+      return null;
+    }
+    return funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === dig) || null;
+  }
+
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
   function getPortalSessaoAdminRole() {
+    const fiscal = portalFiscalVmAtivo();
+    if (fiscal) {
+      const f = findFuncionarioPortalPorCpf(fiscal.cpf);
+      const role = String((f && f.role) || "operacao").trim();
+      return role === "owner" ? "owner" : "operacao";
+    }
     const modo = portalTitularVerComo();
     if (modo === "colaborador" || modo === "cliente") return "operacao";
     return portalSessaoRoleReal();
@@ -1101,7 +1143,7 @@
 
   /** Só o CPF 03037897430 no perfil completo: apagar registros, alterar/apagar pagamentos e alterar protocolo. */
   function isPortalAdministradorTitularCpf() {
-    return portalTitularPodeUsarVerComo() && !portalTitularVerComo();
+    return portalTitularPodeUsarVerComo() && !portalTitularVerComo() && !portalFiscalVmAtivo();
   }
 
   /** Liberação temporária: Lucelina (05780277478) pode apagar lançamentos de aluguel até 30/10/2026 (inclusive). */
@@ -1114,7 +1156,7 @@
   }
 
   function portalEhOperadoraLucelinaDelmondes() {
-    return portalGetSessaoCpfDigits() === PORTAL_LUCELINA_APAGAR_LANC_CPF;
+    return portalCpfEfetivoOperador() === PORTAL_LUCELINA_APAGAR_LANC_CPF;
   }
 
   function portalLucelinaPodeApagarLancamentosAluguel() {
@@ -1969,16 +2011,18 @@
   const LOCADORA_LEAD_SEM_SESSAO =
     "Área da empresa: escolha Colaborador ou Administrador e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
 
-  /** Funcionário em `funcionariosAccess` correspondente à sessão equipa (admin no portal). */
+  /** Funcionário em `funcionariosAccess` correspondente à sessão equipa (ou à VM sob fiscal). */
   function getPortalSessaoEquipaFuncionario() {
     try {
+      const fiscal = portalFiscalVmAtivo();
+      if (fiscal && fiscal.cpf) return findFuncionarioPortalPorCpf(fiscal.cpf);
       const raw = localStorage.getItem("dk_sessao_cliente");
       if (!raw) return null;
       const s = JSON.parse(raw);
       if (s?.tipo !== "admin") return null;
       const dig = onlyDigits(String(s.cpf || "")).slice(0, 11);
-      if (dig.length !== 11 || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return null;
-      return funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === dig) || null;
+      if (dig.length !== 11) return null;
+      return findFuncionarioPortalPorCpf(dig);
     } catch {
       return null;
     }
@@ -2023,6 +2067,46 @@
 
   /** Mapa `acessos` para colaborador operacional (fallback se registo antigo não tiver objeto). */
   function getPortalOperacaoAcessosEfetivos(f) {
+    /* ACESSAR VM: usar exatamente os acessos do colaborador da VM fiscalizada. */
+    if (portalFiscalVmAtivo()) {
+      if (!f) return null;
+      if (String(f.role || "").trim() === "owner") {
+        return typeof buildFullOperacaoAccess === "function"
+          ? { ...buildFullOperacaoAccess(), sistemaMiel: false }
+          : {
+              cliente: true,
+              veiculo: true,
+              locacao: true,
+              manutencao: true,
+              lancamentoAluguel: true,
+              lancamentoMultas: true,
+              lancamentoManutencao: true,
+              comunicacaoVendas: true,
+              comunicacaoManutencao: true,
+              lancamentoDespesa: true,
+              funcionario: true,
+              estoque: true,
+              sistemaMiel: false,
+            };
+      }
+      const rawFiscal = f.acessos && typeof f.acessos === "object" ? f.acessos : null;
+      if (typeof normalizeOperacaoAccess === "function") {
+        return normalizeOperacaoAccess(rawFiscal, "operacao");
+      }
+      return {
+        cliente: Boolean(rawFiscal?.cliente),
+        veiculo: Boolean(rawFiscal?.veiculo),
+        locacao: Boolean(rawFiscal?.locacao),
+        lancamentoAluguel: Boolean(rawFiscal?.lancamentoAluguel),
+        lancamentoMultas: Boolean(rawFiscal?.lancamentoMultas),
+        lancamentoManutencao: Boolean(rawFiscal?.lancamentoManutencao),
+        manutencao: false,
+        lancamentoDespesa: false,
+        funcionario: false,
+        estoque: Boolean(rawFiscal?.estoque),
+        sistemaMiel: Boolean(rawFiscal?.sistemaMiel),
+      };
+    }
     if (portalTitularVerComo() === "colaborador" || portalTitularVerComo() === "cliente") {
       return {
         cliente: true,
@@ -2109,6 +2193,11 @@
     const s = portalLerSessaoPortal();
     if (!s || s.tipo === "cliente") return false;
     if (s.tipo !== "admin") return false;
+    if (portalFiscalVmAtivo()) {
+      const fFiscal = getPortalSessaoEquipaFuncionario();
+      if (!fFiscal || fFiscal.blocked) return false;
+      return Boolean(getPortalOperacaoAcessosEfetivos(fFiscal)?.sistemaMiel);
+    }
     if (portalTitularVerComo()) return false;
     const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
     if (cpf === DK_LOCADORA_ADMIN_CPF) return true;
@@ -2603,16 +2692,75 @@
     }
   }
 
+  function portalSairFiscalVmERestaurarCeo() {
+    const tinhaFiscal = Boolean(portalFiscalVmAtivo());
+    try {
+      if (typeof window.__DK_vmLimparFiscal === "function") window.__DK_vmLimparFiscal();
+    } catch {
+      /* ignore */
+    }
+    portalLimparModoVerComo();
+    portalAplicarVisibilidadeEquipaPorPerfil();
+    if (tinhaFiscal && typeof window.__DK_vmAcessar === "function") {
+      window
+        .__DK_vmAcessar(DK_LOCADORA_ADMIN_CPF, "Márcio Santos")
+        .then(() => {
+          portalAplicarVisibilidadeEquipaPorPerfil();
+        })
+        .catch((e) => console.warn("[DK VM] restaurar CEO", e));
+    }
+  }
+
+  function portalAposAcessarVmFiscal(detail) {
+    if (!portalTitularPodeUsarVerComo()) return;
+    const dig = onlyDigits(String((detail && detail.cpf) || "")).slice(0, 11);
+    portalLimparModoVerComo();
+    if (dig && dig !== DK_LOCADORA_ADMIN_CPF) {
+      /* Mantém só a barra vermelha; menus/acessos passam a ser os do colaborador da VM. */
+      try {
+        sessionStorage.removeItem(PORTAL_TITULAR_VER_COMO_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+    portalAplicarVisibilidadeEquipaPorPerfil();
+    if (typeof openLocadoraEmpresa === "function") {
+      try {
+        const empresaAtiva = viewUnidadeEmpresa?.classList.contains("view--active");
+        if (!empresaAtiva && dig && dig !== DK_LOCADORA_ADMIN_CPF) openLocadoraEmpresa();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   function portalAplicarModoVerComo(modoPedido) {
     if (!portalTitularPodeUsarVerComo()) return;
     const atual = portalTitularVerComo();
     const pedido = String(modoPedido || "").trim();
+    if (pedido === "ceo" || pedido === "") {
+      portalSairFiscalVmERestaurarCeo();
+      const precisaEmpresa =
+        atual === "cliente" ||
+        (viewFinanceiroCeo?.classList.contains("view--active") &&
+          !isPortalAdministradorTitularCeo() &&
+          !window.__DK_finCeoAtalhoLocadora) ||
+        (viewFinanceiro?.classList.contains("view--active") && !portalPodeAcessarFinanceiro());
+      if (precisaEmpresa) {
+        openLocadoraEmpresa();
+        return;
+      }
+      portalAplicarVisibilidadeEquipaPorPerfil();
+      return;
+    }
+    /* Entrar em VER COMO admin/cliente sai do fiscal de VM. */
+    try {
+      if (typeof window.__DK_vmLimparFiscal === "function") window.__DK_vmLimparFiscal();
+    } catch {
+      /* ignore */
+    }
     const next =
-      pedido === "ceo" || pedido === ""
-        ? ""
-        : pedido === "admin" || pedido === "colaborador" || pedido === "cliente"
-          ? pedido
-          : atual;
+      pedido === "admin" || pedido === "colaborador" || pedido === "cliente" ? pedido : atual;
     try {
       if (next === "admin" || next === "colaborador" || next === "cliente") {
         sessionStorage.setItem(PORTAL_TITULAR_VER_COMO_KEY, next);
@@ -33840,6 +33988,8 @@
   window.__DK_portalPodeFinalizarLocacao = portalPodeFinalizarLocacao;
   window.__DK_portalTitularPodeUsarVerComo = portalTitularPodeUsarVerComo;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
+  window.__DK_portalFiscalVmAtivo = portalFiscalVmAtivo;
+  window.__DK_portalAposAcessarVm = portalAposAcessarVmFiscal;
   window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
   window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
@@ -33951,6 +34101,8 @@
   window.__DK_portalAndroidSyncNavegacao = portalAndroidSyncNavegacao;
   window.__DK_portalAndroidVoltar = portalAndroidVoltar;
   window.__DK_portalTitularVerComo = portalTitularVerComo;
+  window.__DK_portalFiscalVmAtivo = portalFiscalVmAtivo;
+  window.__DK_portalAposAcessarVm = portalAposAcessarVmFiscal;
   window.__DK_portalAtualizarBannerAdmin = portalAtualizarBannerAdmin;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
