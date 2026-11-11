@@ -82,7 +82,11 @@ module.exports = async function handler(req, res) {
       const vmLib = require("../lib/dk-maquina-virtual.cjs");
       vmAlinhamento = await vmLib.conferirAlinhamento();
       if (vmAlinhamento.ok && !vmAlinhamento.alinhadas) {
-        await vmLib.espelharHubNasVms({});
+        if (typeof vmLib.alinearClusterVms === "function") {
+          await vmLib.alinearClusterVms();
+        } else {
+          await vmLib.espelharHubNasVms({ merge: true });
+        }
         vmAlinhamento = await vmLib.conferirAlinhamento();
       }
     } catch (vmErr) {

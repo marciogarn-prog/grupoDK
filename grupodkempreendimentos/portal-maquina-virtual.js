@@ -420,7 +420,7 @@
     if (btn) btn.setAttribute("aria-expanded", "false");
   }
 
-  function renderListaVms(maquinas, alinhadas) {
+  function renderListaVms(maquinas, alinhadas, sincronizouCluster) {
     const lista = document.getElementById("portalAdminAcessarVmLista");
     if (!lista) return;
     const fiscal = lerFiscalVm();
@@ -430,7 +430,12 @@
       lista.innerHTML = '<div class="portal-admin-acessar-vm__vazio">Nenhuma VM disponível.</div>';
       return;
     }
-    const status = alinhadas === false ? '<div class="portal-admin-acessar-vm__erro">Atenção: VMs com divergência.</div>' : "";
+    let status = "";
+    if (alinhadas === false) {
+      status = '<div class="portal-admin-acessar-vm__erro">Atenção: VMs com divergência — a sincronização automática não concluiu.</div>';
+    } else if (sincronizouCluster) {
+      status = '<div class="portal-admin-acessar-vm__vazio">VMs sincronizadas agora no login/nuvem.</div>';
+    }
     lista.innerHTML =
       status +
       rows
@@ -485,7 +490,7 @@
         '<div class="portal-admin-acessar-vm__erro">Não foi possível listar as VMs.</div>';
       return;
     }
-    renderListaVms(res.data.maquinas || [], res.data.alinhadas);
+    renderListaVms(res.data.maquinas || [], res.data.alinhadas, res.data.sincronizouCluster);
   }
 
   async function acessarVmPorCpf(cpf, nome) {

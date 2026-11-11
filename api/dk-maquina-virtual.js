@@ -54,7 +54,13 @@ module.exports = async function handler(req, res) {
       const lista = String((req.query && req.query.lista) || "") === "1";
       if (lista) {
         if (!isOwner(gate) && !isCron) return res.status(403).json({ ok: false, reason: "forbidden" });
-        const conf = await vm.conferirAlinhamento();
+        let conf = await vm.conferirAlinhamento();
+        let sincronizouCluster = false;
+        if (conf.ok && !conf.alinhadas && typeof vm.alinearClusterVms === "function") {
+          const alin = await vm.alinearClusterVms();
+          sincronizouCluster = Boolean(alin && alin.sincronizou);
+          conf = await vm.conferirAlinhamento();
+        }
         const metas = await vm.listarMetas();
         const maquinas = [];
         for (const m of metas) {
@@ -67,6 +73,7 @@ module.exports = async function handler(req, res) {
           success: true,
           total: maquinas.length,
           alinhadas: conf.alinhadas,
+          sincronizouCluster,
           seq: conf.seq,
           maquinas,
         });

@@ -2653,9 +2653,9 @@
           role: funcionario.role,
         })
         .then((r) => {
-          if (r && r.ok && portalFuncionarioEhCeo(funcionario) && typeof window.__DK_vmGarantirTodas === "function") {
-            return window.__DK_vmGarantirTodas();
-          }
+          /* login-espelhar já compara e alinha o cluster; não chamar garantir-todos
+             depois (antigo espelho cru do hub reabria divergência). */
+          if (r && r.ok === false) console.warn("[DK VM] espelho no login", r);
           return r;
         })
         .catch((e) => console.warn("[DK VM] espelho no login", e));
