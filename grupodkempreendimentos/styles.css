@@ -9958,10 +9958,24 @@ body.dk-pwa-update-bar-visible {
 
 /* Fiscal de VM: botão sempre visível na barra vermelha (fora do wrap). */
 body.portal-body--fiscal-vm #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible,
-body.portal-body--admin-logado #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible {
+body.portal-body--admin-logado #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible,
+body.portal-body--ceo-barra-permanente #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible {
   display: inline-flex !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* CPF 03037897430: barra CEO completa permanente (também ao espelhar outra VM). */
+body.portal-body--ceo-barra-permanente #portalAdminVerComoWrap,
+body.portal-body--ceo-barra-permanente #portalAdminVerComoWrap.hidden,
+body.portal-body--ceo-barra-permanente #portalAdminVerComoWrap[hidden] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+body.portal-body--ceo-barra-permanente #portalAdminBannerLabel {
+  display: inline !important;
 }
 
 /* Indicador de sync com a VM — fonte bem pequena, sem alterar o layout da barra. */

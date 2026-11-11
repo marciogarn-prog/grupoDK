@@ -352,14 +352,16 @@
   function portalAtualizarBannerAdmin() {
     const banner = document.getElementById("portal-admin-banner");
     if (!banner) return;
-    const on = isPortalAdministradorLogado();
+    const on = isPortalAdministradorLogado() || portalCeoBarraPermanenteAtiva();
+    const ceoBarra = portalCeoBarraPermanenteAtiva();
     banner.classList.toggle("hidden", !on);
     document.body.classList.toggle("portal-body--admin-logado", on);
     document.body.classList.toggle("portal-body--equipa-sessao", portalTemSessaoEquipaAtiva());
-    const titularCeoSessao = on && portalTitularPodeUsarVerComo();
+    document.body.classList.toggle("portal-body--ceo-barra-permanente", ceoBarra);
     const modo = portalTitularVerComo();
     const fiscalAtivo = portalFiscalVmAtivo();
-    const titularCeoVisual = titularCeoSessao && !modo && !fiscalAtivo;
+    /* Fundo cinza chumbo só no perfil CEO “puro”; a BARRA vermelha completa permanece no fiscal. */
+    const titularCeoVisual = ceoBarra && !modo && !fiscalAtivo;
     document.body.classList.toggle("portal-body--admin-ceo", titularCeoVisual);
     document.documentElement.classList.toggle("portal-html--admin-ceo", titularCeoVisual);
     document.body.classList.toggle("portal-body--fiscal-vm", Boolean(fiscalAtivo));
@@ -369,9 +371,8 @@
     const wrap = document.getElementById("portalAdminVerComoWrap");
     const btnVoltarCeo = document.getElementById("portalAdminVerComoCeoBtn");
     const btnAcessarVm = document.getElementById("portalAdminAcessarVmBtn");
-    const podeVerComo = titularCeoSessao;
     if (label) {
-      if (podeVerComo) {
+      if (ceoBarra) {
         let txt = "LOGADO COMO ADMINISTRADOR CEO 03037897430";
         if (fiscalAtivo) {
           const nomeVm = String(fiscalAtivo.nome || "").trim() || fiscalAtivo.cpf;
@@ -385,18 +386,21 @@
       }
     }
     if (wrap) {
-      /* Wrap dos botões CEO fica visível no perfil CEO e também no fiscal de VM. */
-      const showWrap = Boolean(podeVerComo);
-      wrap.classList.toggle("hidden", !showWrap);
-      wrap.hidden = !showWrap;
+      /* Barra CEO permanente: nunca esconder os botões VER COMO / ACESSAR VM. */
+      wrap.classList.toggle("hidden", !ceoBarra);
+      wrap.hidden = !ceoBarra;
+      if (ceoBarra) {
+        wrap.removeAttribute("hidden");
+        wrap.style.display = "";
+      }
     }
     if (btnVoltarCeo) {
-      /* Sempre visível ao espelhar VM de outra pessoa (ou em VER COMO …). */
-      const showVoltar = Boolean(podeVerComo && (modo || fiscalAtivo));
+      const showVoltar = Boolean(ceoBarra && (modo || fiscalAtivo));
       btnVoltarCeo.classList.toggle("hidden", !showVoltar);
       btnVoltarCeo.hidden = !showVoltar;
       btnVoltarCeo.setAttribute("aria-hidden", showVoltar ? "false" : "true");
       if (showVoltar) {
+        btnVoltarCeo.removeAttribute("hidden");
         btnVoltarCeo.style.display = "";
         btnVoltarCeo.classList.add("portal-admin-ver-como__btn--ceo-visible");
       } else {
@@ -407,12 +411,12 @@
     document.querySelectorAll(".portal-admin-ver-como__btn").forEach((btn) => {
       if (btn.id === "portalAdminVerComoCeoBtn") return;
       const v = btn.getAttribute("data-ver-como") || "";
-      btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo && !fiscalAtivo));
+      btn.classList.toggle("is-active", Boolean(ceoBarra && v && v !== "ceo" && v === modo && !fiscalAtivo));
     });
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente" && !fiscalAtivo);
     try {
       const logadoTextoEl = document.getElementById("logado-texto");
-      if (logadoTextoEl && podeVerComo) {
+      if (logadoTextoEl && ceoBarra) {
         if (fiscalAtivo) {
           const nomeVm = String(fiscalAtivo.nome || "").trim() || fiscalAtivo.cpf;
           logadoTextoEl.textContent = `Márcio Santos · Administrador CEO · espelhando VM de ${nomeVm}`;
@@ -1084,8 +1088,49 @@
     }
   }
 
+  const PORTAL_CEO_BARRA_PERM_KEY = "dk_ceo_barra_permanente_v1";
+
+  function portalMarcarCeoBarraPermanente() {
+    try {
+      if (portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF) {
+        sessionStorage.setItem(PORTAL_CEO_BARRA_PERM_KEY, "1");
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalLimparCeoBarraPermanente() {
+    try {
+      sessionStorage.removeItem(PORTAL_CEO_BARRA_PERM_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Sessão do titular CEO: barra vermelha completa é permanente (também no fiscal de VM). */
+  function portalSessaoEhCeoTitular() {
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
+  }
+
+  function portalCeoBarraPermanenteAtiva() {
+    if (!portalSessaoEhCeoTitular()) {
+      portalLimparCeoBarraPermanente();
+      return false;
+    }
+    if (portalSessaoRoleReal() === "owner") {
+      portalMarcarCeoBarraPermanente();
+      return true;
+    }
+    try {
+      return sessionStorage.getItem(PORTAL_CEO_BARRA_PERM_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
   function portalTitularPodeUsarVerComo() {
-    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF && portalSessaoRoleReal() === "owner";
+    return portalCeoBarraPermanenteAtiva();
   }
 
   /** Pré-visualização do titular: `admin` | `colaborador` | `cliente`, ou "" (perfil completo). */
@@ -2662,6 +2707,14 @@
     }
     clearPortalUnitDadosAtualizados();
     portalMarcarSessaoAdminBuild();
+    if (
+      onlyDigits(String(funcionario.cpf || "")) === DK_LOCADORA_ADMIN_CPF &&
+      String(funcionario.role || "").trim() === "owner"
+    ) {
+      portalMarcarCeoBarraPermanente();
+    } else {
+      portalLimparCeoBarraPermanente();
+    }
     portalIniciarObservacaoOcupacao();
     portalAplicarVisibilidadeEquipaPorPerfil();
     if (typeof window.__DK_iniciarAvisoHorarioFimColab === "function") {
@@ -3616,6 +3669,12 @@
     if (typeof window.__DK_financeiroCeoReset === "function") window.__DK_financeiroCeoReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     if (typeof clearSession === "function") clearSession();
+    portalLimparCeoBarraPermanente();
+    try {
+      if (typeof window.__DK_vmLimparFiscal === "function") window.__DK_vmLimparFiscal();
+    } catch {
+      /* ignore */
+    }
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
