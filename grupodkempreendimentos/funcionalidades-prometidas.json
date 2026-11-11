@@ -2238,7 +2238,7 @@
     },
     {
       "id": "titular-ver-como-perfis",
-      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO; nesse fundo a fonte de destaque é amarela (não vermelha). Em VER COMO ADMINISTRADOR, ACESSAR VM ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO. ACESSAR VM abre lista das VMs; ao escolher a VM de um colaborador, o PC sincroniza com ela e passa a ver exatamente as limitações de acesso dele (menus/permissões do colaborador). VOLTAR A VER COMO CEO restaura o perfil completo.",
+      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO; nesse fundo a fonte de destaque é amarela (não vermelha). Em VER COMO ADMINISTRADOR, ACESSAR VM ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO. ACESSAR VM abre lista das VMs; ao escolher a VM de um colaborador, o PC sincroniza com ela e passa a ver exatamente as limitações de acesso dele (menus/permissões do colaborador). VOLTAR A VER COMO CEO fica sempre visível enquanto o CEO espelha uma VM que não é a dele e restaura o perfil completo.",
       "ficheiros": {
         "index.html": [
           "portalAdminVerComoWrap",

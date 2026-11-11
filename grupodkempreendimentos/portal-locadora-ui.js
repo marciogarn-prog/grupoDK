@@ -385,20 +385,44 @@
       }
     }
     if (wrap) {
-      wrap.classList.toggle("hidden", !podeVerComo);
-      wrap.hidden = !podeVerComo;
+      /* Wrap dos botões CEO fica visível no perfil CEO e também no fiscal de VM. */
+      const showWrap = Boolean(podeVerComo);
+      wrap.classList.toggle("hidden", !showWrap);
+      wrap.hidden = !showWrap;
     }
     if (btnVoltarCeo) {
+      /* Sempre visível ao espelhar VM de outra pessoa (ou em VER COMO …). */
       const showVoltar = Boolean(podeVerComo && (modo || fiscalAtivo));
       btnVoltarCeo.classList.toggle("hidden", !showVoltar);
       btnVoltarCeo.hidden = !showVoltar;
+      btnVoltarCeo.setAttribute("aria-hidden", showVoltar ? "false" : "true");
+      if (showVoltar) {
+        btnVoltarCeo.style.display = "";
+        btnVoltarCeo.classList.add("portal-admin-ver-como__btn--ceo-visible");
+      } else {
+        btnVoltarCeo.classList.remove("portal-admin-ver-como__btn--ceo-visible");
+      }
     }
     if (btnAcessarVm) btnAcessarVm.classList.toggle("is-active-vm", Boolean(fiscalAtivo));
     document.querySelectorAll(".portal-admin-ver-como__btn").forEach((btn) => {
+      if (btn.id === "portalAdminVerComoCeoBtn") return;
       const v = btn.getAttribute("data-ver-como") || "";
       btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo && !fiscalAtivo));
     });
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente" && !fiscalAtivo);
+    try {
+      const logadoTextoEl = document.getElementById("logado-texto");
+      if (logadoTextoEl && podeVerComo) {
+        if (fiscalAtivo) {
+          const nomeVm = String(fiscalAtivo.nome || "").trim() || fiscalAtivo.cpf;
+          logadoTextoEl.textContent = `Márcio Santos · Administrador CEO · espelhando VM de ${nomeVm}`;
+        } else if (!modo) {
+          logadoTextoEl.textContent = "Márcio Santos · Administrador CEO";
+        }
+      }
+    } catch {
+      /* ignore */
+    }
     portalPintarBannerOperadoresCpfs();
     if (portalTemSessaoEquipaAtiva()) portalPresencaEquipaStart();
     else portalPresencaEquipaStop();
@@ -2716,7 +2740,7 @@
     const dig = onlyDigits(String((detail && detail.cpf) || "")).slice(0, 11);
     portalLimparModoVerComo();
     if (dig && dig !== DK_LOCADORA_ADMIN_CPF) {
-      /* Mantém só a barra vermelha; menus/acessos passam a ser os do colaborador da VM. */
+      /* Mantém a barra vermelha + VOLTAR A VER COMO CEO; menus = permissões da VM. */
       try {
         sessionStorage.removeItem(PORTAL_TITULAR_VER_COMO_KEY);
       } catch {
@@ -2724,6 +2748,7 @@
       }
     }
     portalAplicarVisibilidadeEquipaPorPerfil();
+    portalAtualizarBannerAdmin();
     if (typeof openLocadoraEmpresa === "function") {
       try {
         const empresaAtiva = viewUnidadeEmpresa?.classList.contains("view--active");
@@ -2791,12 +2816,15 @@
   function portalBindVerComoBotoes() {
     if (window.__dkPortalVerComoBound) return;
     window.__dkPortalVerComoBound = true;
-    document.getElementById("portalAdminVerComoWrap")?.addEventListener("click", (ev) => {
+    const onVerComoClick = (ev) => {
       const btn = ev.target instanceof Element ? ev.target.closest("[data-ver-como]") : null;
       if (!btn) return;
       ev.preventDefault();
       portalAplicarModoVerComo(btn.getAttribute("data-ver-como") || "");
-    });
+    };
+    document.getElementById("portalAdminVerComoWrap")?.addEventListener("click", onVerComoClick);
+    /* VOLTAR A VER COMO CEO fica fora do wrap para permanecer visível no fiscal de VM. */
+    document.getElementById("portalAdminVerComoCeoBtn")?.addEventListener("click", onVerComoClick);
   }
 
   const portalViews = [

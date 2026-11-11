@@ -9944,6 +9944,7 @@ body.dk-pwa-update-bar-visible {
 .portal-admin-ver-como__btn--ceo {
   background: #b45309;
   border-color: #fcd34d;
+  flex: 0 0 auto;
 }
 
 .portal-admin-ver-como__btn--ceo:hover {
@@ -9953,6 +9954,14 @@ body.dk-pwa-update-bar-visible {
 .portal-admin-ver-como__btn--ceo.is-active {
   background: #9a3412;
   box-shadow: 0 0 0 2px #fde68a;
+}
+
+/* Fiscal de VM: botão sempre visível na barra vermelha (fora do wrap). */
+body.portal-body--fiscal-vm #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible,
+body.portal-body--admin-logado #portalAdminVerComoCeoBtn.portal-admin-ver-como__btn--ceo-visible {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Indicador de sync com a VM — fonte bem pequena, sem alterar o layout da barra. */
