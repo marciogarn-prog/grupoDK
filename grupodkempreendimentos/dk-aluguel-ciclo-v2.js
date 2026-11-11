@@ -3,14 +3,15 @@
  *
  * - Semana com desconto: paga (aluguel − desconto) + investimento
  *   diária só aluguel = (aluguel − desconto) / 7
- *   DK MINHA MOTO (ex.): 330 + 30 = 360 · DK MEU TRANSPORTE (sem investimento): 330 + 0 = 330
+ *   DK MINHA MOTO (ex.): 330 + 30 = 360 · DK MEU TRANSPORTE moto: 330 + 0 = 330
  * - Semana sem desconto: paga aluguel + investimento
  *   diária só aluguel = aluguel / 7
- *   DK MINHA MOTO: 360 + 30 = 390 · DK MEU TRANSPORTE: 360 + 0 = 360
+ *   DK MINHA MOTO: 360 + 30 = 390 · DK MEU TRANSPORTE moto: 360 + 0 = 360
  * - Desbloqueio do desconto na semana W: pagamentos até o dia de início da semana W
  *   devem atingir a soma das cobranças das semanas anteriores + valor com desconto.
  * - Devolução = total pago de aluguel − devido só de aluguel.
- * - DK MEU TRANSPORTE (moto/carro): mesma matemática, investimento forçado a 0.
+ * - DK MEU TRANSPORTE moto: mesma matemática com investimento 0.
+ * - DK MEU TRANSPORTE carro: investimento 0 e sem desconto de prazo (desconto forçado a 0).
  */
 (function dkAluguelCicloV2() {
   const INICIO_REGRA_YMD = "2026-10-01";
@@ -70,6 +71,29 @@
     return k.includes("MEU") && k.includes("TRANSPORTE");
   }
 
+  /** DK MEU TRANSPORTE + CARRO: sem desconto de R$ 30 (nem no cadastro nem na cobrança). */
+  function isPlanoMeuTransporteCarro(loc) {
+    if (!isPlanoMeuTransporte(loc)) return false;
+    const plano = String(loc?.plano || loc?.opcaoContrato || loc?.tipoPlano || "")
+      .trim()
+      .toUpperCase();
+    if (plano.includes("CARRO")) return true;
+    const mod = String(loc?.modalidade || loc?.tipo || "")
+      .trim()
+      .toUpperCase();
+    if (mod.includes("CARRO")) return true;
+    if (typeof window.__DK_portalInferTipoVeiculoLocacao === "function") {
+      try {
+        if (String(window.__DK_portalInferTipoVeiculoLocacao(loc) || "").toUpperCase() === "CARRO") {
+          return true;
+        }
+      } catch {
+        /* ignora */
+      }
+    }
+    return false;
+  }
+
   function paramsFromLoc(loc) {
     const aluguel = Math.max(
       0,
@@ -84,10 +108,12 @@
     if (loc?.descontoPrazo != null && String(loc.descontoPrazo).trim() !== "") {
       desconto = Math.max(0, parseMoney(loc.descontoPrazo));
     }
+    // CARRO: o desconto de prazo não existe — força 0 mesmo se o cadastro tiver 30.
+    if (isPlanoMeuTransporteCarro(loc)) desconto = 0;
     const aluguelNaSemanaComDesc = Math.max(0, aluguel - desconto); // 330
-    // Com desconto: (aluguel − desconto) + investimento (MINHA MOTO 360; MEU TRANSPORTE 330)
+    // Com desconto: (aluguel − desconto) + investimento (MINHA MOTO 360; MEU TRANSPORTE moto 330)
     const comDesconto = Math.max(0, aluguelNaSemanaComDesc + investimento);
-    const contratoCheio = aluguel + investimento; // MINHA MOTO 390; MEU TRANSPORTE 360
+    const contratoCheio = aluguel + investimento; // MINHA MOTO 390; MEU TRANSPORTE moto 360
     return {
       aluguel,
       investimento,
@@ -98,6 +124,7 @@
       diariaAluguelComDesc: aluguelNaSemanaComDesc / 7,
       diariaAluguelSemDesc: aluguel / 7,
       meuTransporte: isPlanoMeuTransporte(loc),
+      meuTransporteCarro: isPlanoMeuTransporteCarro(loc),
     };
   }
 
@@ -367,6 +394,8 @@
   window.__DK_aluguelCicloV2 = {
     INICIO_REGRA_YMD,
     locAplicaRegraV2,
+    isPlanoMeuTransporte,
+    isPlanoMeuTransporteCarro,
     paramsFromLoc,
     buildSemanas,
     devidoAluguelAte,

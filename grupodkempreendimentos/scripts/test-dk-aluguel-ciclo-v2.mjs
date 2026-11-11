@@ -67,7 +67,8 @@ locBase.portalLancamentosAluguel = [{ data: "02/11/2026", valor: 360, tipoMovime
 sandbox.window.__DK_getPortalLancamentosAluguelContabilizaveisDoContrato = (loc) => loc.portalLancamentosAluguel;
 sandbox.window.__DK_sumPortalLancamentosAluguelTotal = (arr) =>
   (arr || []).reduce((s, x) => s + parseCurrencyBR(x.valor), 0);
-sandbox.window.__DK_portalValorAluguelNumFromLoc = () => 360;
+sandbox.window.__DK_portalValorAluguelNumFromLoc = (loc) =>
+  parseCurrencyBR(loc?.valorLocacao ?? loc?.valorAluguel ?? 0);
 
 const r5 = api.devidoAluguelAte(locBase, null, { dias: 5 });
 check("5 dias com desconto ≈ 235,71", approx(r5.devidoAluguel, 5 * (330 / 7)));
@@ -192,5 +193,28 @@ check(
 const locMtmInvErr = { ...locMtm, valorInvestimento: "30" };
 check("MEU TRANSPORTE: força investimento 0 mesmo com campo preenchido", api.paramsFromLoc(locMtmInvErr).investimento === 0);
 check("MEU TRANSPORTE: com desconto permanece 330", approx(api.paramsFromLoc(locMtmInvErr).comDesconto, 330));
+
+// DK MEU TRANSPORTE CARRO: sem desconto de 30 (mesmo se o cadastro trouxer 30)
+const locMtc = {
+  inicio: "02/11/2026",
+  plano: "DK MEU TRANSPORTE",
+  modalidade: "CARRO",
+  valorLocacao: "450",
+  valorInvestimento: "0",
+  descontoPrazo: "30",
+  portalLancamentosAluguel: [{ data: "02/11/2026", valor: 450, tipoMovimento: "PAGAMENTO" }],
+};
+const pMtc = api.paramsFromLoc(locMtc);
+check("MEU TRANSPORTE CARRO: isPlanoMeuTransporteCarro", api.isPlanoMeuTransporteCarro(locMtc) === true);
+check("MEU TRANSPORTE CARRO: desconto forçado 0", pMtc.desconto === 0);
+check("MEU TRANSPORTE CARRO: comDesconto = aluguel cheio", approx(pMtc.comDesconto, 450));
+check("MEU TRANSPORTE CARRO: contratoCheio = aluguel", approx(pMtc.contratoCheio, 450));
+const sugMtc = api.sugestaoPagamentoNaData(locMtc, "02/11/2026");
+check(
+  "MEU TRANSPORTE CARRO: sugestão sem desconto 30",
+  sugMtc && approx(sugMtc.desconto || 0, 0) && approx(sugMtc.valorSugerido, 450)
+);
+const locMtcPlano = { ...locMtc, plano: "DK MEU TRANSPORTE-CARRO", modalidade: "" };
+check("MEU TRANSPORTE-CARRO no plano: desconto 0", api.paramsFromLoc(locMtcPlano).desconto === 0);
 
 console.log(`\n--- ${passed}/${passed} testes dk-aluguel-ciclo-v2 ---`);

@@ -2106,8 +2106,11 @@
           "mergeManutencoesCadastro",
           "dk_manutencoes_cadastro"
         ],
-        "lib/dk-maquina-virtual.cjs": [
+        "lib/dk-vm-sync-core.cjs": [
           "manutencoesAtivasAssinatura",
+          "assinaturaManutencoesAtivas"
+        ],
+        "lib/dk-maquina-virtual.cjs": [
           "consultarDelta"
         ],
         "portal-maquina-virtual.js": [
@@ -3942,13 +3945,14 @@
     },
     {
       "id": "aluguel-ciclo-semanal-v2-outubro-2026",
-      "descricao": "Contratos com data início >= 01/10/2026 usam ciclo semanal no dia da semana do início: semana com desconto cobra (aluguel−desconto)+investimento (diária aluguel = (aluguel−desconto)/7); sem desconto cobra aluguel+investimento (diária aluguel = aluguel/7); DK MEU TRANSPORTE (moto/carro) usa a mesma matemática com investimento 0; recuperação exige quitar semana cheia anterior + valor com desconto até o dia do ciclo; devolução = total pago − devido só de aluguel. Antes de 01/10/2026 nada muda.",
+      "descricao": "Contratos com data início >= 01/10/2026 usam ciclo semanal no dia da semana do início: semana com desconto cobra (aluguel−desconto)+investimento (diária aluguel = (aluguel−desconto)/7); sem desconto cobra aluguel+investimento (diária aluguel = aluguel/7); DK MEU TRANSPORTE moto usa a mesma matemática com investimento 0; DK MEU TRANSPORTE carro força investimento 0 e desconto de prazo 0 (o desconto de 30 não aparece); recuperação exige quitar semana cheia anterior + valor com desconto até o dia do ciclo; devolução = total pago − devido só de aluguel. Antes de 01/10/2026 nada muda.",
       "ficheiros": {
         "dk-aluguel-ciclo-v2.js": [
           "INICIO_REGRA_YMD",
           "2026-10-01",
           "locAplicaRegraV2",
           "isPlanoMeuTransporte",
+          "isPlanoMeuTransporteCarro",
           "devidoAluguelAte",
           "sugestaoPagamentoNaData",
           "explicacaoDesistencia",
@@ -3958,7 +3962,9 @@
           "__DK_aluguelCicloV2",
           "devidoAluguelAte",
           "sugestaoPagamentoNaData",
-          "explicacaoCicloV2"
+          "explicacaoCicloV2",
+          "syncOperacaoLocacaoDescontoPorModalidade",
+          "portalLocacaoEhMeuTransporteCarro"
         ],
         "index.html": [
           "dk-aluguel-ciclo-v2.js"

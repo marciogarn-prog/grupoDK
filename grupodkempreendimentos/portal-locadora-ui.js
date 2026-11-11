@@ -14201,6 +14201,7 @@
     }
     return "MOTO";
   }
+  window.__DK_portalInferTipoVeiculoLocacao = portalInferTipoVeiculoLocacao;
 
   function portalTextoSugereVeiculoCarro(value) {
     const t =
@@ -23446,6 +23447,47 @@
     }
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
     paintOperacaoLocacaoTipoPlanoFonte();
+    syncOperacaoLocacaoDescontoPorModalidade();
+  }
+
+  /** DK MEU TRANSPORTE + CARRO: desconto de prazo não aparece (força R$ 0,00 e esconde o campo). */
+  function syncOperacaoLocacaoDescontoPorModalidade() {
+    const descEl = document.getElementById("operacaoLocacaoDescontoPrazo");
+    if (!descEl) return;
+    const field =
+      descEl.closest(".portal-field--desconto-prazo") || descEl.closest("label") || descEl.parentElement;
+    const plano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
+    const isMt = isPortalPlanoMeuTransporteKey(plano);
+    const mod = getOperacaoLocacaoModalidadeMarcada();
+    const carroSemDesconto = isMt && mod === "CARRO";
+    if (carroSemDesconto) {
+      descEl.value = portalFmtReaisCampo(0);
+      descEl.readOnly = true;
+      descEl.setAttribute(
+        "title",
+        "No plano DK MEU TRANSPORTE carro não há desconto por cumprir o prazo."
+      );
+      if (field) {
+        field.classList.add("hidden");
+        field.hidden = true;
+        field.setAttribute("aria-hidden", "true");
+      }
+      return;
+    }
+    descEl.readOnly = false;
+    descEl.setAttribute(
+      "title",
+      "Desconto se o pagamento cair no mesmo dia da semana do início do contrato. Depois desse dia, cobra o valor cheio."
+    );
+    if (field) {
+      field.classList.remove("hidden");
+      field.hidden = false;
+      field.setAttribute("aria-hidden", "false");
+    }
+    const n = portalParseReaisCampo(descEl.value);
+    if (!String(descEl.value || "").trim() || n === 0) {
+      descEl.value = portalFmtReaisCampo(30);
+    }
   }
 
   function syncOperacaoLocacaoModalidadeBolas(opts = {}) {
@@ -23460,6 +23502,7 @@
       setOperacaoLocacaoModalidadeMarcada("");
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
       paintOperacaoLocacaoTipoPlanoFonte();
+      syncOperacaoLocacaoDescontoPorModalidade();
       return;
     }
     const rawMod = String(opts.modalidade || "").trim();
@@ -23849,6 +23892,7 @@
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoVisualizarContratoBtn();
     syncOperacaoLocacaoModalidadeBolas({ modalidade: loc.modalidade, locacao: loc, infer: true });
+    syncOperacaoLocacaoDescontoPorModalidade();
     setOperacaoResponsavelPorDisplay("operacaoLocacaoCadastradoPor", loc);
     if (loc?.numeroContrato && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
       void window.__DK_contratoLocacaoSincronizarPasta(normPortalNumeroContrato(loc.numeroContrato), loc.statusLocacao, {
@@ -25924,7 +25968,14 @@
       return;
     }
     const descontoInformado = String(document.getElementById("operacaoLocacaoDescontoPrazo")?.value || "").trim();
-    const descontoPrazoNum = descontoInformado === "" ? 30 : Math.max(0, portalParseReaisCampo(descontoInformado));
+    let descontoPrazoNum = descontoInformado === "" ? 30 : Math.max(0, portalParseReaisCampo(descontoInformado));
+    // Pré-leitura da modalidade: CARRO no MEU TRANSPORTE não grava nem aplica desconto 30.
+    const modalidadePre =
+      isPortalPlanoMeuTransporteKey(planoNome) &&
+      (getOperacaoLocacaoModalidadeMarcada() || inferOperacaoLocacaoModalidadeDoFormulario());
+    if (isPortalPlanoMeuTransporteKey(planoNome) && String(modalidadePre || "").toUpperCase().includes("CARRO")) {
+      descontoPrazoNum = 0;
+    }
     const descontoPrazo = portalFmtReaisCampo(descontoPrazoNum);
     const valorSemanalNum = valorLocNum + valorInvNum;
     const cb =
@@ -27640,7 +27691,26 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  function portalLocacaoEhMeuTransporteCarro(loc) {
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.isPlanoMeuTransporteCarro === "function"
+    ) {
+      return Boolean(window.__DK_aluguelCicloV2.isPlanoMeuTransporteCarro(loc));
+    }
+    const plano = String(loc?.plano || loc?.opcaoContrato || "").trim().toUpperCase();
+    if (!(plano.includes("MEU") && plano.includes("TRANSPORTE"))) return false;
+    if (plano.includes("CARRO")) return true;
+    const mod = String(loc?.modalidade || "").trim().toUpperCase();
+    if (mod.includes("CARRO")) return true;
+    return (
+      typeof portalInferTipoVeiculoLocacao === "function" &&
+      portalInferTipoVeiculoLocacao(loc) === "CARRO"
+    );
+  }
+
   function portalDescontoPrazoCadastroNum(loc) {
+    if (portalLocacaoEhMeuTransporteCarro(loc)) return 0;
     if (loc && loc.descontoPrazo != null && String(loc.descontoPrazo).trim() !== "") {
       const n = portalParseReaisCampo(loc.descontoPrazo);
       return n >= 0 ? n : 30;
@@ -27659,12 +27729,54 @@
     return inicio.getDay() === pag.getDay();
   }
 
+  function portalSyncLancAluguelDescontoCampoVisivel(loc) {
+    const descEl = document.getElementById("operacaoLancAluguelDescontoPrazo");
+    if (!descEl) return;
+    const field =
+      descEl.closest(".portal-field") ||
+      descEl.closest(".portal-lanc-field--desconto") ||
+      descEl.parentElement;
+    const semDesconto = portalLocacaoEhMeuTransporteCarro(loc);
+    if (semDesconto) {
+      descEl.value = portalFmtReaisCampo(0);
+      descEl.readOnly = true;
+      if (field) {
+        field.classList.add("hidden");
+        field.hidden = true;
+        field.setAttribute("aria-hidden", "true");
+      }
+      return;
+    }
+    descEl.readOnly = false;
+    if (field) {
+      field.classList.remove("hidden");
+      field.hidden = false;
+      field.setAttribute("aria-hidden", "false");
+    }
+  }
+
   function portalAplicarSugestaoDescontoPagamento() {
     const loc = typeof resolveLocOperacaoLancAluguelAtual === "function" ? resolveLocOperacaoLancAluguelAtual() : null;
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const descEl = document.getElementById("operacaoLancAluguelDescontoPrazo");
     if (!descEl) return;
+    portalSyncLancAluguelDescontoCampoVisivel(loc);
+    if (portalLocacaoEhMeuTransporteCarro(loc)) {
+      descEl.value = portalFmtReaisCampo(0);
+      const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
+      if (valSimples && valPlano) valSimples.value = valPlano;
+      if (
+        loc &&
+        window.__DK_aluguelCicloV2 &&
+        typeof window.__DK_aluguelCicloV2.sugestaoPagamentoNaData === "function" &&
+        window.__DK_aluguelCicloV2.locAplicaRegraV2?.(loc)
+      ) {
+        const sug = window.__DK_aluguelCicloV2.sugestaoPagamentoNaData(loc, dataEl?.value);
+        if (sug && valSimples) valSimples.value = portalFmtReaisCampo(sug.valorSugerido || 0);
+      }
+      return;
+    }
     if (
       loc &&
       window.__DK_aluguelCicloV2 &&
@@ -30611,6 +30723,7 @@
     });
     document.getElementById("operacaoLocacaoModalidadeWrap")?.addEventListener("change", () => {
       paintOperacaoLocacaoProtocoloSelectFromModalidade();
+      syncOperacaoLocacaoDescontoPorModalidade();
     });
     document.getElementById("operacaoLocacaoProtocoloAdminCarregarBtn")?.addEventListener("click", () => {
       const raw = String(document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || "").trim();
