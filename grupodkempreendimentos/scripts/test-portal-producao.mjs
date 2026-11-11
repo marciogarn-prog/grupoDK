@@ -1867,13 +1867,14 @@ async function runSuite() {
       "Contrato + CRLV: trazer do depósito; Visualizar + Confirmar + Enviar + Excluir"
     );
     record(
-      "lançamento multas importa depósito Documentos",
-      indexFresh.includes("operacaoLancMultasDocumentosDeposito") &&
-        indexFresh.includes("operacaoLancMultasDocImportBtn") &&
-        !indexFresh.includes("operacaoLancMultasBuscarDepositoBtn") &&
-        indexFresh.includes("Confirmar") &&
-        indexFresh.includes("Enviar para o cliente"),
-      "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
+      "lançamento de multa igual à manutenção",
+      indexFresh.includes("operacaoInlineLancamentoMultas") &&
+        indexFresh.includes("operacaoLancMultaConfirmarDespesaBtn") &&
+        indexFresh.includes("Registrar pagamento de multa") &&
+        indexFresh.includes("TOTAL DE MULTAS") &&
+        indexFresh.includes("operacaoLocacaoMultaPendenteWrap") &&
+        indexFresh.includes("portal-lancamento-multa.js"),
+      "despesa + pagamento de multa; resumo TOTAL/PAGO/RESTANTE; pendente no cadastro"
     );
     const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob3`, {
       cache: "no-store",
