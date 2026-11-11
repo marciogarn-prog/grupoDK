@@ -5,14 +5,12 @@
  * Offline → novidade fica na VM até o próximo login.
  */
 (function () {
-  /* Espelho VM: só manutenção/checklist (cabe no Redis; resto = Postgres). */
+  /* Espelho VM mínimo (oficina); histórico/fotos ficam fora do Redis. */
   const CLONE_KEYS = [
-    "dk_funcionarios_access",
     "dk_manutencoes_cadastro",
     "dk_manutencoes_rapidas_v1",
     "dk_portal_setor_movimentacoes_v1",
     "dk_portal_checklist_movimentacoes_v1",
-    "dk_portal_checklist_historico_v1",
   ];
 
   const SEQ_LS_KEY = "dk_vm_cluster_seq_v1";
@@ -261,7 +259,6 @@
         ? e.dk_portal_setor_movimentacoes_v1.length
         : 0,
       oficinaPropriaAtivas,
-      funcionarios: Array.isArray(e.dk_funcionarios_access) ? e.dk_funcionarios_access.length : 0,
     };
   }
 

@@ -161,7 +161,18 @@ async function gravarClone(cpf, estado, r) {
     for (const [k, raw] of Object.entries(fields)) {
       await client.hset(partsKey, { [k]: raw });
     }
-  } else {
+  }
+  /* Remove chaves gordas legadas do hash (histórico/clientes/etc.). */
+  try {
+    const existentes = await client.hkeys(partsKey);
+    const lixo = (Array.isArray(existentes) ? existentes : Object.keys(existentes || {})).filter(
+      (k) => !CLONE_KEYS.includes(k) || CLONE_KEYS_EXCLUIDAS_REDIS.has(k)
+    );
+    if (lixo.length) await client.hdel(partsKey, ...lixo);
+  } catch {
+    /* ignore */
+  }
+  if (!Object.keys(fields).length) {
     try {
       await client.del(partsKey);
     } catch {

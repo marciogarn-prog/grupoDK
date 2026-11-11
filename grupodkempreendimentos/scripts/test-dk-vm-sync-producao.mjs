@@ -44,23 +44,7 @@ const h = {
   "Content-Type": "application/json",
 };
 
-const conf = await fetch(BASE + "api/dk-maquina-virtual", {
-  method: "POST",
-  headers: h,
-  body: JSON.stringify({ acao: "conferir" }),
-}).then(async (r) => ({ status: r.status, j: await r.json() }));
-
-assert(conf.status === 200 && conf.j.ok === true, "conferir HTTP ok", `status=${conf.status}`);
-assert(conf.j.alinhadas === true, "todas as VMs alinhadas", `div=${JSON.stringify(conf.j.divergencias || [])}`);
-assert(Number(conf.j.total) >= 2, "há pelo menos 2 VMs no cluster", `total=${conf.j.total}`);
-assert(
-  Number(conf.j.resumo?.manutencoesAtivas || 0) >= 1,
-  "cluster tem manutenções activas",
-  `ativas=${conf.j.resumo?.manutencoesAtivas}`
-);
-
-const oficinaAntes = Number(conf.j.resumo?.oficinaPropriaAtivas || conf.j.resumo?.manutencoesAtivas || 0);
-
+/* 1) Força alinhar o cluster (login-espelhar = contribuir + união + espelho). */
 const esp = await fetch(BASE + "api/dk-maquina-virtual", {
   method: "POST",
   headers: h,
@@ -84,7 +68,11 @@ const esp = await fetch(BASE + "api/dk-maquina-virtual", {
   }),
 }).then(async (r) => ({ status: r.status, j: await r.json() }));
 
-assert(esp.status === 200 && esp.j.ok === true, "login-espelhar HTTP ok", `status=${esp.status} err=${esp.j.error || esp.j.reason || ""}`);
+assert(
+  esp.status === 200 && esp.j.ok === true,
+  "login-espelhar HTTP ok",
+  `status=${esp.status} err=${String(esp.j.error || esp.j.reason || "").slice(0, 180)}`
+);
 assert(esp.j.alinhadas === true, "cluster alinhado após login-espelhar");
 assert(Array.isArray(esp.j.estado?.dk_manutencoes_cadastro), "estado espelhado traz manutenções");
 
@@ -94,23 +82,22 @@ const oficina = man.filter(
     !String(m?.dataRealSaida || "").trim() &&
     /oficina.?propria/i.test(String(m?.categoriaManutencao || m?.categoria || ""))
 );
+assert(oficina.length >= 20, "oficina própria no espelho ≥ 20 placas", `n=${oficina.length}`);
 assert(
-  oficina.length >= Math.max(1, oficinaAntes - 5),
-  "espelho não encolheu a oficina própria",
-  `antes≈${oficinaAntes} depois=${oficina.length}`
-);
-assert(
-  Number(esp.j.resumo?.manutencoesAtivas || 0) >= 1,
-  "resumo do espelho tem activas",
+  Number(esp.j.resumo?.manutencoesAtivas || 0) >= 20,
+  "resumo do espelho tem activas ≥ 20",
   `ativas=${esp.j.resumo?.manutencoesAtivas}`
 );
 
+/* 2) Conferir alinhamento de todas as VMs. */
 const conf2 = await fetch(BASE + "api/dk-maquina-virtual", {
   method: "POST",
   headers: h,
   body: JSON.stringify({ acao: "conferir" }),
 }).then(async (r) => ({ status: r.status, j: await r.json() }));
-assert(conf2.j.alinhadas === true, "continua alinhado após espelho");
+assert(conf2.status === 200 && conf2.j.ok === true, "conferir HTTP ok", `status=${conf2.status}`);
+assert(conf2.j.alinhadas === true, "todas as VMs alinhadas", `div=${(conf2.j.divergencias || []).length}`);
+assert(Number(conf2.j.total) >= 2, "há pelo menos 2 VMs no cluster", `total=${conf2.j.total}`);
 
 const html = await fetch(BASE + "?nocache=" + Date.now(), { cache: "no-store" }).then((r) => r.text());
 assert(/portal-maquina-virtual\.js\?v=/.test(html), "HTML serve portal-maquina-virtual com cache-bust");

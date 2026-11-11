@@ -9,20 +9,20 @@
 const { neverLoseCadastroPayload, mergeManutencoesCadastro } = require("./dk-append-only-merge.cjs");
 
 /**
- * Só o que precisa ficar gémeo entre PCs e cabe no Redis (<10 MB/comando).
- * Clientes/veículos/locações/financeiro ficam fora (Postgres / outros canais).
+ * Clone gémeo mínimo para Oficina própria (cada chave < 10 MB no Upstash).
+ * Histórico de checklist estourou 32 MB — fica fora do espelho VM.
  */
 const CLONE_KEYS = Object.freeze([
-  "dk_funcionarios_access",
   "dk_manutencoes_cadastro",
   "dk_manutencoes_rapidas_v1",
   "dk_portal_setor_movimentacoes_v1",
   "dk_portal_checklist_movimentacoes_v1",
-  "dk_portal_checklist_historico_v1",
 ]);
 
 const CLONE_KEYS_EXCLUIDAS = Object.freeze(
   new Set([
+    "dk_funcionarios_access",
+    "dk_portal_checklist_historico_v1",
     "dk_clientes_cadastro",
     "dk_portal_clientes_cadastro",
     "dk_clientes_validacao_pendente",
@@ -42,6 +42,29 @@ const CLONE_KEYS_EXCLUIDAS = Object.freeze(
   ])
 );
 
+/** Remove base64/fotos de um registo antes de gravar no Redis. */
+function stripPesado(valor) {
+  if (Array.isArray(valor)) return valor.map(stripPesado);
+  if (!valor || typeof valor !== "object") return valor;
+  const out = {};
+  for (const [k, v] of Object.entries(valor)) {
+    const key = String(k).toLowerCase();
+    if (
+      key.includes("base64") ||
+      key.includes("dataurl") ||
+      key.includes("foto") ||
+      key.includes("imagem") ||
+      key.includes("thumbnail") ||
+      key.includes("assinatura")
+    ) {
+      if (typeof v === "string" && v.length > 200) continue;
+    }
+    if (typeof v === "string" && v.startsWith("data:") && v.length > 200) continue;
+    out[k] = stripPesado(v);
+  }
+  return out;
+}
+
 const KEYS_UNIAO_PC = Object.freeze(
   new Set([
     "dk_manutencoes_cadastro",
@@ -58,7 +81,7 @@ function slimEstado(estado) {
   for (const k of CLONE_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(src, k)) continue;
     if (CLONE_KEYS_EXCLUIDAS.has(k)) continue;
-    out[k] = src[k];
+    out[k] = stripPesado(src[k]);
   }
   return out;
 }
@@ -141,7 +164,6 @@ function resumirEstado(estado) {
       ? e.dk_portal_setor_movimentacoes_v1.length
       : 0,
     oficinaPropriaAtivas: placasOficinaAtivas(e).length,
-    funcionarios: Array.isArray(e.dk_funcionarios_access) ? e.dk_funcionarios_access.length : 0,
   };
 }
 
@@ -212,6 +234,7 @@ module.exports = {
   CLONE_KEYS,
   CLONE_KEYS_EXCLUIDAS,
   KEYS_UNIAO_PC,
+  stripPesado,
   slimEstado,
   unirDoisEstados,
   unirCluster,
