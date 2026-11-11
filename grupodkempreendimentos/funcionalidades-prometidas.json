@@ -3885,6 +3885,21 @@
           "portal-admin-acessar-vm"
         ]
       }
+    },
+    {
+      "id": "lanc-aluguel-nome-sem-autofill-senha",
+      "descricao": "No Lançamento de aluguel, o campo Nome do cliente (e CPF/protocolo/placa da pesquisa) não abre sugestões de senhas de login do Chrome. São campos de busca de contrato, não de autenticação.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancAluguelNomeBusca",
+          "dk_lanc_aluguel_nome_cliente_busca",
+          "data-dk-no-login-autofill"
+        ],
+        "portal-locadora-ui.js": [
+          "portalBindBloquearAutofillLoginPesquisaOnce",
+          "data-dk-no-login-autofill"
+        ]
+      }
     }
   ]
 }

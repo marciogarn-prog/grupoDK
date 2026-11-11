@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261110vm5">
+  <link rel="stylesheet" href="styles.css?v=20261110vm6">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -1944,25 +1944,54 @@
               <div class="portal-lanc-aluguel-pesquisa__row">
                 <label class="portal-field portal-lanc-field--nome">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancAluguelNomeBusca" name="nomeBusca" autocomplete="off" maxlength="120" size="40" placeholder="Nome do cliente" aria-label="Nome do cliente" list="operacaoLancAluguelNomeSugestoes" aria-autocomplete="list">
+                  <input
+                    type="search"
+                    id="operacaoLancAluguelNomeBusca"
+                    name="dk_lanc_aluguel_nome_cliente_busca"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                    maxlength="120"
+                    size="40"
+                    placeholder="Nome do cliente"
+                    aria-label="Nome do cliente"
+                    list="operacaoLancAluguelNomeSugestoes"
+                    aria-autocomplete="list"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    data-bwignore="true"
+                    data-form-type="other"
+                    data-dk-no-login-autofill="1"
+                    readonly
+                  >
                   <datalist id="operacaoLancAluguelNomeSugestoes"></datalist>
                 </label>
                 <label class="portal-field portal-lanc-field--cpf">
                   <span>CPF</span>
                   <div class="portal-combobox">
                     <input
-                      type="text"
+                      type="search"
                       id="operacaoLancAluguelCpf"
-                      name="cpf"
+                      name="dk_lanc_aluguel_cpf_busca"
                       inputmode="numeric"
                       maxlength="14"
                       size="16"
                       autocomplete="off"
+                      autocapitalize="off"
+                      autocorrect="off"
+                      spellcheck="false"
                       placeholder="000.000.000-00"
                       aria-label="CPF"
                       aria-autocomplete="list"
                       aria-expanded="false"
                       aria-controls="operacaoLancAluguelCpfLista"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-bwignore="true"
+                      data-form-type="other"
+                      data-dk-no-login-autofill="1"
+                      readonly
                     >
                     <div
                       id="operacaoLancAluguelCpfLista"
@@ -1978,9 +2007,9 @@
                   <span>Nº do protocolo</span>
                   <div class="portal-combobox">
                     <input
-                      type="text"
+                      type="search"
                       id="operacaoLancAluguelProtocoloBusca"
-                      name="protocoloBusca"
+                      name="dk_lanc_aluguel_protocolo_busca"
                       autocomplete="off"
                       maxlength="12"
                       size="12"
@@ -1989,6 +2018,11 @@
                       aria-autocomplete="list"
                       aria-expanded="false"
                       aria-controls="operacaoLancAluguelProtoLista"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      data-form-type="other"
+                      data-dk-no-login-autofill="1"
+                      readonly
                     >
                     <div
                       id="operacaoLancAluguelProtoLista"
@@ -2002,7 +2036,24 @@
                 </label>
                 <label class="portal-field portal-lanc-field--placa">
                   <span>Placa</span>
-                  <input type="text" id="operacaoLancAluguelPlacaBusca" name="placaBusca" autocomplete="off" maxlength="7" size="8" placeholder="ABC1D23" aria-label="Placa do veículo" list="operacaoLancAluguelPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
+                  <input
+                    type="search"
+                    id="operacaoLancAluguelPlacaBusca"
+                    name="dk_lanc_aluguel_placa_busca"
+                    autocomplete="off"
+                    maxlength="7"
+                    size="8"
+                    placeholder="ABC1D23"
+                    aria-label="Placa do veículo"
+                    list="operacaoLancAluguelPlacaSugestoes"
+                    aria-autocomplete="list"
+                    autocapitalize="characters"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
+                    data-form-type="other"
+                    data-dk-no-login-autofill="1"
+                    readonly
+                  >
                   <datalist id="operacaoLancAluguelPlacaSugestoes"></datalist>
                 </label>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
@@ -2707,7 +2758,7 @@
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes" aria-autocomplete="list">
+                  <input type="search" id="operacaoLancMultasNomeBusca" name="dk_lanc_multas_nome_cliente_busca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes" aria-autocomplete="list" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-dk-no-login-autofill="1" readonly>
                   <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
                 </label>
                   <label class="portal-field portal-field--combobox">
@@ -3230,7 +3281,7 @@
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancManutencaoNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes" aria-autocomplete="list">
+                  <input type="search" id="operacaoLancManutencaoNomeBusca" name="dk_lanc_manut_nome_cliente_busca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes" aria-autocomplete="list" data-lpignore="true" data-1p-ignore="true" data-form-type="other" data-dk-no-login-autofill="1" readonly>
                   <datalist id="operacaoLancManutencaoNomeSugestoes"></datalist>
                 </label>
                 <label class="portal-field portal-field--combobox">
@@ -6369,7 +6420,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261110vm5" defer></script>
+  <script src="app.js?v=20261110vm6" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6383,7 +6434,7 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="portal-locadora-ui.js?v=20261110vm5" defer></script>
+  <script src="portal-locadora-ui.js?v=20261110vm6" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>
@@ -6435,9 +6486,9 @@
   <script src="portal-manutencao-rapida.js?v=20261107obsRapida" defer></script>
   <script src="portal-cliente-docs.js?v=20261027cliente-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260907plat-and" defer></script>
-  <script src="portal-pacotes.js?v=20261110vm5" defer></script>
-  <script src="portal-maquina-virtual.js?v=20261110vm5" defer></script>
-  <script src="portal-supabase-sync.js?v=20261110vm5" defer></script>
+  <script src="portal-pacotes.js?v=20261110vm6" defer></script>
+  <script src="portal-maquina-virtual.js?v=20261110vm6" defer></script>
+  <script src="portal-supabase-sync.js?v=20261110vm6" defer></script>
   <script src="portal-locacao-pg.js?v=20261104ws9" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>

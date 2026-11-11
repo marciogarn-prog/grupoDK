@@ -33309,9 +33309,42 @@
     portalRestaurarAreaLogadaAposRecarga();
   }
 
+  /**
+   * Campos de pesquisa (nome/CPF/protocolo/placa) não são login.
+   * Chrome ignora autocomplete=off e sugere senhas salvas — readonly até o foco evita isso.
+   */
+  function portalBindBloquearAutofillLoginPesquisaOnce() {
+    if (window.__dkPortalNoLoginAutofillBound) return;
+    window.__dkPortalNoLoginAutofillBound = true;
+    const unlock = (el) => {
+      if (!(el instanceof HTMLInputElement)) return;
+      el.removeAttribute("readonly");
+      el.setAttribute("autocomplete", "off");
+    };
+    const lockIdle = (el) => {
+      if (!(el instanceof HTMLInputElement)) return;
+      if (document.activeElement === el) return;
+      if (String(el.value || "").trim()) return;
+      el.setAttribute("readonly", "readonly");
+      el.setAttribute("autocomplete", "off");
+    };
+    document.querySelectorAll("[data-dk-no-login-autofill='1']").forEach((el) => {
+      if (!(el instanceof HTMLInputElement)) return;
+      el.setAttribute("autocomplete", "off");
+      el.setAttribute("data-lpignore", "true");
+      el.setAttribute("data-1p-ignore", "true");
+      el.setAttribute("data-form-type", "other");
+      if (!el.hasAttribute("readonly")) el.setAttribute("readonly", "readonly");
+      el.addEventListener("pointerdown", () => unlock(el), true);
+      el.addEventListener("focus", () => unlock(el), true);
+      el.addEventListener("blur", () => lockIdle(el));
+    });
+  }
+
   window.addEventListener("hashchange", applyPortalLocadoraHash);
   window.addEventListener("pageshow", () => portalRestaurarAreaLogadaAposRecarga());
   portalInvalidarSessaoSeBuildAntigo();
+  portalBindBloquearAutofillLoginPesquisaOnce();
   portalBindVerComoBotoes();
   portalAtualizarBannerAdmin();
   if (document.readyState === "complete") {
