@@ -4587,6 +4587,13 @@
   const PORTAL_LOGIN_FAIL_LS_KEY = "dk_portal_login_fail_v2";
   const PORTAL_LOGIN_FAIL_MAX = 3;
   const PORTAL_LOGIN_LOCK_MS = 60 * 60 * 1000;
+  /** Suspensão do bloqueio de 1 h por 3 senhas erradas até 31/12/2026 (inclusive). */
+  const PORTAL_LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO = "2026-12-31";
+
+  function portalLoginPasswordLockSuspenso() {
+    const fim = Date.parse(`${PORTAL_LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO}T23:59:59.999-03:00`);
+    return Number.isFinite(fim) && Date.now() <= fim;
+  }
 
   function portalLoginFailMapLoad() {
     try {
@@ -4628,6 +4635,10 @@
   }
 
   function portalLoginBloqueadoMsg(cpf) {
+    if (portalLoginPasswordLockSuspenso()) {
+      portalLimparFalhaLoginLocal(cpf);
+      return "";
+    }
     const st = portalLoginFailState(cpf);
     if (!st.lockedUntil || st.lockedUntil <= Date.now()) return "";
     const mins = Math.max(1, Math.ceil((st.lockedUntil - Date.now()) / 60000));
@@ -4635,6 +4646,10 @@
   }
 
   function portalRegistrarFalhaLoginLocal(cpf) {
+    if (portalLoginPasswordLockSuspenso()) {
+      portalLimparFalhaLoginLocal(cpf);
+      return { message: "Senha não confere.", attemptsLeft: PORTAL_LOGIN_FAIL_MAX, lockedUntil: 0 };
+    }
     const st = portalLoginFailState(cpf);
     if (!st.dig) {
       return { message: portalMensagemSenhaNaoConfereLocal(PORTAL_LOGIN_FAIL_MAX - 1), attemptsLeft: PORTAL_LOGIN_FAIL_MAX - 1 };
@@ -4764,8 +4779,8 @@
         }
         if (!remote.ok && !remote.networkError && !remote.allowLocalFallback) {
           if (
-            remote.reason === "invalid_credentials" ||
-            remote.reason === "password_locked"
+            !portalLoginPasswordLockSuspenso() &&
+            (remote.reason === "invalid_credentials" || remote.reason === "password_locked")
           ) {
             const dig = onlyDigits(cpf).slice(0, 11);
             if (dig.length === 11) {
@@ -4786,6 +4801,8 @@
               };
               portalLoginFailMapSave(map);
             }
+          } else if (portalLoginPasswordLockSuspenso()) {
+            portalLimparFalhaLoginLocal(cpf);
           }
           if (loginFeedback) {
             loginFeedback.textContent = remote.msg || "Senha não confere.";

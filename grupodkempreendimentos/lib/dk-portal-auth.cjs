@@ -437,10 +437,16 @@ async function enforceRateLimit(req, res, bucket, maxPerMin, opts) {
   return false;
 }
 
-/** 3 senhas erradas → bloqueio de 1 hora (por CPF). */
+/** 3 senhas erradas → bloqueio de 1 hora (por CPF). Suspenso até 31/12/2026 (inclusive, horário de Brasília). */
 const LOGIN_FAIL_MAX = 3;
 const LOGIN_LOCK_MS = 60 * 60 * 1000;
 const LOGIN_FAIL_TTL_SEC = 60 * 60 + 120;
+const LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO = "2026-12-31";
+
+function loginPasswordLockSuspenso() {
+  const fim = Date.parse(`${LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO}T23:59:59.999-03:00`);
+  return Number.isFinite(fim) && Date.now() <= fim;
+}
 
 function chaveLoginFail(cpf) {
   return `dk:portal:login_fail:v2:${onlyDigits(cpf).slice(0, 11)}`;
@@ -493,6 +499,15 @@ async function readLoginFailState(cpf) {
  * Caso contrário devolve false (pode tentar login).
  */
 async function rejectIfLoginPasswordLocked(res, cpf) {
+  if (loginPasswordLockSuspenso()) {
+    /* Libera quem já estava bloqueado no Redis durante a suspensão. */
+    try {
+      await clearLoginPasswordFailures(cpf);
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
   const dig = onlyDigits(cpf).slice(0, 11);
   if (dig.length !== 11) return false;
   const st = await readLoginFailState(dig);
@@ -520,6 +535,15 @@ async function registerLoginPasswordFailure(cpf) {
     lockedUntil: 0,
     message: mensagemSenhaNaoConfere(LOGIN_FAIL_MAX - 1),
   };
+  if (loginPasswordLockSuspenso()) {
+    return {
+      attemptsLeft: LOGIN_FAIL_MAX,
+      locked: false,
+      lockedUntil: 0,
+      message: "Senha não confere.",
+      lockSuspenso: true,
+    };
+  }
   if (dig.length !== 11) return empty;
   if (!isRedisKvConfigured()) return empty;
   try {
@@ -782,8 +806,10 @@ module.exports = {
   rejectIfLoginPasswordLocked,
   registerLoginPasswordFailure,
   clearLoginPasswordFailures,
+  loginPasswordLockSuspenso,
   mensagemSenhaNaoConfere,
   LOGIN_FAIL_MAX,
+  LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO,
   loadOfficialSnapshotPayload,
   podeLoginCeoEmergencia,
   TITULAR_CEO_CPF,

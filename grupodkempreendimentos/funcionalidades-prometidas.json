@@ -3678,7 +3678,7 @@
     },
     {
       "id": "login-senha-3-tentativas-1h",
-      "descricao": "No login da equipa: senha errada mostra «Senha não confere. Você tem mais X tentativa(s).»; após 3 erros o CPF fica bloqueado por 1 hora (servidor Redis + cópia local).",
+      "descricao": "No login da equipa: senha errada mostra «Senha não confere. Você tem mais X tentativa(s).»; após 3 erros o CPF fica bloqueado por 1 hora (servidor Redis + cópia local). Essa trava de 1 hora fica suspensa até 31/12/2026 (inclusive): durante a suspensão o sistema não bloqueia por excesso de tentativas e limpa bloqueios já gravados.",
       "ficheiros": {
         "api/dk-portal-auth.js": [
           "rejectIfLoginPasswordLocked",
@@ -3688,6 +3688,9 @@
         ],
         "lib/dk-portal-auth.cjs": [
           "LOGIN_FAIL_MAX",
+          "LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO",
+          "2026-12-31",
+          "loginPasswordLockSuspenso",
           "mensagemSenhaNaoConfere",
           "Senha não confere. Você tem mais"
         ],
@@ -3698,7 +3701,9 @@
         "portal-locadora-ui.js": [
           "portalRegistrarFalhaLoginLocal",
           "portalLoginBloqueadoMsg",
-          "PORTAL_LOGIN_FAIL_MAX"
+          "PORTAL_LOGIN_FAIL_MAX",
+          "PORTAL_LOGIN_PASSWORD_LOCK_SUSPENSO_ATE_ISO",
+          "portalLoginPasswordLockSuspenso"
         ]
       }
     },
