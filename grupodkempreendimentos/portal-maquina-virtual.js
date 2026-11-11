@@ -60,18 +60,34 @@
     return `SINCRONIZADO COM VM AS ${hh}:${mm}:${ss} DO DIA ${dd}-${mo}-${aa}.`;
   }
 
-  function marcarSincronizadoComVm(quando) {
+  function formatarTextoVmDivergente(quando) {
+    const d = quando instanceof Date ? quando : new Date(quando);
+    if (Number.isNaN(d.getTime())) return "VM DIVERGENTE — a alinhar o cluster…";
+    const hh = pad2(d.getHours());
+    const mm = pad2(d.getMinutes());
+    const ss = pad2(d.getSeconds());
+    return `VM DIVERGENTE AS ${hh}:${mm}:${ss} — a alinhar o cluster…`;
+  }
+
+  function marcarSincronizadoComVm(quando, opts) {
     const d = quando instanceof Date ? quando : new Date();
     const iso = d.toISOString();
+    const divergente = Boolean(opts && opts.divergente);
     try {
       sessionStorage.setItem(SYNC_AT_KEY, iso);
+      sessionStorage.setItem("dk_vm_sync_divergente_v1", divergente ? "1" : "0");
     } catch {
       /* ignore */
     }
     const el = document.getElementById("portalVmSyncStatus");
-    if (el) el.textContent = formatarTextoSyncVm(d);
+    if (el) {
+      el.textContent = divergente ? formatarTextoVmDivergente(d) : formatarTextoSyncVm(d);
+      el.classList.toggle("portal-vm-sync--divergente", divergente);
+      el.setAttribute("data-vm-sync-ok", divergente ? "0" : "1");
+    }
     try {
       window.__DK_vmUltimoSyncAt = iso;
+      window.__DK_vmSyncOk = !divergente;
     } catch {
       /* ignore */
     }
@@ -293,12 +309,20 @@
 
   /**
    * Aplica o clone da VM no PC.
-   * gemeas/fiscal/substituir: o banco da nuvem manda (irmãs gémeas) — não fica resto local a desalinhar.
+   * Mesmo em modo gémeas, manutenção/checklist/setor fazem UNIÃO com o local —
+   * um clone incompleto nunca apaga placas activas que este PC ainda tem.
    */
   function aplicarEstadoNoPc(estado, opts) {
     if (!estado || typeof estado !== "object") return { ok: false, aplicadas: 0 };
     const fiscal = Boolean(opts && opts.fiscal);
     const gemeas = Boolean(opts && (opts.gemeas || opts.substituir || opts.fiscal));
+    const keysUniaoSempre = new Set([
+      "dk_manutencoes_cadastro",
+      "dk_manutencoes_rapidas_v1",
+      "dk_portal_checklist_movimentacoes_v1",
+      "dk_portal_checklist_historico_v1",
+      "dk_portal_setor_movimentacoes_v1",
+    ]);
     let aplicadas = 0;
     aplicandoDelta = true;
     window.__DK_vmAplicandoDelta = true;
@@ -314,7 +338,8 @@
           localArr = [];
         }
         let merged = cloudArr;
-        if (!gemeas && typeof mergeCadastroHistoricoImutavel === "function") {
+        const forcarUniao = keysUniaoSempre.has(k);
+        if ((!gemeas || forcarUniao) && typeof mergeCadastroHistoricoImutavel === "function") {
           if (k === "dk_manutencoes_cadastro" && typeof window.__DK_mergeManutencoesCloudManda === "function") {
             merged = window.__DK_mergeManutencoesCloudManda(localArr, cloudArr);
           } else if (k.includes("veiculos")) {
@@ -324,11 +349,14 @@
           } else {
             merged = mergeCadastroHistoricoImutavel(k, localArr, cloudArr);
           }
+        } else if (forcarUniao && typeof window.__DK_mergeManutencoesCloudManda === "function" && k === "dk_manutencoes_cadastro") {
+          merged = window.__DK_mergeManutencoesCloudManda(localArr, cloudArr);
         }
         if (typeof saveCadastro === "function") {
+          const shrinkOk = gemeas && !forcarUniao;
           saveCadastro(k, Array.isArray(merged) ? merged : cloudArr, {
             bypassImmutabilidadeCadastro: true,
-            allowShrink: true,
+            allowShrink: shrinkOk,
           });
           aplicadas += 1;
         }
@@ -380,16 +408,21 @@
   async function espelharNoLogin(opts) {
     const cpf = digitos((opts && opts.cpf) || cpfSessao());
     if (cpf.length !== 11) return { ok: false, reason: "cpf" };
+    /* Envia o que este PC já tem → união no cluster → espelho de volta. */
     const res = await postAcao("login-espelhar", {
       cpf,
       nome: (opts && opts.nome) || nomeSessao(),
       role: (opts && opts.role) || "",
+      estado: coletarEstadoPc(),
     });
     if (!res.ok) return res;
-    /* Clone gémeo: o banco da VM manda no PC (todas as máquinas iguais). */
     const aplicado = aplicarEstadoNoPc(res.data && res.data.estado, { gemeas: true });
     if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
-    marcarSincronizadoComVm();
+    const localApos = resumoLocalPc();
+    const divergente = Boolean(
+      res.data && res.data.resumo && resumosDivergem(localApos, res.data.resumo)
+    );
+    marcarSincronizadoComVm(new Date(), { divergente });
     refrescarUiAposCloneVm();
     try {
       window.__DK_VM_META = res.data && res.data.meta;
@@ -401,6 +434,7 @@
             seq: res.data.seq,
             alinhadas: res.data.alinhadas,
             resumo: res.data.resumo,
+            divergente,
           },
         })
       );
@@ -408,10 +442,18 @@
       /* ignore */
     }
     iniciarPollVm();
-    return { ok: true, meta: res.data.meta, aplicadas: aplicado.aplicadas, criada: res.data.criada, seq: res.data.seq };
+    return {
+      ok: true,
+      meta: res.data.meta,
+      aplicadas: aplicado.aplicadas,
+      criada: res.data.criada,
+      seq: res.data.seq,
+      alinhadas: res.data.alinhadas,
+      divergente,
+    };
   }
 
-  /** Salvar: PC → VM → redistribui a todas as VMs na nuvem. */
+  /** Salvar: PC → VM → une o cluster → devolve espelho alinhado ao PC. */
   async function sincronizarPcComClone() {
     if (aplicandoDelta || window.__DK_vmAplicandoDelta) {
       return { ok: true, skipped: true, reason: "aplicando_delta" };
@@ -426,7 +468,16 @@
     });
     if (res.ok) {
       if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
-      marcarSincronizadoComVm();
+      if (res.data && res.data.estado) {
+        aplicarEstadoNoPc(res.data.estado, { gemeas: true });
+        refrescarUiAposCloneVm();
+      }
+      const divergente = Boolean(
+        res.data && res.data.resumo && resumosDivergem(resumoLocalPc(), res.data.resumo)
+      );
+      marcarSincronizadoComVm(new Date(), { divergente });
+    } else {
+      marcarSincronizadoComVm(new Date(), { divergente: true });
     }
     return res;
   }
@@ -461,13 +512,43 @@
 
     if (!precisaBaixar) {
       if (res.data && res.data.seq != null) gravarSeqLocal(res.data.seq);
-      marcarSincronizadoComVm();
-      return { ok: true, haNovidade: false, seq: res.data && res.data.seq, motivo, resumo: res.data && res.data.resumo };
+      const divergenteIdle = Boolean(
+        res.data && res.data.resumo && resumosDivergem(resumoLocalPc(), res.data.resumo)
+      );
+      marcarSincronizadoComVm(new Date(), { divergente: divergenteIdle });
+      if (divergenteIdle) {
+        /* Ainda diverge: força download do clone. */
+        res = await postAcao("consultar-delta", { cpf, lastSeq: 0 });
+        if (res.ok && res.data && res.data.estado) {
+          precisaBaixar = true;
+        } else {
+          return {
+            ok: true,
+            haNovidade: false,
+            seq: res.data && res.data.seq,
+            motivo,
+            resumo: res.data && res.data.resumo,
+            divergente: true,
+          };
+        }
+      } else {
+        return {
+          ok: true,
+          haNovidade: false,
+          seq: res.data && res.data.seq,
+          motivo,
+          resumo: res.data && res.data.resumo,
+          divergente: false,
+        };
+      }
     }
 
     const aplicado = aplicarEstadoNoPc(res.data.estado, { gemeas: true });
     if (res.data.seq != null) gravarSeqLocal(res.data.seq);
-    marcarSincronizadoComVm();
+    const divergenteApos = Boolean(
+      res.data && res.data.resumo && resumosDivergem(resumoLocalPc(), res.data.resumo)
+    );
+    marcarSincronizadoComVm(new Date(), { divergente: divergenteApos });
     refrescarUiAposCloneVm();
     try {
       window.dispatchEvent(
@@ -478,13 +559,21 @@
             aplicadas: aplicado.aplicadas,
             motivo,
             gemeas: true,
+            divergente: divergenteApos,
           },
         })
       );
     } catch {
       /* ignore */
     }
-    return { ok: true, haNovidade: true, seq: res.data.seq, aplicadas: aplicado.aplicadas, motivo };
+    return {
+      ok: true,
+      haNovidade: true,
+      seq: res.data.seq,
+      aplicadas: aplicado.aplicadas,
+      motivo,
+      divergente: divergenteApos,
+    };
   }
 
   function naTrocaDeTela() {

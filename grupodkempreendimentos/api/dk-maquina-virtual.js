@@ -125,6 +125,8 @@ module.exports = async function handler(req, res) {
           nome: body.nome,
           role: body.role || gate.role,
           deviceId: body.deviceId,
+          /* PC contribui antes do espelho — união, não substituição. */
+          estado: body.estado || body.payload || null,
         });
         return res.status(out.ok ? 200 : 503).json({ ...out, success: out.ok });
       }

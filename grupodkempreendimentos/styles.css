@@ -10106,6 +10106,12 @@ body.portal-body--ceo-barra-permanente #portalAdminBannerLabel {
   text-overflow: ellipsis;
 }
 
+.portal-admin-banner__vm-sync.portal-vm-sync--divergente {
+  color: #ffe08a;
+  font-weight: 800;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
 .portal-admin-banner__vm-sync:empty {
   display: none;
 }
