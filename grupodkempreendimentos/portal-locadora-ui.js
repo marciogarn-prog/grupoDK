@@ -28062,9 +28062,21 @@
     portalPesquisaLinhasCache = null;
   }
 
+  function portalLocacoesBaseParaPesquisa() {
+    const pgPronta =
+      window.__DK_LOCACAO_PG === true &&
+      !window.__DK_LOCACAO_PG_ERRO &&
+      Array.isArray(window.__DK_locacoesPgCache) &&
+      window.__DK_locacoesPgCache.length > 0;
+    if (pgPronta) return { locs: window.__DK_locacoesPgCache, fonte: "pg" };
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      return { locs: loadCadastro(CAD_LOCACOES_KEY) || [], fonte: "local" };
+    }
+    return { locs: [], fonte: "vazio" };
+  }
+
   function collectOperacaoLancAluguelPesquisaLinhas() {
-    if (portalPesquisaLinhasCache) return portalPesquisaLinhasCache;
-    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    if (portalPesquisaLinhasCache != null) return portalPesquisaLinhasCache;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const np =
@@ -28078,12 +28090,21 @@
       window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         ? window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
         : null;
+    const { locs, fonte } = portalLocacoesBaseParaPesquisa();
     const confirmados = window.__DK_locacoesNuvemProtocolos;
-    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+    const pgOficial = fonte === "pg";
+    (Array.isArray(locs) ? locs : []).forEach((l) => {
       const proto = normPortalNumeroContrato(l.numeroContrato || "");
       if (!proto) return;
       if (allowPrs && !allowPrs.has(String(proto).replace(/\D/g, ""))) return;
-      if (confirmados instanceof Set && confirmados.size && !confirmados.has(String(proto).replace(/\D/g, ""))) return;
+      if (
+        !pgOficial &&
+        confirmados instanceof Set &&
+        confirmados.size &&
+        !confirmados.has(String(proto).replace(/\D/g, ""))
+      ) {
+        return;
+      }
       const cpf = dig(String(l.cpf || ""));
       if (cpf.length !== 11) return;
       let nome = String(l.nome || l.cliente || "").trim();
@@ -28098,7 +28119,15 @@
         fimBr: portalFormatDataFinalizacaoLocacao(l),
       });
     });
-    portalPesquisaLinhasCache = linhas;
+    /* Não congelar lista vazia enquanto a nuvem/Postgres ainda não entregou os contratos. */
+    const aguardandoOficial =
+      !linhas.length &&
+      window.__DK_IS_DEMO_DEPLOY__ !== true &&
+      (Boolean(window.__DK_reporLocacoesOficiaisFlight) ||
+        (window.__DK_LOCACAO_PG === true &&
+          !window.__DK_LOCACAO_PG_ERRO &&
+          !(Array.isArray(window.__DK_locacoesPgCache) && window.__DK_locacoesPgCache.length > 0)));
+    if (!aguardandoOficial) portalPesquisaLinhasCache = linhas;
     return linhas;
   }
 
@@ -28354,11 +28383,32 @@
    * @param {{ source?: 'cpf'|'nome'|'proto'|'placa', skipCpfLista?: boolean, openCpfLista?: boolean, skipProtoLista?: boolean, openProtoLista?: boolean }} opts
    */
   function refreshOperacaoLancAluguelPesquisaDatalists(opts = {}) {
+    /* Enquanto a nuvem sincroniza, continua a pintar a lista local/PG — não trava a digitação. */
     if (opts.nuvemPronta !== true && window.__DK_reporLocacoesOficiaisFlight) {
       void Promise.resolve(window.__DK_reporLocacoesOficiaisFlight).then(() => {
+        try {
+          invalidatePesquisaLinhasCache();
+        } catch {
+          /* ignore */
+        }
         refreshOperacaoLancAluguelPesquisaDatalists({ ...opts, nuvemPronta: true });
       });
-      return;
+    }
+    if (
+      window.__DK_LOCACAO_PG === true &&
+      !window.__DK_LOCACAO_PG_ERRO &&
+      !(Array.isArray(window.__DK_locacoesPgCache) && window.__DK_locacoesPgCache.length > 0) &&
+      typeof window.__DK_locacaoPgRecarregar === "function" &&
+      opts.pediuPg !== true
+    ) {
+      void Promise.resolve(window.__DK_locacaoPgRecarregar()).then(() => {
+        try {
+          invalidatePesquisaLinhasCache();
+        } catch {
+          /* ignore */
+        }
+        refreshOperacaoLancAluguelPesquisaDatalists({ ...opts, pediuPg: true, nuvemPronta: true });
+      });
     }
     const source = String(opts.source || "");
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");

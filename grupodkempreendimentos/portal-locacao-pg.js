@@ -107,6 +107,13 @@
     window.__DK_LOCACAO_PG = true;
     publicarPesquisa(window.__DK_locacoesPgCache);
     try {
+      if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+        window.__DK_invalidatePesquisaLinhasCache();
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
       localStorage.removeItem(CHAVE);
     } catch {
       /* preferência de tela pode ficar; locação não */
@@ -116,12 +123,24 @@
 
   function refrescarTela() {
     try {
+      if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+        window.__DK_invalidatePesquisaLinhasCache();
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
       if (typeof window.__DK_portalRefreshOperacaoDeferred === "function") window.__DK_portalRefreshOperacaoDeferred();
     } catch {
       /* ignore */
     }
     try {
       if (typeof window.__DK_portalRepintarPagamentosAbertos === "function") window.__DK_portalRepintarPagamentosAbertos();
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
     } catch {
       /* ignore */
     }
@@ -455,6 +474,13 @@
     if (vista.length) {
       window.__DK_locacoesPgCache = vista;
       publicarPesquisa(vista);
+      try {
+        if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+          window.__DK_invalidatePesquisaLinhasCache();
+        }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
