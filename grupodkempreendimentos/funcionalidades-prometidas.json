@@ -3860,6 +3860,30 @@
       }
     },
     {
+      "id": "aluguel-ciclo-semanal-v2-outubro-2026",
+      "descricao": "Contratos com data início >= 01/10/2026 usam ciclo semanal no dia da semana do início: aluguel + investimento + desconto; semana com desconto cobra aluguel (diária = (aluguel-desconto)/7); sem desconto cobra aluguel+investimento (diária aluguel = aluguel/7); recuperação exige quitar semana cheia anterior + valor com desconto até o dia do ciclo; devolução = total pago − devido só de aluguel. Antes de 01/10/2026 nada muda.",
+      "ficheiros": {
+        "dk-aluguel-ciclo-v2.js": [
+          "INICIO_REGRA_YMD",
+          "2026-10-01",
+          "locAplicaRegraV2",
+          "devidoAluguelAte",
+          "sugestaoPagamentoNaData",
+          "explicacaoDesistencia",
+          "__DK_aluguelCicloV2"
+        ],
+        "portal-locadora-ui.js": [
+          "__DK_aluguelCicloV2",
+          "devidoAluguelAte",
+          "sugestaoPagamentoNaData",
+          "explicacaoCicloV2"
+        ],
+        "index.html": [
+          "dk-aluguel-ciclo-v2.js"
+        ]
+      }
+    },
+    {
       "id": "manutencao-cliente-operacao",
       "descricao": "Em Operação, entre Lançamento de multa e Estoque, o botão Lançamento de manutenção abre painel como Lançamento de aluguel: Registrar despesa e Registrar pagamento de manutenção; histórico e resumo TOTAL DE MANUTENÇÕES / TOTAL PAGO / VALOR RESTANTE; no Cadastro de locação a caixa dividida mostra PENDENCIA DE MANUTENÇÃO e PENDENCIA DE MULTAS com os valores restantes.",
       "ficheiros": {

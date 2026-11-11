@@ -19220,7 +19220,15 @@
     const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const diasAteHoje = computePortalDiasAteHoje(loc);
     const temDataFim = portalLocacaoTemDataFim(loc);
-    const devido = temDataFim ? diasAteHoje * (valLoc / 7) : diasAteHoje * (plano / 7);
+    let devido = temDataFim ? diasAteHoje * (valLoc / 7) : diasAteHoje * (plano / 7);
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(loc)
+    ) {
+      const v2 = window.__DK_aluguelCicloV2.devidoAluguelAte(loc, null, { dias: diasAteHoje });
+      if (v2 && Number.isFinite(v2.devidoAluguel)) devido = v2.devidoAluguel;
+    }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const pago = sumPortalLancamentosAluguelTotal(lancs);
     const atraso = Number(pago || 0) - Number(devido || 0);
@@ -19826,9 +19834,17 @@
     const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
     const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const dias = computePortalDiasAteHoje(loc);
-    const devidoAluguel = dias * (Number(valLoc) / 7);
+    let devidoAluguel = dias * (Number(valLoc) / 7);
     const devidoPlano = dias * (Number(plano) / 7);
     const investimento = dias * (Number(valInv) / 7);
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(loc)
+    ) {
+      const v2 = window.__DK_aluguelCicloV2.devidoAluguelAte(loc, null, { dias });
+      if (v2 && Number.isFinite(v2.devidoAluguel)) devidoAluguel = v2.devidoAluguel;
+    }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const pago = sumPortalLancamentosAluguelTotal(lancs);
     const caucao = sumPortalCaucaoPagoDoContrato(loc);
@@ -24703,7 +24719,10 @@
       const pagamentoSaldo = saldos.dataPagamentoSaldo
         ? ` · Pagamento do saldo: ${saldos.dataPagamentoSaldo}`
         : "";
-      resumo.textContent = `Protocolo ${contexto.protocolo} · ${contexto.nome || "Cliente"} · ${contexto.placa || "sem placa"} · fim ${contexto.fim} · devido ${saldos.devidoFmt || "—"} · pago ${saldos.pagoFmt || "—"} · saldo ${saldos.saldoFmt || "—"}${pagamentoSaldo}.`;
+      const cicloTxt = String(saldos.explicacaoCicloV2 || "").trim();
+      resumo.textContent =
+        `Protocolo ${contexto.protocolo} · ${contexto.nome || "Cliente"} · ${contexto.placa || "sem placa"} · fim ${contexto.fim} · devido ${saldos.devidoFmt || "—"} · pago ${saldos.pagoFmt || "—"} · saldo ${saldos.saldoFmt || "—"}${pagamentoSaldo}.` +
+        (cicloTxt ? ` ${cicloTxt}` : "");
     }
     iniciativa.value = String(contexto.iniciativa || "Cliente");
     motivo.value = String(contexto.motivoDistrato || "Cliente desistiu do Processo.");
@@ -26788,10 +26807,23 @@
     const temDataFim = portalLocacaoTemDataFim(loc);
     // Ativo: plano (aluguel+investimento) até hoje.
     // Com data fim: só aluguel do início ao fim (investimento devolvido, não entra no devido).
-    const valorDevidoAteHojeNum = temDataFim
+    let valorDevidoAteHojeNum = temDataFim
       ? diasAteHoje * (valLoc / 7)
       : diasAteHoje * (plano / 7);
-    const valorDevidoAluguelNum = tempo * (valLoc / 7);
+    let valorDevidoAluguelNum = tempo * (valLoc / 7);
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(loc)
+    ) {
+      const diasRef = temDataFim ? tempo : diasAteHoje;
+      const v2 = window.__DK_aluguelCicloV2.devidoAluguelAte(loc, null, { dias: diasRef });
+      if (v2 && Number.isFinite(v2.devidoAluguel)) {
+        valorDevidoAluguelNum = v2.devidoAluguel;
+        // Ativo e encerrado: devido exibido = só aluguel (taxa por semana com/sem desconto).
+        valorDevidoAteHojeNum = v2.devidoAluguel;
+      }
+    }
     const valorDevidoManutencaoNum = (() => {
       const arrManut = Array.isArray(loc?.portalManutencoesRegistro) ? loc.portalManutencoesRegistro : [];
       if (arrManut.length) {
@@ -26864,7 +26896,15 @@
     const locCalc = { ...(loc || {}), fim: String(fimBr || loc?.fim || "").trim() };
     const valLoc = portalValorAluguelNumFromLoc(locCalc);
     const tempo = computePortalTempoDiasLoc(locCalc);
-    const devido = tempo * (valLoc / 7);
+    let devido = tempo * (valLoc / 7);
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(locCalc)
+    ) {
+      const v2 = window.__DK_aluguelCicloV2.devidoAluguelAte(locCalc, null, { dias: tempo });
+      if (v2 && Number.isFinite(v2.devidoAluguel)) devido = v2.devidoAluguel;
+    }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(locCalc);
     const pago = sumPortalLancamentosAluguelTotal(lancs);
     const saldo = Number(pago || 0) - Number(devido || 0);
@@ -26878,6 +26918,15 @@
       const dt = portalSomarDiasCorridos(d, PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS);
       if (dt) dataPagamentoSaldo = formatPortalDataBr(dt);
     }
+    let explicacaoCicloV2 = "";
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.explicacaoDesistencia === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2?.(locCalc)
+    ) {
+      const ex = window.__DK_aluguelCicloV2.explicacaoDesistencia(locCalc, locCalc.fim);
+      if (ex?.texto) explicacaoCicloV2 = ex.texto;
+    }
     return {
       devido,
       pago,
@@ -26886,6 +26935,7 @@
       pagoFmt: fmtBrl(pago),
       saldoFmt: fmtBrl(saldo),
       dataPagamentoSaldo,
+      explicacaoCicloV2,
     };
   }
 
@@ -27325,7 +27375,15 @@
     }
     const valLoc = portalValorAluguelNumFromLoc(loc);
     const dias = computePortalDiasAteHoje(loc);
-    const devidoAluguel = dias * (Number(valLoc) / 7);
+    let devidoAluguel = dias * (Number(valLoc) / 7);
+    if (
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(loc)
+    ) {
+      const v2 = window.__DK_aluguelCicloV2.devidoAluguelAte(loc, null, { dias });
+      if (v2 && Number.isFinite(v2.devidoAluguel)) devidoAluguel = v2.devidoAluguel;
+    }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const totalPago = sumPortalLancamentosAluguelTotal(lancs);
     const caucaoPago = sumPortalCaucaoPagoDoContrato(loc);
@@ -27506,6 +27564,20 @@
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const descEl = document.getElementById("operacaoLancAluguelDescontoPrazo");
     if (!descEl) return;
+    if (
+      loc &&
+      window.__DK_aluguelCicloV2 &&
+      typeof window.__DK_aluguelCicloV2.locAplicaRegraV2 === "function" &&
+      window.__DK_aluguelCicloV2.locAplicaRegraV2(loc) &&
+      typeof window.__DK_aluguelCicloV2.sugestaoPagamentoNaData === "function"
+    ) {
+      const sug = window.__DK_aluguelCicloV2.sugestaoPagamentoNaData(loc, dataEl?.value);
+      if (sug) {
+        descEl.value = portalFmtReaisCampo(sug.desconto || 0);
+        if (valSimples) valSimples.value = portalFmtReaisCampo(sug.valorSugerido || 0);
+        return;
+      }
+    }
     const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
     const cheio = portalParseReaisCampo(valPlano);
     const descontoCad = portalDescontoPrazoCadastroNum(loc);
@@ -34288,6 +34360,11 @@
   window.__DK_PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS;
   window.__DK_PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS = PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS;
   window.__DK_portalLocacaoFinalizacaoSaldos = portalLocacaoFinalizacaoSaldos;
+  window.__DK_portalValorAluguelNumFromLoc = portalValorAluguelNumFromLoc;
+  window.__DK_computePortalDiasAteHoje = computePortalDiasAteHoje;
+  window.__DK_computePortalTempoDiasLoc = computePortalTempoDiasLoc;
+  window.__DK_getPortalLancamentosAluguelContabilizaveisDoContrato = getPortalLancamentosAluguelContabilizaveisDoContrato;
+  window.__DK_sumPortalLancamentosAluguelTotal = sumPortalLancamentosAluguelTotal;
   window.__DK_portalSomarDiasCorridos = portalSomarDiasCorridos;
   window.__DK_formatPortalDataLimiteDevolucao40d = formatPortalDataLimiteDevolucao40d;
   window.__DK_portalPainelLimiteDevolucaoState = portalPainelLimiteDevolucaoState;
