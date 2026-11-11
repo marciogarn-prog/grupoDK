@@ -2099,6 +2099,33 @@
       }
     },
     {
+      "id": "colaborador-salvar-alteracoes-visivel-confirmacao",
+      "descricao": "No Cadastro de colaborador, o botão Salvar alterações tem destaque amarelo de alto contraste. Ao clicar, abre janela com tabela Antes da alteração / Depois da alteração e botão Confirmar antes de guardar.",
+      "ficheiros": {
+        "index.html": [
+          "portalColabBtnSalvarAlteracoes",
+          "portal-colab-btn-salvar",
+          "portalAdminAlteracaoConfirmModal",
+          "portalAdminAlteracaoConfirmSimBtn",
+          "Confirmar"
+        ],
+        "portal-locadora-ui.js": [
+          "portalFormatAlteracoesHtml",
+          "portal-admin-alteracao-table",
+          "Antes da alteração",
+          "Depois da alteração",
+          "forcarJanela",
+          "Confirmar alteração — colaborador"
+        ],
+        "styles.css": [
+          "portal-colab-btn-salvar",
+          "portal-admin-alteracao-table",
+          "portal-admin-alteracao-antes",
+          "portal-admin-alteracao-depois"
+        ]
+      }
+    },
+    {
       "id": "colab-horario-acesso",
       "descricao": "No Cadastro de colaborador: dias segunda a domingo com caixinha; Hora de início e Hora fim. Novos cadastros já vêm com seg a sex marcados, 08:00 a 18:00. Colaborador só entra no horário marcado. Em qualquer tela, 30 minutos antes do fim abre a janela O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS com botão ok.",
       "ficheiros": {

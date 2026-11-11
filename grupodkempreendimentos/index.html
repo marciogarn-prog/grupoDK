@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261111ciclo">
+  <link rel="stylesheet" href="styles.css?v=20261111colabsalvar">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -3097,7 +3097,7 @@
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
                 <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
-                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar alterações</button>
+                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary portal-colab-btn-salvar hidden">Salvar alterações</button>
                 <button type="button" id="portalColabBtnLimpar" class="btn-primary btn-secondary-outline">Limpar dados</button>
               </div>
               <div id="portalColabResetSenhaWrap" class="portal-colab-reset-wrap hidden" aria-live="polite">
@@ -5934,12 +5934,12 @@
 
   <div id="portalAdminAlteracaoConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalAdminAlteracaoConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-admin-alteracao-confirm></div>
-    <div class="portal-modal__card">
+    <div class="portal-modal__card portal-admin-alteracao-card">
       <h3 id="portalAdminAlteracaoConfirmTitulo" class="portal-modal__title">Confirmar alteração</h3>
-      <p class="subtext">O administrador alterou dados já existentes. Revise e confirme para guardar.</p>
+      <p id="portalAdminAlteracaoConfirmLead" class="subtext">Compare como estava antes e como ficou depois. Confirme para guardar.</p>
       <div id="portalAdminAlteracaoConfirmCorpo" class="portal-admin-alteracao-corpo portal-modal__text"></div>
       <div class="portal-modal__actions">
-        <button type="button" class="btn-primary" id="portalAdminAlteracaoConfirmSimBtn">Confirmar e guardar</button>
+        <button type="button" class="btn-primary portal-admin-alteracao-confirm-btn" id="portalAdminAlteracaoConfirmSimBtn">Confirmar</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalAdminAlteracaoConfirmNaoBtn">Cancelar</button>
       </div>
     </div>
@@ -6461,7 +6461,7 @@
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261111colabperm" defer></script>
+  <script src="app.js?v=20261111colabsalvar" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -6475,8 +6475,8 @@
   <script src="dk-locacao-pesquisa-estado.js?v=20261028pesquisa-611" defer></script>
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
-  <script src="dk-aluguel-ciclo-v2.js?v=20261111colabperm" defer></script>
-  <script src="portal-locadora-ui.js?v=20261111colabperm" defer></script>
+  <script src="dk-aluguel-ciclo-v2.js?v=20261111colabsalvar" defer></script>
+  <script src="portal-locadora-ui.js?v=20261111colabsalvar" defer></script>
   <script src="portal-manutencao-cliente.js?v=20261111ciclo" defer></script>
   <script src="portal-lancamento-multa.js?v=20261111ciclo" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>

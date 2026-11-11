@@ -4394,6 +4394,115 @@ body.portal-body--admin-ceo {
   gap: 0.75rem;
 }
 
+/* Salvar alterações do colaborador: contraste alto (amarelo) — não usar outline escuro. */
+#portalColabBtnSalvarAlteracoes.portal-colab-btn-salvar,
+.portal-colab-btn-salvar {
+  background: linear-gradient(180deg, #facc15, #eab308) !important;
+  color: #111827 !important;
+  border: 2px solid #fde047 !important;
+  font-weight: 800 !important;
+  font-size: 0.95rem !important;
+  padding: 0.65rem 1.35rem !important;
+  letter-spacing: 0.02em;
+  text-shadow: none !important;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.35), 0 6px 18px rgba(234, 179, 8, 0.45) !important;
+}
+
+#portalColabBtnSalvarAlteracoes.portal-colab-btn-salvar:hover,
+.portal-colab-btn-salvar:hover {
+  filter: brightness(1.08);
+  background: linear-gradient(180deg, #fde047, #facc15) !important;
+}
+
+#panel-operacao-locadora:not(.hidden) #portalColabBtnSalvarAlteracoes.portal-colab-btn-salvar {
+  padding: 0.65rem 1.35rem;
+  font-size: 0.95rem;
+}
+
+.portal-admin-alteracao-card {
+  max-width: min(96vw, 720px);
+}
+
+.portal-admin-alteracao-wrap {
+  max-height: min(55vh, 28rem);
+  overflow: auto;
+  margin: 0.35rem 0 0.15rem;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.portal-admin-alteracao-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.portal-admin-alteracao-table th,
+.portal-admin-alteracao-table td {
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.portal-admin-alteracao-table thead th {
+  position: sticky;
+  top: 0;
+  background: #1f2937;
+  color: #fde047;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.portal-admin-alteracao-table tbody th {
+  color: #e5e7eb;
+  font-weight: 600;
+  width: 28%;
+}
+
+.portal-admin-alteracao-antes {
+  color: #fca5a5;
+  width: 36%;
+}
+
+.portal-admin-alteracao-depois {
+  color: #86efac;
+  width: 36%;
+  font-weight: 600;
+}
+
+.portal-admin-alteracao-tag {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.portal-admin-alteracao-antes .portal-admin-alteracao-tag {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fecaca;
+}
+
+.portal-admin-alteracao-depois .portal-admin-alteracao-tag {
+  background: rgba(34, 197, 94, 0.25);
+  color: #bbf7d0;
+}
+
+.portal-admin-alteracao-confirm-btn {
+  min-width: 9rem;
+  font-weight: 800;
+}
+
+.portal-admin-alteracao-vazio {
+  margin: 0.75rem 0;
+}
+
 .portal-colab-bloqueio-wrap {
   flex: 1;
   min-width: 12rem;

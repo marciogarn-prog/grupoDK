@@ -1743,14 +1743,30 @@
 
   function portalFormatAlteracoesHtml(changes) {
     if (!changes.length) {
-      return '<p class="subtext">Nenhuma alteração detectada nos campos comparados.</p>';
+      return '<p class="subtext portal-admin-alteracao-vazio">Nenhuma alteração detectada nos campos comparados.</p>';
     }
-    return `<ul class="portal-alteracao-list">${changes
+    const rows = changes
       .map(
         (c) =>
-          `<li><strong>${portalEscAlteracaoHtml(c.label)}:</strong> ${portalEscAlteracaoHtml(c.antes)} → ${portalEscAlteracaoHtml(c.depois)}</li>`
+          `<tr>
+            <th scope="row">${portalEscAlteracaoHtml(c.label)}</th>
+            <td class="portal-admin-alteracao-antes"><span class="portal-admin-alteracao-tag">Antes</span> ${portalEscAlteracaoHtml(c.antes)}</td>
+            <td class="portal-admin-alteracao-depois"><span class="portal-admin-alteracao-tag">Depois</span> ${portalEscAlteracaoHtml(c.depois)}</td>
+          </tr>`
       )
-      .join("")}</ul>`;
+      .join("");
+    return `<div class="portal-admin-alteracao-wrap">
+      <table class="portal-admin-alteracao-table">
+        <thead>
+          <tr>
+            <th scope="col">Campo</th>
+            <th scope="col">Antes da alteração</th>
+            <th scope="col">Depois da alteração</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
   }
 
   function openPortalAdminAlteracaoConfirmModal(titulo, htmlCorpo, onConfirm) {
@@ -1847,9 +1863,21 @@
       return;
     }
     const changes = Array.isArray(opts?.changes) ? opts.changes : [];
-    if (!changes.length) {
+    const forcarJanela = Boolean(opts?.forcarJanela);
+    if (!changes.length && !forcarJanela) {
       if (typeof onConfirm === "function") onConfirm();
       return;
+    }
+    const simBtn = document.getElementById("portalAdminAlteracaoConfirmSimBtn");
+    if (simBtn) simBtn.textContent = String(opts?.confirmLabel || "Confirmar");
+    const leadEl = document.getElementById("portalAdminAlteracaoConfirmLead");
+    if (leadEl) {
+      leadEl.textContent = String(
+        opts?.lead ||
+          (changes.length
+            ? "Compare como estava antes e como ficou depois. Confirme para guardar."
+            : "Nenhuma alteração detectada. Pode cancelar ou confirmar mesmo assim.")
+      );
     }
     openPortalAdminAlteracaoConfirmModal(
       opts.titulo || "Confirmar alteração",
@@ -12134,8 +12162,10 @@
       locacao: portalNormDiffVal(f.acessos?.locacao ? "sim" : "não"),
       lancamentoAluguel: portalNormDiffVal(f.acessos?.lancamentoAluguel ? "sim" : "não"),
       lancamentoMultas: portalNormDiffVal(f.acessos?.lancamentoMultas ? "sim" : "não"),
-      lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
+      manutencaoCliente: portalNormDiffVal(f.acessos?.manutencaoCliente ? "sim" : "não"),
       estoque: portalNormDiffVal(f.acessos?.estoque ? "sim" : "não"),
+      lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
+      sistemaMiel: portalNormDiffVal(f.acessos?.sistemaMiel ? "sim" : "não"),
     };
     const depoisColab = {
       cpf: portalColabFormatCpfExibicao(cpfNovo),
@@ -12149,8 +12179,9 @@
       lancamentoAluguel: acessos.lancamentoAluguel ? "sim" : "não",
       lancamentoMultas: acessos.lancamentoMultas ? "sim" : "não",
       manutencaoCliente: acessos.manutencaoCliente ? "sim" : "não",
-      lancamentoManutencao: acessos.lancamentoManutencao ? "sim" : "não",
       estoque: acessos.estoque ? "sim" : "não",
+      lancamentoManutencao: acessos.lancamentoManutencao ? "sim" : "não",
+      sistemaMiel: acessos.sistemaMiel ? "sim" : "não",
     };
     const COLAB_LABELS = {
       cpf: "CPF",
@@ -12158,13 +12189,15 @@
       funcao: "Função",
       dataIngresso: "Data ingresso",
       empresa: "Empresa",
-      cliente: "Cadastro cliente",
-      veiculo: "Cadastro veículo",
-      locacao: "Cadastro locação",
-      lancamentoAluguel: "Lanç. aluguel",
-      lancamentoMultas: "Lanç. multas",
-      lancamentoManutencao: "Mov. manutenção",
+      cliente: "Cadastro de cliente",
+      veiculo: "Cadastro de veículo",
+      locacao: "Cadastro de locação",
+      lancamentoAluguel: "Lançamento de aluguel",
+      lancamentoMultas: "Lançamento de multa",
+      manutencaoCliente: "Lançamento de manutenção",
       estoque: "Estoque",
+      lancamentoManutencao: "Movimentações da manutenção",
+      sistemaMiel: "Acesso ao sistema MIEL",
     };
     const doSaveColab = () => {
       f.cpf = cpfNovo;
@@ -12177,7 +12210,7 @@
       saveFuncionariosAccess();
       portalPushCloudSnapshotAfterPersist();
       refreshPortalMielHomeAcesso();
-    refreshPortalEstoqueAcesso();
+      refreshPortalEstoqueAcesso();
       portalColabCpfEdicaoOriginal = cpfNovo;
       portalColabListaCpfAtivo = cpfNovo;
       portalColabCpfPrevLen = 11;
@@ -12192,6 +12225,9 @@
     portalConfirmarAlteracaoAdministrador(
       {
         titulo: "Confirmar alteração — colaborador",
+        lead: "Veja como estava antes e como ficou depois. Clique em Confirmar para guardar.",
+        confirmLabel: "Confirmar",
+        forcarJanela: true,
         changes: portalBuildAlteracoesLista(antesColab, depoisColab, COLAB_LABELS),
       },
       doSaveColab
