@@ -301,6 +301,7 @@
 
   function explicacaoDesistencia(loc, fimBr) {
     const fim = parseBr(fimBr || loc?.fim || loc?.dataFim);
+    const inicio = parseBr(loc?.inicio || loc?.dataInicio);
     const r = devidoAluguelAte(loc, fim);
     if (!r) return null;
     const fmt = (n) =>
@@ -322,16 +323,30 @@
         cobrancaSemanaFmt: fmt(sem.cobrancaSemana),
       });
     }
+    const nomeDia = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+    const cicloDia = nomeDia[inicio?.getDay?.() ?? r.semanas?.[0]?.start?.getDay?.() ?? 0] || "ciclo";
+    const detalheSemanas = semanasUsadas
+      .map((s) => {
+        const diasNaSemana = (r.detalheDias || []).filter((d) => d.semana === s.semana - 1).length;
+        return (
+          `semana ${s.semana} (${s.comDesconto ? "com desconto" : "sem desconto"}): ` +
+          `${diasNaSemana} dia(s) × ${s.diariaFmt}`
+        );
+      })
+      .join("; ");
     return {
       ...r,
       devidoAluguelFmt: fmt(r.devidoAluguel),
       totalPagoFmt: fmt(r.totalPago),
       aDevolverFmt: fmt(r.aDevolver),
       semanasUsadas,
+      cicloDiaSemana: cicloDia,
       texto:
-        `Devido só de aluguel: ${fmt(r.devidoAluguel)} (${Number(r.dias)} diária(s) com taxa por semana conforme desconto). ` +
-        `Total pago: ${fmt(r.totalPago)}. ` +
-        `A devolver: ${fmt(r.aDevolver)} (pago − devido só de aluguel).`,
+        `Ciclo ${cicloDia} a ${cicloDia}. ` +
+        `Devido só de aluguel: ${fmt(r.devidoAluguel)}` +
+        (detalheSemanas ? ` [${detalheSemanas}]` : ` (${Number(r.dias)} diária(s))`) +
+        `. Total pago pelo cliente: ${fmt(r.totalPago)}. ` +
+        `A devolver: ${fmt(r.aDevolver)} = total pago − devido só de aluguel.`,
     };
   }
 

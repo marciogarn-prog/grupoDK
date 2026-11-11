@@ -111,4 +111,42 @@ check("semana 2 com desconto após 390+360", estRec.semanas[2].comDesconto === t
 const sug = api.sugestaoPagamentoNaData(locBase, "02/11/2026");
 check("sugestão no dia do ciclo com desconto", sug && sug.comDesconto === true && approx(sug.valorSugerido, 360));
 
+function toYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Ciclo em qualquer dia da semana (ex.: terça 03/11/2026 → terça 10/11)
+const locTerca = {
+  inicio: "03/11/2026",
+  valorLocacao: "360",
+  valorInvestimento: "30",
+  descontoPrazo: "30",
+  portalLancamentosAluguel: [{ data: "03/11/2026", valor: 360, tipoMovimento: "PAGAMENTO" }],
+};
+const estTerca = api.buildSemanas(locTerca, { refDate: parseBrDate("17/11/2026"), weekCount: 3 });
+check("ciclo terça: semana 0 começa 03/11", toYmd(estTerca.semanas[0].start) === "2026-11-03");
+check("ciclo terça: semana 1 começa 10/11", toYmd(estTerca.semanas[1].start) === "2026-11-10");
+check("ciclo terça: semana 1 sem desconto sem acumular 360", estTerca.semanas[1].comDesconto === false);
+
+const locTercaOk = {
+  ...locTerca,
+  portalLancamentosAluguel: [
+    { data: "03/11/2026", valor: 360, tipoMovimento: "PAGAMENTO" },
+    { data: "10/11/2026", valor: 360, tipoMovimento: "PAGAMENTO" },
+  ],
+};
+const estTercaOk = api.buildSemanas(locTercaOk, { refDate: parseBrDate("17/11/2026"), weekCount: 3 });
+check("ciclo terça: semana 1 com desconto ao pagar 360 no dia do ciclo", estTercaOk.semanas[1].comDesconto === true);
+
+const ex = api.explicacaoDesistencia(
+  { ...locBase, fim: "07/11/2026" },
+  "07/11/2026"
+);
+check(
+  "explicação desistência traz devido/pago/devolver",
+  Boolean(ex?.texto && /Devido só de aluguel/.test(ex.texto) && /Total pago/.test(ex.texto) && /A devolver/.test(ex.texto))
+);
+check("explicação cita ciclo segunda a segunda", /Ciclo segunda a segunda/.test(String(ex?.texto || "")));
+check("a devolver = pago − devido", approx(ex.aDevolver, ex.totalPago - ex.devidoAluguel));
+
 console.log(`\n--- ${passed}/${passed} testes dk-aluguel-ciclo-v2 ---`);
