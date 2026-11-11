@@ -142,8 +142,10 @@
 
   function hideWorkspace() {
     selected = null;
-    show(document.getElementById("operacaoManutClienteRefPanel"), false);
-    show(document.getElementById("operacaoManutClienteWorkspace"), false);
+    show(document.getElementById("operacaoManutClientePaneAvulso"), false);
+    show(document.getElementById("operacaoManutClienteResumoCompacto"), false);
+    const resumoTxt = document.getElementById("operacaoManutClienteResumoTexto");
+    if (resumoTxt) resumoTxt.textContent = "";
     const hist = document.getElementById("operacaoManutClienteHistorico");
     if (hist) hist.replaceChildren();
     setMsg("");
@@ -222,7 +224,9 @@
     if (b) b.textContent = fmtBrl(r.totalPago);
     if (c) {
       c.textContent = fmtBrl(r.restante);
-      c.classList.toggle("portal-manut-cliente-resumo__resta--pendente", r.restante > 0.009);
+      c.classList.toggle("portal-lanc-aluguel-pagamento-saldo__valor--total-geral", true);
+      if (r.restante > 0.009) c.style.color = "#ff8b8b";
+      else c.style.color = "";
     }
   }
 
@@ -236,6 +240,7 @@
     const host = document.getElementById("operacaoManutClienteHistorico");
     if (!host) return;
     const lancs = getLancamentos(loc);
+    const proto = normNc(loc?.numeroContrato) || "—";
     if (!lancs.length) {
       host.innerHTML = `<p class="subtext">Nenhum lançamento de manutenção cliente neste protocolo.</p>`;
       return;
@@ -243,16 +248,21 @@
     const rows = lancs
       .map((x) => {
         const obs = x.observacao ? escHtml(x.observacao) : "—";
-        const valorCls = x.tipo === TIPO_DESPESA ? "portal-manut-cliente-hist__despesa" : "portal-manut-cliente-hist__pag";
+        const valorCls =
+          x.tipo === TIPO_DESPESA
+            ? "portal-lanc-hist__valor portal-lanc-hist__valor--comentario"
+            : "portal-lanc-hist__valor portal-lanc-hist__valor--pago";
+        const tipoCls =
+          x.tipo === TIPO_DESPESA ? "portal-lanc-hist__tipo" : "portal-lanc-hist__tipo portal-lanc-hist__tipo--credito";
         return `<tr>
-          <td>${escHtml(tipoLabel(x.tipo))}</td>
+          <td>${escHtml(proto)}</td>
+          <td class="${tipoCls}">${escHtml(tipoLabel(x.tipo))}</td>
           <td>${escHtml(x.data)}</td>
-          <td class="${valorCls}">${escHtml(fmtBrl(x.valor))}</td>
-          <td>${obs}</td>
+          <td class="${valorCls}" title="${obs}">${escHtml(fmtBrl(x.valor))}</td>
         </tr>`;
       })
       .join("");
-    host.innerHTML = `<table class="portal-lanc-hist portal-manut-cliente-hist"><thead><tr><th>Tipo</th><th>Data</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${rows}</tbody></table>`;
+    host.innerHTML = `<table class="portal-lanc-hist"><thead><tr><th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function fillFormsDefaults() {
@@ -309,8 +319,13 @@
     if (refNome) refNome.value = nome || "—";
     if (refPlaca) refPlaca.value = placa || "—";
 
-    show(document.getElementById("operacaoManutClienteRefPanel"), true);
-    show(document.getElementById("operacaoManutClienteWorkspace"), true);
+    const resumoTxt = document.getElementById("operacaoManutClienteResumoTexto");
+    if (resumoTxt) {
+      const cpfLbl = cpfDigits.length === 11 ? fmt(cpfDigits) : "—";
+      resumoTxt.textContent = `${nome || "—"} · CPF ${cpfLbl} · Protocolo ${proto} · Placa ${placa || "—"}`;
+    }
+    show(document.getElementById("operacaoManutClienteResumoCompacto"), true);
+    show(document.getElementById("operacaoManutClientePaneAvulso"), true);
     fillFormsDefaults();
     renderResumo(loc);
     renderHistorico(loc);
@@ -632,6 +647,17 @@
     document.getElementById("operacaoManutClienteConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       confirmarPagamento();
+    });
+    document.getElementById("operacaoManutClienteLimparFormBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      clearDespesaForm();
+      clearPagamentoForm();
+      setMsg("");
+    });
+    document.getElementById("operacaoManutClienteVoltarPesquisaBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      hideWorkspace();
+      setMsg("");
     });
 
     ["operacaoManutClienteNomeBusca", "operacaoManutClienteCpf", "operacaoManutClienteProtocolo", "operacaoManutClientePlaca"].forEach(

@@ -3917,6 +3917,8 @@
           "Registrar pagamento de manutenção",
           "TOTAL DE MANUTENÇÕES",
           "VALOR RESTANTE",
+          "portal-lanc-avulso-workspace__hist",
+          "portal-lanc-aluguel-pagamento-saldos--dual",
           "operacaoLocacaoManutClientePendenteWrap",
           "VALOR PENDENTE DE MANUTENÇÃO"
         ],
@@ -3925,7 +3927,8 @@
           "PAGAMENTO_MANUTENCAO",
           "portalManutencaoClienteLancamentos",
           "__DK_manutClienteResumoLoc",
-          "__DK_manutClienteRefreshPendenteCadastro"
+          "__DK_manutClienteRefreshPendenteCadastro",
+          "operacaoManutClientePaneAvulso"
         ],
         "portal-locadora-ui.js": [
           "btn-operacao-manutencao-cliente",
@@ -3934,7 +3937,7 @@
           "VALOR PENDENTE DE MANUTENÇÃO"
         ],
         "styles.css": [
-          "portal-manut-cliente-resumo",
+          "portal-lanc-avulso-workspace__hist",
           "portal-locacao-manut-pendente"
         ]
       }
