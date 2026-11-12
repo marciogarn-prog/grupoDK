@@ -1,0 +1,239 @@
+﻿SISTEMA DK ORIGINAL — COMANDO 07/10 — REVISÃO 1
+
+CORREÇÃO DO CURSOR DE SINCRONIZAÇÃO E ISOLAMENTO DE DADOS
+
+Esta é uma correção da etapa 07/10. NÃO executar o COMANDO 08/10 ainda.
+
+OBJETIVO
+
+Corrigir três problemas identificados diretamente na implementação instalada, preservando a infraestrutura já criada e evitando novas auditorias gerais.
+
+O Sistema DK possui 3648 BC oficiais, dez VMs preparadas e infraestrutura de sincronização instalada, mas ainda sem processamento automático de entregas em produção.
+
+1. PROTEGER A POSIÇÃO DE SINCRONIZAÇÃO
+
+Revisar dk_bc_sync_aplicar_lote.
+
+A implementação atual permite que uma entrega posterior seja aplicada mesmo quando uma entrega anterior falhou.
+
+Corrigir para garantir que:
+
+A posição de sincronização de uma VM nunca ultrapasse um evento anterior ainda não resolvido.
+
+Eventos sejam processados em ordem crescente de bc_no.
+
+Cada evento tenha resultado durável: aplicado ou descartado por regra de autorização comprovada.
+
+Um evento com falha permaneça recuperável.
+
+Nenhum evento com falha seja ignorado apenas porque outro evento posterior foi processado.
+
+A confirmação da aplicação e o avanço do cursor aconteçam atomicamente.
+
+Repetir um lote não produza aplicação duplicada.
+
+A VM possa recuperar todos os eventos depois de uma desconexão prolongada.
+
+O cursor global deverá representar uma posição contínua e comprovadamente processada, incluindo decisões legítimas de filtragem.
+
+Não usar max(bc_no) como substituto de confirmação de todas as entregas anteriores.
+
+Não redefinir os contadores BC nem os identificadores já atribuídos.
+
+2. CORRIGIR O ISOLAMENTO DE EMPRESA E FILIAL
+
+Revisar dk_bc_sync_aplicar_lote, dk_bc_sync_bootstrap_vm e dk_bc_sync_enfileirar.
+
+Atualmente o filtro de empresa e filial pode ser informado pelo chamador.
+
+A autorização não pode depender desses parâmetros.
+
+Implementar ou preparar um vínculo confiável entre a VM e seus escopos autorizados, definido exclusivamente na infraestrutura central.
+
+Regras:
+
+A VM não escolhe quais empresas ou filiais pode consultar.
+
+O servidor determina os escopos autorizados.
+
+Não entregar dados de empresa ou filial diferente.
+
+Não armazenar dados restritos de outra empresa na projeção de uma VM sem autorização.
+
+Não considerar registros com empresa/filial ausentes automaticamente públicos.
+
+Não atribuir empresas, filiais ou colaboradores fictícios.
+
+Quando não houver vínculo oficial comprovado, negar a entrega e a consulta operacional.
+
+Como as dez VMs ainda não possuem vínculo de colaborador e autorização operacional comprovados, elas deverão permanecer preparadas e sem acesso operacional real.
+
+É permitido testar atribuições fictícias exclusivamente no PostgreSQL isolado.
+
+3. REFORÇAR A SUBSTITUIÇÃO HISTÓRICA
+
+Revisar dk_bc_registro_proteger.
+
+A implementação atual aceita desmarcar vigente mesmo antes de verificar a existência do sucessor.
+
+Garantir que:
+
+Uma versão somente deixe de ser vigente quando houver substituição válida na mesma transação.
+
+O sucessor pertença ao mesmo registro lógico, empresa e filial.
+
+O novo BC aponte para o anterior.
+
+O BC anterior aponte para o sucessor.
+
+Não existam versões indevidamente sem uma versão vigente.
+
+Uma tentativa de alteração direta, sem sucessor válido, seja rejeitada.
+
+O mecanismo dk_bc_confirmar continue funcionando corretamente.
+
+Considerar a validação no fechamento da transação, quando necessária para preservar a ordem interna da substituição.
+
+Não alterar os 3648 registros BC existentes.
+
+4. TESTES REAIS EM POSTGRESQL ISOLADO
+
+Usar o PostgreSQL restaurado e dados fictícios.
+
+Executar obrigatoriamente:
+
+VM-A recebe eventos BC 1, 2 e 3.
+
+O evento 2 falha.
+
+Verificar que o cursor não ultrapassou o evento 2.
+
+Recuperar o evento 2.
+
+Confirmar que o evento 3 é aplicado depois.
+
+Repetir o lote e confirmar ausência de duplicidade.
+
+Deixar a VM-J desconectada enquanto outros eventos são confirmados.
+
+Reconectar a VM-J e recuperar todos os eventos em ordem.
+
+Configurar duas empresas fictícias com VMs de escopos distintos.
+
+Confirmar que uma VM não recebe dados da outra empresa.
+
+Executar chamada com empresa/filial forjadas e comprovar que a autorização não muda.
+
+Confirmar que uma VM sem escopo autorizado não acessa dados.
+
+Tentar desmarcar uma versão BC sem sucessor e comprovar rejeição.
+
+Confirmar uma substituição legítima e comprovar que as duas versões permanecem vinculadas.
+
+Simular interrupção e reinicialização durante a sincronização.
+
+Os testes devem usar as funções SQL reais e, quando pertinente, conexões concorrentes.
+
+Não consumir números BC ou operações provisórias reais na produção.
+
+5. IMPLANTAÇÃO CONTROLADA
+
+Antes de qualquer alteração oficial:
+
+Confirmar backup PostgreSQL atualizado e restaurável.
+
+Preservar as estruturas das etapas anteriores.
+
+Testar os ajustes em ambiente isolado.
+
+Aplicar somente correções estruturais aprovadas.
+
+Não executar bootstrap real das dez VMs.
+
+Não ativar o worker automático de produção.
+
+Não modificar telas, computadores físicos, contratos, pagamentos ou cadastros.
+
+Não ativar colaboradores.
+
+Não executar deploy nem merge na branch main.
+
+Registrar código e testes na branch de desenvolvimento existente.
+
+6. CONFERÊNCIA FINAL
+
+O PostgreSQL oficial deverá manter:
+
+Contador BC: 3648, se não houver novas operações legítimas de negócio.
+
+Dez VMs preparadas.
+
+Contadores A–J zerados.
+
+Nenhuma operação provisória fictícia.
+
+Nenhuma entrega ou projeção gerada apenas por testes.
+
+Funções de sincronização corrigidas.
+
+Histórico BC preservado.
+
+Se houver operações legítimas externas durante a execução, informar os valores reais, sem redefinir contadores.
+
+7. RELATÓRIO OBRIGATÓRIO
+
+Responder com o título exato:
+
+RESPOSTA CURSOR 07/10 — REVISÃO 1 — SISTEMA DK ORIGINAL
+
+Apresentar:
+
+Correção do cursor.
+
+Resultado do teste de falha no evento intermediário.
+
+Resultado da recuperação da VM-J.
+
+Correção do isolamento empresa/filial.
+
+Comportamento das VMs sem autorização.
+
+Proteção da substituição histórica.
+
+Resultado dos testes PostgreSQL.
+
+Backup utilizado.
+
+Alterações aplicadas no Supabase.
+
+Contadores finais.
+
+Arquivos modificados.
+
+Commit e branch.
+
+Pendências restantes.
+
+Confirmação de ausência de deploy e alterações operacionais.
+
+8. COMUNICAÇÃO AUTOMÁTICA
+
+Depois de concluir:
+
+Copiar integralmente a RESPOSTA CURSOR 07/10 — REVISÃO 1.
+
+Abrir remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar o relatório.
+
+Aguardar cinco minutos.
+
+Ler minha análise.
+
+Somente executar outra revisão ou o COMANDO 08/10 quando expressamente fornecido.
+
+Não antecipar etapas.
+
+Após o COMANDO 10/10, interromper toda a execução até autorização expressa do proprietário.
+
+Execute exclusivamente esta revisão da etapa 07/10.

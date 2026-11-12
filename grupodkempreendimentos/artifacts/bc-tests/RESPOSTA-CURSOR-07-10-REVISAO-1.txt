@@ -1,0 +1,67 @@
+RESPOSTA CURSOR 07/10 — REVISÃO 1 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+Nao avancado para COMANDO 08/10.
+
+1) Correcao do cursor
+- dk_bc_sync_aplicar_lote: em falha (catalogo ausente ou falha injetada de teste) marca entrega=falhou, status=erro e EXIT do loop.
+- Cursor NAO avanca alem do evento falho; posteriores permanecem pendentes e recuperaveis.
+- Avanco atomico so apos resultado duravel aplicado ou ignorado (autorizacao).
+- Nao usa max(bc_no) como substituto de confirmacao.
+
+2) Teste falha evento intermediario (isolado)
+- BC 3649/3650/3651 (A, emp-alfa).
+- Force fail no 3650: aplicados=1, last=3649, reason=cursor_bloqueado_por_falha.
+- Estados: 3649=aplicado, 3650=falhou, 3651=pendente.
+- Recuperacao: aplicados=2, last=3651, status=ociosa.
+- Reaplicar: aplicados=0 (idempotente).
+
+3) Recuperacao VM-J
+- Bootstrap ate 15; offline enquanto 3652/3653 confirmados.
+- Reconnect: aplicados=2, last=3653, pending=0.
+- Idempotente: aplicados=0.
+
+4) Isolamento empresa/filial
+- Tabela dk_bc_vm_escopo (central). VM nao escolhe escopo.
+- p_empresa_id/p_filial_id do chamador IGNORADOS.
+- A=alfa, B=beta: B projeta beta; A nao recebe emp-beta.
+- Chamada A com params forjados emp-beta: entrega=ignorado:fora_do_escopo; proj A beta=0.
+
+5) VMs sem autorizacao
+- VM-C sem escopo: ok=false, reason=sem_escopo_autorizado, aplicados=0.
+- Oficiais A-J: escopo=0, permanecem preparadas, sem acesso operacional.
+
+6) Protecao substituicao historica
+- CONSTRAINT TRIGGER diferida trg_dk_bc_registro_subst_commit (releitura no COMMIT).
+- UPDATE vigente=false sem sucessor: rejeitado (vigente_sem_sucessor).
+- dk_bc_confirmar v1->v2: OK; anterior.substituido_por=sucessor; sucessor.bc_anterior=anterior.
+
+7) Testes PostgreSQL isolado
+- gate_ok=true (12/12): conf123, cursor_block, recover, idem, j_recover, j_idem, iso_B, iso_A_no_beta, forge_ignored, no_scope, subst_block, subst_ok.
+
+8) Backup
+- Pre-apply: C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-07-rev1\grupodk-portal-pre-rev1-2026-11-12T04-35-40-269Z.dump
+- SHA-256: 58a7f33fdd46742c78fb19d92322ea6346e76359dd7a10e55c6eab05266e44cb
+
+9) Alteracoes no Supabase (estruturais)
+- Aplicado dk-bc-sync-07-revisao1.sql
+- Sem bootstrap real, sem worker, sem escopos, sem colaboradores.
+
+10) Contadores finais oficiais
+- bc=3648 vig=3648 last=3648
+- vms=10 preparada; prov=0 ops=0
+- sync_state=10; entregas=0; projecao=0; escopo=0
+
+11) Arquivos / commit / branch
+- supabase/dk-bc-sync-07-revisao1.sql
+- scripts/dk-bc-sync-07-revisao1.mjs
+- artifacts/bc-tests/COMANDO-07-10-REVISAO-1.txt
+- artifacts/bc-tests/RESPOSTA-CURSOR-07-10-REVISAO-1.txt
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (a preencher apos git commit)
+
+Pendencias: atribuicao real de escopos/colaboradores; worker/distribuicao fisica = 08/10.
+Deploy/merge main: nao executados.
+Telas/computadores/cadastros/contratos/pagamentos: nao alterados.
+
+RESPOSTA CURSOR 07/10 — REVISÃO 1 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 08/10 ou nova revisao.

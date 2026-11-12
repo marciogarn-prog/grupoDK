@@ -1,0 +1,105 @@
+{
+  "started_at": "2026-11-12T04:35:26.827Z",
+  "comando": "07/10-REVISAO-1",
+  "dump": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-06\\grupodk-portal-2026-11-12T04-04-52-605Z.dump",
+    "bytes": 20617050,
+    "sha256": "74ec817254e30e1c93509cc739e17388bf87fab4ea35c3dc23ed945ad63ceecc"
+  },
+  "official_before": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "prov|0",
+    "ops|0",
+    "ent|0",
+    "escopo_table|absent"
+  ],
+  "apply_local": {
+    "ok": true
+  },
+  "tests": {
+    "conf1": "true|BC000000003649|3649",
+    "conf2": "true|BC000000003650|3650",
+    "conf3": "true|BC000000003651|3651",
+    "bc_ids": [
+      "BC000000003649",
+      "BC000000003650",
+      "BC000000003651"
+    ],
+    "bc_nos": [
+      3649,
+      3650,
+      3651
+    ],
+    "fail_mid": "BC000000003650\r\nfalse|1|3649|cursor_bloqueado_por_falha",
+    "cursor_after_fail": "3649|erro|evento_bloqueado\r\n3649:aplicado:-\r\n3650:falhou:falha_injetada_teste\r\n3651:pendente:-",
+    "cursor_nao_ultrapassou": true,
+    "recover2": "true|2|3651|-",
+    "cursor_after_recover": "3651|ociosa",
+    "idem_A": "true|0",
+    "boot_J": "true|15",
+    "apply_J_boot": "true|0|15",
+    "conf_offline1": "true|BC000000003652|3652",
+    "conf_offline2": "true|BC000000003653|3653",
+    "J_before_reconnect": "15|0",
+    "J_reconnect": "true|2|3653",
+    "J_after": "3653|ociosa\r\n0",
+    "J_idem": "true|0",
+    "conf_beta": "true|BC000000003654|3654",
+    "apply_B_beta": "true|1",
+    "proj_B": "1",
+    "proj_A_beta": "0",
+    "forge_params": "true|2|-",
+    "forge_entrega": "ignorado:fora_do_escopo",
+    "proj_A_beta_after_forge": "0",
+    "no_scope_C": "false|0|sem_escopo_autorizado",
+    "desmarcar_sem_sucessor": "blocked_ok",
+    "conf_subst": "true|BC000000003655",
+    "conf_subst2": "true|BC000000003656",
+    "subst_link": "false|BC000000003656|true|BC000000003655",
+    "interrupt": "true|BC000000003657|3657\r\ntrue|BC000000003658|3658",
+    "counters": [
+      "last|3658",
+      "escopos|3",
+      "prov|0"
+    ]
+  },
+  "gate": {
+    "conf123": true,
+    "cursor_block": true,
+    "recover": true,
+    "idem": true,
+    "j_recover": true,
+    "j_idem": true,
+    "iso_B": true,
+    "iso_A_no_beta": true,
+    "forge_ignored": true,
+    "no_scope": true,
+    "subst_block": true,
+    "subst_ok": true
+  },
+  "gate_ok": true,
+  "cursor_A_before_forge": "3651",
+  "dump_fresh": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-07-rev1\\grupodk-portal-pre-rev1-2026-11-12T04-35-40-269Z.dump",
+    "bytes": 20654020,
+    "sha256": "58a7f33fdd46742c78fb19d92322ea6346e76359dd7a10e55c6eab05266e44cb"
+  },
+  "applied_official": true,
+  "official_after": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "vms|10:A:preparada,B:preparada,C:preparada,D:preparada,E:preparada,F:preparada,G:preparada,H:preparada,I:preparada,J:preparada",
+    "prov|0",
+    "ops|0",
+    "sync|10",
+    "ent|0",
+    "proj|0",
+    "escopo|0"
+  ],
+  "finished_at": "2026-11-12T04:36:58.571Z"
+}
