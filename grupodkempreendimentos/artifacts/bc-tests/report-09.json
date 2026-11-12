@@ -1,0 +1,182 @@
+{
+  "started_at": "2026-11-12T10:40:11.863Z",
+  "comando": "09/10",
+  "tests": {
+    "ctxA": {
+      "ok": true,
+      "prefixo": "A",
+      "colaborador_ref": "11122233344",
+      "sessao_id": "sess-A",
+      "empresa_id": "emp-alfa",
+      "filial_id": "fil-a1",
+      "tela_id": "locacoes",
+      "forged_ignored": null
+    },
+    "a_adquire": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "e0f1c88e-68a7-45f0-95c2-93f666b5f78f",
+      "geracao": 1,
+      "expira_em": "2026-11-12T10:41:21.920353+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "b_bloqueado": {
+      "ok": false,
+      "status": 409,
+      "adquirida": false,
+      "concessao_id": null,
+      "geracao": null,
+      "expira_em": null,
+      "reason": "tela_ocupada",
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "a_renova": {
+      "ok": true,
+      "status": 200,
+      "renovada": true,
+      "concessao_id": "e0f1c88e-68a7-45f0-95c2-93f666b5f78f",
+      "geracao": 1,
+      "expira_em": "2026-11-12T10:41:22.2003+00:00",
+      "reason": null
+    },
+    "b_ainda_bloqueado": {
+      "ok": false,
+      "status": 409,
+      "adquirida": false,
+      "concessao_id": null,
+      "geracao": null,
+      "expira_em": null,
+      "reason": "tela_ocupada",
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "a_libera": {
+      "ok": true,
+      "status": 200,
+      "liberada": true,
+      "reason": null
+    },
+    "b_adquire_apos_liberar": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "efc4d568-04e1-46ba-9411-d320a63335fb",
+      "geracao": 2,
+      "expira_em": "2026-11-12T10:41:22.481068+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "ttl_adquire": "true|true|5a7d9eb3-f9ca-44ab-b8e5-869093af2868|1",
+    "ttl_expirou": "true|false|expirado",
+    "b_apos_ttl": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "2aac65a4-f91f-492e-959e-4661c9204c79",
+      "geracao": 2,
+      "expira_em": "2026-11-12T10:41:22.959326+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "fencing_antigo": {
+      "ok": false,
+      "status": 409,
+      "valida": false,
+      "geracao": 2,
+      "reason": "fencing_ultrapassado"
+    },
+    "tela_diferente": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "dc30fdd0-0ad3-4233-869e-794eda6919a3",
+      "geracao": 1,
+      "expira_em": "2026-11-12T10:41:23.221082+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "filial_diferente": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "e78507b9-e1d7-40f4-80cd-2a55650beb88",
+      "geracao": 1,
+      "expira_em": "2026-11-12T10:41:23.419582+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "sem_vinculo": {
+      "ok": false,
+      "status": 403,
+      "reason": "vm_sem_vinculo",
+      "acesso": "pendente"
+    },
+    "spoof_prefix_ignored": {
+      "ok": false,
+      "adquirida": false,
+      "reason": "tela_ocupada"
+    },
+    "concorrencia": "1|0",
+    "liberacao_atrasada": "false|false|concessao_invalida"
+  },
+  "gate": {
+    "a_adquire": true,
+    "b_bloqueado": true,
+    "a_renova": true,
+    "b_ainda": true,
+    "libera_troca": true,
+    "ttl": true,
+    "b_apos_ttl": true,
+    "fencing": true,
+    "tela_diff": true,
+    "filial_diff": true,
+    "sem_vinculo": true,
+    "concorrencia": true
+  },
+  "dump": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-09\\grupodk-portal-pre-09-2026-11-12T10-37-59-238Z.dump",
+    "bytes": 20671677,
+    "sha256": "e29ec2b237e0950e21ebff4b17f59ea719d4089f07e023cb087b31cf28d483fe",
+    "reused": true
+  },
+  "official_before": [
+    "bc|3648",
+    "last|3648",
+    "colab|0",
+    "escopo|0",
+    "prov|0",
+    "ent|0"
+  ],
+  "restore": {
+    "ok": true,
+    "status": 1
+  },
+  "apply_local": {
+    "ok": true
+  },
+  "gate_ok": true,
+  "applied_official": true,
+  "official_after": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "vms|10",
+    "colab|0",
+    "escopo|0",
+    "prov|0",
+    "ent|0",
+    "proj|0",
+    "bloq_tbl|dk_bc_tela_bloqueio",
+    "vm_status|A:preparada,B:preparada,C:preparada,D:preparada,E:preparada,F:preparada,G:preparada,H:preparada,I:preparada,J:preparada"
+  ],
+  "finished_at": "2026-11-12T10:40:34.382Z"
+}

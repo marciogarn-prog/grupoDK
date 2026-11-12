@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
   }
 
   const after = Number(q.after_bc_no || q.after || 0) || 0;
-  const limit = Math.min(Math.max(Number(q.limit) || 200, 1), 1000);
+  const limit = Math.min(Math.max(Number(q.limit || q.limite) || 200, 1), 1000);
   const listed = await listarProjecao(resolved.prefixo, after, limit);
   if (!listed.ok) {
     return res.status(listed.status || 503).json({ ok: false, reason: listed.reason, items: [] });

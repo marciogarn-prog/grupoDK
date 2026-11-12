@@ -1,0 +1,413 @@
+SISTEMA DK ORIGINAL — COMANDO 09/10
+
+CONTROLE EXCLUSIVO DE TELAS POR EMPRESA E FILIAL
+
+Etapa anterior: RESPOSTA CURSOR 08/10 — SISTEMA DK ORIGINAL.
+
+Objetivo: implementar um mecanismo central de bloqueio exclusivo de edição, impedindo que dois operadores alterem simultaneamente a mesma tela operacional dentro da mesma empresa e filial.
+
+O bloqueio deverá ser administrado pelo PostgreSQL central, com expiração automática, renovação de sessão e proteção contra gravações de operadores que perderam a exclusividade.
+
+Esta etapa não autoriza deploy nem ativação dos colaboradores.
+
+1. PRESERVAR A INFRAESTRUTURA
+
+O ChatGPT confirmou:
+
+3648 registros BC oficiais.
+
+Dez VMs preparadas.
+
+Dez estruturas de sinalização.
+
+Nenhum colaborador vinculado.
+
+Nenhum escopo autorizado.
+
+Nenhum contador provisório consumido.
+
+Nenhuma operação operacional de VM executada.
+
+Não alterar ou renumerar registros existentes.
+
+Antes de mudanças estruturais, confirmar backup atualizado, restauração verificável e teste isolado.
+
+2. DEFINIR A IDENTIDADE DA TELA
+
+Cada tela operacional deverá possuir identificação estável.
+
+A identidade do bloqueio será composta por:
+
+Empresa oficial.
+
+Filial oficial.
+
+Identificador canônico da tela ou módulo.
+
+Exemplo:
+
+Empresa DK, filial Petrolina, tela de locações.
+
+Somente uma sessão poderá possuir o direito exclusivo de edição dessa tela nesse contexto.
+
+Outra filial poderá editar sua própria tela de locações simultaneamente, quando autorizado.
+
+Telas diferentes não deverão bloquear umas às outras desnecessariamente.
+
+O servidor deve determinar a empresa, a filial e a identidade da tela conforme a sessão autenticada e a rota autorizada.
+
+Não aceitar uma empresa, filial ou tela arbitrária enviada pelo navegador como autorização.
+
+3. IMPLEMENTAR O BLOQUEIO CENTRAL
+
+Criar estrutura PostgreSQL durável para administrar:
+
+Chave única de empresa/filial/tela.
+
+VM proprietária.
+
+Colaborador autenticado.
+
+Sessão proprietária.
+
+Identificador seguro de concessão.
+
+Contador monotônico de geração do bloqueio (fencing token).
+
+Data e horário de aquisição.
+
+Data de expiração.
+
+Última renovação.
+
+Estado do bloqueio.
+
+Registro mínimo de auditoria.
+
+Garantir a exclusividade mediante transações atômicas no PostgreSQL.
+
+Redis poderá acelerar notificações, mas não será a fonte oficial do bloqueio.
+
+Não utilizar localStorage, IndexedDB ou dados do computador como controle de exclusividade.
+
+4. FUNCIONAMENTO OBRIGATÓRIO
+
+Situação A — Tela disponível
+
+O colaborador autorizado abre uma tela para edição.
+
+O servidor verifica a identidade da sessão, sua VM e as permissões para empresa e filial.
+
+Se não existir bloqueio válido, concede a exclusividade.
+
+A tela informa que o operador pode editar.
+
+Situação B — Tela ocupada
+
+Outro colaborador tenta editar a mesma tela da mesma empresa e filial.
+
+O servidor nega a aquisição simultânea.
+
+A interface informa que a edição está ocupada.
+
+Quando permitido, o segundo colaborador poderá visualizar os dados em modo somente leitura, sem modificar registros.
+
+Não exibir informações pessoais desnecessárias do operador que possui o bloqueio.
+
+Situação C — Encerramento
+
+O titular encerra a edição.
+
+O bloqueio é liberado somente se a sessão e a geração do bloqueio ainda corresponderem à concessão atual.
+
+Outra sessão autorizada poderá adquirir a exclusividade.
+
+Situação D — Queda de conexão
+
+O titular perde a conexão ou fecha o navegador.
+
+O bloqueio expira automaticamente após o prazo definido.
+
+Não exigir que o colaborador desconectado execute uma liberação para que outra pessoa possa trabalhar.
+
+Situação E — Retorno da sessão antiga
+
+Se outro colaborador adquiriu o bloqueio após a expiração, a sessão anterior não poderá recuperar a exclusividade usando suas credenciais antigas de bloqueio.
+
+O servidor deverá rejeitar qualquer gravação com geração ultrapassada.
+
+5. TTL, RENOVAÇÃO E FENCING TOKEN
+
+Implementar prazo de validade configurável para o bloqueio.
+
+Utilizar inicialmente, apenas como parâmetro de projeto:
+
+TTL de 60 segundos.
+
+Renovação automática aproximadamente a cada 20 segundos.
+
+A renovação deverá ocorrer somente enquanto a sessão estiver autenticada, autorizada e ainda possuir a concessão válida.
+
+Usar relógio do servidor PostgreSQL para as decisões temporais.
+
+Cada nova concessão de uma mesma tela deverá receber uma geração monotonicamente maior.
+
+Nunca reutilizar uma geração anterior após expiração ou liberação.
+
+O fencing token deverá impedir que requisições atrasadas de uma sessão antiga sejam aceitas.
+
+6. PROTEGER AS GRAVAÇÕES NO SERVIDOR
+
+Não basta esconder o botão Salvar na interface.
+
+As futuras operações de escrita deverão verificar, no próprio servidor:
+
+Sessão autenticada.
+
+Colaborador autorizado.
+
+VM correta.
+
+Empresa e filial autorizadas.
+
+Tela ou módulo correspondente.
+
+Bloqueio exclusivo válido.
+
+Sessão proprietária do bloqueio.
+
+Fencing token atual.
+
+Validade temporal do bloqueio.
+
+Regras BC e integridade do registro.
+
+Não considerar o bloqueio do navegador suficiente para autorizar uma operação.
+
+A validação da exclusividade deverá ocorrer na mesma transação da gravação, ou mediante mecanismo equivalente que impeça alterações entre a validação e o commit.
+
+Inventariar as rotas de escrita existentes para identificar quais precisarão dessa proteção antes da ativação operacional.
+
+Não liberar gravações reais que contornem o controle de exclusividade.
+
+7. IDENTIDADE DO COLABORADOR
+
+Reutilizar a autenticação desenvolvida nas etapas anteriores.
+
+Não criar uma segunda autenticação independente.
+
+O bloqueio deverá identificar a sessão real do colaborador, sem utilizar apenas:
+
+CPF digitado no navegador.
+
+Prefixo A–J informado pelo cliente.
+
+Endereço IP.
+
+Nome do computador.
+
+Identificador local arbitrário.
+
+Não atribuir colaboradores às VMs em produção nesta etapa.
+
+Se não houver associação ou escopo oficial, negar a aquisição do bloqueio.
+
+8. CORREÇÕES PONTUAIS DA ETAPA 08/10
+
+Antes dos testes da interface de bloqueio:
+
+Remover dos módulos de produção os parâmetros fictícios prefixo=B e prefixo=Z.
+
+Garantir que a primeira consulta da projeção seja realizada mesmo sem sinal BC novo.
+
+Garantir paginação e recuperação completa quando houver mais registros que o limite de uma consulta.
+
+Impedir consultas simultâneas desnecessárias causadas pelo polling.
+
+Interromper polling e descartar dados de sessão em memória quando a autorização expirar.
+
+Não apresentar registros históricos ou excluídos como registros operacionais ativos.
+
+Confirmar que o módulo não depende de armazenamento local de dados de negócio.
+
+Preservar a integração preparada na etapa 08/10.
+
+Não conectar ainda as telas operacionais reais.
+
+9. APIS E INTERFACE
+
+Preparar APIs servidoras para:
+
+Consultar o estado de ocupação.
+
+Adquirir o bloqueio.
+
+Renovar o bloqueio.
+
+Liberar o bloqueio.
+
+Validar a exclusividade antes de gravar.
+
+Todas as APIs deverão utilizar a identidade autenticada da sessão.
+
+Preparar os componentes visuais necessários para informar:
+
+Edição disponível.
+
+Edição bloqueada.
+
+Bloqueio adquirido.
+
+Conexão interrompida.
+
+Bloqueio expirado.
+
+Permissão revogada.
+
+Tentativa de gravação rejeitada.
+
+Não alterar ainda a interface em produção.
+
+10. TESTES OBRIGATÓRIOS
+
+Realizar testes reais em PostgreSQL isolado, com servidor de aplicação e sessões controladas.
+
+Comprovar:
+
+Sessão A adquire a tela de locações.
+
+Sessão B tenta adquirir a mesma tela e recebe bloqueio.
+
+Sessão A renova sua concessão.
+
+Sessão B continua impedida de editar.
+
+Sessão A libera e B consegue adquirir.
+
+Sessão A perde a conexão e o TTL expira.
+
+Sessão B adquire após a expiração.
+
+Sessão A retorna com token antigo e não consegue gravar.
+
+Duas solicitações simultâneas recebem apenas uma concessão válida.
+
+Telas diferentes funcionam independentemente.
+
+Filiais diferentes funcionam independentemente.
+
+Usuário sem permissão não consegue adquirir bloqueio.
+
+Troca forjada de empresa, filial ou VM é rejeitada.
+
+Encerramento de sessão impede renovação.
+
+Queda do servidor não provoca bloqueio permanente.
+
+Gravação com fencing token expirado é rejeitada.
+
+Liberação atrasada não remove o bloqueio de outro operador.
+
+Interface atualiza corretamente os estados de edição.
+
+A consulta somente leitura não cria novos números BC.
+
+Os testes não alteram informações reais do portal.
+
+Testar explicitamente duas sessões concorrentes, incluindo atraso artificial de requisições.
+
+11. IMPLANTAÇÃO CONTROLADA
+
+É permitida a instalação de estruturas aditivas e funções PostgreSQL após testes isolados e backup restaurável.
+
+Não ativar bloqueios nas telas reais nesta etapa.
+
+Não atribuir colaboradores ou escopos automaticamente.
+
+Não executar worker de sincronização em produção.
+
+Não realizar bootstrap operacional real.
+
+Não modificar contratos, clientes, pagamentos ou manutenções.
+
+Não consumir números BC ou provisórios oficiais em testes.
+
+Não realizar merge na main.
+
+Não realizar deploy.
+
+Não modificar o backup das 02h nem a geração do PDF oficial.
+
+Publicar as alterações somente na branch de desenvolvimento.
+
+12. RELATÓRIO OBRIGATÓRIO
+
+Responder exatamente:
+
+RESPOSTA CURSOR 09/10 — SISTEMA DK ORIGINAL
+
+Apresentar:
+
+Estrutura central de bloqueios.
+
+Identificação de empresa, filial e tela.
+
+Controle de TTL e renovação.
+
+Funcionamento do fencing token.
+
+Proteção das gravações.
+
+APIs preparadas.
+
+Componentes de interface preparados.
+
+Correções realizadas na etapa 08/10.
+
+Resultados dos testes de concorrência.
+
+Resultados dos testes de expiração e reconexão.
+
+Resultado do teste de gravação atrasada.
+
+Evidências de backup e restauração.
+
+Estruturas instaladas no Supabase.
+
+Estado das dez VMs.
+
+Estado dos colaboradores e escopos.
+
+Contadores BC e A–J.
+
+Arquivos modificados.
+
+Commit e branch.
+
+Pendências de ativação.
+
+Confirmação de ausência de deploy e alterações operacionais.
+
+Não declarar proteção operacional concluída se ainda existirem caminhos de gravação sem validação de bloqueio.
+
+13. COMUNICAÇÃO AUTOMÁTICA CURSOR ↔ CHATGPT
+
+Após concluir:
+
+Copiar integralmente a RESPOSTA CURSOR 09/10.
+
+Abrir remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar o relatório.
+
+Aguardar cinco minutos.
+
+Ler a análise recebida.
+
+Executar exclusivamente eventual revisão 09/10 ou COMANDO 10/10 expressamente autorizado.
+
+Não antecipar a etapa final.
+
+REGRA PERMANENTE: depois do COMANDO 10/10, interromper todo o trabalho até nova autorização expressa do proprietário.
+
+Execute exclusivamente o COMANDO 09/10.

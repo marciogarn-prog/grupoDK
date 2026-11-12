@@ -1,0 +1,105 @@
+RESPOSTA CURSOR 09/10 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA (componentes seguros instalados; bloqueio NAO ligado a telas reais; ativacao BLOQUEADA)
+Nao avancado para COMANDO 10/10.
+
+1) Estrutura central de bloqueios
+- Tabelas: dk_bc_tela_bloqueio (PK empresa/filial/tela), dk_bc_tela_bloqueio_geracao, dk_bc_tela_bloqueio_audit.
+- Funcoes PG: consultar, adquirir, renovar, liberar, validar.
+- Exclusividade por transacao FOR UPDATE + geracao monotônica.
+- Redis nao e autoridade; PostgreSQL e a fonte oficial.
+
+2) Identificacao empresa / filial / tela
+- Tela canonica no servidor (locacoes, clientes, veiculos, pagamentos, manutencoes, multas, contratos).
+- Empresa/filial informadas devem existir em dk_bc_vm_escopo da VM resolvida pela sessao.
+- Prefixo A-J do cliente IGNORADO; CPF e sid vem do token HMAC.
+- Sem vinculo/escopo: adquirir negado (vm_sem_vinculo / sem_escopo_autorizado).
+
+3) TTL e renovacao
+- TTL projeto: 60s; renovacao sugerida: 20s (portal-bc-tela-bloqueio.js).
+- Relogio: clock_timestamp() do PostgreSQL.
+- Titular pode re-adquirir (renova); outra sessao recebe tela_ocupada.
+
+4) Fencing token
+- Geracao monotônica por (empresa, filial, tela) em dk_bc_tela_bloqueio_geracao.
+- validar/renovar/liberar exigem concessao_id + geracao + sessao_id coincidentes.
+- Token antigo apos nova concessao: fencing_ultrapassado (testado).
+
+5) Protecao das gravacoes
+- API action=validar preparada para uso na mesma transacao futura de escrita.
+- Inventario de rotas de escrita existentes (AINDA SEM wiring de bloqueio):
+  dk-locacao, dk-pagamento-locacao, dk-manutencao, dk-clientes-migrar,
+  dk-clientes-copiar, dk-veiculos-copiar, dk-locacoes-copiar, dk-lancamento-nuvem,
+  dk-append-only-merge, dk-sync (parcial).
+- PROTECAO OPERACIONAL NAO CONCLUIDA: caminhos de gravacao reais ainda nao chamam validar.
+
+6) APIs preparadas
+- GET/POST /api/dk-bc-tela-bloqueio?action=consultar|adquirir|renovar|liberar|validar
+- requireLiveSession + assertEquipaClientProtocol
+- Nao ligadas as telas operacionais de producao.
+
+7) Componentes de interface preparados
+- portal-bc-tela-bloqueio.js: estados edicao_disponivel / edicao_bloqueada /
+  bloqueio_adquirido / conexao_interrompida / bloqueio_expirado /
+  permissao_revogada / gravacao_rejeitada
+- Nao incluido no index.html nesta etapa.
+
+8) Correcoes pontuais da etapa 08/10
+- Removidos prefixo=B e prefixo=Z de portal-bc-vm-sessao.js.
+- Primeira projecao carrega mesmo sem avanco de sinal.
+- Paginacao por limit=200 ate esgotar.
+- Poll sem sobreposicao (inFlight); para em 401 e limpa estado em memoria.
+- Registros nao vigentes/excluidos filtrados no terminal.
+- Sem dependencia de storage local como fonte de negocio.
+
+9) Testes de concorrencia (PG isolado + Node)
+- gate 12/12 OK: a_adquire, b_bloqueado, a_renova, b_ainda, libera_troca,
+  ttl, b_apos_ttl, fencing, tela_diff, filial_diff, sem_vinculo, concorrencia.
+- Duas sessoes A/B: B bloqueada enquanto A titular; apos liberar B adquire.
+- Concorrencia SQL: apenas uma concessao valida (1|0).
+
+10) Expiracao / reconexao / gravacao atrasada
+- TTL forçado: consultar marca expirado; B adquire apos expiracao.
+- Fencing antigo rejeitado (gravacao atrasada / sessao antiga).
+- Liberacao com geracao 0 nao remove bloqueio alheio.
+
+11) Backup
+- C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-09\grupodk-portal-pre-09-2026-11-12T10-37-59-238Z.dump
+- SHA-256: e29ec2b237e0950e21ebff4b17f59ea719d4089f07e023cb087b31cf28d483fe
+- Restauracao verificada no PostgreSQL isolado (dk_bc_09) antes do apply oficial.
+
+12) Estruturas no Supabase oficial
+- dk_bc_tela_bloqueio (+ geracao + audit) instaladas (aditivo).
+- Funcoes de bloqueio instaladas.
+- bc=3648 vig=3648 last=3648 inalterados.
+
+13) Estado VMs / colaboradores / escopos / contadores
+- VMs: 10 preparada
+- Colaboradores vinculados: 0
+- Escopos: 0
+- Entregas/projecoes: 0
+- Prov A-J: 0
+- Worker sync: DESATIVADO
+
+14) Arquivos / commit / branch
+- supabase/dk-bc-tela-bloqueio-09.sql
+- lib/dk-bc-tela-bloqueio.cjs
+- api/dk-bc-tela-bloqueio.js
+- portal-bc-tela-bloqueio.js (preparado, nao no index)
+- portal-bc-vm-sessao.js (correcoes 08)
+- api/dk-bc-vm-projecao.js (alias limite)
+- scripts/dk-bc-tela-bloqueio-09.mjs
+- artifacts/bc-tests/COMANDO-09-10.txt / RESPOSTA-CURSOR-09-10.txt / report-09.json
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (preencher apos git)
+
+15) Pendencias de ativacao
+- 0 colaboradores / 0 escopos oficiais
+- Bloqueio nao ligado a telas reais nem a rotas de escrita
+- Sem merge main / sem deploy
+- Telas/cadastros/contratos/pagamentos: nao alterados operacionalmente
+
+Confirmacao: PROTECAO OPERACIONAL AINDA NAO CONCLUIDA (faltam wiring nas rotas de escrita e vinculos reais).
+Sem deploy. Sem COMANDO 10/10.
+
+RESPOSTA CURSOR 09/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 10/10 ou revisao 09/10.
