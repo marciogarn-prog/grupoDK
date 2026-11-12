@@ -91,7 +91,7 @@ Nao avancado para COMANDO 10/10.
 - scripts/dk-bc-tela-bloqueio-09.mjs
 - artifacts/bc-tests/COMANDO-09-10.txt / RESPOSTA-CURSOR-09-10.txt / report-09.json
 - Branch: fix/reduzir-espera-nuvem
-- Commit: (preencher apos git)
+- Commit: 81bcc84
 
 15) Pendencias de ativacao
 - 0 colaboradores / 0 escopos oficiais
