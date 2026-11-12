@@ -1,0 +1,468 @@
+-- Infraestrutura central de numeração BC (Banco Central DK).
+-- ADITIVO: não altera tabelas operacionais (clientes, veículos, locações, pagamentos…).
+-- Não numera registos existentes. Pode correr de novo (IF NOT EXISTS / OR REPLACE).
+-- Contador gapless: dk_bc_state + FOR UPDATE (padrão dk_audit_state), sem SEQUENCE para BC.
+
+create extension if not exists pgcrypto;
+
+-- Contador histórico de BC confirmados (uma linha).
+create table if not exists public.dk_bc_state (
+  id integer primary key check (id = 1),
+  last_bc_no bigint not null default 0 check (last_bc_no >= 0),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.dk_bc_state (id, last_bc_no)
+values (1, 0)
+on conflict (id) do nothing;
+
+comment on table public.dk_bc_state is
+  'Contador gapless do BC. Só avança dentro da mesma transação que confirma um registo oficial.';
+
+-- Catálogo oficial de identificadores BC (estados consolidados e versões futuras).
+create table if not exists public.dk_bc_registro (
+  bc_id text primary key,
+  bc_no bigint not null unique,
+  categoria text not null,
+  subcategoria text not null default '',
+  origem text not null,
+  registro_id text not null,
+  empresa_id text null,
+  filial_id text null,
+  estado text not null default 'consolidado',
+  versao_bc text not null,
+  bc_anterior text null references public.dk_bc_registro (bc_id),
+  confirmado_em timestamptz not null default now(),
+  hash_integridade text null,
+  historico_ref text null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint dk_bc_registro_bc_id_fmt check (bc_id ~ '^BC[0-9]{12}$'),
+  constraint dk_bc_registro_versao_bc_fmt check (versao_bc ~ '^BC[0-9]{12}$'),
+  constraint dk_bc_registro_payload_object check (jsonb_typeof(payload) = 'object')
+);
+
+create index if not exists dk_bc_registro_origem_reg_idx
+  on public.dk_bc_registro (origem, registro_id);
+
+create index if not exists dk_bc_registro_categoria_idx
+  on public.dk_bc_registro (categoria, subcategoria);
+
+create index if not exists dk_bc_registro_confirmado_em_idx
+  on public.dk_bc_registro (confirmado_em);
+
+comment on table public.dk_bc_registro is
+  'Catálogo BC: cada bc_id identifica uma única informação/versão oficial confirmada.';
+
+-- Operações provisórias das VMs e idempotência (confirmadas / rejeitadas / pendentes).
+create table if not exists public.dk_bc_operacao (
+  id uuid primary key default gen_random_uuid(),
+  operation_id uuid not null unique,
+  vm_provisorio text null,
+  vm_prefix text null,
+  status text not null,
+  bc_id text null references public.dk_bc_registro (bc_id),
+  bc_composto text null,
+  motivo_rejeicao text null,
+  categoria text null,
+  subcategoria text null,
+  origem text null,
+  registro_id text null,
+  empresa_id text null,
+  filial_id text null,
+  hash_integridade text null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint dk_bc_operacao_status_chk
+    check (status in ('pendente', 'confirmado', 'rejeitado')),
+  constraint dk_bc_operacao_payload_object check (jsonb_typeof(payload) = 'object'),
+  constraint dk_bc_operacao_vm_prefix_chk
+    check (vm_prefix is null or vm_prefix ~ '^[A-J]$'),
+  constraint dk_bc_operacao_confirmado_tem_bc
+    check (
+      (status = 'confirmado' and bc_id is not null and bc_composto is not null)
+      or (status <> 'confirmado')
+    ),
+  constraint dk_bc_operacao_rejeitado_sem_bc
+    check (
+      (status = 'rejeitado' and bc_id is null)
+      or (status <> 'rejeitado')
+    )
+);
+
+create unique index if not exists dk_bc_operacao_vm_provisorio_uidx
+  on public.dk_bc_operacao (vm_provisorio)
+  where vm_provisorio is not null;
+
+create index if not exists dk_bc_operacao_status_idx
+  on public.dk_bc_operacao (status);
+
+create index if not exists dk_bc_operacao_bc_id_idx
+  on public.dk_bc_operacao (bc_id)
+  where bc_id is not null;
+
+comment on table public.dk_bc_operacao is
+  'Operações provisórias VM (A000123…) e idempotência. Rejeitadas não consomem número BC.';
+
+-- Formata BC000000000001
+create or replace function public.dk_bc_format(p_no bigint)
+returns text
+language sql
+immutable
+as $$
+  select 'BC' || lpad(p_no::text, 12, '0');
+$$;
+
+revoke all on function public.dk_bc_format(bigint) from public, anon, authenticated;
+grant execute on function public.dk_bc_format(bigint) to service_role;
+
+-- Confirma operação oficial: atribui BC gapless + idempotência por operation_id / vm_provisorio.
+create or replace function public.dk_bc_confirmar(
+  p_operation_id uuid,
+  p_vm_provisorio text,
+  p_categoria text,
+  p_subcategoria text,
+  p_origem text,
+  p_registro_id text,
+  p_empresa_id text,
+  p_filial_id text,
+  p_estado text,
+  p_bc_anterior text,
+  p_hash_integridade text,
+  p_historico_ref text,
+  p_payload jsonb
+)
+returns table (
+  ok boolean,
+  bc_id text,
+  bc_no bigint,
+  bc_composto text,
+  status text,
+  idempotent boolean,
+  reason text
+)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_exist public.dk_bc_operacao%rowtype;
+  v_exist_vm public.dk_bc_operacao%rowtype;
+  v_no bigint;
+  v_bc text;
+  v_composto text;
+  v_prefix text;
+  v_prov text;
+  v_estado text;
+  v_sub text;
+  v_payload jsonb;
+begin
+  if p_operation_id is null then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'operation_id_ausente';
+    return next; return;
+  end if;
+  if p_categoria is null or btrim(p_categoria) = '' then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'categoria_vazia';
+    return next; return;
+  end if;
+  if p_origem is null or btrim(p_origem) = '' then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'origem_vazia';
+    return next; return;
+  end if;
+  if p_registro_id is null or btrim(p_registro_id) = '' then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'registro_id_vazio';
+    return next; return;
+  end if;
+
+  v_payload := coalesce(p_payload, '{}'::jsonb);
+  if jsonb_typeof(v_payload) <> 'object' then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'payload_invalido';
+    return next; return;
+  end if;
+
+  v_prov := nullif(btrim(coalesce(p_vm_provisorio, '')), '');
+  v_prefix := null;
+  if v_prov is not null then
+    if v_prov !~ '^[A-J][0-9]{1,12}$' then
+      ok := false; bc_id := null; bc_no := null; bc_composto := null;
+      status := null; idempotent := false; reason := 'vm_provisorio_invalido';
+      return next; return;
+    end if;
+    v_prefix := substr(v_prov, 1, 1);
+  end if;
+
+  v_estado := coalesce(nullif(btrim(coalesce(p_estado, '')), ''), 'consolidado');
+  v_sub := coalesce(p_subcategoria, '');
+
+  -- Serializa atribuições BC (gapless).
+  perform 1 from public.dk_bc_state where id = 1 for update;
+
+  select * into v_exist from public.dk_bc_operacao where operation_id = p_operation_id;
+  if found then
+    if v_exist.status = 'confirmado' then
+      ok := true;
+      bc_id := v_exist.bc_id;
+      bc_no := (select r.bc_no from public.dk_bc_registro r where r.bc_id = v_exist.bc_id);
+      bc_composto := v_exist.bc_composto;
+      status := 'confirmado';
+      idempotent := true;
+      reason := null;
+      return next; return;
+    end if;
+    if v_exist.status = 'rejeitado' then
+      ok := false;
+      bc_id := null; bc_no := null; bc_composto := null;
+      status := 'rejeitado';
+      idempotent := true;
+      reason := coalesce(v_exist.motivo_rejeicao, 'ja_rejeitado');
+      return next; return;
+    end if;
+  end if;
+
+  if v_prov is not null then
+    select * into v_exist_vm
+      from public.dk_bc_operacao
+     where vm_provisorio = v_prov;
+    if found then
+      if v_exist_vm.operation_id <> p_operation_id then
+        ok := false; bc_id := null; bc_no := null; bc_composto := null;
+        status := v_exist_vm.status; idempotent := false;
+        reason := 'vm_provisorio_em_uso';
+        return next; return;
+      end if;
+      if v_exist_vm.status = 'confirmado' then
+        ok := true;
+        bc_id := v_exist_vm.bc_id;
+        bc_no := (select r.bc_no from public.dk_bc_registro r where r.bc_id = v_exist_vm.bc_id);
+        bc_composto := v_exist_vm.bc_composto;
+        status := 'confirmado';
+        idempotent := true;
+        reason := null;
+        return next; return;
+      end if;
+    end if;
+  end if;
+
+  if p_bc_anterior is not null and btrim(p_bc_anterior) <> '' then
+    if not exists (select 1 from public.dk_bc_registro r where r.bc_id = btrim(p_bc_anterior)) then
+      ok := false; bc_id := null; bc_no := null; bc_composto := null;
+      status := null; idempotent := false; reason := 'bc_anterior_inexistente';
+      return next; return;
+    end if;
+  end if;
+
+  update public.dk_bc_state
+     set last_bc_no = last_bc_no + 1,
+         updated_at = now()
+   where id = 1
+  returning last_bc_no into v_no;
+
+  if v_no is null then
+    ok := false; bc_id := null; bc_no := null; bc_composto := null;
+    status := null; idempotent := false; reason := 'contador_ausente';
+    return next; return;
+  end if;
+
+  v_bc := public.dk_bc_format(v_no);
+  if v_prov is not null then
+    v_composto := v_prov || '-' || v_bc;
+  else
+    v_composto := v_bc;
+  end if;
+
+  insert into public.dk_bc_registro (
+    bc_id, bc_no, categoria, subcategoria, origem, registro_id,
+    empresa_id, filial_id, estado, versao_bc, bc_anterior,
+    confirmado_em, hash_integridade, historico_ref, payload
+  ) values (
+    v_bc, v_no, btrim(p_categoria), v_sub, btrim(p_origem), btrim(p_registro_id),
+    nullif(btrim(coalesce(p_empresa_id, '')), ''),
+    nullif(btrim(coalesce(p_filial_id, '')), ''),
+    v_estado, v_bc,
+    nullif(btrim(coalesce(p_bc_anterior, '')), ''),
+    now(),
+    nullif(btrim(coalesce(p_hash_integridade, '')), ''),
+    nullif(btrim(coalesce(p_historico_ref, '')), ''),
+    v_payload
+  );
+
+  if v_exist.id is not null then
+    update public.dk_bc_operacao
+       set status = 'confirmado',
+           bc_id = v_bc,
+           bc_composto = v_composto,
+           vm_provisorio = coalesce(vm_provisorio, v_prov),
+           vm_prefix = coalesce(vm_prefix, v_prefix),
+           categoria = btrim(p_categoria),
+           subcategoria = v_sub,
+           origem = btrim(p_origem),
+           registro_id = btrim(p_registro_id),
+           empresa_id = nullif(btrim(coalesce(p_empresa_id, '')), ''),
+           filial_id = nullif(btrim(coalesce(p_filial_id, '')), ''),
+           hash_integridade = nullif(btrim(coalesce(p_hash_integridade, '')), ''),
+           payload = v_payload,
+           motivo_rejeicao = null,
+           updated_at = now()
+     where id = v_exist.id;
+  else
+    insert into public.dk_bc_operacao (
+      operation_id, vm_provisorio, vm_prefix, status, bc_id, bc_composto,
+      categoria, subcategoria, origem, registro_id, empresa_id, filial_id,
+      hash_integridade, payload
+    ) values (
+      p_operation_id, v_prov, v_prefix, 'confirmado', v_bc, v_composto,
+      btrim(p_categoria), v_sub, btrim(p_origem), btrim(p_registro_id),
+      nullif(btrim(coalesce(p_empresa_id, '')), ''),
+      nullif(btrim(coalesce(p_filial_id, '')), ''),
+      nullif(btrim(coalesce(p_hash_integridade, '')), ''),
+      v_payload
+    );
+  end if;
+
+  ok := true;
+  bc_id := v_bc;
+  bc_no := v_no;
+  bc_composto := v_composto;
+  status := 'confirmado';
+  idempotent := false;
+  reason := null;
+  return next;
+end;
+$$;
+
+revoke all on function public.dk_bc_confirmar(
+  uuid, text, text, text, text, text, text, text, text, text, text, text, jsonb
+) from public, anon, authenticated;
+grant execute on function public.dk_bc_confirmar(
+  uuid, text, text, text, text, text, text, text, text, text, text, text, jsonb
+) to service_role;
+
+-- Rejeita operação provisória SEM avançar o contador BC.
+create or replace function public.dk_bc_rejeitar(
+  p_operation_id uuid,
+  p_vm_provisorio text,
+  p_motivo text,
+  p_payload jsonb
+)
+returns table (
+  ok boolean,
+  status text,
+  idempotent boolean,
+  reason text,
+  last_bc_no bigint
+)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_exist public.dk_bc_operacao%rowtype;
+  v_prov text;
+  v_prefix text;
+  v_payload jsonb;
+  v_last bigint;
+begin
+  if p_operation_id is null then
+    ok := false; status := null; idempotent := false; reason := 'operation_id_ausente'; last_bc_no := null;
+    return next; return;
+  end if;
+
+  v_payload := coalesce(p_payload, '{}'::jsonb);
+  if jsonb_typeof(v_payload) <> 'object' then
+    ok := false; status := null; idempotent := false; reason := 'payload_invalido'; last_bc_no := null;
+    return next; return;
+  end if;
+
+  v_prov := nullif(btrim(coalesce(p_vm_provisorio, '')), '');
+  v_prefix := null;
+  if v_prov is not null then
+    if v_prov !~ '^[A-J][0-9]{1,12}$' then
+      ok := false; status := null; idempotent := false; reason := 'vm_provisorio_invalido'; last_bc_no := null;
+      return next; return;
+    end if;
+    v_prefix := substr(v_prov, 1, 1);
+  end if;
+
+  perform 1 from public.dk_bc_state where id = 1 for update;
+  select last_bc_no into v_last from public.dk_bc_state where id = 1;
+
+  select * into v_exist from public.dk_bc_operacao where operation_id = p_operation_id;
+  if found then
+    if v_exist.status = 'confirmado' then
+      ok := false; status := 'confirmado'; idempotent := true;
+      reason := 'ja_confirmado'; last_bc_no := v_last;
+      return next; return;
+    end if;
+    if v_exist.status = 'rejeitado' then
+      ok := true; status := 'rejeitado'; idempotent := true;
+      reason := null; last_bc_no := v_last;
+      return next; return;
+    end if;
+    update public.dk_bc_operacao
+       set status = 'rejeitado',
+           motivo_rejeicao = left(coalesce(nullif(btrim(coalesce(p_motivo, '')), ''), 'rejeitado'), 500),
+           bc_id = null,
+           bc_composto = null,
+           payload = v_payload,
+           updated_at = now()
+     where id = v_exist.id;
+  else
+    insert into public.dk_bc_operacao (
+      operation_id, vm_provisorio, vm_prefix, status, motivo_rejeicao, payload
+    ) values (
+      p_operation_id, v_prov, v_prefix, 'rejeitado',
+      left(coalesce(nullif(btrim(coalesce(p_motivo, '')), ''), 'rejeitado'), 500),
+      v_payload
+    );
+  end if;
+
+  ok := true;
+  status := 'rejeitado';
+  idempotent := false;
+  reason := null;
+  last_bc_no := v_last;
+  return next;
+end;
+$$;
+
+revoke all on function public.dk_bc_rejeitar(uuid, text, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.dk_bc_rejeitar(uuid, text, text, jsonb)
+  to service_role;
+
+-- Leitura do contador (diagnóstico).
+create or replace function public.dk_bc_estado()
+returns table (last_bc_no bigint, updated_at timestamptz, proximo_bc text)
+language sql
+security invoker
+set search_path = public
+as $$
+  select s.last_bc_no, s.updated_at, public.dk_bc_format(s.last_bc_no + 1)
+    from public.dk_bc_state s
+   where s.id = 1;
+$$;
+
+revoke all on function public.dk_bc_estado() from public, anon, authenticated;
+grant execute on function public.dk_bc_estado() to service_role;
+
+alter table public.dk_bc_state enable row level security;
+alter table public.dk_bc_registro enable row level security;
+alter table public.dk_bc_operacao enable row level security;
+
+revoke all on table public.dk_bc_state from public, anon, authenticated;
+revoke all on table public.dk_bc_registro from public, anon, authenticated;
+revoke all on table public.dk_bc_operacao from public, anon, authenticated;
+
+grant select, insert, update on table public.dk_bc_state to service_role;
+grant select, insert, update on table public.dk_bc_registro to service_role;
+grant select, insert, update on table public.dk_bc_operacao to service_role;
+
+notify pgrst, 'reload schema';
