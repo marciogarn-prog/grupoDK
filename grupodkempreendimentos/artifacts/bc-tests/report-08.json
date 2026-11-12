@@ -1,0 +1,156 @@
+{
+  "started_at": "2026-11-12T04:52:24.472Z",
+  "comando": "08/10",
+  "dump": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-06\\grupodk-portal-2026-11-12T04-04-52-605Z.dump",
+    "bytes": 20617050,
+    "sha256": "74ec817254e30e1c93509cc739e17388bf87fab4ea35c3dc23ed945ad63ceecc"
+  },
+  "official_before": [
+    "bc|3648",
+    "last|3648",
+    "prov|0",
+    "escopo_reg|dk_bc_vm_escopo",
+    "colab|0",
+    "ent|0"
+  ],
+  "apply_local": {
+    "ok": true
+  },
+  "tests": {
+    "resolver_A": "true|A|true|-",
+    "resolver_sem": "false|vm_sem_vinculo",
+    "resolver_vazio": "false|colaborador_ref_ausente",
+    "node_spoof": {
+      "ok": true,
+      "status": 200,
+      "reason": null,
+      "acesso": "autorizado",
+      "prefixo": "A",
+      "vm_id": "VM-A",
+      "vm_status": "ativa",
+      "tem_escopo": true,
+      "autorizada": true,
+      "colaborador_ref_mascara": "111***",
+      "forged_ignored": "B"
+    },
+    "node_spoof_prefix_is_A": true,
+    "node_spoof_forged": true,
+    "node_sem": {
+      "ok": false,
+      "status": 403,
+      "reason": "vm_sem_vinculo",
+      "acesso": "pendente",
+      "prefixo": null,
+      "colaborador_ref_mascara": "000***",
+      "forged_ignored": "B"
+    },
+    "conf": "true|BC000000003649|3649",
+    "snap": "f",
+    "apply_A": "true|1",
+    "proj_list": "1",
+    "sinal": "3649",
+    "conf_beta": "true|BC000000003650",
+    "apply_A2": "true|0",
+    "filtro": "filtrado_escopo:fora_do_escopo",
+    "recon": "true|1",
+    "after_recon": "pendente",
+    "apply_recon": "true|1",
+    "proj_beta_A": "1",
+    "sem_escopo_C": "false|sem_escopo_autorizado",
+    "node_proj": {
+      "ok": true,
+      "status": 200,
+      "items": [
+        {
+          "bc_id": "BC000000003649",
+          "bc_no": 3649,
+          "origem": "sync08",
+          "registro_id": "reg-08",
+          "empresa_id": "emp-alfa",
+          "filial_id": "fil-a1",
+          "estado": "consolidado",
+          "vigente": true,
+          "bc_anterior": null,
+          "conteudo_hash": "f1b21273c6b6ea1c60a8d061342c18cc62ce665832e56cd3d43a5a9338e5887e",
+          "applied_at": "2026-11-12T04:52:33.535716+00:00"
+        },
+        {
+          "bc_id": "BC000000003650",
+          "bc_no": 3650,
+          "origem": "sync08",
+          "registro_id": "reg-08b",
+          "empresa_id": "emp-beta",
+          "filial_id": "fil-b1",
+          "estado": "consolidado",
+          "vigente": true,
+          "bc_anterior": null,
+          "conteudo_hash": "31599fed162133693cb02d58eb5d5fbc40bf3fd7375ad360675f95a7874d4a13",
+          "applied_at": "2026-11-12T04:52:35.212271+00:00"
+        }
+      ]
+    },
+    "sessao_A": {
+      "ok": true,
+      "status": 200,
+      "reason": null,
+      "acesso": "autorizado",
+      "prefixo": "A",
+      "vm_id": "VM-A",
+      "vm_status": "ativa",
+      "tem_escopo": true,
+      "autorizada": true,
+      "colaborador_ref_mascara": "111***",
+      "forged_ignored": "B"
+    },
+    "sessao_B": {
+      "ok": true,
+      "status": 200,
+      "reason": null,
+      "acesso": "autorizado",
+      "prefixo": "B",
+      "vm_id": "VM-B",
+      "vm_status": "ativa",
+      "tem_escopo": true,
+      "autorizada": true,
+      "colaborador_ref_mascara": "555***",
+      "forged_ignored": "A"
+    }
+  },
+  "gate": {
+    "resolver_A": true,
+    "sem_vinculo": true,
+    "spoof": true,
+    "snap_sem_payload": true,
+    "apply": true,
+    "proj": true,
+    "filtro": true,
+    "recon": true,
+    "proj_beta": true,
+    "sessao_B": true,
+    "sem_escopo": true
+  },
+  "gate_ok": true,
+  "dump_fresh": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-08\\grupodk-portal-pre-08-2026-11-12T04-52-36-596Z.dump",
+    "bytes": 20661961,
+    "sha256": "9c9ec866e501b9e79e02466832848a4fd10c1dd53a8752a0c63b8a6f2a90ee93"
+  },
+  "applied_official": true,
+  "official_after": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "vms|10",
+    "colab|0",
+    "escopo|0",
+    "prov|0",
+    "ent|0",
+    "proj|0",
+    "sinal|10",
+    "vm_status|A:preparada,B:preparada,C:preparada,D:preparada,E:preparada,F:preparada,G:preparada,H:preparada,I:preparada,J:preparada"
+  ],
+  "finished_at": "2026-11-12T04:54:01.263Z"
+}

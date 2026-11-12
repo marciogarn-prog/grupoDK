@@ -1,0 +1,381 @@
+﻿SISTEMA DK ORIGINAL — COMANDO 08/10
+
+ATUALIZAÇÃO AUTOMÁTICA DAS TELAS A PARTIR DAS DEZ VMs NA NUVEM
+
+Etapa anterior: RESPOSTA CURSOR 07/10 — REVISÃO 1.
+
+Objetivo: conectar cada sessão autenticada do Sistema DK à sua VM lógica na infraestrutura central, permitindo que as alterações oficiais sejam apresentadas automaticamente nas telas, sem recarregamento manual e sem transformar os computadores em fontes oficiais de dados.
+
+Esta etapa implementa a ligação entre a nuvem e a interface do usuário. O bloqueio exclusivo das telas será tratado no COMANDO 09/10.
+
+1. PRESERVAÇÃO DA INFRAESTRUTURA
+
+O ChatGPT confirmou diretamente:
+
+3648 registros BC oficiais.
+
+Dez VMs com estruturas de sincronização.
+
+Nenhuma entrega ou projeção operacional em produção.
+
+Nenhuma VM associada a colaborador.
+
+Nenhum escopo de empresa ou filial autorizado.
+
+Contadores provisórios zerados.
+
+Não apagar nem renumerar registros.
+
+Não ativar automaticamente as VMs.
+
+Não utilizar dados dos computadores físicos como fonte oficial.
+
+Antes de mudanças estruturais no banco, confirmar backup recuperável atualizado e testar em ambiente isolado.
+
+2. IDENTIFICAR AS TELAS E ROTINAS EXISTENTES
+
+Inspecionar as interfaces atuais do portal Grupo DK e identificar os módulos operacionais que apresentam informações de clientes, veículos, locações, pagamentos, manutenções e demais cadastros.
+
+Identificar:
+
+Como as telas consultam informações atualmente.
+
+Quais APIs são utilizadas.
+
+Onde ainda existem leituras ou gravações dependentes do armazenamento local do navegador.
+
+Como o sistema autentica os usuários.
+
+Como a sessão identifica empresa e filial.
+
+Como as dez VMs lógicas são representadas na aplicação.
+
+Não substituir a interface nem reconstruir o portal.
+
+Aproveitar os componentes existentes e implementar a integração de forma incremental.
+
+3. AUTENTICAR O COLABORADOR E IDENTIFICAR A VM
+
+A associação entre colaborador e VM deve ser resolvida no servidor.
+
+Fluxo obrigatório:
+
+O colaborador autentica sua sessão.
+
+O servidor valida a identidade autenticada.
+
+O sistema consulta a associação oficial entre colaborador, empresa, filial e VM.
+
+O servidor identifica a VM autorizada.
+
+A tela recebe somente as informações permitidas dessa VM.
+
+Não confiar no prefixo A–J informado pelo navegador.
+
+Não confiar em um identificador de colaborador enviado livremente pelo cliente.
+
+Não utilizar uma chave administrativa ou service_role no frontend.
+
+Impedir que o usuário altere a URL, os parâmetros ou o estado da aplicação para consultar outra VM.
+
+Se não houver vínculo oficial comprovado, apresentar acesso pendente ou não autorizado, sem liberar dados operacionais.
+
+Preparar o procedimento administrativo seguro para vincular as VMs aos colaboradores reais, mas não realizar atribuições presumidas nem ativar VMs em produção nesta etapa.
+
+4. PREPARAR A CONSULTA CENTRAL DA VM
+
+A interface deverá consultar a projeção oficial autorizada da sua VM no PostgreSQL.
+
+As estruturas relevantes incluem:
+
+dk_bc_vm
+
+dk_bc_vm_escopo
+
+dk_bc_vm_sync_state
+
+dk_bc_vm_sync_entrega
+
+dk_bc_vm_projecao
+
+dk_bc_registro
+
+O servidor deverá retornar o estado consolidado correto das informações, preservando a possibilidade de consultar seu histórico.
+
+Registros excluídos logicamente não poderão reaparecer como cadastros ativos.
+
+Versões substituídas não poderão sobrescrever versões mais recentes.
+
+Os dados exibidos devem pertencer ao escopo autorizado da sessão.
+
+5. CORRIGIR A DISTRIBUIÇÃO POR ESCOPO ANTES DA EXPOSIÇÃO
+
+A implementação atual de bootstrap e enfileiramento pode preparar entregas para todas as VMs, mesmo antes de definir seus escopos.
+
+Antes de conectar interfaces reais:
+
+Evitar colocar informações de empresa ou filial não autorizada nas estruturas de entrega acessíveis à VM.
+
+Não expor payload_snapshot de outra empresa.
+
+Tratar registros antigos sem empresa ou filial identificadas como pendências de classificação, nunca como dados públicos.
+
+Garantir que futuras alterações de permissão provoquem reconciliação segura das informações permitidas.
+
+Não considerar um evento definitivamente descartado quando ele ainda depender de uma atribuição de empresa ou filial não resolvida.
+
+Validar o comportamento do cursor após mudanças legítimas de escopo.
+
+Executar essas verificações em ambiente isolado antes da ativação.
+
+Não inventar empresas ou filiais para os registros antigos.
+
+6. ATUALIZAÇÃO AUTOMÁTICA DAS TELAS
+
+Implementar um mecanismo de notificação de alterações oficiais.
+
+Utilizar a alternativa compatível com a arquitetura atual, priorizando uma solução eficiente de eventos em tempo real, com reconexão e consulta incremental de recuperação.
+
+O mecanismo deverá funcionar assim:
+
+O BC confirma uma alteração.
+
+A infraestrutura central registra e sincroniza a alteração para a VM autorizada.
+
+A VM registra que o novo estado está disponível.
+
+A sessão conectada recebe uma notificação.
+
+A interface consulta ou recebe os dados autorizados atualizados.
+
+A tela apresenta o novo estado sem precisar ser recarregada.
+
+Exemplo ilustrativo:
+
+A VM-A confirma uma alteração cadastral.
+
+O BC atribui um novo número oficial.
+
+A projeção autorizada da VM-A é atualizada.
+
+O computador conectado à VM-A passa a apresentar o cadastro atualizado automaticamente.
+
+Quando outras VMs autorizadas receberem a mesma alteração, suas respectivas sessões também deverão ser atualizadas.
+
+Nenhuma VM cria um novo BC ao receber a informação.
+
+7. NAVEGADOR SEM PERSISTÊNCIA OFICIAL
+
+Os computadores devem funcionar como terminais de acesso.
+
+Não utilizar como origem oficial:
+
+localStorage.
+
+IndexedDB.
+
+OPFS.
+
+Cache Storage.
+
+Arquivos locais.
+
+Bancos de dados locais do computador.
+
+É permitido manter informações temporárias em memória para renderização da interface.
+
+Entretanto:
+
+Uma atualização não pode depender da existência desse estado temporário.
+
+Recarregar a página deve recuperar a informação oficial na nuvem.
+
+Trocar de computador não pode causar perda de informações.
+
+Encerrar uma sessão deve invalidar o acesso.
+
+Falhas de internet não podem criar confirmações fictícias.
+
+Alterações ainda não confirmadas não podem ser apresentadas como definitivas.
+
+Não importar, comparar ou consolidar dados existentes nos computadores físicos.
+
+8. RECUPERAÇÃO AUTOMÁTICA
+
+Implementar tratamento de:
+
+Queda de conexão.
+
+Reconexão.
+
+Atualização da página.
+
+Fechamento e reabertura do navegador.
+
+Alteração de sessão.
+
+Expiração da autenticação.
+
+Reinicialização do servidor.
+
+Atraso de sincronização de uma VM.
+
+Recebimento repetido de notificações.
+
+Eventos recebidos fora de ordem.
+
+Se uma tela permanecer desconectada, ao reconectar deverá consultar o estado central e recuperar todas as alterações relevantes.
+
+Não depender exclusivamente de notificações em tempo real: elas devem funcionar como aviso de atualização, com o PostgreSQL permanecendo como referência oficial.
+
+9. PREPARAÇÃO PARA O BLOQUEIO DE TELAS
+
+Estruturar a identificação de:
+
+Sessão autenticada.
+
+Colaborador.
+
+VM.
+
+Empresa.
+
+Filial.
+
+Tela ou módulo operacional.
+
+Essas informações deverão permitir que a próxima etapa implemente bloqueio exclusivo por tela.
+
+Não implementar ainda travas definitivas que possam interromper colaboradores em produção.
+
+Não permitir que uma sessão sem autorização utilize a identidade de outra.
+
+10. TESTES INTEGRADOS
+
+Realizar testes com PostgreSQL isolado, servidor de aplicação e sessões de navegador controladas.
+
+Comprovar:
+
+Usuário autenticado acessa apenas sua VM autorizada.
+
+Usuário sem associação oficial recebe acesso negado.
+
+Trocar A por B nos parâmetros não concede acesso.
+
+Sessão expirada perde autorização.
+
+Nova alteração BC atualiza automaticamente uma tela conectada.
+
+Duas sessões autorizadas recebem a mesma atualização sem duplicidade.
+
+Informação de empresa diferente não aparece.
+
+Uma VM atrasada recupera os eventos permitidos.
+
+Reconexão após queda recupera o estado correto.
+
+Recarregar a página não causa perda de dados.
+
+Versão histórica não sobrescreve a vigente.
+
+Exclusão lógica é refletida corretamente na tela.
+
+O navegador não utiliza persistência local como fonte oficial.
+
+Nenhum novo BC é gerado pela simples visualização.
+
+As dez VMs continuam consistentes com seus escopos autorizados.
+
+Apresentar evidências de testes de interface, e não somente simulações em memória.
+
+11. IMPLANTAÇÃO CONTROLADA
+
+Preparar a integração completa na branch de desenvolvimento.
+
+São permitidas correções aditivas de infraestrutura no PostgreSQL oficial após backup e testes isolados.
+
+Não executar bootstrap ou processamento real sem escopos autorizados.
+
+Não atribuir colaboradores automaticamente.
+
+Não liberar VMs preparadas para operações reais.
+
+Não mesclar na main.
+
+Não executar deploy de produção nesta etapa.
+
+Não alterar o agendamento do backup das 02h.
+
+Preservar a implementação do PDF de nomenclaturas BC para implantação controlada posterior.
+
+Se as associações reais ou a autenticação ainda impedirem a ativação, concluir os componentes seguros possíveis e apresentar exatamente o bloqueio restante, sem presumir sucesso operacional.
+
+12. RELATÓRIO OBRIGATÓRIO
+
+Responder com o título exato:
+
+RESPOSTA CURSOR 08/10 — SISTEMA DK ORIGINAL
+
+Informar:
+
+Interfaces e APIs integradas.
+
+Mecanismo de identificação de colaborador e VM.
+
+Mecanismo de atualização automática.
+
+Tratamento das reconexões.
+
+Correções de isolamento por empresa e filial.
+
+Resultado dos testes de navegação.
+
+Resultado dos testes com duas sessões.
+
+Resultado da recuperação de uma VM atrasada.
+
+Ausência de persistência local oficial.
+
+Estado do worker de sincronização.
+
+Estado das dez VMs.
+
+Quantidade de colaboradores oficialmente vinculados.
+
+Contadores BC e A–J.
+
+Backup utilizado.
+
+Arquivos modificados.
+
+Commit e branch.
+
+Componentes instalados no PostgreSQL.
+
+Componentes preparados, mas ainda não implantados.
+
+Pendências de ativação.
+
+Confirmação de ausência de alterações operacionais e deploy.
+
+13. COMUNICAÇÃO CURSOR ↔ CHATGPT
+
+Após concluir:
+
+Copiar integralmente a RESPOSTA CURSOR 08/10.
+
+Abrir remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar o relatório.
+
+Aguardar cinco minutos.
+
+Ler a análise recebida.
+
+Executar somente uma revisão 08/10 ou o COMANDO 09/10 quando expressamente autorizado.
+
+Não antecipar as etapas restantes.
+
+Após o COMANDO 10/10, interromper todo o trabalho até autorização expressa do proprietário.
+
+Execute exclusivamente o COMANDO 08/10.

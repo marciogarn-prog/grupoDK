@@ -1,0 +1,85 @@
+RESPOSTA CURSOR 08/10 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA (componentes seguros instalados; ativacao operacional BLOQUEADA por ausencia de vinculos)
+Nao avancado para COMANDO 09/10.
+
+1) Interfaces e APIs integradas
+- GET /api/dk-bc-vm-sessao — resolve VM da sessao autenticada (requireLiveSession).
+- GET /api/dk-bc-vm-projecao — lista projecao oficial da VM autorizada.
+- portal-bc-vm-sessao.js — terminal de consulta/poll (evento dk-bc-vm-sessao / dk-bc-vm-projecao / dk-bc-vm-sinal).
+- Nao ligado ao index.html de producao nesta etapa (preparado na branch; sem deploy).
+
+2) Identificacao colaborador e VM
+- RPC dk_bc_vm_resolver_colaborador(colaborador_ref) no PostgreSQL.
+- lib/dk-bc-vm-sessao.cjs: CPF do token HMAC → VM; prefixo A–J do cliente IGNORADO (anti-spoof).
+- Teste: identidade A pedindo prefixo=B continua em A; forged_ignored=B.
+
+3) Atualizacao automatica
+- Tabela dk_bc_vm_sinal + trigger apos projecao (aviso last_bc_no).
+- Frontend poll 8s + evento ao avancar sinal; catch-up via API de projecao.
+- PostgreSQL permanece referencia oficial (sinal nao e autoridade).
+- Worker automatico de sync: DESATIVADO.
+
+4) Reconexoes
+- Recarregar/reabrir: nova consulta /api/dk-bc-vm-sessao + projecao (sem depender de estado local).
+- Sessao expirada: requireLiveSession → 401.
+- VM atrasada: aplicar_lote + reconciliar_escopo (testado no isolado).
+
+5) Isolamento empresa/filial
+- Snapshot de entrega SEM campo payload (so metadados).
+- Status filtrado_escopo e pendente_classificacao (reabriveis).
+- dk_bc_vm_reconciliar_escopo: reabre + recua cursor; reaplicacao OK.
+
+6) Testes (PostgreSQL isolado + Node)
+- gate 11/11 OK: resolver, sem vinculo, spoof, snap, apply, proj, filtro, recon, proj_beta, sessao_B, sem_escopo.
+- Duas sessoes simuladas A/B com identidades distintas.
+- Navegador real em producao: NAO ativado (sem colaborador/escopo oficiais).
+
+7) Persistencia local oficial
+- APIs e portal-bc-vm-sessao nao usam localStorage/IndexedDB como fonte.
+- Token de auth permanece no storage existente do portal (sessao), nao dados operacionais BC.
+
+8) Worker sync / dez VMs / colaboradores
+- Worker: DESATIVADO
+- VMs: 10 preparada
+- Colaboradores vinculados oficiais: 0
+- Escopos oficiais: 0
+- Entregas/projecoes em producao: 0
+
+9) Contadores
+- bc=3648 vig=3648 last=3648
+- prov A–J: 0
+
+10) Backup
+- C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-08\grupodk-portal-pre-08-2026-11-12T04-52-36-596Z.dump
+- SHA-256: 9c9ec866e501b9e79e02466832848a4fd10c1dd53a8752a0c63b8a6f2a90ee93
+
+11) Arquivos / commit / branch
+- supabase/dk-bc-vm-telas-08.sql (aplicado no PG oficial estrutural)
+- lib/dk-bc-vm-sessao.cjs
+- api/dk-bc-vm-sessao.js
+- api/dk-bc-vm-projecao.js
+- portal-bc-vm-sessao.js (preparado, nao no index)
+- scripts/dk-bc-vm-telas-08.mjs
+- artifacts/bc-tests/COMANDO-08-10.txt / RESPOSTA-CURSOR-08-10.txt
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (preencher)
+
+12) Componentes PG instalados
+- Status entrega filtrado_escopo/pendente_classificacao
+- Funcoes: resolver_colaborador, projecao_listar, reconciliar_escopo, sinal_ler, snapshot_minimo
+- Tabela dk_bc_vm_sinal (10 linhas)
+
+13) Preparados mas nao implantados
+- Ligacao do portal-bc-vm-sessao.js no index.html
+- Atribuicao real colaborador↔VM e escopos
+- Worker automatico / bootstrap real
+- Bloqueio exclusivo de tela (=09/10)
+
+14) Pendencias de ativacao
+- 0 colaboradores oficiais → acesso permanece "pendente" para todas as sessoes reais
+- 0 escopos → nenhuma projecao operacional
+- Deploy/merge main: nao executados
+- Telas/cadastros/contratos/pagamentos: nao alterados
+
+RESPOSTA CURSOR 08/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 09/10 ou revisao 08/10.
