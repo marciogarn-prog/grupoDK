@@ -1,7 +1,7 @@
 /**
  * Numeração BC (Banco Central DK) — servidor apenas.
  * Não numera cadastros existentes. Não grava clientes/veículos/locações.
- * Contador gapless espelha public.dk_bc_confirmar / dk_bc_rejeitar.
+ * Contador gapless espelha public.dk_bc_confirmar / dk_bc_rejeitar (v2).
  */
 const crypto = require("crypto");
 const fs = require("fs");
@@ -41,6 +41,33 @@ function uuidOk(id) {
 
 function vmProvisorioOk(raw) {
   return /^[A-J][0-9]{1,12}$/.test(String(raw || "").trim());
+}
+
+function entityKey(origem, registroId, empresaId, filialId) {
+  return [
+    String(origem || "").trim(),
+    String(registroId || "").trim(),
+    String(empresaId || "").trim(),
+    String(filialId || "").trim(),
+  ].join("\x01");
+}
+
+function conteudoHash(params) {
+  const payload = params.payload && typeof params.payload === "object" ? params.payload : {};
+  const raw = [
+    String(params.categoria || "").trim(),
+    String(params.subcategoria || ""),
+    String(params.origem || "").trim(),
+    String(params.registro_id || "").trim(),
+    String(params.empresa_id || "").trim(),
+    String(params.filial_id || "").trim(),
+    String(params.estado || "consolidado").trim() || "consolidado",
+    String(params.bc_anterior || "").trim(),
+    String(params.hash_integridade || "").trim(),
+    String(params.historico_ref || "").trim(),
+    JSON.stringify(payload),
+  ].join("\x01");
+  return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
 }
 
 function lerSqlInfra() {
@@ -179,13 +206,14 @@ async function rejeitar(params, io) {
 }
 
 /**
- * Simulador transacional em memória — mesmos invariantes do SQL (testes isolados).
+ * Simulador transacional em memória — mesmos invariantes do SQL v2 (testes isolados).
  */
 function criarMemoriaBc() {
   const state = { last_bc_no: 0 };
   const registros = new Map();
   const operacoesByOp = new Map();
   const operacoesByVm = new Map();
+  const vigenteByEntity = new Map();
   let lock = Promise.resolve();
 
   function withLock(fn) {
@@ -194,21 +222,66 @@ function criarMemoriaBc() {
     return run;
   }
 
+  function normalizeConfirmParams(params) {
+    const empresa_id = params.empresa_id ? String(params.empresa_id).trim() : "";
+    const filial_id = params.filial_id ? String(params.filial_id).trim() : "";
+    const estado = String(params.estado || "consolidado").trim() || "consolidado";
+    const bc_anterior = params.bc_anterior ? String(params.bc_anterior).trim() : "";
+    const hash_integridade = params.hash_integridade ? String(params.hash_integridade).trim() : "";
+    const historico_ref = params.historico_ref ? String(params.historico_ref).trim() : "";
+    const payload = params.payload && typeof params.payload === "object" ? params.payload : {};
+    return {
+      categoria: String(params.categoria || "").trim(),
+      subcategoria: String(params.subcategoria || ""),
+      origem: String(params.origem || "").trim(),
+      registro_id: String(params.registro_id || "").trim(),
+      empresa_id,
+      filial_id,
+      estado,
+      bc_anterior: bc_anterior || null,
+      hash_integridade: hash_integridade || null,
+      historico_ref: historico_ref || null,
+      payload,
+      conteudo_hash: conteudoHash({
+        categoria: String(params.categoria || "").trim(),
+        subcategoria: String(params.subcategoria || ""),
+        origem: String(params.origem || "").trim(),
+        registro_id: String(params.registro_id || "").trim(),
+        empresa_id,
+        filial_id,
+        estado,
+        bc_anterior,
+        hash_integridade,
+        historico_ref,
+        payload,
+      }),
+    };
+  }
+
   async function confirmarMem(params) {
     return withLock(() => {
       const operationId = String(params.operation_id || "").trim();
       if (!uuidOk(operationId)) return { ok: false, reason: "operation_id_ausente" };
-      const categoria = String(params.categoria || "").trim();
-      const origem = String(params.origem || "").trim();
-      const registroId = String(params.registro_id || "").trim();
-      if (!categoria) return { ok: false, reason: "categoria_vazia" };
-      if (!origem) return { ok: false, reason: "origem_vazia" };
-      if (!registroId) return { ok: false, reason: "registro_id_vazio" };
+      const n = normalizeConfirmParams(params);
+      if (!n.categoria) return { ok: false, reason: "categoria_vazia" };
+      if (!n.origem) return { ok: false, reason: "origem_vazia" };
+      if (!n.registro_id) return { ok: false, reason: "registro_id_vazio" };
       const vm = params.vm_provisorio ? String(params.vm_provisorio).trim() : null;
       if (vm && !vmProvisorioOk(vm)) return { ok: false, reason: "vm_provisorio_invalido" };
 
       const exist = operacoesByOp.get(operationId);
       if (exist && exist.status === "confirmado") {
+        if (exist.conteudo_hash && exist.conteudo_hash !== n.conteudo_hash) {
+          return {
+            ok: false,
+            bc_id: null,
+            bc_no: null,
+            bc_composto: null,
+            status: "confirmado",
+            idempotent: false,
+            reason: "conteudo_divergente",
+          };
+        }
         return {
           ok: true,
           bc_id: exist.bc_id,
@@ -236,6 +309,17 @@ function criarMemoriaBc() {
           return { ok: false, reason: "vm_provisorio_em_uso", status: byVm.status, idempotent: false };
         }
         if (byVm && byVm.status === "confirmado") {
+          if (byVm.conteudo_hash && byVm.conteudo_hash !== n.conteudo_hash) {
+            return {
+              ok: false,
+              bc_id: null,
+              bc_no: null,
+              bc_composto: null,
+              status: "confirmado",
+              idempotent: false,
+              reason: "conteudo_divergente",
+            };
+          }
           return {
             ok: true,
             bc_id: byVm.bc_id,
@@ -247,30 +331,56 @@ function criarMemoriaBc() {
           };
         }
       }
-      if (params.bc_anterior && !registros.has(String(params.bc_anterior).trim())) {
-        return { ok: false, reason: "bc_anterior_inexistente" };
+
+      const ekey = entityKey(n.origem, n.registro_id, n.empresa_id, n.filial_id);
+      const vigId = vigenteByEntity.get(ekey) || null;
+      const vig = vigId ? registros.get(vigId) : null;
+
+      if (n.bc_anterior) {
+        const prev = registros.get(n.bc_anterior);
+        if (!prev) return { ok: false, reason: "bc_anterior_inexistente" };
+        const prevKey = entityKey(prev.origem, prev.registro_id, prev.empresa_id || "", prev.filial_id || "");
+        if (prevKey !== ekey) return { ok: false, reason: "bc_anterior_entidade_diferente" };
+        if (!prev.vigente) return { ok: false, reason: "versao_ultrapassada" };
+        if (vig && vig.bc_id !== n.bc_anterior) return { ok: false, reason: "versao_ultrapassada" };
+      } else if (vig) {
+        return { ok: false, reason: "bc_anterior_obrigatorio" };
       }
 
-      /* Transação simulada: incrementa só se insert completar. */
       const next = state.last_bc_no + 1;
       const bcId = formatBc(next);
       const composto = vm ? `${vm}-${bcId}` : bcId;
+
+      if (n.bc_anterior) {
+        const old = registros.get(n.bc_anterior);
+        if (old) {
+          old.vigente = false;
+          registros.set(n.bc_anterior, old);
+        }
+      }
+
       const reg = {
         bc_id: bcId,
         bc_no: next,
-        categoria,
-        subcategoria: String(params.subcategoria || ""),
-        origem,
-        registro_id: registroId,
-        estado: String(params.estado || "consolidado"),
+        categoria: n.categoria,
+        subcategoria: n.subcategoria,
+        origem: n.origem,
+        registro_id: n.registro_id,
+        empresa_id: n.empresa_id || null,
+        filial_id: n.filial_id || null,
+        estado: n.estado,
         versao_bc: bcId,
-        bc_anterior: params.bc_anterior || null,
-        hash_integridade: params.hash_integridade || null,
-        historico_ref: params.historico_ref || null,
-        payload: params.payload && typeof params.payload === "object" ? params.payload : {},
+        bc_anterior: n.bc_anterior,
+        vigente: true,
+        hash_integridade: n.hash_integridade,
+        historico_ref: n.historico_ref,
+        conteudo_hash: n.conteudo_hash,
+        payload: n.payload,
       };
       registros.set(bcId, reg);
+      vigenteByEntity.set(ekey, bcId);
       state.last_bc_no = next;
+
       const op = {
         operation_id: operationId,
         vm_provisorio: vm,
@@ -279,6 +389,7 @@ function criarMemoriaBc() {
         bc_id: bcId,
         bc_composto: composto,
         motivo_rejeicao: null,
+        conteudo_hash: n.conteudo_hash,
       };
       operacoesByOp.set(operationId, op);
       if (vm) operacoesByVm.set(vm, op);
@@ -327,6 +438,7 @@ function criarMemoriaBc() {
         bc_id: null,
         bc_composto: null,
         motivo_rejeicao: String(params.motivo || "rejeitado").slice(0, 500),
+        conteudo_hash: null,
       };
       operacoesByOp.set(operationId, op);
       if (vm) operacoesByVm.set(vm, op);
@@ -345,10 +457,11 @@ function criarMemoriaBc() {
       last_bc_no: state.last_bc_no,
       registros: [...registros.values()],
       operacoes: [...operacoesByOp.values()],
+      vigentes: Object.fromEntries(vigenteByEntity.entries()),
     };
   }
 
-  return { confirmar: confirmarMem, rejeitar: rejeitarMem, snapshot, formatBc };
+  return { confirmar: confirmarMem, rejeitar: rejeitarMem, snapshot, formatBc, conteudoHash };
 }
 
 function novoOperationId() {
@@ -360,6 +473,8 @@ module.exports = {
   parseBcNo,
   uuidOk,
   vmProvisorioOk,
+  conteudoHash,
+  entityKey,
   lerSqlInfra,
   garantirSchema,
   confirmar,
