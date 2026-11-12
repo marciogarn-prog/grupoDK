@@ -98,7 +98,7 @@ Separacao de ambientes:
 
 18) Arquivos / commit / branch
 - Branch: fix/reduzir-espera-nuvem
-- Commit: (preencher apos git)
+- Commit: fa4e473
 - Sem merge main. Sem deploy.
 
 19) Confirmacao
