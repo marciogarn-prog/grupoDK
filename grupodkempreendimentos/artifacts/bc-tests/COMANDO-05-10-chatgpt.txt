@@ -1,0 +1,24 @@
+COMANDO 05/10 — SISTEMA DK ORIGINAL
+(integração operações provisórias VM ↔ confirmação BC)
+
+Estado inicial obrigatório (preservar):
+- 10 VMs A–J; contadores provisórios em 0; sem operações provisórias reais emitidas
+- last_bc_no=3648; próximo BC000000003649; VMs sem vínculo a colaborador
+
+Objetivo: operação começa provisória na VM, é confirmada pelo BC e recebe identificação definitiva.
+Usar estruturas: dk_bc_vm, dk_bc_vm_state, dk_bc_vm_operacao, dk_bc_state, dk_bc_registro, dk_bc_operacao.
+
+Fluxo:
+- ETAPA A — salvamento provisório (ex.: A000001) sem BC; só da VM
+- ETAPA B — confirmação BC → composto A000001-BC...
+Falhas: comunicação, repetição, conteúdo divergente, validação, confirmação duplicada,
+restart, versão ultrapassada, confirmação interrompida — estados claros.
+
+Restrições:
+- Não consumir BC/provisórios reais nos testes
+- Aplicar PG aditivo só com backup + restore verificado + testes isolados
+- Não ativar em telas; sem deploy; sem merge main
+- Preparar evento oficial para distribuição futura (07/10)
+- PDF com identificadores simples e compostos
+
+Resposta: RESPOSTA CURSOR 05/10

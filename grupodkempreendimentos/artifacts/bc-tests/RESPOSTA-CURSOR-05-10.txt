@@ -1,0 +1,65 @@
+RESPOSTA CURSOR 05/10 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+
+1) Estado inicial preservado (oficial)
+- VMs A-J: 10 preparadas
+- Contadores provisórios: sum=0
+- Operações provisórias emitidas: 0
+- last_bc_no: 3648 (inalterado apos aplicacao)
+- Proximo BC: BC000000003649
+- Vinculo colaborador: nenhum nesta etapa
+
+2) Implementado (codigo + SQL aditivo)
+- supabase/dk-bc-vm-confirmacao.sql
+  funcao public.dk_bc_vm_confirmar_oficial(...)
+  ETAPA A: dk_bc_vm_emitir_provisorio (idempotente)
+  ETAPA B: dk_bc_confirmar com vm_provisorio=prov_id
+  Atualiza dk_bc_vm_operacao -> confirmado_bc + bc_composto
+  Em falha de BC: mantem status=provisorio (nao some dado)
+- PDF: formato com coluna COMPOSTO + exemplo A000123-BC...
+- Testes memoria: scripts/test-dk-bc-vm-confirmacao.mjs (13/13)
+- Aplicacao: scripts/dk-bc-vm-aplicar-05.mjs
+
+3) Testado em isolamento (sem consumir oficiais)
+- Fluxo A+B: A000001-BC000000003649
+- Idempotencia de confirmacao duplicada (sem novo BC)
+- Segunda operacao A000002 distinta
+- Provisorio preservado quando BC nao confirma
+- Evento composto pronto para distribuicao futura (07/10)
+
+4) Aplicado no PostgreSQL oficial
+- Funcao instalada: dk_bc_vm_confirmar_oficial(...)
+- Contadores ANTES=DEPOIS: last_bc_no=3648; sum_prov=0; ops_vm=0
+- Nenhuma emissao provisoria real
+- Nenhum BC consumido
+- Telas/APIs operacionais: NAO ativadas
+
+5) Backup
+- Dump independente: grupodk-portal-full-20261112-012157Z.dump
+- SHA-256 6f29d5b00a2c9dd9445510e9c73a07e34efd7360e6118450a5abf6d8566d03dd
+
+6) Arquivos
+- supabase/dk-bc-vm-confirmacao.sql
+- scripts/test-dk-bc-vm-confirmacao.mjs
+- scripts/dk-bc-vm-aplicar-05.mjs
+- lib/dk-bc-nomenclatura-pdf.cjs
+- artifacts/bc-tests/COMANDO-05-10-chatgpt.txt
+- artifacts/bc-tests/RESPOSTA-CURSOR-05-10.txt
+
+7) Commit / branch
+- Branch fix/reduzir-espera-nuvem
+- Sem merge main / sem deploy
+
+8) Diferenca implementado vs aplicado
+- Implementado+testado: ponte completa A/B + falhas em memoria
+- Aplicado em producao: somente DDL/funcao (sem operacoes)
+- Nao aplicado: ativacao em telas, sync incremental, distribuicao as 10 VMs
+
+9) Restricoes confirmadas
+- Sem consumo de BC/provisorios reais nos testes oficiais
+- Sem alteracao operacional de telas
+- Sem deploy
+- Sem PII no relatorio
+
+RESPOSTA CURSOR 05/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 06/10.

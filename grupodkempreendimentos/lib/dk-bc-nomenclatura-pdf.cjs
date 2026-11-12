@@ -31,13 +31,15 @@ function buildLinesFromRows(rows, meta = {}) {
   lines.push(`Gerado em: ${generatedAt}`);
   lines.push(`Total linhas: ${rows.length}`);
   lines.push(`Totais por estado: ${Object.entries(estados).map(([k, n]) => `${k}=${n}`).join(", ") || "-"}`);
-  lines.push("Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO");
+  lines.push("Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO | COMPOSTO");
   lines.push("Prefixos A-J: nao inventados para BC anteriores as VMs (somente CENTRAL).");
+  lines.push("Composto futuro (pos-confirmacao VM): A000123-BC000000003649");
   lines.push("---");
   for (const r of rows) {
     const nome = r.nomenclatura || nomenclaturaCentral(r.bc_no);
+    const composto = r.bc_composto || "-";
     lines.push(
-      `${nome} | ${r.bc_id} | ${r.origem || "-"} | ${r.estado || "-"} | ${r.bc_no}`
+      `${nome} | ${r.bc_id} | ${r.origem || "-"} | ${r.estado || "-"} | ${r.bc_no} | ${composto}`
     );
   }
   if (rows.length) {
