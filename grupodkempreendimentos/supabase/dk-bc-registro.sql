@@ -246,7 +246,7 @@ returns table (
 )
 language plpgsql
 security invoker
-set search_path = public
+set search_path = public, extensions
 as $$
 #variable_conflict use_column
 declare
@@ -516,7 +516,7 @@ returns table (
 )
 language plpgsql
 security invoker
-set search_path = public
+set search_path = public, extensions
 as $$
 #variable_conflict use_column
 declare
@@ -593,7 +593,7 @@ create or replace function public.dk_bc_estado()
 returns table (last_bc_no bigint, updated_at timestamptz, proximo_bc text)
 language sql
 security invoker
-set search_path = public
+set search_path = public, extensions
 as $$
   select s.last_bc_no, s.updated_at, public.dk_bc_format(s.last_bc_no + 1)
     from public.dk_bc_state s

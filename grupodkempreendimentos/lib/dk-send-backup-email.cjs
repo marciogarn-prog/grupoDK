@@ -64,10 +64,35 @@ function prepareAttachment(jsonString) {
   };
 }
 
-async function sendViaResend({ to, subject, html, attachment }) {
+function normalizeAttachments(attachment, extraAttachments) {
+  const list = [
+    {
+      filename: attachment.filename,
+      content: attachment.content,
+      contentType: attachment.contentType,
+    },
+  ];
+  for (const extra of extraAttachments || []) {
+    if (!extra || !extra.filename || !extra.content) continue;
+    list.push({
+      filename: extra.filename,
+      content: extra.content,
+      contentType: extra.contentType || "application/octet-stream",
+    });
+  }
+  return list;
+}
+
+async function sendViaResend({ to, subject, html, attachment, extraAttachments }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM || process.env.DK_BACKUP_EMAIL_FROM;
   if (!apiKey || !from) return { ok: false, reason: "resend_not_configured" };
+
+  const attachments = normalizeAttachments(attachment, extraAttachments).map((a) => ({
+    filename: a.filename,
+    content: a.content,
+    content_type: a.contentType,
+  }));
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -80,13 +105,7 @@ async function sendViaResend({ to, subject, html, attachment }) {
       to,
       subject,
       html,
-      attachments: [
-        {
-          filename: attachment.filename,
-          content: attachment.content,
-          content_type: attachment.contentType,
-        },
-      ],
+      attachments,
     }),
   });
   const body = await res.json().catch(() => ({}));
@@ -96,7 +115,7 @@ async function sendViaResend({ to, subject, html, attachment }) {
   return { ok: true, provider: "resend", id: body.id };
 }
 
-async function sendViaSmtp({ to, subject, html, attachment }) {
+async function sendViaSmtp({ to, subject, html, attachment, extraAttachments }) {
   let nodemailer;
   try {
     nodemailer = require("nodemailer");
@@ -119,18 +138,18 @@ async function sendViaSmtp({ to, subject, html, attachment }) {
     auth: { user, pass },
   });
 
+  const attachments = normalizeAttachments(attachment, extraAttachments).map((a) => ({
+    filename: a.filename,
+    content: Buffer.from(a.content, "base64"),
+    contentType: a.contentType,
+  }));
+
   const info = await transporter.sendMail({
     from: from || user,
     to: to.join(", "),
     subject,
     html,
-    attachments: [
-      {
-        filename: attachment.filename,
-        content: Buffer.from(attachment.content, "base64"),
-        contentType: attachment.contentType,
-      },
-    ],
+    attachments,
   });
 
   return { ok: true, provider: "smtp", messageId: info.messageId };
@@ -142,23 +161,28 @@ async function sendBackupEmail(payload, baseName, opts = {}) {
 
   const jsonString = JSON.stringify(payload, null, 0);
   const attachment = prepareAttachment(jsonString);
+  attachment.filename = `${baseName}${attachment.compressed ? ".json.gz" : ".json"}`;
+  const extraAttachments = Array.isArray(opts.extraAttachments) ? opts.extraAttachments : [];
   const subject = opts.subject || `DK Backup diário — ${baseName}`;
+  const pdfNote = extraAttachments.some((a) => /\.pdf$/i.test(a.filename || ""))
+    ? " Inclui PDF de nomenclatura BC."
+    : "";
   const html = buildSummaryHtml(payload, {
     filename: attachment.filename,
     sizeHuman: attachment.sizeHuman,
     compressed: attachment.compressed,
     footerNote:
-      opts.footerNote ||
-      (payload.source === "dk-portal-browser"
-        ? "Gerado manualmente no portal (botão Gerar backup)."
-        : "Gerado por cron Vercel."),
+      (opts.footerNote ||
+        (payload.source === "dk-portal-browser"
+          ? "Gerado manualmente no portal (botão Gerar backup)."
+          : "Gerado por cron Vercel.")) + pdfNote,
   });
 
-  const resend = await sendViaResend({ to, subject, html, attachment });
-  if (resend.ok) return { ...resend, to };
+  const resend = await sendViaResend({ to, subject, html, attachment, extraAttachments });
+  if (resend.ok) return { ...resend, to, attachments: 1 + extraAttachments.length };
 
-  const smtp = await sendViaSmtp({ to, subject, html, attachment });
-  if (smtp.ok) return { ...smtp, to };
+  const smtp = await sendViaSmtp({ to, subject, html, attachment, extraAttachments });
+  if (smtp.ok) return { ...smtp, to, attachments: 1 + extraAttachments.length };
 
   return {
     ok: false,

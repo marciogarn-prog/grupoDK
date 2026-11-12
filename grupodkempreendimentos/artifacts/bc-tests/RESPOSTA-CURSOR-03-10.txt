@@ -1,0 +1,76 @@
+RESPOSTA CURSOR 03/10 — SISTEMA DK ORIGINAL
+
+Status da etapa: CONCLUIDA COM RESSALVAS MENORES (numeracao inicial das categorias oficiais live concluida; 1 BC tecnico de smoke; soft-deletes nao numerados; Redis sem espelho nas chaves sondadas)
+
+1) Confirmacao de ambiente
+- Projeto: grupodk-portal / ppxtwqvzgujllfzarpuz
+- Tabelas BC: dk_bc_state, dk_bc_registro, dk_bc_operacao presentes
+- Backup 02/10 disponivel: C:\Users\marci\AppData\Local\DK-BC-BACKUP\grupodk-portal-full-20261112-012157Z.dump (SHA-256 6f29d5b00a2c9dd9445510e9c73a07e34efd7360e6118450a5abf6d8566d03dd)
+- Correcao tecnica pre-numeracao: ALTER FUNCTION ... SET search_path TO public, extensions (digest/pgcrypto)
+- Smoke transacional dk_bc_confirmar: OK -> BC000000000001 (origem dk_bc_smoke / SMOKE1)
+
+2) Fontes oficiais utilizadas
+- PostgreSQL oficial (unica fonte de numeracao)
+- Redis/Upstash: chaves sondadas (dk:clientes, dk:veiculos, dk:locacao, dk:locacoes, dk:pagamento_locacao, dk:pagamentos, dk:manutencao, portal:clientes) = type none / ausentes — nao ha espelho independente nessas chaves; nada tratado como registro paralelo
+- Computadores fisicos: NAO utilizados
+
+3) Quantitativos por categoria (live = estado consolidado atual)
+
+| Categoria | Fonte PG live | Logicos distintos | BC atribuidos | Soft-delete/removido nao numerado | Divergencias janela | Pendentes janela |
+|-----------|---------------|-------------------|---------------|------------------------------------|---------------------|------------------|
+| clientes | 456 | 456 | 456 | 1 | 0 | 0 |
+| veiculos | 199 | 199 | 199 | 0 | 0 | 0 |
+| locacoes | 649 | 649 | 649 | 0 | 0 | 0 |
+| pagamentos_locacao | 1658 | 1658 | 1658 | 276 | 0 | 0 |
+| manutencoes | 408 | 408 | 408 | 0 | 0 | 0 |
+| smoke tecnico | 1 | 1 | 1 | - | - | - |
+
+Totais negocio live numerados: 3370
+Total BC vigentes (inclui smoke): 3371
+Operacoes confirmadas: 3371
+
+4) Registros efetivamente numerados / primeiro e ultimo BC
+- Primeiro BC: BC000000000001 (smoke tecnico search_path)
+- Primeiro BC de negocio: BC000000000002 (inicio clientes)
+- Ultimo BC: BC000000003371
+- Contador historico oficial last_bc_no: 3371
+- Proximo disponivel: BC000000003372
+- Identidade: origem=tabela oficial; registro_id=id estavel; estado=consolidado; hash_integridade=sha256 no PostgreSQL; operation_id deterministico; sem A-J inventados
+- Idempotencia: reexecucao do script salta ja numerados (vigente por origem+registro_id)
+
+5) Consistencia durante a janela
+- Snapshot id+hash antes de cada categoria; releitura apos lotes
+- Divergencias/criados/removidos durante janela: 0 nas categorias processadas
+- Dados operacionais: NAO modificados (somente inserts em dk_bc_*)
+- Vinculos: preservados (BC referencia registro_id original; joins clientes live = 456)
+
+6) Divergencias / pendencias
+- Soft-deletes nao numerados de proposito (nao sao estado consolidado atual): 1 cliente + 276 pagamentos
+- BC000000000001 reservado ao smoke tecnico (nao e cadastro operacional)
+- Demais categorias oficiais (events, snapshots, mutation_receipt, etc.): nao numeradas nesta etapa (infra/auditoria, nao cadastro de negocio primario) — pendentes de autorizacao se desejado
+- Redis: sem espelho nas chaves sondadas (nao bloqueia; PG e fonte oficial)
+
+7) Arquivos modificados
+- scripts/dk-bc-numeracao-inicial-03.mjs (novo; numeracao controlada)
+- ALTER FUNCTION search_path no oficial (sem alterar ficheiro SQL nem o SHA-256 do artefacto 02/10)
+- Sem alteracao de VMs, telas, APIs operacionais
+- Sem deploy
+
+8) Testes
+- Smoke dk_bc_confirmar oficial: OK
+- Contagens live PG == BC por origem (clientes/veiculos/locacao/pagamentos/manutencao)
+- Contador = total vigentes = 3371 (sem saltos)
+- Testes 01/10 (30/30 memoria, 16/16 PGlite) permanecem validos para a logica
+
+9) Confirmacao de restricoes
+- VMs: nao alteradas
+- Telas: nao alteradas
+- Operacoes A-J: nao ativadas
+- Distribuicao BC as VMs: nao feita
+- Dados cadastrais/financeiros: nao modificados
+- Deploy: nao executado
+- Importacao de PCs fisicos: nao feita
+- Eliminacao de divergentes: nao feita
+- PII/credenciais: nao expostos neste relatorio
+
+RESPOSTA CURSOR 03/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 04/10 (ou revisao do 03/10).

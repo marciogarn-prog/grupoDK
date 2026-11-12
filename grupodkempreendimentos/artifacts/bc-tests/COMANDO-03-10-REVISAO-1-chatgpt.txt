@@ -1,0 +1,15 @@
+COMANDO 03/10 — REVISÃO 1 (extraído da conversa ChatGPT Sistema DK)
+
+Objetivo: fechar pendências da numeração inicial antes dos contadores A–J / VMs.
+
+Pendências autorizadas nesta revisão:
+1) Numerar 277 registros logicamente excluídos (1 cliente + 276 pagamentos) com estado de exclusão preservado (sem reativar, sem eliminar, sem alterar valores operacionais/financeiros, sem duplicar BC, com idempotência).
+2) Marcar BC000000000001 como técnico permanente (não apagar/reutilizar; excluir dos totais de negócio).
+3) Verificar alterações posteriores à numeração.
+4) Preservar SQL de produção em ficheiros versionados (incl. search_path extensions).
+5) Registar scripts/testes; commit e push apenas em branch de desenvolvimento (sem merge em main / sem deploy).
+6) Conferência final por categoria (físico / ativos / excluídos / numerado / pendente / primeiro-último BC).
+7) ADENDO 01: PDF diário com lista completa de identificadores BC junto ao backup das 02:00 — tratar antes de encerrar definitivamente a etapa 03.
+
+Resposta obrigatória: RESPOSTA CURSOR 03/10 — REVISÃO 1
+Após envio: aguardar 5 minutos; não inventar COMANDO 04/10.

@@ -6,6 +6,7 @@ const { collectDkBackupPayload, backupFileBaseName } = require("../lib/dk-collec
 const { sendBackupEmail } = require("../lib/dk-send-backup-email.cjs");
 const { storeLastBackup } = require("../lib/dk-store-last-backup.cjs");
 const { runLocacoesIntegrityAudit } = require("../lib/dk-locacoes-integrity-audit.cjs");
+const { buildBcNomenclaturaPdfFromCloud } = require("../lib/dk-bc-nomenclatura-pdf.cjs");
 
 const BACKUP_CHANNELS = ["default"];
 
@@ -25,9 +26,38 @@ async function runChannelBackup() {
   const payload = await collectDkBackupPayload({ channel: "default" });
   const baseName = backupFileBaseName(payload);
   const label = channelLabel();
+
+  const extraAttachments = [];
+  let bcPdfMeta = { ok: false, reason: "not_attempted" };
+  try {
+    const pdf = await buildBcNomenclaturaPdfFromCloud({
+      generatedAt: payload.exportedAtIso || new Date().toISOString(),
+      filename: `${baseName}-bc-nomenclatura.pdf`,
+    });
+    if (pdf.ok && pdf.buffer) {
+      extraAttachments.push({
+        filename: pdf.filename,
+        content: pdf.buffer.toString("base64"),
+        contentType: "application/pdf",
+      });
+      bcPdfMeta = {
+        ok: true,
+        rows: pdf.rows,
+        filename: pdf.filename,
+        first: pdf.first?.nomenclatura || null,
+        last: pdf.last?.nomenclatura || null,
+      };
+    } else {
+      bcPdfMeta = { ok: false, reason: pdf.reason || "pdf_build_failed" };
+    }
+  } catch (e) {
+    bcPdfMeta = { ok: false, reason: String(e && e.message ? e.message : e).slice(0, 200) };
+  }
+
   const email = await sendBackupEmail(payload, baseName, {
     subject: `DK Backup diário ${label} — ${baseName}`,
     footerNote: `Gerado por cron Vercel (02:00 Brasília) — ambiente ${label}.`,
+    extraAttachments,
   });
 
   if (!email.ok) {
@@ -36,6 +66,7 @@ async function runChannelBackup() {
       channel: "default",
       reason: email.reason,
       attempts: email.attempts,
+      bcPdf: bcPdfMeta,
       backup: {
         exportedAtBr: payload.exportedAtBr,
         counts: payload.counts,
@@ -59,6 +90,7 @@ async function runChannelBackup() {
     sources: payload.sources,
     stored: stored.ok,
     storedReason: stored.ok ? null : stored.reason,
+    bcPdf: bcPdfMeta,
   };
 }
 
