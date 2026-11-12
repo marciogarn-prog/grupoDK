@@ -15053,6 +15053,17 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   font-weight: 800;
 }
 
+.portal-manut-cliente-prebusca {
+  margin-top: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.portal-manut-cliente-prebusca .portal-relatorio-pagamentos-periodo {
+  margin-top: 0;
+}
+
 /* ——— Escolha Windows / Android no login (não mexe na sessão Windows) ——— */
 .portal-plataforma-pick__quem {
   margin: 0.35rem 0 0.75rem;

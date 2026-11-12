@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <meta name="dk-client-protocol" content="20260913">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20261111vmsync4">
+  <link rel="stylesheet" href="styles.css?v=20261112manutdia1">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20261023mobhero"></script>
@@ -2923,6 +2923,50 @@
             </div>
             <div id="operacaoManutClientePesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões de contrato" hidden></div>
           </section>
+          <div id="operacaoManutClientePreBusca" class="portal-manut-cliente-prebusca" aria-label="Atividades e relatórios de manutenção">
+            <section id="operacaoManutClienteDiaLog" class="portal-lanc-dia-log" aria-labelledby="operacaoManutClienteDiaLogTitulo">
+              <h4 id="operacaoManutClienteDiaLogTitulo" class="portal-lanc-aluguel-section__title">ATIVIDADES DO DIA</h4>
+              <p class="subtext portal-lanc-dia-log__hint">Lançamentos de manutenção registados hoje (despesa ou pagamento): quem executou, horário, cliente, placa e valores. O último fica em cima.</p>
+              <div class="fin-table-wrap portal-lanc-dia-log__table-wrap">
+                <table class="fin-table portal-lanc-hist portal-lanc-dia-log__table" id="operacaoManutClienteDiaLogTable">
+                  <thead>
+                    <tr>
+                      <th>EXECUTOR</th>
+                      <th>HORA</th>
+                      <th>CLIENTE</th>
+                      <th>PLACA</th>
+                      <th>TIPO</th>
+                      <th>VALOR</th>
+                      <th>PROTOCOLO</th>
+                    </tr>
+                  </thead>
+                  <tbody id="operacaoManutClienteDiaLogBody">
+                    <tr><td colspan="7" class="subtext">Nenhuma atividade de manutenção registada hoje.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section id="operacaoManutClienteRelPeriodo" class="portal-relatorio-pagamentos-periodo" aria-labelledby="operacaoManutClienteRelPeriodoTitulo">
+              <p id="operacaoManutClienteRelPeriodoTitulo" class="portal-relatorio-pagamentos-periodo__title">Relatório de manutenção por período</p>
+              <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+                Escolha a <strong>data de início</strong> e a <strong>data fim</strong>. O relatório lista despesas e pagamentos de manutenção cuja data do lançamento está no período (inclusive).
+              </p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+                <label class="portal-field">
+                  <span>Data início</span>
+                  <input type="text" id="operacaoManutClienteRelInicio" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório de manutenção">
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <input type="text" id="operacaoManutClienteRelFim" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de manutenção">
+                </label>
+              </div>
+              <div class="portal-relatorio-pagamentos-periodo__actions">
+                <button type="button" class="btn-primary" id="operacaoManutClienteRelGerarBtn">Gerar relatório</button>
+              </div>
+              <p id="operacaoManutClienteRelMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+            </section>
+          </div>
           <div id="operacaoManutClientePaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento de manutenção" hidden>
             <div id="operacaoManutClienteWorkspace" class="portal-lanc-avulso-workspace">
               <div class="portal-lanc-avulso-workspace__forms">
@@ -6477,7 +6521,7 @@
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
   <script src="dk-aluguel-ciclo-v2.js?v=20261111mtdesc0" defer></script>
   <script src="portal-locadora-ui.js?v=20261111vmmeta1" defer></script>
-  <script src="portal-manutencao-cliente.js?v=20261111ciclo" defer></script>
+  <script src="portal-manutencao-cliente.js?v=20261112manutdia1" defer></script>
   <script src="portal-lancamento-multa.js?v=20261111ciclo" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>

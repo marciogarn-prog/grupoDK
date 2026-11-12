@@ -4010,6 +4010,32 @@
           "portal-locacao-manut-pendente"
         ]
       }
+    },
+    {
+      "id": "manutencao-cliente-atividades-dia-relatorio",
+      "descricao": "No Lançamento de manutenção, enquanto a busca ainda não foi feita: abaixo dos botões Confirmar pesquisa / Limpar dados ficam as ATIVIDADES DO DIA (executor, hora, cliente, placa, tipo e valor) e o bloco Relatório de manutenção por período com calendário de data início, calendário de data fim e botão Gerar relatório.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoManutClientePreBusca",
+          "operacaoManutClienteDiaLog",
+          "ATIVIDADES DO DIA",
+          "operacaoManutClienteRelPeriodo",
+          "operacaoManutClienteRelInicio",
+          "operacaoManutClienteRelFim",
+          "operacaoManutClienteRelGerarBtn",
+          "Gerar relatório"
+        ],
+        "portal-manutencao-cliente.js": [
+          "renderAtividadesDia",
+          "syncPreBusca",
+          "gerarRelatorioPeriodo",
+          "operacaoManutClienteRelGerarBtn",
+          "collectAtividadesDia"
+        ],
+        "styles.css": [
+          "portal-manut-cliente-prebusca"
+        ]
+      }
     }
   ]
 }
