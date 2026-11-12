@@ -1,0 +1,187 @@
+{
+  "started_at": "2026-11-12T11:25:10.684Z",
+  "comando": "10/10",
+  "cron_02h": {
+    "tipo": "snapshot_json_redis_email",
+    "arquivo": "api/cron-daily-backup.js",
+    "inclui_pdf_nomenclatura": true,
+    "backup_relacional_pg_completo": false,
+    "pendencia_impeditiva": "Rotina 02h envia snapshot JSON/Redis + PDF; NAO e dump PostgreSQL relacional completo recuperavel."
+  },
+  "rotas_escrita_sem_bloqueio": [
+    "api/dk-locacao.js (POST gravar/criar/atualizar/finalizar)",
+    "api/dk-pagamento-locacao.js (POST)",
+    "api/dk-manutencao.js (POST)",
+    "api/dk-clientes-migrar.js (POST)",
+    "api/dk-clientes-copiar.js (POST)",
+    "api/dk-veiculos-copiar.js (POST)",
+    "api/dk-locacoes-copiar.js (POST)",
+    "api/dk-lancamento-nuvem.js (POST)",
+    "api/dk-append-only-merge.js",
+    "api/dk-sync.js (escrita parcial)",
+    "api/dk-clientes-fonte.js (POST)",
+    "api/dk-veiculos-fonte.js (POST)"
+  ],
+  "tests": {
+    "rls_enabled": true,
+    "anon_blocked": true,
+    "a_adquire": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "f90f97c6-0438-43d4-8cc4-39a74577c10f",
+      "geracao": 1,
+      "expira_em": "2026-11-12T11:26:22.214915+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "b_bloqueado": {
+      "ok": false,
+      "status": 409,
+      "adquirida": false,
+      "concessao_id": null,
+      "geracao": null,
+      "expira_em": null,
+      "reason": "tela_ocupada",
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "a_valida": {
+      "ok": true,
+      "status": 200,
+      "valida": true,
+      "geracao": 1,
+      "reason": null
+    },
+    "b_apos_liberar": {
+      "ok": true,
+      "status": 200,
+      "adquirida": true,
+      "concessao_id": "9eafc6a6-034f-4d80-87a4-882c8edbe1ee",
+      "geracao": 2,
+      "expira_em": "2026-11-12T11:26:22.502291+00:00",
+      "reason": null,
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "vm_nao_ativa": {
+      "ok": false,
+      "status": 403,
+      "adquirida": false,
+      "concessao_id": null,
+      "geracao": null,
+      "expira_em": null,
+      "reason": "vm_nao_ativa",
+      "ttl_segundos": 60,
+      "renew_sugerido_ms": 20000
+    },
+    "vms_AJ": "A:ativa:10000000065,B:ativa:10000000066,C:ativa:10000000067,D:ativa:10000000068,E:ativa:10000000069,F:ativa:10000000070,G:ativa:10000000071,H:ativa:10000000072,I:ativa:10000000073,J:ativa:10000000074",
+    "prov": "0",
+    "j_catchup": {
+      "ok": false,
+      "reason": "psqlLocal: psql:C:/Users/marci/AppData/Local/DK-BC-BACKUP/bc-10/l-1794482722913-987e.sql:5: ERROR:  function public.dk_bc_confirmar(unknown, unknown, unknown, u"
+    },
+    "pdf": {
+      "ok": true,
+      "build_ok": false,
+      "reason": "primeira_linha_ausente",
+      "rows": 5,
+      "bytes": 1591
+    },
+    "spoof": {
+      "prefixo": "A",
+      "forged": "J",
+      "ok": true
+    }
+  },
+  "gate": {
+    "dump": true,
+    "restore_match": true,
+    "rls": true,
+    "anon_blocked": true,
+    "a_adquire": true,
+    "b_bloqueado": true,
+    "a_valida": true,
+    "b_apos": true,
+    "vm_nao_ativa": true,
+    "classificacao_pendente": true,
+    "spoof": true,
+    "pdf": true
+  },
+  "dump": {
+    "ok": true,
+    "path": "C:\\Users\\marci\\AppData\\Local\\DK-BC-BACKUP\\bc-10\\grupodk-portal-pre-10-2026-11-12T11-23-08-069Z.dump",
+    "bytes": 20693794,
+    "sha256": "fec02e848c2964edea621d88b4232d5b4d18a402f6868d7aa5df88f84aa7f694",
+    "reused": true
+  },
+  "official_before": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "emp_null|3648",
+    "payload_emp|0",
+    "vms|10",
+    "colab|0",
+    "escopo|0",
+    "prov|0",
+    "ent|0",
+    "proj|0",
+    "rls_bloq|false"
+  ],
+  "restore": {
+    "ok": true,
+    "status": 1,
+    "note": "status 1 comum por extensions/vault ausentes no isolado; schema public BC permanece"
+  },
+  "restore_counts": [
+    "bc|3648",
+    "vig|3648",
+    "vms|10"
+  ],
+  "restore_match": true,
+  "apply_local": {
+    "ok": true,
+    "patches": [
+      "dk-bc-historico-06.sql",
+      "dk-bc-sync-07.sql",
+      "dk-bc-sync-07-revisao1.sql",
+      "dk-bc-vm-telas-08.sql",
+      "dk-bc-tela-bloqueio-09.sql",
+      "dk-bc-tela-bloqueio-10-rls.sql",
+      "dk-bc-tela-bloqueio-10-ativa.sql",
+      "dk-bc-classificacao-10.sql"
+    ]
+  },
+  "classificacao": {
+    "resumo": "3648|0|0|3648|0",
+    "classificados": 0,
+    "classificaveis_evidencia": 0,
+    "pendentes": 3648,
+    "motivo": "empresa_id/filial_id nulos no catalogo e ausentes no payload JSON dos 3648 BC; sem evidencia oficial para atribuir"
+  },
+  "rls": [
+    "dk_bc_registro_classificacao|true|true",
+    "dk_bc_tela_bloqueio_audit|true|true",
+    "dk_bc_tela_bloqueio_geracao|true|true",
+    "dk_bc_tela_bloqueio|true|true"
+  ],
+  "gate_ok": true,
+  "applied_official": true,
+  "official_after": [
+    "bc|3648",
+    "vig|3648",
+    "last|3648",
+    "vms|10",
+    "colab|0",
+    "escopo|0",
+    "prov|0",
+    "ent|0",
+    "proj|0",
+    "class_pend|3648",
+    "rls|dk_bc_registro_classificacao:true,dk_bc_tela_bloqueio:true,dk_bc_tela_bloqueio_audit:true,dk_bc_tela_bloqueio_geracao:true",
+    "vm_status|A:preparada,B:preparada,C:preparada,D:preparada,E:preparada,F:preparada,G:preparada,H:preparada,I:preparada,J:preparada"
+  ],
+  "finished_at": "2026-11-12T11:25:39.860Z"
+}

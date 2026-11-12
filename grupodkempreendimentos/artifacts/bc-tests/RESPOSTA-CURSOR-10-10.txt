@@ -1,0 +1,135 @@
+RESPOSTA CURSOR 10/10 — RELATÓRIO FINAL — SISTEMA DK ORIGINAL
+
+Conclusao: NAO APTO para ativacao operacional.
+Justificativa: componentes estruturais 01-09 instalados e testados em isolado, com correcoes 10/10 de RLS/API/classificacao aplicadas no PostgreSQL oficial de forma aditiva; porem permanecem impedimentos concretos (0 colaboradores, 0 escopos, 3648 BC sem empresa/filial, rotas de gravacao sem fencing, modulos de tela nao ligados ao index, backup 02h nao relacional completo).
+
+Separacao de ambientes:
+- PostgreSQL oficial: estruturas BC/VM/sync/sinal/bloqueio/classificacao + RLS; contadores intactos; sem vinculos/escopos/operacao.
+- Branch fix/reduzir-espera-nuvem: APIs, libs, portais preparados, scripts e artefatos.
+- Isolado dk_bc_10: gate de validacao 12/12 com sessoes ficticias A/B e VMs A-J.
+
+1) Resultado geral das dez etapas
+- 01-06: BC, historico, identidades A-J, confirmacao — PREPARADO/instalado.
+- 07: sync incremental — PREPARADO; worker DESATIVADO.
+- 08: sessao→VM + projecao + sinal — PREPARADO (nao no index).
+- 09: bloqueio exclusivo — PREPARADO (nao ligado a telas reais).
+- 10: validacao + RLS + classificacao pendente + guarda de escrita preparada — CONCLUIDA estruturalmente.
+
+2) Quantidade oficial de BC
+- bc=3648 vig=3648 last=3648 (inalterados).
+
+3) Estado das dez VMs
+- 10 VMs status preparada (oficial).
+- Identidades A-J permanentes confirmadas.
+
+4) Contadores
+- Prov A-J: 0
+- Entregas/projecoes oficiais: 0
+
+5) Testes integrados (isolado)
+- gate 12/12 OK: dump, restore_match, rls, anon_blocked, a_adquire, b_bloqueado, a_valida, b_apos, vm_nao_ativa, classificacao_pendente, spoof, pdf.
+- Duas sessoes A/B: exclusao mutua + liberacao + fencing.
+- VM nao ativa: concessao negada (vm_nao_ativa).
+- Spoof de prefixo J com identidade A: permanece A.
+- Navegador real em producao: NAO aprovado (sem vinculos oficiais).
+
+6) Atualizacao automatica das telas
+- PREPARADO: APIs sessao/projecao/sinal + portal-bc-vm-sessao.js (sem prefixos ficticios).
+- PENDENTE: ligacao ao index.html e sessoes reais autorizadas.
+
+7) Protecao das gravacoes
+- BLOQUEADO/PENDENTE critico: rotas reais ainda NAO chamam fencing na mesma transacao.
+- Guarda preparada: lib/dk-bc-tela-bloqueio-write-guard.cjs (ativadoEmProducao=false).
+- Inventario (sem wiring): dk-locacao, dk-pagamento-locacao, dk-manutencao, dk-clientes-*, dk-veiculos-*, dk-locacoes-copiar, dk-lancamento-nuvem, dk-append-only-merge, dk-sync, fontes POST.
+
+8) Bloqueio exclusivo
+- PREPARADO no oficial: tabelas + funcoes + RLS force + VM deve estar ativa.
+- API: GET so consulta; POST so mutacao; consulta nao expoe concessao_id alheia.
+- NAO ligado a telas reais.
+
+9) Classificacao empresa/filial
+- 3648 vigentes: classificados=0, classificaveis_evidencia=0, pendentes=3648.
+- Evidencia: empresa_id/filial_id nulos no catalogo e ausentes no payload JSON.
+- Tabela complementar dk_bc_registro_classificacao criada (espelho pendente, versionada); sem atribuicoes inventadas.
+- Distribuicao operacional permanece bloqueada para BC nao classificado.
+
+10) Seguranca e permissoes
+- RLS+FORCE em dk_bc_tela_bloqueio, geracao, audit e classificacao.
+- Grants restritos a service_role; teste de papel sem privilegio: bloqueado.
+- requireLiveSession nas APIs BC/VM/bloqueio.
+
+11) Backup e restauracao
+- Dump 10: C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-10\grupodk-portal-pre-10-2026-11-12T11-23-08-069Z.dump
+- SHA-256: fec02e848c2964edea621d88b4232d5b4d18a402f6868d7aa5df88f84aa7f694
+- Restaurado em dk_bc_10: bc/vig/vms batem 3648/3648/10.
+- Limitacao isolado: pg_restore status 1 por extensions/vault ausentes (schema public BC ok).
+
+12) PDF das 02h
+- cron-daily-backup.js anexa PDF de nomenclatura BC ao e-mail das 02h (preparado).
+- Amostra PDF gerada no isolado (buffer > 500 bytes).
+- Horario 02h NAO alterado. Nenhum e-mail real de teste enviado.
+
+13) Worker
+- DESATIVADO (sem bootstrap/ativacao).
+
+14) Rotas ainda nao integradas
+- Ver inventario de escrita acima + portal-bc-* nao no index.html.
+
+15) Impedimentos de ativacao (objetivos)
+1. 0 colaboradores vinculados oficiais.
+2. 0 escopos empresa/filial autorizados.
+3. 3648 BC sem classificacao empresa/filial comprovada.
+4. Rotas de gravacao sem validacao de bloqueio na mesma transacao.
+5. Modulos BC/VM/bloqueio nao ligados as telas de producao.
+6. Backup 02h = snapshot JSON/Redis+PDF, NAO dump PostgreSQL relacional completo (pendencia impeditiva para declarar recuperacao integral assegurada via rotina automatica).
+7. Teste de navegador real com sessoes autorizadas nao executavel sem vinculos.
+
+16) Correcoes aplicadas nesta etapa (10/10)
+- supabase/dk-bc-tela-bloqueio-10-rls.sql (aplicado oficial)
+- supabase/dk-bc-tela-bloqueio-10-ativa.sql (vm_nao_ativa; aplicado oficial)
+- supabase/dk-bc-classificacao-10.sql (pendentes 3648; aplicado oficial)
+- api/dk-bc-tela-bloqueio.js (GET/POST + mascara de consulta)
+- lib/dk-bc-tela-bloqueio-write-guard.cjs (preparado)
+- scripts/dk-bc-validacao-10.mjs + report-10.json
+
+17) Evidencias
+- artifacts/bc-tests/report-10.json (gate_ok=true, applied_official=true)
+- Dump SHA acima; restauracao isolada comprovada.
+
+18) Arquivos / commit / branch
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (preencher apos git)
+- Sem merge main. Sem deploy.
+
+19) Confirmacao
+- Sem deploy. Sem merge. Sem atribuicao de colaboradores/escopos. Sem consumo BC/prov. Sem worker. Sem bootstrap. Sem e-mail de teste. Backup 02h intacto.
+
+20) Plano resumido para ativacao posterior (NAO executar agora)
+1. Vincular colaboradores reais as VMs com prova.
+2. Definir escopos oficiais empresa/filial.
+3. Classificar BC com evidencia (ou manter pendente fora da distribuicao).
+4. Integrar assertBloqueioValido nas rotas de escrita na mesma transacao.
+5. Ligar portal-bc-* as telas sob feature flag.
+6. Ativar sync controlado + carga inicial segura.
+7. Aceitacao com usuarios autorizados.
+8. Backup relacional recuperavel + monitoramento + rollback.
+9. Deploy controlado apos autorizacao expressa do proprietario.
+
+Criterios (resumo):
+- Banco Central BC: APROVADO estrutural / PREPARADO operacional
+- Numeracao historica: APROVADO
+- Identidades A-J: APROVADO
+- Contadores provisórios: PREPARADO (zerados)
+- Confirmacao VM-BC: PREPARADO
+- Versionamento/historico: APROVADO
+- Sync incremental: PREPARADO (worker off)
+- Classificacao empresa/filial: PENDENTE (3648)
+- Autenticacao: APROVADO (HMAC/sessao)
+- Atualizacao automatica telas: PREPARADO
+- Bloqueio exclusivo: PREPARADO
+- Protecao de todas as gravacoes: BLOQUEADO/PENDENTE
+- Backup relacional recuperavel (manual dump): APROVADO nesta etapa; rotina 02h: PENDENTE (nao relacional completo)
+- PDF nomenclaturas: PREPARADO
+- Observabilidade/recuperacao: PREPARADO parcial
+
+ENCERRAMENTO: RESPOSTA CURSOR 10/10 CONCLUIDA. Processo da sequencia 01-10 ENCERRADO. Nenhuma etapa 11. Aguardando autorizacao expressa do proprietario para qualquer trabalho adicional.

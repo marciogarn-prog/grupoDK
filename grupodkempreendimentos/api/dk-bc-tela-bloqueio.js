@@ -39,6 +39,16 @@ module.exports = async function handler(req, res) {
   const q = req.query || {};
   const body = readBody(req);
   const action = String(q.action || body.action || (req.method === "GET" ? "consultar" : "")).trim().toLowerCase();
+  const mutating = new Set(["adquirir", "renovar", "liberar", "validar"]);
+
+  // GET só consulta; mutações só via POST.
+  if (req.method === "GET" && mutating.has(action)) {
+    return res.status(405).json({ ok: false, reason: "method_get_nao_altera_estado" });
+  }
+  if (req.method === "POST" && (action === "consultar" || action === "status")) {
+    return res.status(405).json({ ok: false, reason: "method_post_nao_consulta" });
+  }
+
   const io = {
     clientPrefix: String(q.prefixo || body.prefixo || "").trim(),
     empresa_id: String(q.empresa_id || body.empresa_id || "").trim(),
@@ -58,31 +68,61 @@ module.exports = async function handler(req, res) {
 
   if (action === "consultar" || action === "status") {
     const r = await consultar(ctx);
-    return res.status(r.status || 200).json({ ...r, persistencia_oficial: "postgresql", terminal: true });
+    // Não expor concessao_id / geracao de outra sessão na consulta de ocupação.
+    const publica = {
+      ok: !!r.ok,
+      ocupada: !!r.ocupada,
+      estado: r.estado === "ativo" && r.ocupada ? "ocupada" : r.estado || "livre",
+      expira_em: r.ocupada ? r.expira_em : null,
+      sessao_mascara: r.ocupada ? r.sessao_mascara : null,
+      empresa_id: ctx.empresa_id,
+      filial_id: ctx.filial_id,
+      tela_id: ctx.tela_id,
+      reason: r.reason || null,
+      persistencia_oficial: "postgresql",
+      terminal: true,
+    };
+    return res.status(r.status || 200).json(publica);
   }
 
   if (action === "adquirir") {
+    if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
     const r = await adquirir(ctx);
-    return res.status(r.status || 200).json({ ...r, empresa_id: ctx.empresa_id, filial_id: ctx.filial_id, tela_id: ctx.tela_id });
+    return res.status(r.status || 200).json({
+      ok: r.ok,
+      adquirida: r.adquirida,
+      concessao_id: r.adquirida ? r.concessao_id : null,
+      geracao: r.adquirida ? r.geracao : null,
+      expira_em: r.adquirida ? r.expira_em : null,
+      reason: r.reason || null,
+      ttl_segundos: r.ttl_segundos,
+      renew_sugerido_ms: r.renew_sugerido_ms,
+      empresa_id: ctx.empresa_id,
+      filial_id: ctx.filial_id,
+      tela_id: ctx.tela_id,
+    });
   }
 
   if (action === "renovar") {
-    const concessao = body.concessao_id || q.concessao_id;
-    const geracao = body.geracao != null ? body.geracao : q.geracao;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
+    const concessao = body.concessao_id;
+    const geracao = body.geracao;
     const r = await renovar(ctx, concessao, geracao);
     return res.status(r.status || 200).json(r);
   }
 
   if (action === "liberar") {
-    const concessao = body.concessao_id || q.concessao_id;
-    const geracao = body.geracao != null ? body.geracao : q.geracao;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
+    const concessao = body.concessao_id;
+    const geracao = body.geracao;
     const r = await liberar(ctx, concessao, geracao);
     return res.status(r.status || 200).json(r);
   }
 
   if (action === "validar") {
-    const concessao = body.concessao_id || q.concessao_id;
-    const geracao = body.geracao != null ? body.geracao : q.geracao;
+    if (req.method !== "POST") return res.status(405).json({ ok: false, reason: "method" });
+    const concessao = body.concessao_id;
+    const geracao = body.geracao;
     const r = await validar(ctx, concessao, geracao);
     return res.status(r.status || 200).json(r);
   }

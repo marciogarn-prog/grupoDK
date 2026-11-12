@@ -1,0 +1,477 @@
+SISTEMA DK ORIGINAL — COMANDO 10/10
+
+VALIDAÇÃO INTEGRADA, CORREÇÕES FINAIS E RELATÓRIO DE PRONTIDÃO
+
+Etapa anterior: RESPOSTA CURSOR 09/10 — SISTEMA DK ORIGINAL.
+
+Este é o último comando da sequência de dez etapas.
+
+Objetivo: integrar e validar todos os componentes desenvolvidos nas etapas 01 a 09, corrigir os impedimentos técnicos concretos e produzir um relatório definitivo sobre a prontidão para ativação do Sistema DK original.
+
+A conclusão deste comando não autoriza automaticamente deploy, merge, ativação de colaboradores ou substituição das rotinas operacionais atuais.
+
+1. ESTADO OFICIAL CONFIRMADO PELO CHATGPT
+
+Foi verificado diretamente no Supabase:
+
+3648 registros BC.
+
+Último contador oficial BC: 3648.
+
+Dez VMs preparadas.
+
+Nenhum colaborador vinculado.
+
+Nenhum escopo autorizado.
+
+Nenhuma entrega ou projeção operacional ativa.
+
+Nenhum contador provisório consumido.
+
+Nenhum bloqueio de tela em produção.
+
+Três tabelas de bloqueio instaladas, ainda sem RLS.
+
+Todos os 3648 registros BC estão sem empresa e filial informadas no próprio catálogo BC.
+
+Esses dados deverão ser preservados.
+
+Não renumerar ou excluir qualquer BC.
+
+Não importar ou reconciliar dados dos computadores físicos.
+
+2. BACKUP E RECUPERAÇÃO
+
+Antes de qualquer correção estrutural:
+
+Gerar backup atualizado do PostgreSQL oficial.
+
+Incluir dados de negócio, registros BC, histórico, VMs, sincronização, permissões e bloqueios.
+
+Calcular SHA-256.
+
+Comprovar restauração independente.
+
+Comparar contagens e integridade com a origem.
+
+Registrar erros e limitações da restauração.
+
+Verificar também a rotina automática de backup das 02h.
+
+Distinguir expressamente um snapshot JSON/Redis de um backup relacional PostgreSQL completo.
+
+Se a rotina atual não enviar um backup relacional completo e recuperável, registrar essa pendência como impeditiva para declarar recuperação integral assegurada.
+
+Conferir a inclusão do PDF de nomenclatura BC e sua integridade.
+
+Não alterar destinatários nem enviar e-mails reais de teste sem autorização.
+
+3. CLASSIFICAÇÃO DOS 3648 REGISTROS BC
+
+O ChatGPT confirmou que os campos empresa_id e filial_id estão ausentes nos 3648 registros BC existentes.
+
+Identificar se é possível determinar corretamente sua empresa e filial a partir dos registros oficiais já existentes na infraestrutura central.
+
+Regras:
+
+Não inventar empresas, filiais ou associações.
+
+Não usar computadores físicos como fonte de informação.
+
+Não alterar os dados históricos imutáveis do BC.
+
+Não substituir o conteúdo original dos registros.
+
+Quando houver identificação comprovada, preparar vínculo central complementar, rastreável e versionado.
+
+Quando não houver identificação comprovada, manter o registro pendente de classificação e indisponível para distribuição operacional.
+
+A classificação deverá ser considerada pela sincronização, pelas consultas de VM e pelo controle de acesso.
+
+Mudanças de classificação deverão provocar reconciliação segura das VMs autorizadas.
+
+Não efetuar atribuições duvidosas automaticamente.
+
+Apresentar quantitativos de registros classificados, classificáveis com evidência e pendentes.
+
+4. CORREÇÕES DE SEGURANÇA NAS TABELAS DE BLOQUEIO
+
+As tabelas abaixo foram encontradas sem RLS:
+
+dk_bc_tela_bloqueio
+
+dk_bc_tela_bloqueio_geracao
+
+dk_bc_tela_bloqueio_audit
+
+Corrigir o isolamento e os privilégios dessas estruturas.
+
+Aplicar o princípio de menor privilégio.
+
+Impedir leitura, alteração ou manipulação indevida por usuários anônimos ou autenticados sem autorização específica.
+
+Restringir a administração e as operações sensíveis aos serviços servidores autorizados.
+
+Revisar igualmente as permissões de execução das funções relacionadas.
+
+Testar explicitamente acesso indevido por papéis sem privilégios.
+
+5. CORRIGIR A SEGURANÇA DA API DE BLOQUEIO
+
+Revisar /api/dk-bc-tela-bloqueio.
+
+Obrigatório:
+
+GET exclusivamente para consultas sem alteração de estado.
+
+POST exclusivamente para aquisição, renovação e liberação.
+
+Não utilizar GET para alterar bloqueios.
+
+Não expor concessao_id de outra sessão na consulta de ocupação.
+
+Não expor identificadores ou informações de segurança desnecessárias.
+
+Validar identidade e sessão no servidor.
+
+Verificar empresa, filial, VM e permissões.
+
+Bloquear tentativas de falsificação de parâmetros.
+
+Impedir renovação por sessão revogada.
+
+Impedir concessões a VMs não ativas.
+
+Preservar geração monotônica e proteção contra sessões antigas.
+
+Implementar proteção adequada contra CSRF quando aplicável ao mecanismo de autenticação.
+
+Evitar que endpoints administrativos aceitem credenciais ou origens indevidas.
+
+Executar testes negativos para cada proteção.
+
+6. GARANTIR QUE O BLOQUEIO PROTEJA AS GRAVAÇÕES
+
+O Cursor informou corretamente que as rotas reais de escrita ainda não utilizam o mecanismo de bloqueio.
+
+Essa pendência deve ser tratada como crítica.
+
+Inventariar todos os caminhos de gravação existentes no portal, incluindo:
+
+Clientes.
+
+Veículos.
+
+Locações.
+
+Pagamentos.
+
+Manutenções.
+
+Contratos.
+
+Multas.
+
+Rotinas de sincronização.
+
+Rotinas de cópia e atualização.
+
+Demais endpoints que alterem dados de negócio.
+
+Preparar a integração de autorização, bloqueio e fencing token em cada rota pertinente.
+
+A validação do bloqueio deverá ser garantida na mesma transação da gravação.
+
+Não utilizar uma chamada HTTP separada de validação como única garantia, pois o bloqueio poderá expirar entre a validação e o salvamento.
+
+Não ativar as novas rotas de escrita enquanto houver caminhos capazes de contornar essa proteção.
+
+Quando a integração depender de alterações amplas ou arriscadas no sistema atual, manter a mudança preparada na branch e identificar precisamente o impedimento.
+
+7. VALIDAR O FLUXO OPERACIONAL COMPLETO
+
+Em ambiente isolado, com dados fictícios e sessões autenticadas de teste, simular o seguinte:
+
+Colaborador A entra no sistema.
+
+Servidor identifica VM-A.
+
+A VM-A recebe seu escopo autorizado.
+
+A tela consulta dados oficiais da nuvem.
+
+Colaborador A adquire bloqueio exclusivo de edição.
+
+Colaborador B tenta editar a mesma tela e é bloqueado.
+
+Colaborador A registra uma alteração.
+
+VM-A emite identificador provisório.
+
+Banco Central confirma a alteração e atribui BC exclusivo.
+
+Versão anterior é preservada.
+
+Evento oficial é disponibilizado à sincronização.
+
+As VMs autorizadas recebem a atualização.
+
+As telas conectadas exibem a nova versão automaticamente.
+
+Uma VM desconectada recupera as alterações ao reconectar.
+
+Um operador com concessão antiga não consegue gravar.
+
+O PDF histórico registra a nomenclatura correspondente.
+
+O backup restaurado preserva a informação confirmada.
+
+Todos esses passos deverão ser comprovados, não apenas presumidos.
+
+Caso algum passo não esteja implementado, identificá-lo explicitamente como pendente.
+
+8. TESTAR OS DEZ AMBIENTES
+
+Simular as VMs A–J em PostgreSQL isolado.
+
+Verificar:
+
+Identidade permanente.
+
+Contadores independentes.
+
+Unicidade BC.
+
+Segurança por empresa e filial.
+
+Concorrência de edição.
+
+Distribuição idempotente.
+
+Ordenação de eventos.
+
+Recuperação após falha.
+
+Preservação de histórico.
+
+Atualização automática.
+
+Reconexão de sessões.
+
+Nenhuma perda de operação confirmada.
+
+Executar testes com duas sessões simultâneas e demonstrar a recuperação da VM-J após desconexão.
+
+Não declarar teste de navegador real aprovado quando a evidência for apenas de Node ou SQL.
+
+9. VALIDAR O PORTAL COMPLETO
+
+Verificar a integração com a interface existente.
+
+Confirmar que:
+
+Os módulos BC/VM são carregados corretamente.
+
+Não existem prefixos fictícios de teste.
+
+Nenhuma tela acessa outra VM por parâmetros manipulados.
+
+Atualizações não criam duplicidades.
+
+Recarregar o navegador recupera os dados da nuvem.
+
+Os computadores não são fontes oficiais.
+
+As telas não dependem de armazenamento local para dados de negócio.
+
+Nenhum módulo de escrita ignora as regras de autorização.
+
+O controle de bloqueio não interfere indevidamente em telas de consulta.
+
+O sistema mantém comportamento consistente após falha de conexão.
+
+Preparar a integração na branch de desenvolvimento, preservando as telas atuais.
+
+Não realizar ativação de produção.
+
+10. CRITÉRIOS OBJETIVOS DE PRONTIDÃO
+
+Classificar cada componente como:
+
+APROVADO: implementado, integrado e testado com evidências.
+
+PREPARADO: implementado e testado isoladamente, mas ainda não ativado.
+
+PENDENTE: depende de configuração, associação ou decisão posterior.
+
+BLOQUEADO: possui falha que impede ativação segura.
+
+Avaliar obrigatoriamente:
+
+Banco Central BC.
+
+Numeração histórica inicial.
+
+Identidades das dez VMs.
+
+Contadores provisórios.
+
+Confirmação VM–BC.
+
+Versionamento e histórico.
+
+Sincronização incremental.
+
+Classificação de empresa e filial.
+
+Autenticação e permissões.
+
+Atualização automática das telas.
+
+Bloqueio exclusivo de edição.
+
+Proteção de todas as gravações.
+
+Backup relacional recuperável.
+
+PDF de nomenclaturas.
+
+Observabilidade e recuperação de falhas.
+
+Não classificar como APROVADO um componente cuja integração operacional ainda não foi testada.
+
+11. PLANO DE ATIVAÇÃO POSTERIOR
+
+Preparar um plano objetivo para colocar o Sistema DK efetivamente online, sem executá-lo.
+
+O plano deverá indicar, em ordem:
+
+Vinculação comprovada dos colaboradores às VMs.
+
+Definição oficial dos escopos de empresa e filial.
+
+Tratamento dos registros BC sem classificação.
+
+Proteção das rotas reais de gravação.
+
+Integração das interfaces.
+
+Ativação controlada da sincronização.
+
+Carga inicial segura.
+
+Testes de aceitação com usuários autorizados.
+
+Backup, monitoramento e rollback.
+
+Deploy controlado e verificação final.
+
+Priorizar o menor conjunto de ações que permita ativar o sistema com segurança, evitando auditorias repetitivas desnecessárias.
+
+Nenhuma dessas ações autoriza um deploy sem aprovação posterior.
+
+12. RESTRIÇÕES ABSOLUTAS
+
+Não modificar dados operacionais existentes.
+
+Não consumir números BC ou provisórios reais para testes.
+
+Não atribuir colaboradores ou escopos fictícios à produção.
+
+Não realizar bootstrap operacional sem autorização.
+
+Não ativar o worker automático.
+
+Não fazer merge em main.
+
+Não realizar deploy em produção.
+
+Não alterar o horário do backup das 02h.
+
+Não utilizar dados dos computadores físicos para migração ou reconciliação.
+
+São permitidas apenas correções estruturais seguras e aditivas, comprovadas em ambiente isolado, com backup atualizado e recuperação validada.
+
+Publicar os arquivos exclusivamente na branch de desenvolvimento.
+
+13. RELATÓRIO FINAL OBRIGATÓRIO
+
+Responder exatamente:
+
+RESPOSTA CURSOR 10/10 — RELATÓRIO FINAL — SISTEMA DK ORIGINAL
+
+Apresentar:
+
+Resultado geral das dez etapas.
+
+Quantidade oficial de BC.
+
+Estado das dez VMs.
+
+Situação dos contadores.
+
+Resultados dos testes integrados.
+
+Situação da atualização automática das telas.
+
+Situação da proteção das gravações.
+
+Situação do bloqueio exclusivo.
+
+Situação da classificação empresa/filial.
+
+Segurança e permissões.
+
+Backup e restauração.
+
+PDF das 02h.
+
+Estado do worker.
+
+Rotas ainda não integradas.
+
+Lista objetiva dos impedimentos de ativação.
+
+Correções aplicadas nesta etapa.
+
+Evidências dos testes.
+
+Arquivos modificados.
+
+Commit e branch.
+
+Confirmação de ausência de deploy.
+
+Plano resumido para ativação posterior.
+
+Conclusão: APTO ou NÃO APTO para ativação operacional, com justificativa técnica.
+
+Separar explicitamente o que está funcionando no PostgreSQL oficial, o que existe apenas na branch e o que foi testado somente em ambiente isolado.
+
+Não declarar que o Sistema DK está 100% online enquanto existirem impedimentos concretos.
+
+14. ENCERRAMENTO OBRIGATÓRIO
+
+Após finalizar:
+
+Gerar integralmente o relatório final.
+
+Enviar a RESPOSTA CURSOR 10/10 a esta mesma conversa do ChatGPT.
+
+ENCERRAR A EXECUÇÃO.
+
+Não criar comandos adicionais.
+
+Não fazer deploy.
+
+Não realizar merge.
+
+Não ativar colaboradores ou VMs.
+
+Não iniciar uma etapa 11.
+
+Não executar novas alterações até receber autorização expressa do proprietário.
+
+ESTA É A ÚLTIMA ETAPA DA SEQUÊNCIA 01–10.
+
+Execute exclusivamente o COMANDO 10/10 e encerre o processo após apresentar o relatório.
