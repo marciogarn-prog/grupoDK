@@ -2810,6 +2810,50 @@
             </div>
             <div id="operacaoLancMultaPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões de contrato" hidden></div>
           </section>
+          <div id="operacaoLancMultaPreBusca" class="portal-manut-cliente-prebusca" aria-label="Atividades e relatórios de multa">
+            <section id="operacaoLancMultaDiaLog" class="portal-lanc-dia-log" aria-labelledby="operacaoLancMultaDiaLogTitulo">
+              <h4 id="operacaoLancMultaDiaLogTitulo" class="portal-lanc-aluguel-section__title">ATIVIDADES DO DIA</h4>
+              <p class="subtext portal-lanc-dia-log__hint">Lançamentos de multa registados hoje (despesa ou pagamento): quem executou, horário, cliente, placa e valores. O último fica em cima.</p>
+              <div class="fin-table-wrap portal-lanc-dia-log__table-wrap">
+                <table class="fin-table portal-lanc-hist portal-lanc-dia-log__table" id="operacaoLancMultaDiaLogTable">
+                  <thead>
+                    <tr>
+                      <th>EXECUTOR</th>
+                      <th>HORA</th>
+                      <th>CLIENTE</th>
+                      <th>PLACA</th>
+                      <th>TIPO</th>
+                      <th>VALOR</th>
+                      <th>PROTOCOLO</th>
+                    </tr>
+                  </thead>
+                  <tbody id="operacaoLancMultaDiaLogBody">
+                    <tr><td colspan="7" class="subtext">Nenhuma atividade de multa registada hoje.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section id="operacaoLancMultaRelPeriodo" class="portal-relatorio-pagamentos-periodo" aria-labelledby="operacaoLancMultaRelPeriodoTitulo">
+              <p id="operacaoLancMultaRelPeriodoTitulo" class="portal-relatorio-pagamentos-periodo__title">Relatório de multa por período</p>
+              <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+                Escolha a <strong>data de início</strong> e a <strong>data fim</strong>. O relatório lista despesas e pagamentos de multa cuja data do lançamento está no período (inclusive).
+              </p>
+              <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+                <label class="portal-field">
+                  <span>Data início</span>
+                  <input type="text" id="operacaoLancMultaRelInicio" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório de multa">
+                </label>
+                <label class="portal-field">
+                  <span>Data fim</span>
+                  <input type="text" id="operacaoLancMultaRelFim" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório de multa">
+                </label>
+              </div>
+              <div class="portal-relatorio-pagamentos-periodo__actions">
+                <button type="button" class="btn-primary" id="operacaoLancMultaRelGerarBtn">Gerar relatório</button>
+              </div>
+              <p id="operacaoLancMultaRelMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+            </section>
+          </div>
           <div id="operacaoLancMultaPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento de multa" hidden>
             <div id="operacaoLancMultaWorkspace" class="portal-lanc-avulso-workspace">
               <div class="portal-lanc-avulso-workspace__forms">
@@ -6522,7 +6566,7 @@
   <script src="dk-aluguel-ciclo-v2.js?v=20261111mtdesc0" defer></script>
   <script src="portal-locadora-ui.js?v=20261111vmmeta1" defer></script>
   <script src="portal-manutencao-cliente.js?v=20261112manutdia1" defer></script>
-  <script src="portal-lancamento-multa.js?v=20261111ciclo" defer></script>
+  <script src="portal-lancamento-multa.js?v=20261112multadia1" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>
   <script src="portal-log-ui.js?v=20261104ws13" defer></script>
   <script src="portal-financeiro.js?v=20260908desp-red" defer></script>

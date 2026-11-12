@@ -4036,6 +4036,32 @@
           "portal-manut-cliente-prebusca"
         ]
       }
+    },
+    {
+      "id": "lancamento-multa-atividades-dia-relatorio",
+      "descricao": "No Lançamento de multa, enquanto a busca ainda não foi feita: abaixo dos botões Confirmar pesquisa / Limpar dados ficam as ATIVIDADES DO DIA (executor, hora, cliente, placa, tipo e valor) e o bloco Relatório de multa por período com calendário de data início, calendário de data fim e botão Gerar relatório — o mesmo padrão do Lançamento de manutenção.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancMultaPreBusca",
+          "operacaoLancMultaDiaLog",
+          "ATIVIDADES DO DIA",
+          "operacaoLancMultaRelPeriodo",
+          "operacaoLancMultaRelInicio",
+          "operacaoLancMultaRelFim",
+          "operacaoLancMultaRelGerarBtn",
+          "Gerar relatório"
+        ],
+        "portal-lancamento-multa.js": [
+          "renderAtividadesDia",
+          "syncPreBusca",
+          "gerarRelatorioPeriodo",
+          "operacaoLancMultaRelGerarBtn",
+          "collectAtividadesDia"
+        ],
+        "styles.css": [
+          "portal-manut-cliente-prebusca"
+        ]
+      }
     }
   ]
 }

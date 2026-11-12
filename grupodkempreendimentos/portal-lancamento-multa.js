@@ -140,6 +140,204 @@
     else el.setAttribute("hidden", "");
   }
 
+  function ymdSpFromMs(ms) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date(ms));
+      const y = parts.find((p) => p.type === "year")?.value;
+      const m = parts.find((p) => p.type === "month")?.value;
+      const d = parts.find((p) => p.type === "day")?.value;
+      return `${y}-${m}-${d}`;
+    } catch {
+      const d = new Date(ms);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+  }
+
+  function todayYmdSp() {
+    return ymdSpFromMs(Date.now());
+  }
+
+  function horaSp(ms) {
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).format(new Date(ms));
+    } catch {
+      const d = new Date(ms);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+    }
+  }
+
+  function dataBrToYmd(br) {
+    const m = String(br || "")
+      .trim()
+      .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return "";
+    return `${m[3]}-${m[2]}-${m[1]}`;
+  }
+
+  function nomeClienteLoc(loc) {
+    let nome = String(loc?.nome || loc?.cliente || "").trim();
+    if (!nome && typeof findClienteByCpfCadastro === "function") {
+      nome = String(findClienteByCpfCadastro(dig(loc?.cpf).slice(0, 11))?.nome || "").trim();
+    }
+    return nome || "—";
+  }
+
+  function collectAtividades(filterFn) {
+    const out = [];
+    for (const loc of collectLocs()) {
+      const nome = nomeClienteLoc(loc);
+      const placa = normPlate(loc.placa) || "—";
+      const proto = normNc(loc.numeroContrato) || "—";
+      for (const x of getLancamentos(loc)) {
+        const row = {
+          executor: String(x.registradoPorLabel || x.registradoPorNome || "").trim() || "—",
+          hora: x.createdAt ? horaSp(x.createdAt) : "—",
+          createdAt: Number(x.createdAt) || 0,
+          cliente: nome,
+          placa,
+          proto,
+          tipo: x.tipo,
+          tipoLbl: tipoLabel(x.tipo),
+          valor: Number(x.valor) || 0,
+          data: x.data,
+          observacao: x.observacao || "",
+        };
+        if (typeof filterFn === "function" && !filterFn(row, x, loc)) continue;
+        out.push(row);
+      }
+    }
+    out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return out;
+  }
+
+  function collectAtividadesDia() {
+    const hoje = todayYmdSp();
+    return collectAtividades((_row, x) => {
+      if (x.createdAt) return ymdSpFromMs(x.createdAt) === hoje;
+      return dataBrToYmd(x.data) === hoje;
+    });
+  }
+
+  function renderAtividadesDia() {
+    const body = document.getElementById("operacaoLancMultaDiaLogBody");
+    if (!body) return;
+    const itens = collectAtividadesDia();
+    if (!itens.length) {
+      body.innerHTML = `<tr><td colspan="7" class="subtext">Nenhuma atividade de multa registada hoje.</td></tr>`;
+      return;
+    }
+    body.innerHTML = itens
+      .map(
+        (r) => `<tr>
+          <td>${escHtml(r.executor)}</td>
+          <td>${escHtml(r.hora)}</td>
+          <td>${escHtml(r.cliente)}</td>
+          <td>${escHtml(r.placa)}</td>
+          <td>${escHtml(r.tipoLbl)}</td>
+          <td>${escHtml(fmtBrl(r.valor))}</td>
+          <td>${escHtml(r.proto)}</td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  function syncPreBusca() {
+    const pre = document.getElementById("operacaoLancMultaPreBusca");
+    const showPre = !selected;
+    show(pre, showPre);
+    if (showPre) renderAtividadesDia();
+  }
+
+  function setRelMsg(text, isError) {
+    const el = document.getElementById("operacaoLancMultaRelMsg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("portal-feedback--error", Boolean(isError));
+  }
+
+  function gerarRelatorioPeriodo() {
+    const de = String(document.getElementById("operacaoLancMultaRelInicio")?.value || "").trim();
+    const ate = String(document.getElementById("operacaoLancMultaRelFim")?.value || "").trim();
+    const deY = dataBrToYmd(de);
+    const ateY = dataBrToYmd(ate);
+    if (!deY || !ateY) {
+      setRelMsg("Informe data início e data fim (DD/MM/AAAA).", true);
+      return;
+    }
+    if (deY > ateY) {
+      setRelMsg("A data início não pode ser depois da data fim.", true);
+      return;
+    }
+    const itens = collectAtividades((row) => {
+      const y = dataBrToYmd(row.data);
+      return Boolean(y) && y >= deY && y <= ateY;
+    }).sort((a, b) => {
+      const ya = dataBrToYmd(a.data);
+      const yb = dataBrToYmd(b.data);
+      if (ya !== yb) return ya < yb ? -1 : 1;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+    if (!itens.length) {
+      setRelMsg("Nenhum lançamento de multa neste período.", true);
+      return;
+    }
+    setRelMsg(`${itens.length} lançamento(s) — abrindo relatório…`, false);
+    const totDesp = itens.filter((r) => r.tipo === TIPO_DESPESA).reduce((s, r) => s + r.valor, 0);
+    const totPag = itens.filter((r) => r.tipo === TIPO_PAGAMENTO).reduce((s, r) => s + r.valor, 0);
+    const rowsHtml = itens
+      .map(
+        (r) => `<tr>
+          <td>${escHtml(r.data)}</td>
+          <td>${escHtml(r.hora)}</td>
+          <td>${escHtml(r.executor)}</td>
+          <td>${escHtml(r.cliente)}</td>
+          <td>${escHtml(r.placa)}</td>
+          <td>${escHtml(r.proto)}</td>
+          <td>${escHtml(r.tipoLbl)}</td>
+          <td>${escHtml(fmtBrl(r.valor))}</td>
+          <td>${escHtml(r.observacao || "—")}</td>
+        </tr>`
+      )
+      .join("");
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório de multa ${escHtml(de)} a ${escHtml(ate)}</title>
+      <style>
+        body{font-family:Arial,sans-serif;color:#111;padding:1.2rem}
+        h1{font-size:1.15rem;margin:0 0 .35rem}
+        p{margin:0 0 .85rem;font-size:.9rem}
+        table{width:100%;border-collapse:collapse;font-size:.85rem}
+        th,td{border:1px solid #ccc;padding:.4rem .5rem;text-align:left}
+        th{background:#f3f3f3}
+        @page{size:A4 landscape;margin:10mm}
+        @media print{button{display:none}}
+      </style></head><body>
+      <h1>Relatório de multa por período</h1>
+      <p>Período ${escHtml(de)} a ${escHtml(ate)}. Grupo DK Empreendimentos.</p>
+      <p>Despesas: <strong>${escHtml(fmtBrl(totDesp))}</strong> · Pagamentos: <strong>${escHtml(fmtBrl(totPag))}</strong> · Lançamentos: <strong>${itens.length}</strong></p>
+      <table><thead><tr>
+        <th>Data</th><th>Hora registo</th><th>Executor</th><th>Cliente</th><th>Placa</th><th>Protocolo</th><th>Tipo</th><th>Valor</th><th>Observação</th>
+      </tr></thead><tbody>${rowsHtml}</tbody></table>
+      <p><button type="button" onclick="window.print()">Imprimir</button></p>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) {
+      setRelMsg("Permita pop-ups para abrir o relatório.", true);
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  }
+
   function hideWorkspace() {
     selected = null;
     show(document.getElementById("operacaoLancMultaPaneAvulso"), false);
@@ -149,6 +347,7 @@
     const hist = document.getElementById("operacaoLancMultaHistorico");
     if (hist) hist.replaceChildren();
     setMsg("");
+    syncPreBusca();
   }
 
   function clearPesquisa() {
@@ -331,6 +530,7 @@
     renderHistorico(loc);
     setMsg("");
     show(document.getElementById("operacaoLancMultaPesquisaLista"), false);
+    syncPreBusca();
   }
 
   function buildLinhasPesquisa() {
@@ -462,6 +662,7 @@
     renderResumo(r.loc);
     renderHistorico(r.loc);
     refreshPendenteCadastroLocacao(r.loc);
+    renderAtividadesDia();
     setMsg("Despesa de multa registada.");
   }
 
@@ -519,6 +720,7 @@
     renderResumo(r.loc);
     renderHistorico(r.loc);
     refreshPendenteCadastroLocacao(r.loc);
+    renderAtividadesDia();
     setMsg("Pagamento de multa registado.");
   }
 
@@ -651,6 +853,10 @@
       e.preventDefault();
       hideWorkspace();
       setMsg("");
+    });
+    document.getElementById("operacaoLancMultaRelGerarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      gerarRelatorioPeriodo();
     });
 
     ["operacaoLancMultaNomeBusca", "operacaoLancMultaCpf", "operacaoLancMultaProtocolo", "operacaoLancMultaPlaca"].forEach(
