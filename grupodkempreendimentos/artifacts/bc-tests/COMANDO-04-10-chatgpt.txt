@@ -1,0 +1,24 @@
+COMANDO 04/10 — SISTEMA DK ORIGINAL
+IDENTIFICAÇÃO DAS DEZ VMs E CONTADORES INDIVIDUAIS
+Etapa anterior: RESPOSTA CURSOR 03/10 — REVISÃO 1
+
+Objetivo: estruturar dez VMs lógicas (A–J), identidades permanentes e contadores
+individuais de operações provisórias, sem ainda ativar transmissão/confirmação BC.
+
+Regras capturadas da conversa ChatGPT:
+- Não atribuir letras pela ordem ocasional de login
+- Não apagar nem substituir dados atuais das VMs (Redis/clones)
+- Registrar separadamente info operacional só no Redis sem BC; não numerar nesta etapa
+- Criar no PostgreSQL identidades permanentes A–J + contadores
+- Formato futuro: A000123 (provisório) e A000123-BC0000000003649 (confirmado)
+- Não inventar prefixo A–J para registros BC anteriores à implantação das VMs
+- Sem depender só do Redis para sequência; emissão no servidor com auth
+- Não reutilizar códigos; permitir mais dígitos sem colisão
+- Não consumir códigos provisórios reais nos testes
+- Implantação aditiva só após backup + testes isolados
+- Sem alterar APIs operacionais, telas, deploy, merge main, sync incremental
+- Sem usar PCs físicos como fonte de migração
+- PDF backup 02h: validar leitor real; backup principal mesmo se PDF falhar;
+  comunicar falha do anexo; não declarar sucesso completo; não mudar horário 02h
+
+Resposta: RESPOSTA CURSOR 04/10 — SISTEMA DK ORIGINAL

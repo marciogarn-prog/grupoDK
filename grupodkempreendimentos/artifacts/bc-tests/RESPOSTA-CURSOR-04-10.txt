@@ -1,0 +1,82 @@
+RESPOSTA CURSOR 04/10 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+
+1) Inventario Redis das VMs atuais (sem atribuir A-J)
+- Redis OK (URL com aspas normalizada)
+- Clones no indice dk:portal:vms:indice:v1: 10
+- Letras A-J atribuidas por login: 0 (proibido)
+- Registos Redis sem BC numerados nesta etapa: 10 (apenas inventariados)
+- Dados Redis/clones: NAO apagados nem substituidos
+
+2) Identidades permanentes A-J no PostgreSQL
+- Tabelas: dk_bc_vm, dk_bc_vm_state, dk_bc_vm_operacao
+- Funcoes: dk_bc_vm_format, dk_bc_vm_emitir_provisorio, dk_bc_vm_estado
+- Seeds: VM-A ... VM-J status=preparada; contadores last_prov_no=0
+- RLS + service_role; contador protegido (nao decrementa / sem saltos)
+- Sem SEQUENCE; gapless via FOR UPDATE
+- Emissao provisoria NAO consumida no oficial (testes so em memoria)
+- Confirmacao BC / distribuicao automatica: NAO ativadas
+
+Verificacao oficial:
+A|VM-A|preparada|0
+B|VM-B|preparada|0
+C|VM-C|preparada|0
+D|VM-D|preparada|0
+E|VM-E|preparada|0
+F|VM-F|preparada|0
+G|VM-G|preparada|0
+H|VM-H|preparada|0
+I|VM-I|preparada|0
+J|VM-J|preparada|0
+sum(last_prov_no)=0
+
+3) Relacao futura VM-BC (estrutura apenas)
+- Provisorio: A000123
+- Confirmado futuro: A000123-BC0000000003649
+- BC 1..3648 permanecem CENTRAL (sem prefixo A-J inventado)
+
+4) PDF nomenclatura / ADENDO 01
+- Validacao por extracao de texto/paginas no gerador
+- Cron 02h: backup principal segue mesmo se PDF falhar; completeSuccess=false + warning
+- Horario 02h: NAO alterado
+- PDF comprovacao regenerado: 3648 linhas; SHA-256 ef1a7c30f97b9e1050b170910fbe1848322a17e17cf0feca20cafb20a573dba0
+
+5) Backup previo a aplicacao
+- Dump independente reutilizado: grupodk-portal-full-20261112-012157Z.dump
+- SHA-256 6f29d5b00a2c9dd9445510e9c73a07e34efd7360e6118450a5abf6d8566d03dd
+
+6) Testes
+- node scripts/test-dk-bc-vm-identidades.mjs -> 17/17 OK
+- Aplicacao aditiva oficial: OK
+- Sem consumo de codigos provisórios reais no oficial
+
+7) Arquivos
+- supabase/dk-bc-vm-identidades.sql
+- supabase/dk-bc-vm-identidades-rollback.sql
+- scripts/test-dk-bc-vm-identidades.mjs
+- scripts/dk-bc-vm-inventario-04.mjs
+- scripts/dk-bc-vm-aplicar-04.mjs
+- lib/dk-bc-nomenclatura-pdf.cjs (validacao + totais por estado)
+- api/cron-daily-backup.js (completeSuccess / warning PDF)
+- artifacts/bc-tests/COMANDO-04-10-chatgpt.txt
+- artifacts/bc-tests/RESPOSTA-CURSOR-04-10.txt
+
+8) Commit / push
+- Branch: fix/reduzir-espera-nuvem
+- Sem merge main / sem deploy / sem alteracao de telas ou APIs operacionais
+
+9) Pendencias para 05/10
+- Vincular colaboradores/dispositivos as letras A-J por criterio oficial (nao por login)
+- Integrar emissao provisoria as operacoes das VMs
+- Confirmar BC composto A######-BC############
+
+10) Confirmacao de restricoes
+- Deploy: nao
+- Merge main: nao
+- Telas/APIs operacionais: nao alteradas
+- Sync incremental: nao ativado
+- PCs fisicos: nao usados
+- PII: CPF mascarado no inventario
+
+RESPOSTA CURSOR 04/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 05/10.

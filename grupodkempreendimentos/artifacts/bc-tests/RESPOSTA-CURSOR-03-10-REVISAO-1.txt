@@ -1,0 +1,82 @@
+RESPOSTA CURSOR 03/10 — REVISÃO 1 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+
+1) Soft-deletes numerados (estado=excluido; sem reativar; sem alterar valores operacionais)
+- clientes excluidos: 1 -> BC000000003372
+- pagamentos_locacao excluidos: 276 -> BC000000003373 ate BC000000003648
+- falhas: 0
+- operation_id deterministico bc-init-excluido|origem|id (idempotente)
+
+2) BC tecnico
+- BC000000000001 marcado: categoria=tecnico, subcategoria=smoke_infra, estado=tecnico
+- vigente preservado; numero nao reutilizado; excluido dos totais de negocio
+
+3) Conferencia final
+
+| Categoria | Fisico | Ativos | Excluidos | Numerado | Pendente | Primeiro BC | Ultimo BC |
+|-----------|--------|--------|-----------|----------|----------|-------------|-----------|
+| clientes | 457 | 456 | 1 | 457 | 0 | BC000000000002 | BC000000003372 |
+| veiculos | 199 | 199 | 0 | 199 | 0 | BC000000000458 | BC000000000656 |
+| locacoes | 649 | 649 | 0 | 649 | 0 | BC000000000657 | BC000000001305 |
+| pagamentos_locacao | 1934 | 1658 | 276 | 1934 | 0 | BC000000001306 | BC000000003648 |
+| manutencoes | 408 | 408 | 0 | 408 | 0 | BC000000002964 | BC000000003371 |
+
+Totais oficiais:
+- last_bc_no = 3648
+- vigentes = 3648
+- tecnico = 1
+- excluido = 277
+- consolidado (negocio ativo) = 3370
+- negocio total (sem tecnico) = 3647
+- pos-numeracao novos sem BC: 0 / 0 / 0 / 0 / 0
+
+4) ADENDO 01 — PDF nomenclatura BC
+- Gerador: lib/dk-bc-nomenclatura-pdf.cjs (sem dependencia externa)
+- Script comprovacao: scripts/dk-bc-gerar-pdf-nomenclatura.mjs
+- Integracao no cron 02:00: api/cron-daily-backup.js anexa PDF ao e-mail (lib/dk-send-backup-email.cjs multi-anexo)
+- Formato atual (A-J ainda nao ativos): CENTRAL-000000000001 ... CENTRAL-000000003648
+- PDF comprovacao local (fora do git):
+  C:\Users\marci\AppData\Local\DK-BC-BACKUP\numeracao-03-rev1\dk-bc-nomenclatura-comprovacao-rev1.pdf
+  bytes=324122 rows=3648
+  SHA-256 2801252c37ed7f032e63250bf37e49fabe8f18f7085aee7def0d0f9437ca3ada
+- Nota: o anexo diario no e-mail de producao so passa a sair apos merge/deploy futuro autorizado; codigo e comprovacao de geracao ja existem na branch.
+
+5) SQL versionado / search_path
+- supabase/dk-bc-registro.sql: search_path = public, extensions (dk_bc_confirmar / rejeitar / estado)
+- supabase/dk-bc-registro-search-path-patch.sql (reproduzivel)
+- SHA-256 atual do SQL: f2a0cf4623ddb3283bb1be9ce76cea2603ecd0836f1c40de26ca00743af9527a
+
+6) Arquivos modificados/criados
+- scripts/dk-bc-numeracao-inicial-03.mjs
+- scripts/dk-bc-numeracao-revisao-03.mjs
+- scripts/dk-bc-gerar-pdf-nomenclatura.mjs
+- lib/dk-bc-nomenclatura-pdf.cjs
+- lib/dk-send-backup-email.cjs
+- api/cron-daily-backup.js
+- supabase/dk-bc-registro.sql
+- supabase/dk-bc-registro-search-path-patch.sql
+- artifacts/bc-tests/COMANDO-03-10-REVISAO-1-chatgpt.txt
+- artifacts/bc-tests/RESPOSTA-CURSOR-03-10.txt
+
+7) Testes
+- node scripts/test-dk-bc-registro.mjs -> 30/30 OK
+- Numeracao revisao: 277/277 OK; tecnico OK; pendentes 0
+
+8) Commit / push (branch desenvolvimento; sem merge main; sem deploy)
+- Commit: eeb1d92 (eeb1d924ccf9c97d3e14d9587c01b30d2046912e)
+- Branch: fix/reduzir-espera-nuvem
+- Push: origin/fix/reduzir-espera-nuvem (sem merge em main)
+
+9) Confirmacao de restricoes
+- Dados cadastrais/financeiros: NAO alterados (somente dk_bc_*)
+- VMs / telas / operacoes A-J: NAO alteradas
+- Deploy / merge main: NAO executados
+- PII/credenciais: NAO expostos neste relatorio
+
+10) Problemas / pendencias remanescentes
+- Prefixo A-J ainda nao aplicado (nomenclatura CENTRAL provisoria ate etapa autorizada)
+- PDF no e-mail das 02h em producao depende de deploy futuro autorizado
+- REST service_role local ausente/invalid para geracao via API; comprovacao feita via psql
+
+RESPOSTA CURSOR 03/10 — REVISÃO 1 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 04/10.

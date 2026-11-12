@@ -46,9 +46,14 @@ async function runChannelBackup() {
         filename: pdf.filename,
         first: pdf.first?.nomenclatura || null,
         last: pdf.last?.nomenclatura || null,
+        validation: pdf.validation || null,
       };
     } else {
-      bcPdfMeta = { ok: false, reason: pdf.reason || "pdf_build_failed" };
+      bcPdfMeta = {
+        ok: false,
+        reason: pdf.reason || "pdf_build_or_validation_failed",
+        validation: pdf.validation || null,
+      };
     }
   } catch (e) {
     bcPdfMeta = { ok: false, reason: String(e && e.message ? e.message : e).slice(0, 200) };
@@ -80,8 +85,10 @@ async function runChannelBackup() {
     filename: `${baseName}.json`,
   });
 
+  const completeSuccess = stored.ok === true && bcPdfMeta.ok === true;
   return {
     ok: true,
+    completeSuccess,
     channel: "default",
     provider: email.provider,
     to: email.to,
@@ -91,6 +98,7 @@ async function runChannelBackup() {
     stored: stored.ok,
     storedReason: stored.ok ? null : stored.reason,
     bcPdf: bcPdfMeta,
+    warning: bcPdfMeta.ok ? null : "backup_enviado_sem_pdf_nomenclatura_bc",
   };
 }
 

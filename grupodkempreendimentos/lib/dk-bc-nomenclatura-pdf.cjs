@@ -22,11 +22,17 @@ function escapePdfText(s) {
 function buildLinesFromRows(rows, meta = {}) {
   const generatedAt = meta.generatedAt || new Date().toISOString();
   const lines = [];
+  const estados = {};
+  for (const r of rows) {
+    const k = r.estado || "-";
+    estados[k] = (estados[k] || 0) + 1;
+  }
   lines.push("SISTEMA DK — NOMENCLATURA BC (LISTA OFICIAL)");
   lines.push(`Gerado em: ${generatedAt}`);
   lines.push(`Total linhas: ${rows.length}`);
+  lines.push(`Totais por estado: ${Object.entries(estados).map(([k, n]) => `${k}=${n}`).join(", ") || "-"}`);
   lines.push("Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO");
-  lines.push("Prefixos A-J: nao aplicados nesta etapa (somente CENTRAL).");
+  lines.push("Prefixos A-J: nao inventados para BC anteriores as VMs (somente CENTRAL).");
   lines.push("---");
   for (const r of rows) {
     const nome = r.nomenclatura || nomenclaturaCentral(r.bc_no);
@@ -117,6 +123,45 @@ function buildPdfFromLines(lines) {
   return Buffer.from(pdf, "utf8");
 }
 
+function extractPdfTextProbe(buffer) {
+  const text = Buffer.from(buffer || []).toString("latin1");
+  const streams = [];
+  const re = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let m;
+  while ((m = re.exec(text))) streams.push(m[1]);
+  const joined = streams.join("\n");
+  const tj = [...joined.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj/g)].map((x) =>
+    x[0]
+      .replace(/\s*Tj$/, "")
+      .replace(/^\(/, "")
+      .replace(/\)$/, "")
+      .replace(/\\([\\()])/g, "$1")
+  );
+  const pageCount = (text.match(/\/Type\s*\/Page[^s]/g) || []).length;
+  return { pageCount, extractedLines: tj, bytes: Buffer.byteLength(buffer || []) };
+}
+
+function validateBcNomenclaturaPdf(buffer, expectedRows) {
+  const probe = extractPdfTextProbe(buffer);
+  const issues = [];
+  if (!probe.pageCount || probe.pageCount < 1) issues.push("paginas_ausentes");
+  if (!probe.extractedLines.length) issues.push("texto_nao_extraido");
+  if (expectedRows != null && probe.extractedLines.length < Number(expectedRows)) {
+    issues.push("linhas_insuficientes");
+  }
+  const hasHeader = probe.extractedLines.some((l) => /NOMENCLATURA BC/i.test(l));
+  if (!hasHeader) issues.push("cabecalho_ausente");
+  const hasFirst = probe.extractedLines.some((l) => /CENTRAL-000000000001|BC000000000001/.test(l));
+  if (expectedRows > 0 && !hasFirst) issues.push("primeira_linha_ausente");
+  return {
+    ok: issues.length === 0,
+    issues,
+    pageCount: probe.pageCount,
+    extractedLines: probe.extractedLines.length,
+    bytes: probe.bytes,
+  };
+}
+
 function buildBcNomenclaturaPdf(rows, meta = {}) {
   const normalized = (rows || [])
     .map((r) => ({
@@ -128,10 +173,14 @@ function buildBcNomenclaturaPdf(rows, meta = {}) {
     }))
     .filter((r) => r.bc_id && Number.isFinite(r.bc_no))
     .sort((a, b) => a.bc_no - b.bc_no);
+  // Nunca inventar prefixo A–J para BC anteriores às VMs.
   const lines = buildLinesFromRows(normalized, meta);
   const pdf = buildPdfFromLines(lines);
+  const validation = validateBcNomenclaturaPdf(pdf, normalized.length);
   return {
-    ok: true,
+    ok: validation.ok,
+    reason: validation.ok ? null : validation.issues.join(","),
+    validation,
     lines: lines.length,
     rows: normalized.length,
     buffer: pdf,
@@ -200,4 +249,6 @@ module.exports = {
   fetchBcRowsForPdf,
   buildLinesFromRows,
   buildPdfFromLines,
+  validateBcNomenclaturaPdf,
+  extractPdfTextProbe,
 };
