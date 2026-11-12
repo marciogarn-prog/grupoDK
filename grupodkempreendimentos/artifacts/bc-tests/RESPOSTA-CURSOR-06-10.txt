@@ -1,0 +1,61 @@
+RESPOSTA CURSOR 06/10 - SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+Nao avancado para COMANDO 07/10.
+
+1) Mecanismo de versionamento
+- Reutiliza dk_bc_confirmar (01/10) com reforcos 06/10:
+  - bc_anterior obrigatorio se ja existe vigente
+  - rejeita versao_ultrapassada e bc_anterior_entidade_diferente
+  - marca vigente=false na anterior e grava substituido_por -> nova
+  - nova versao recebe BC novo gapless; antiga nunca e apagada
+- Coluna aditiva: dk_bc_registro.substituido_por
+- Evento imutavel: dk_bc_evento_versao (pre-sync; sem distribuicao 07/10)
+- Consulta: dk_bc_historico(origem, registro_id, empresa, filial)
+
+2) Garantias de historico
+- Cadeia bc_anterior / substituido_por preservada
+- Protecao: DELETE bloqueado; vigente false->true bloqueado (atraso de sync nao reativa)
+- Tipos: inclusao_inicial, alteracao_cadastral, exclusao_logica, reativacao, encerramento, substituicao...
+
+3) Testes isolados (dump restaurado + patch) — NAO oficiais
+- v1/v2/v3 alteracoes do mesmo registro: OK
+- versao ultrapassada: rejeitada
+- bc_anterior de outro registro: rejeitado
+- idempotencia: OK
+- exclusao_logica + reativacao: OK (estados gravados)
+- historico: 5 versoes, 1 vigente
+- eventos: 5
+- race duas confirmacoes no mesmo vigente: 1 aceita / 1 versao_ultrapassada; vig_count=1
+- rollback transacional: 0 op residual
+- PDF amostra: vigentes+historicos listaveis (1 vigente / 5 historicos no registro teste)
+- Contadores isolados apos testes: last=3654 (somente isolado)
+
+4) Aplicado no PostgreSQL oficial
+- supabase/dk-bc-historico-06.sql (funcoes/tabelas aditivas)
+- bc=3648 vig=3648 last=3648
+- vms=10 prov=0 ops=0 evt=0
+- dk_bc_historico instalada (fn=true)
+- Nenhum BC novo de producao; nenhum evento ficticio; VMs continuam preparada
+
+5) Backup
+- Dump: C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-06\grupodk-portal-2026-11-12T04-04-52-605Z.dump
+- Bytes: 20617050
+- SHA-256: 74ec817254e30e1c93509cc739e17388bf87fab4ea35c3dc23ed945ad63ceecc
+
+6) Arquivos / commit / branch
+- supabase/dk-bc-historico-06.sql
+- scripts/dk-bc-historico-06.mjs
+- artifacts/bc-tests/COMANDO-06-10.txt
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (a informar apos git)
+
+7) Pendencias
+- Distribuicao do evento as 10 VMs = COMANDO 07/10 (nao ativado)
+- Autorizacao futura: comparar identidade autenticada do requisitante com colaborador_ref da VM + empresa/filial/permissoes (simples colaborador_ref nao basta)
+- Sem deploy / sem merge main / sem telas / sem associar colaboradores
+
+Producao operacional: sem alteracao de cadastros/contratos/pagamentos.
+Deploy/merge main: nao executados.
+
+RESPOSTA CURSOR 06/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 07/10.

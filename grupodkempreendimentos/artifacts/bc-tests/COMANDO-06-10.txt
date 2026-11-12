@@ -1,0 +1,279 @@
+﻿SISTEMA DK ORIGINAL — COMANDO 06/10
+
+CONTROLE DE VERSÕES, SUBSTITUIÇÃO LÓGICA E HISTÓRICO BC
+
+Etapa anterior: RESPOSTA CURSOR 05/10 — REVISÃO 2.
+
+Objetivo: garantir que toda alteração futura de um registro oficial gere um novo número BC, preserve sua versão anterior e impeça conflitos ou perda do histórico.
+
+1. PRESERVAR A BASE EXISTENTE
+
+O Banco Central possui 3648 números oficiais.
+
+Não apagar, renumerar ou reutilizar esses números.
+
+Manter as dez VMs em estado preparada, sem colaboradores associados e com contadores zerados.
+
+Não ativar telas nem operações reais.
+
+Trabalhar sobre a arquitetura implementada nos comandos 01 a 05.
+
+2. IMPLEMENTAR A SUBSTITUIÇÃO LÓGICA
+
+Considere o seguinte exemplo ilustrativo:
+
+Um cliente possui:
+
+BC000000000100
+
+Quando seu cadastro é alterado, o BC confirma uma nova versão:
+
+A000001-BC000000003649
+
+O sistema deverá:
+
+Preservar integralmente a versão BC000000000100.
+
+Registrar BC000000003649 como nova versão.
+
+Vincular a nova versão à anterior pelo campo bc_anterior.
+
+Marcar a versão antiga como substituída.
+
+Manter somente a nova versão como vigente para aquele registro lógico.
+
+Preservar o identificador original do cliente.
+
+A versão antiga nunca deverá ser fisicamente eliminada.
+
+A identificação provisória A000001 pertence exclusivamente à VM de origem.
+
+Os números acima são exemplos. Não consumi-los em produção durante os testes.
+
+3. CONTROLE DE CONCORRÊNCIA E INTEGRIDADE
+
+Garantir transacionalmente:
+
+Apenas uma versão vigente por registro lógico, empresa e filial.
+
+Atualizações somente a partir da versão vigente correta.
+
+Rejeição de versões anteriores ultrapassadas.
+
+Impossibilidade de relacionar versões pertencentes a registros diferentes.
+
+Impossibilidade de criar bifurcações no histórico.
+
+Novo BC somente para operações efetivamente confirmadas.
+
+Nenhum BC consumido em transações rejeitadas ou revertidas.
+
+Repetições idênticas retornam o BC anteriormente confirmado.
+
+Conteúdos divergentes são rejeitados.
+
+Nenhuma atualização altera silenciosamente o histórico anterior.
+
+Utilizar as restrições e funções PostgreSQL já existentes sempre que possível.
+
+Não criar infraestrutura paralela desnecessária.
+
+4. TRATAMENTO DOS TIPOS DE ALTERAÇÃO
+
+O controle histórico deverá atender:
+
+Inclusão inicial.
+
+Alteração cadastral.
+
+Alteração financeira.
+
+Atualização de contrato.
+
+Mudança de estado.
+
+Exclusão lógica.
+
+Reativação autorizada.
+
+Encerramento de contrato ou operação.
+
+Cada mudança efetivamente confirmada deverá gerar uma nova versão BC.
+
+Não inventar acontecimentos anteriores à implantação do BC.
+
+Registros logicamente excluídos deverão permanecer acessíveis no histórico, sem aparecer indevidamente como ativos.
+
+5. CONSULTA DO HISTÓRICO
+
+Preparar uma consulta segura capaz de apresentar, para qualquer registro:
+
+Identificador original.
+
+Primeiro BC atribuído.
+
+BC vigente.
+
+Todas as versões anteriores.
+
+Relação entre as versões.
+
+Data de cada confirmação.
+
+VM de origem, quando existir.
+
+Estado de cada versão.
+
+Hash de integridade.
+
+O histórico deverá permitir identificar qual informação substituiu qual, sem reconstruções presumidas.
+
+Não expor dados de outra empresa ou filial a usuários sem autorização.
+
+6. PREPARAÇÃO PARA SINCRONIZAÇÃO
+
+Cada nova versão BC deverá estar disponível como um evento oficial imutável para futura distribuição às dez VMs.
+
+O evento deverá identificar:
+
+Número BC.
+
+Operação original.
+
+VM de origem.
+
+Registro lógico.
+
+BC anterior.
+
+BC novo.
+
+Categoria e tipo de alteração.
+
+Empresa e filial.
+
+Hash de integridade.
+
+Informações necessárias para reproduzir o estado confirmado.
+
+Uma versão substituída deverá continuar consultável, mas não poderá voltar a ser vigente por uma sincronização atrasada.
+
+Não ativar ainda a distribuição às dez VMs. Essa implementação pertence à etapa 07/10.
+
+7. TESTES REAIS NO POSTGRESQL ISOLADO
+
+Utilizar PostgreSQL real em ambiente isolado e dados fictícios.
+
+Comprovar:
+
+Criação de versão inicial.
+
+Primeira, segunda e terceira alterações do mesmo registro.
+
+Preservação integral das versões anteriores.
+
+Apenas uma versão vigente.
+
+Duas VMs tentando atualizar a mesma versão simultaneamente.
+
+Aceitação de uma operação e rejeição da atualização ultrapassada.
+
+Repetição idempotente.
+
+Tentativa de alterar outro registro usando BC anterior indevido.
+
+Exclusão lógica e reativação controlada.
+
+Recuperação após falha transacional.
+
+Continuidade da numeração sem duplicidade ou lacunas.
+
+Histórico íntegro e ordenado.
+
+Verificar especificamente que o PDF diário poderá listar tanto os BC vigentes quanto os substituídos.
+
+Não utilizar o banco oficial para testes fictícios.
+
+8. SEGURANÇA E IMPLANTAÇÃO
+
+Reutilizar os testes e componentes já aprovados.
+
+Antes de aplicar alterações estruturais ao PostgreSQL oficial, confirmar backup atualizado e restauração verificável.
+
+Somente executar alterações aditivas, reversíveis e previamente testadas.
+
+Não modificar dados de negócio existentes.
+
+Não criar revisões artificiais para os 3648 BC já registrados.
+
+Não consumir novos números BC de produção.
+
+Não ativar nenhuma das VMs.
+
+Não associar colaboradores automaticamente.
+
+Não alterar telas, APIs operacionais ou a rotina de backup das 02h.
+
+Não realizar deploy nem merge em main.
+
+Registrar o código e os testes na branch de desenvolvimento.
+
+Pendência de segurança a preservar: antes da futura ativação operacional, a autorização deverá comparar a identidade autenticada do requisitante com o colaborador vinculado à VM, além de verificar empresa, filial e permissões. A simples presença de colaborador_ref não é suficiente. Não habilitar o fluxo enquanto essa exigência não estiver cumprida.
+
+9. RELATÓRIO OBRIGATÓRIO
+
+Responder com o título exato:
+
+RESPOSTA CURSOR 06/10 — SISTEMA DK ORIGINAL
+
+Informar:
+
+Mecanismo de versionamento implementado.
+
+Garantias de preservação do histórico.
+
+Testes de concorrência e resultados.
+
+Testes de idempotência.
+
+Comportamento em exclusões, reativações e alterações.
+
+Estruturas efetivamente modificadas.
+
+Evidência de backup e testes isolados.
+
+Situação do contador BC oficial.
+
+Estado dos contadores A–J.
+
+Arquivos modificados.
+
+Commit e branch.
+
+Pendências e confirmações de ausência de deploy.
+
+Diferenciar claramente o que foi testado no ambiente isolado e o que foi efetivamente aplicado no PostgreSQL oficial.
+
+10. COMUNICAÇÃO AUTOMÁTICA CURSOR ↔ CHATGPT
+
+Ao concluir:
+
+Copiar integralmente a RESPOSTA CURSOR 06/10.
+
+Acessar remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar o relatório completo.
+
+Aguardar cinco minutos.
+
+Ler minha análise.
+
+Se receber uma revisão 06/10, executar apenas a correção autorizada.
+
+Somente executar COMANDO 07/10 quando expressamente fornecido.
+
+Não inventar nem antecipar comandos.
+
+Após o COMANDO 10/10, interromper obrigatoriamente todas as modificações e aguardar autorização expressa do proprietário.
+
+Execute exclusivamente o COMANDO 06/10.
