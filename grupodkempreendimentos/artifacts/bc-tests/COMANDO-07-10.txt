@@ -1,0 +1,313 @@
+﻿SISTEMA DK ORIGINAL — COMANDO 07/10
+
+SINCRONIZAÇÃO INCREMENTAL, DURÁVEL E AUTOMÁTICA ENTRE AS DEZ VMs
+
+Etapa anterior: RESPOSTA CURSOR 06/10 — SISTEMA DK ORIGINAL.
+
+Objetivo: implementar a infraestrutura central que distribui automaticamente as informações oficiais do Banco Central às dez VMs lógicas A–J, com persistência, recuperação de falhas e prevenção de duplicidades.
+
+Não ativar ainda a atualização das telas dos computadores físicos. Essa integração pertence ao COMANDO 08/10.
+
+1. PRESERVAR A INFRAESTRUTURA EXISTENTE
+
+O ChatGPT confirmou diretamente no Supabase:
+
+3648 registros BC.
+
+Contador BC em 3648.
+
+Nenhuma alteração histórica posterior registrada.
+
+Tabela dk_bc_evento_versao criada e vazia.
+
+Dez VMs preparadas.
+
+Nenhuma operação provisória emitida.
+
+Preservar esses dados integralmente.
+
+Não reiniciar contadores, renumerar registros ou criar eventos fictícios em produção.
+
+2. CORREÇÃO OBRIGATÓRIA DA IMUTABILIDADE HISTÓRICA
+
+Antes de implementar a sincronização, reforçar a função dk_bc_registro_proteger.
+
+O histórico deve permitir exclusivamente as mudanças controladas necessárias à substituição lógica:
+
+vigente: de true para false, quando ocorre uma substituição válida.
+
+substituido_por: preenchido uma única vez com o BC sucessor correto.
+
+A atualização do sucessor deverá ser validada contra o vínculo bc_anterior, a identidade lógica, a empresa e a filial.
+
+Proibir alterações posteriores em identificadores, hashes, payloads históricos, origem, registro lógico, datas de confirmação e demais campos oficiais.
+
+Não modificar os 3648 registros existentes.
+
+Testar a compatibilidade com dk_bc_confirmar em PostgreSQL isolado.
+
+3. DEFINIR O MARCO DE SINCRONIZAÇÃO
+
+O identificador principal de ordenação deverá ser o número BC oficial (bc_no).
+
+Não presumir que evento_no seja uma sequência contínua, pois atualmente utiliza bigserial.
+
+O sistema deverá diferenciar:
+
+Registros BC históricos já existentes.
+
+Novos eventos BC posteriores à implantação.
+
+Alterações e substituições de versões.
+
+A tabela dk_bc_evento_versao possui zero eventos, embora existam 3648 BC históricos.
+
+Portanto, a sincronização inicial deverá ser capaz de carregar os registros existentes diretamente do catálogo oficial BC, sem inventar eventos anteriores.
+
+Depois disso, deverá continuar incrementalmente a partir de um marco consistente.
+
+4. CRIAR A SINCRONIZAÇÃO INDIVIDUAL DAS DEZ VMs
+
+Cada VM deverá possuir um controle durável próprio de sincronização.
+
+Implementar:
+
+Identificação permanente da VM.
+
+Último BC aplicado.
+
+Estado da sincronização.
+
+Operações recebidas e pendentes.
+
+Data da última sincronização bem-sucedida.
+
+Controle de tentativas e erros.
+
+Confirmação de aplicação de cada evento.
+
+Mecanismo de recuperação após interrupção.
+
+O estado oficial deverá ficar no PostgreSQL central.
+
+Redis poderá ser utilizado como aceleração ou sinalização, mas nunca como única fonte da posição de sincronização.
+
+O navegador e os computadores físicos não serão fontes oficiais.
+
+5. FLUXO DE DISTRIBUIÇÃO BC → VMs
+
+Quando o BC confirmar uma operação, deverá disponibilizar o mesmo evento oficial às dez VMs autorizadas.
+
+Exemplo ilustrativo:
+
+A VM-A gera:
+
+A000001
+
+O Banco Central confirma:
+
+A000001-BC000000003649
+
+As dez VMs deverão reconhecer exatamente o mesmo BC:
+
+BC000000003649
+
+Nenhuma VM receptora poderá gerar outro número BC para a mesma informação.
+
+A VM de origem também deverá reconhecer sua própria confirmação, relacionando-a à operação provisória correspondente.
+
+A entrega do evento poderá ocorrer mais de uma vez, mas sua aplicação lógica deverá acontecer uma única vez em cada VM.
+
+6. SINCRONIZAÇÃO INCREMENTAL
+
+Implementar mecanismo de processamento por lotes ordenados pelo BC.
+
+Requisitos:
+
+Somente avançar o cursor de uma VM depois de confirmar a aplicação persistente do evento.
+
+Aplicar os eventos em ordem lógica.
+
+Nunca aplicar uma versão antiga sobre outra mais recente.
+
+Detectar eventos ausentes, incompletos ou incompatíveis.
+
+Repetir automaticamente operações interrompidas.
+
+Evitar duplicidades em reprocessamentos.
+
+Não perder eventos durante desconexões ou reinicializações.
+
+Manter a VM recuperável mesmo depois de longo período sem atividade.
+
+Separar erros individuais sem comprometer as demais VMs.
+
+Permitir reconciliação verificável com o catálogo oficial BC.
+
+O evento e a atualização da posição da VM deverão ser confirmados em transação apropriada.
+
+Não avançar o cursor antes da aplicação efetiva.
+
+7. SEGURANÇA E ISOLAMENTO
+
+A sincronização será executada por serviços centrais autorizados.
+
+As VMs deverão receber somente informações permitidas para sua empresa, filial e contexto operacional.
+
+Não utilizar o simples prefixo A–J informado pelo cliente como autorização.
+
+Não disponibilizar dados de uma empresa ou filial a outra sem permissão.
+
+A sincronização técnica poderá manter seus estados preparados mesmo quando não houver colaboradores conectados.
+
+Entretanto, as dez VMs deverão continuar com status preparada, sem liberar operações reais enquanto a identidade autenticada dos colaboradores não estiver validada.
+
+Não inventar vínculos ou permissões.
+
+8. INFRAESTRUTURA E RECUPERAÇÃO
+
+Criar estruturas incrementais e aditivas para:
+
+Estado de sincronização por VM.
+
+Controle de entrega e confirmação.
+
+Aplicação idempotente de eventos.
+
+Registro de falhas e tentativas.
+
+Recuperação e reconciliação.
+
+Consulta do atraso de sincronização.
+
+Não substituir o catálogo BC por dez bases oficiais independentes.
+
+As dez VMs deverão possuir projeções lógicas persistentes e recuperáveis do estado autorizado, mas o BC continuará sendo a referência oficial.
+
+Não apagar nem sobrescrever os dados existentes nas VMs Redis.
+
+9. TESTES OBRIGATÓRIOS
+
+Executar os testes em PostgreSQL isolado, utilizando dados fictícios e dez VMs de teste.
+
+Validar:
+
+Carga inicial dos 3648 BC simulados.
+
+Continuidade após o marco inicial.
+
+Distribuição de uma operação às dez VMs.
+
+Aplicação uma única vez por VM.
+
+Retry após falha de comunicação.
+
+Queda durante a aplicação.
+
+Reinicialização do servidor.
+
+VM desconectada durante vários eventos.
+
+Duas VMs processando simultaneamente.
+
+Atualizações sucessivas do mesmo registro.
+
+Evento atrasado que não pode reativar versão anterior.
+
+Respeito ao isolamento entre empresas e filiais.
+
+Preservação do histórico.
+
+Ausência de consumo adicional de números BC.
+
+Reconciliação final das dez VMs com o estado oficial permitido.
+
+Demonstrar uma simulação em que a VM-J fica sem sincronizar, acumula eventos e depois recupera todos na ordem correta.
+
+Não utilizar registros de teste no PostgreSQL oficial.
+
+10. IMPLANTAÇÃO CONTROLADA
+
+Antes de alterações estruturais, verificar backup PostgreSQL atualizado e restaurável.
+
+É permitida a instalação aditiva de tabelas, índices e funções de infraestrutura que tenham sido testados em ambiente isolado.
+
+Não ativar ainda um trabalhador automático em produção que altere os estados operacionais existentes.
+
+Não modificar telas.
+
+Não distribuir alterações aos computadores físicos.
+
+Não alterar os dados operacionais das VMs atuais.
+
+Não ativar colaboradores.
+
+Não realizar deploy ou merge em main.
+
+Não antecipar a etapa 08/10.
+
+Registrar os testes e alterações na branch de desenvolvimento.
+
+11. RELATÓRIO OBRIGATÓRIO
+
+Responder exatamente com:
+
+RESPOSTA CURSOR 07/10 — SISTEMA DK ORIGINAL
+
+Informar:
+
+Correção da imutabilidade histórica.
+
+Estruturas de sincronização criadas.
+
+Estratégia de carga inicial.
+
+Estratégia incremental.
+
+Identificação e controle das dez VMs.
+
+Comportamento em desconexões.
+
+Resultados dos testes reais.
+
+Resultado da simulação de recuperação da VM-J.
+
+Garantias de idempotência.
+
+Segurança por empresa e filial.
+
+Backup utilizado.
+
+Contadores BC e A–J.
+
+Arquivos modificados.
+
+Commit e branch.
+
+O que foi efetivamente instalado e o que permanece desativado.
+
+Pendências ou impedimentos.
+
+12. COMUNICAÇÃO AUTOMÁTICA CURSOR ↔ CHATGPT
+
+Após concluir:
+
+Copiar integralmente a RESPOSTA CURSOR 07/10.
+
+Acessar remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar o relatório completo.
+
+Aguardar cinco minutos.
+
+Ler a análise do ChatGPT.
+
+Se houver revisão 07/10, executar somente a correção autorizada.
+
+Somente executar COMANDO 08/10 quando expressamente fornecido.
+
+Se não houver instrução, aguardar sem antecipar etapas.
+
+Após o COMANDO 10/10, interromper obrigatoriamente todas as modificações e aguardar autorização expressa do proprietário.
+
+Execute exclusivamente o COMANDO 07/10.

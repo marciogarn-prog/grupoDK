@@ -1,0 +1,67 @@
+RESPOSTA CURSOR 07/10 - SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+Nao avancado para COMANDO 08/10.
+
+1) Correcao imutabilidade historica
+- dk_bc_registro_proteger reforcada: bloqueia alteracao de identificadores, hashes, payload, origem, registro, datas, estado etc.
+- vigente false->true bloqueado
+- substituido_por so null->valor uma vez; valida sucessor (bc_anterior + entidade/empresa/filial)
+- Compatibilidade com dk_bc_confirmar testada no isolado (v1->v2 com substituido_por)
+
+2) Estruturas de sincronizacao criadas
+- dk_bc_vm_sync_state (cursor last_applied_bc_no por VM A-J)
+- dk_bc_vm_sync_entrega (entrega idempotente por prefixo+bc_id)
+- dk_bc_vm_projecao (projecao logica por VM)
+- dk_bc_vm_sync_falha
+- Funcoes: dk_bc_sync_enfileirar, dk_bc_sync_bootstrap_vm, dk_bc_sync_aplicar_lote, dk_bc_sync_atraso
+- Trigger AFTER INSERT em dk_bc_registro enfileira (sem worker automatico ativado)
+
+3) Estrategia carga inicial
+- Bootstrap le o catalogo dk_bc_registro ordenado por bc_no (sem inventar eventos para os 3648)
+- Marco = bc_no; evento_no/bigserial NAO e usado como sequencia gapless
+
+4) Estrategia incremental
+- Lotes ordenados por bc_no; cursor so avanca apos aplicar/persistir
+- Idempotencia por unique(prefixo,bc_id); reprocessamento nao duplica projecao
+- Versao atrasada nao sobrescreve vigente mais recente na projecao
+
+5) Dez VMs
+- 10 linhas em dk_bc_vm_sync_state no oficial
+- Status VMs continua preparada; sem colaboradores; sem operacoes reais
+
+6) Desconexoes / recuperacao VM-J (isolado)
+- J bootstrap 20 + aplicou; depois v3/v4 enquanto "offline"
+- J_recover: aplicados=2, last=3652, pending=0, status=ociosa
+- Reaplicar lote: aplicados=0 (idempotente)
+
+7) Testes isolados (resumo)
+- imutabilidade payload: bloqueada
+- confirmacao + substituicao: OK
+- bootstrap/apply J: OK
+- distribuicao A-J dos novos BC: OK
+- isolamento empresa (filtro): 0 aplicados
+- Contadores isolados last=3652 (somente isolado); oficial intacto
+
+8) Oficial apos install (aditivo)
+- bc=3648 vig=3648 last=3648
+- vms=10 preparada; prov=0 ops=0 evt=0
+- sync_state=10; entregas=0 (sem bootstrap/worker em producao)
+- Worker automatico: DESATIVADO
+- Telas/fisicos/colaboradores: nao alterados
+
+9) Backup
+- Dump: C:\Users\marci\AppData\Local\DK-BC-BACKUP\bc-06\grupodk-portal-2026-11-12T04-04-52-605Z.dump
+- SHA-256: 74ec817254e30e1c93509cc739e17388bf87fab4ea35c3dc23ed945ad63ceecc
+
+10) Arquivos / commit / branch
+- supabase/dk-bc-sync-07.sql
+- scripts/dk-bc-sync-07.mjs
+- artifacts/bc-tests/COMANDO-07-10.txt
+- Branch: fix/reduzir-espera-nuvem
+- Commit: (apos git)
+
+Pendencias: ativacao de worker/distribuicao fisica = 08/10; validacao identidade autenticada vs colaborador_ref.
+Deploy/merge main: nao executados.
+
+RESPOSTA CURSOR 07/10 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 08/10.
