@@ -1,0 +1,60 @@
+RESPOSTA CURSOR 05/10 — REVISÃO 1 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+Nao avancado para COMANDO 06/10.
+
+1) Backup atualizado (pos-VMs / pos-3648 BC)
+- Dump: C:\Users\marci\AppData\Local\DK-BC-BACKUP\vm-05-rev1\grupodk-portal-pos-vm-2026-11-12T02-59-41-122Z.dump
+- Bytes: 20600612
+- SHA-256: 356db1cbc39c1737dc3688f63741aa99e051a931cf73196b927c18d303820eb3
+- Restore isolado (127.0.0.1:55432 / dk_bc_rev1): bc=3648 last=3648 vms=10 prov=0 ops=0 (bate com oficial)
+- Dump anterior a numeracao BC NAO usado como unica protecao
+
+2) Correcoes de seguranca / idempotencia
+- Arquivo: supabase/dk-bc-vm-confirmacao-revisao1.sql
+- Coluna conteudo_hash em dk_bc_vm_operacao
+- Funcao dk_bc_vm_conteudo_hash (sha256 deterministico)
+- dk_bc_vm_emitir_provisorio:
+  - VM suspensa -> vm_nao_autorizada
+  - mesmo operation_id + VM diferente -> conflito
+  - mesmo operation_id + payload diferente -> conteudo_divergente
+  - mesmo operation_id + mesmo payload -> idempotente (sem substituir)
+- dk_bc_vm_confirmar_oficial:
+  - nao altera payload original na confirmacao (corrigia falso divergente)
+  - confirmado_bc + mesmo conteudo -> idempotente
+  - confirmado_bc + conteudo diferente -> conteudo_divergente
+  - confere composto prov_id-bc_id e registro oficial
+  - falha BC preserva provisório
+
+3) Testes REAIS em PostgreSQL isolado (nao so memoria)
+BEGIN/ROLLBACK no restore:
+- emit A000001 ok
+- emit idempotente ok
+- emit divergente ok
+- emit conflito (VM B) ok
+- confirmar A000002-BC000000003649 ok
+- confirmar idempotente ok
+- confirmar divergente (hash-OUTRO) ok
+- apos ROLLBACK: last_bc_no=3648, prov_sum=0, ops=0
+
+4) Aplicado no oficial (apos backup+testes)
+- Patch aplicado com SET ROLE postgres
+- Contadores preservados: last_bc_no=3648; prov_sum=0; ops=0
+- conteudo_hash coluna=1
+- Nenhum BC/provisorio real consumido
+- Cadastros/contratos/pagamentos/manutencoes: nao alterados
+- VMs nao ativadas para colaboradores
+- Telas: nao alteradas
+- Deploy / merge main: nao
+
+5) Arquivos
+- supabase/dk-bc-vm-confirmacao-revisao1.sql
+- scripts/dk-bc-vm-revisao1-05.mjs
+- scripts/dk-bc-vm-revisao1-05-cont.mjs
+- artifacts/bc-tests/RESPOSTA-CURSOR-05-10-REVISAO-1.txt
+
+6) Commit / branch
+- Branch: fix/reduzir-espera-nuvem
+- Sem merge main / sem deploy
+
+RESPOSTA CURSOR 05/10 — REVISÃO 1 CONCLUIDA. Aguardando analise e autorizacao do COMANDO 06/10.
