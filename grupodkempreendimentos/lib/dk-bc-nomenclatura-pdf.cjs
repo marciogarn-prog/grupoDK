@@ -1,15 +1,27 @@
 /**
  * PDF de nomenclatura BC (lista verificável, sem PII).
- * Formato de linha: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO
- * Enquanto A–J não estão ativos: prefixo CENTRAL + bc_no zero-pad.
+ * Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO | COMPOSTO | VIGENTE
+ * Histórico pré-VM: somente BC original (ex.: BC000000000001) — sem CENTRAL-.
+ * Pós-confirmação VM: composto real (ex.: A000123-BC000000003649).
  */
 function padBcNo(n) {
   const x = Number(n) || 0;
   return String(x).padStart(12, "0");
 }
 
-function nomenclaturaCentral(bcNo) {
-  return `CENTRAL-${padBcNo(bcNo)}`;
+/** @deprecated Removido definitivamente — mantido só para rejeitar uso. */
+function nomenclaturaCentral(_bcNo) {
+  throw new Error("CENTRAL- removido: use bc_id original ou bc_composto VM");
+}
+
+function nomenclaturaOficial(row) {
+  const composto = String(row.bc_composto || "").trim();
+  if (composto && /^[A-J]\d+-BC\d{12}$/.test(composto)) return composto;
+  const bcId = String(row.bc_id || "").trim();
+  if (/^BC\d{12}$/.test(bcId)) return bcId;
+  const no = Number(row.bc_no);
+  if (Number.isFinite(no) && no > 0) return `BC${padBcNo(no)}`;
+  return "-";
 }
 
 function escapePdfText(s) {
@@ -23,23 +35,32 @@ function buildLinesFromRows(rows, meta = {}) {
   const generatedAt = meta.generatedAt || new Date().toISOString();
   const lines = [];
   const estados = {};
+  let vigentes = 0;
+  let substituidos = 0;
   for (const r of rows) {
     const k = r.estado || "-";
     estados[k] = (estados[k] || 0) + 1;
+    if (r.vigente === true || r.vigente === "t" || r.vigente === "true") vigentes += 1;
+    else substituidos += 1;
   }
-  lines.push("SISTEMA DK — NOMENCLATURA BC (LISTA OFICIAL)");
+  lines.push("SISTEMA DK — NOMENCLATURA BC (LISTA OFICIAL COMPLETA)");
   lines.push(`Gerado em: ${generatedAt}`);
-  lines.push(`Total linhas: ${rows.length}`);
+  lines.push(`Total identificadores: ${rows.length}`);
+  lines.push(`Vigentes: ${vigentes} | Historico/substituidos/tecnicos: ${substituidos}`);
   lines.push(`Totais por estado: ${Object.entries(estados).map(([k, n]) => `${k}=${n}`).join(", ") || "-"}`);
-  lines.push("Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO | COMPOSTO");
-  lines.push("Prefixos A-J: nao inventados para BC anteriores as VMs (somente CENTRAL).");
-  lines.push("Composto futuro (pos-confirmacao VM): A000123-BC000000003649");
+  lines.push("Formato: NOMENCLATURA | BC_ID | ORIGEM | ESTADO | BC_NO | COMPOSTO | VIGENTE");
+  lines.push("Pre-VM: somente BC original (sem prefixo artificial). Pos-VM confirmado: A000123-BC000000003649");
+  lines.push("Inclui vigentes, substituidos, excluidos logicamente e tecnicos.");
   lines.push("---");
   for (const r of rows) {
-    const nome = r.nomenclatura || nomenclaturaCentral(r.bc_no);
+    const nome = r.nomenclatura || nomenclaturaOficial(r);
     const composto = r.bc_composto || "-";
+    const vig =
+      r.vigente === true || r.vigente === "t" || r.vigente === "true"
+        ? "vigente"
+        : "historico";
     lines.push(
-      `${nome} | ${r.bc_id} | ${r.origem || "-"} | ${r.estado || "-"} | ${r.bc_no} | ${composto}`
+      `${nome} | ${r.bc_id} | ${r.origem || "-"} | ${r.estado || "-"} | ${r.bc_no} | ${composto} | ${vig}`
     );
   }
   if (rows.length) {
@@ -47,7 +68,7 @@ function buildLinesFromRows(rows, meta = {}) {
     const last = rows[rows.length - 1];
     lines.push("---");
     lines.push(
-      `INTERVALO: ${first.nomenclatura || nomenclaturaCentral(first.bc_no)} ate ${last.nomenclatura || nomenclaturaCentral(last.bc_no)}`
+      `INTERVALO: ${first.nomenclatura || nomenclaturaOficial(first)} ate ${last.nomenclatura || nomenclaturaOficial(last)}`
     );
   }
   return lines;
@@ -102,7 +123,6 @@ function buildPdfFromLines(lines) {
     kids.push(pageId);
   }
   const pagesId = add(`<< /Type /Pages /Kids [${kids.map((id) => `${id} 0 R`).join(" ")}] /Count ${kids.length} >>`);
-  // patch Parent refs
   for (const kid of kids) {
     objects[kid - 1] = objects[kid - 1].replace("/Parent 0 0 R", `/Parent ${pagesId} 0 R`);
   }
@@ -153,7 +173,11 @@ function validateBcNomenclaturaPdf(buffer, expectedRows) {
   }
   const hasHeader = probe.extractedLines.some((l) => /NOMENCLATURA BC/i.test(l));
   if (!hasHeader) issues.push("cabecalho_ausente");
-  const hasFirst = probe.extractedLines.some((l) => /CENTRAL-000000000001|BC000000000001/.test(l));
+  const hasCentral = probe.extractedLines.some(
+    (l) => /^CENTRAL-\d+/.test(String(l).trim()) || /\|\s*CENTRAL-\d+/.test(l)
+  );
+  if (hasCentral) issues.push("central_ainda_presente");
+  const hasFirst = probe.extractedLines.some((l) => /BC000000000001/.test(l));
   if (expectedRows > 0 && !hasFirst) issues.push("primeira_linha_ausente");
   return {
     ok: issues.length === 0,
@@ -166,16 +190,28 @@ function validateBcNomenclaturaPdf(buffer, expectedRows) {
 
 function buildBcNomenclaturaPdf(rows, meta = {}) {
   const normalized = (rows || [])
-    .map((r) => ({
-      bc_id: r.bc_id,
-      bc_no: Number(r.bc_no),
-      origem: r.origem,
-      estado: r.estado,
-      nomenclatura: r.nomenclatura || nomenclaturaCentral(r.bc_no),
-    }))
+    .map((r) => {
+      const bc_id = String(r.bc_id || "").trim();
+      const bc_no = Number(r.bc_no);
+      const bc_composto = r.bc_composto ? String(r.bc_composto).trim() : null;
+      const vigente =
+        r.vigente === true || r.vigente === "t" || r.vigente === "true" || r.vigente === 1;
+      const base = {
+        bc_id,
+        bc_no,
+        origem: r.origem,
+        estado: r.estado,
+        bc_composto,
+        vigente,
+      };
+      return {
+        ...base,
+        nomenclatura: r.nomenclatura || nomenclaturaOficial(base),
+      };
+    })
     .filter((r) => r.bc_id && Number.isFinite(r.bc_no))
-    .sort((a, b) => a.bc_no - b.bc_no);
-  // Nunca inventar prefixo A–J para BC anteriores às VMs.
+    .sort((a, b) => a.bc_no - b.bc_no || String(a.bc_id).localeCompare(String(b.bc_id)));
+
   const lines = buildLinesFromRows(normalized, meta);
   const pdf = buildPdfFromLines(lines);
   const validation = validateBcNomenclaturaPdf(pdf, normalized.length);
@@ -193,7 +229,8 @@ function buildBcNomenclaturaPdf(rows, meta = {}) {
 }
 
 /**
- * Busca vigentes via REST (service role). Sem PII.
+ * Busca TODOS os BC (vigentes + histórico) via REST. Sem PII.
+ * Prefira psql quando service_role REST falhar localmente.
  */
 async function fetchBcRowsForPdf(opts = {}) {
   const base =
@@ -207,7 +244,7 @@ async function fetchBcRowsForPdf(opts = {}) {
   let from = 0;
   const rows = [];
   for (;;) {
-    const url = `${base.replace(/\/$/, "")}/rest/v1/dk_bc_registro?select=bc_id,bc_no,origem,estado&vigente=eq.true&order=bc_no.asc&offset=${from}&limit=${pageSize}`;
+    const url = `${base.replace(/\/$/, "")}/rest/v1/dk_bc_registro?select=bc_id,bc_no,origem,estado,vigente&order=bc_no.asc&offset=${from}&limit=${pageSize}`;
     const res = await fetch(url, {
       headers: {
         apikey: key,
@@ -228,13 +265,43 @@ async function fetchBcRowsForPdf(opts = {}) {
         bc_no: r.bc_no,
         origem: r.origem,
         estado: r.estado,
-        nomenclatura: nomenclaturaCentral(r.bc_no),
+        vigente: r.vigente,
+        bc_composto: null,
+        nomenclatura: r.bc_id,
       });
     }
     if (batch.length < pageSize) break;
     from += pageSize;
     if (opts.maxRows && rows.length >= opts.maxRows) break;
   }
+
+  // Anexa compostos VM quando existirem (sem inventar).
+  try {
+    const urlOp = `${base.replace(/\/$/, "")}/rest/v1/dk_bc_vm_operacao?select=bc_id,bc_composto,prov_id&status=eq.confirmado_bc&bc_id=not.is.null`;
+    const resOp = await fetch(urlOp, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+      },
+    });
+    if (resOp.ok) {
+      const ops = await resOp.json();
+      const map = new Map();
+      for (const o of ops || []) {
+        if (o.bc_id && o.bc_composto) map.set(o.bc_id, o.bc_composto);
+      }
+      for (const r of rows) {
+        if (map.has(r.bc_id)) {
+          r.bc_composto = map.get(r.bc_id);
+          r.nomenclatura = r.bc_composto;
+        }
+      }
+    }
+  } catch {
+    /* soft: PDF principal segue com BC original */
+  }
+
   return { ok: true, rows };
 }
 
@@ -246,6 +313,7 @@ async function buildBcNomenclaturaPdfFromCloud(meta = {}) {
 
 module.exports = {
   nomenclaturaCentral,
+  nomenclaturaOficial,
   buildBcNomenclaturaPdf,
   buildBcNomenclaturaPdfFromCloud,
   fetchBcRowsForPdf,

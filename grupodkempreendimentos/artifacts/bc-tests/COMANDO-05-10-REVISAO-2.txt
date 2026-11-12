@@ -1,0 +1,163 @@
+﻿SISTEMA DK ORIGINAL — COMANDO 05/10 — REVISÃO 2
+
+CORREÇÃO FINAL DE AUTORIZAÇÃO, CONCORRÊNCIA E PDF BC
+
+Esta é a segunda revisão do COMANDO 05/10. Não executar o COMANDO 06/10 antecipadamente.
+
+O ChatGPT confirmou que o PostgreSQL oficial permanece com 3648 registros BC, dez VMs, contadores provisórios zerados e nenhuma operação de VM.
+
+Objetivo: resolver os impedimentos específicos encontrados na revisão anterior e concluir a etapa 05/10 sem repetir trabalhos já aprovados.
+
+1. CORRIGIR A AUTORIZAÇÃO DAS VMs
+
+A função dk_bc_vm_emitir_provisorio atualmente bloqueia apenas VMs suspensa, permitindo emissão por VMs preparada.
+
+Corrigir imediatamente:
+
+Somente VMs com status ativa poderão emitir operações reais.
+
+A VM deverá possuir associação válida com um colaborador autorizado.
+
+A identidade do colaborador deverá ser comprovada pelo servidor, nunca apenas pelo prefixo enviado pelo navegador.
+
+A confirmação BC deverá validar a mesma autorização.
+
+Uma VM sem associação comprovada deverá permanecer preparada e não poderá operar.
+
+Não atribuir colaboradores fictícios nem ativar automaticamente as VMs.
+
+Manter o acesso restrito ao servidor autorizado e revisar permissões para impedir caminhos alternativos de escrita.
+
+Como as dez VMs ainda não possuem colaboradores associados, todas devem permanecer bloqueadas para operações reais.
+
+2. CORRIGIR A INTEGRIDADE DO CONTEÚDO
+
+Garantir que a identidade completa de cada operação seja imutável desde a emissão provisória.
+
+O mecanismo deverá proteger categoria, origem, registro lógico, empresa, filial, estado, versão anterior, payload e hash de integridade.
+
+Não permitir que uma operação provisória mantenha o mesmo operation_id e seja confirmada posteriormente com informações diferentes daquelas originalmente registradas.
+
+Se a emissão provisória for feita antes de todas essas informações estarem disponíveis, estabelecer um procedimento explícito, seguro e versionado para completar a proposta antes da primeira confirmação, sem substituir silenciosamente seu conteúdo.
+
+3. GARANTIR IDEMPOTÊNCIA SOB CONCORRÊNCIA REAL
+
+Executar testes PostgreSQL com conexões simultâneas, verificando:
+
+Duas requisições com o mesmo operation_id.
+
+Duas requisições distintas para a mesma VM.
+
+Repetição após timeout.
+
+Confirmação duplicada.
+
+Conteúdo divergente.
+
+Falha transacional.
+
+Para operações repetidas e idênticas, retornar o resultado existente sem consumir outro provisório ou BC.
+
+Para operações divergentes, retornar conflito explícito.
+
+Não considerar erro de chave única uma resposta idempotente válida.
+
+4. FINALIZAR O PDF DAS 02H
+
+Corrigir lib/dk-bc-nomenclatura-pdf.cjs.
+
+Regras:
+
+Remover definitivamente CENTRAL-.
+
+Para registros anteriores às VMs, apresentar somente o BC original.
+
+Para operações futuras confirmadas, apresentar o código composto real, como A000123-BC000000003649.
+
+Não incluir exemplos inventados como linhas oficiais.
+
+Listar todos os BC históricos, inclusive versões substituídas, excluídas logicamente e técnicas.
+
+Utilizar uma leitura consistente, com conferência de quantidades e sequência.
+
+Validar o PDF em um leitor ou renderizador real.
+
+Garantir que ele acompanhe o backup diário das 02h quando a versão for implantada.
+
+O backup principal deverá continuar mesmo se a geração do PDF falhar, mas o resultado deverá registrar claramente a falha do anexo.
+
+Não realizar envio real de teste sem autorização.
+
+5. VALIDAÇÃO E IMPLANTAÇÃO
+
+Reutilizar as evidências e testes válidos das etapas anteriores.
+
+Antes de aplicar correções no PostgreSQL oficial, confirmar que existe backup recuperável atualizado, incluindo os 3648 registros BC, e validar as alterações em banco isolado.
+
+Implementar os ajustes necessários de maneira aditiva e segura.
+
+Não alterar registros operacionais.
+
+Não consumir BC ou provisórios oficiais nos testes.
+
+Não ativar VMs para colaboradores.
+
+Não alterar telas.
+
+Não executar deploy ou merge em main.
+
+Publicar o código corrigido exclusivamente na branch de desenvolvimento.
+
+6. RELATÓRIO OBRIGATÓRIO
+
+Responder exatamente com:
+
+RESPOSTA CURSOR 05/10 — REVISÃO 2 — SISTEMA DK ORIGINAL
+
+Informar:
+
+Correções de autorização implementadas.
+
+Situação das dez VMs.
+
+Resultado dos testes PostgreSQL concorrentes.
+
+Integridade e idempotência verificadas.
+
+Resultado da geração e leitura do PDF.
+
+Total de identificadores listados no PDF.
+
+Evidência do backup utilizado.
+
+Funções atualizadas no PostgreSQL oficial.
+
+Contador BC e contadores A–J após a execução.
+
+Arquivos modificados, commit e branch.
+
+Pendências que ainda impeçam operações reais.
+
+Não declarar funcionalidades prontas quando estiverem apenas preparadas para implantação.
+
+7. COMUNICAÇÃO AUTOMÁTICA
+
+Após concluir:
+
+Copiar integralmente o relatório.
+
+Abrir remotamente esta mesma conversa do ChatGPT.
+
+Colar e enviar a RESPOSTA CURSOR 05/10 — REVISÃO 2.
+
+Aguardar cinco minutos.
+
+Ler a análise do ChatGPT.
+
+Executar somente a próxima instrução expressamente autorizada.
+
+Não antecipar o COMANDO 06/10.
+
+REGRA PERMANENTE: após o COMANDO 10/10, interromper toda a execução até autorização expressa do proprietário.
+
+Execute somente esta revisão final da etapa 05/10.

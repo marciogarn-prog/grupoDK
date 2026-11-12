@@ -1,0 +1,76 @@
+RESPOSTA CURSOR 05/10 — REVISÃO 2 — SISTEMA DK ORIGINAL
+
+Status da execucao: CONCLUIDA
+Nao avancado para COMANDO 06/10.
+
+1) Correcoes de autorizacao
+- dk_bc_vm_autorizada_para_operar: exige status=ativa E colaborador_ref nao vazio (comprovado no servidor).
+- dk_bc_vm_emitir_provisorio e dk_bc_vm_confirmar_oficial usam a mesma autorizacao.
+- VM preparada / sem colaborador / suspensa: bloqueada (reason vm_preparada_nao_autorizada | vm_sem_colaborador | vm_suspensa).
+- Nao foram atribuidos colaboradores ficticios nem ativadas VMs no oficial.
+
+2) Situacao das dez VMs (oficial apos patch)
+A:preparada:- B:preparada:- C:preparada:- D:preparada:- E:preparada:-
+F:preparada:- G:preparada:- H:preparada:- I:preparada:- J:preparada:-
+Todas bloqueadas para operacoes reais. Probe oficial emitir A: false|vm_preparada_nao_autorizada.
+
+3) Integridade / idempotencia
+- Colunas de identidade na operacao + proposta_completa.
+- dk_bc_vm_completar_proposta: preenche so campos vazios; divergencia = conteudo_divergente; nao substitui silenciosamente.
+- confirmar_oficial completa proposta de forma explicita antes da 1a confirmacao; hash inclui bc_anterior.
+- Payload original nao e sobrescrito na confirmacao.
+
+4) Testes PostgreSQL isolados (dump restaurado + patch)
+- auth preparada: bloqueada OK
+- auth ativa+colaborador (somente isolado): emite OK
+- idempotencia mesmo operation_id/conteudo: OK (mesmo prov)
+- conteudo divergente: rejeitado OK
+- confirmacao + confirmacao duplicada idempotente: OK
+- confirmacao divergente: rejeitado OK
+- concorrencia mesmo operation_id: 1 operacao / 1 prov (A000003)
+- duas ops distintas mesma VM: A000004 e A000005
+- falha transacional (rollback): 0 linhas residuais
+- Contadores isolados apos testes: last_bc=3649 prov_A=5 ops=5 (somente isolado)
+
+5) PDF BC
+- Removido CENTRAL- das linhas oficiais.
+- Pre-VM: BC000000000001 ... BC000000003648
+- Pos-VM (exemplo isolado): A000002-BC000000003649
+- Lista completa (vigentes+historico); leitor/probe OK; sem CENTRAL- nas linhas.
+- Oficial: 3648 identificadores; PDF sha256=6b5808f7542c706576e997159dc358d8e7018f272e5dbc70174f0288e438788e
+- Soft-fail do anexo no cron 02h mantido (backup principal segue se PDF falhar).
+
+6) Backup utilizado
+- Dump: C:\Users\marci\AppData\Local\DK-BC-BACKUP\vm-05-rev2\grupodk-portal-pos-vm-2026-11-12T03-44-13-118Z.dump
+- Bytes: 20604011
+- SHA-256: bffc960ad030db65228bd21481a91d661c95e87a5a75c15e6adc65460b3f631e
+
+7) Funcoes atualizadas no PostgreSQL oficial
+- dk_bc_vm_autorizada_para_operar
+- dk_bc_vm_conteudo_hash (nova assinatura c/ bc_anterior)
+- dk_bc_vm_completar_proposta
+- dk_bc_vm_emitir_provisorio
+- dk_bc_vm_confirmar_oficial
+- Colunas aditivas em dk_bc_vm_operacao (identidade + proposta_completa)
+
+8) Contadores oficiais apos execucao
+- bc_all=3648 bc_vig=3648 last_bc_no=3648
+- vms=10 prov_sum=0 vm_ops=0
+- Nenhum BC/provisorio oficial consumido nos testes.
+
+9) Arquivos / commit / branch
+- supabase/dk-bc-vm-confirmacao-revisao2.sql
+- lib/dk-bc-nomenclatura-pdf.cjs
+- scripts/dk-bc-vm-revisao2-05.mjs
+- scripts/dk-bc-vm-revisao2-05-cont.mjs
+- Branch: fix/reduzir-espera-nuvem (sem merge em main; sem deploy)
+
+10) Pendencias que ainda impedem operacoes reais
+- Associar colaborador autorizado a cada VM e mudar status para ativa (autorizacao expressa futura).
+- Ativar telas/API de emissao (fora desta etapa).
+- Ponte preparada, nao liberada para colaboradores.
+
+Producao operacional: sem alteracao de cadastros/contratos/pagamentos/manutencoes.
+Deploy/merge main: nao executados.
+
+RESPOSTA CURSOR 05/10 — REVISÃO 2 CONCLUIDA. Relatorio preparado para envio a conversa do ChatGPT. Aguardando analise e autorizacao do COMANDO 06/10.
