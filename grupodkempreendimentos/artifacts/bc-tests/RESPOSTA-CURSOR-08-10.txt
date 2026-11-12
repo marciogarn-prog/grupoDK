@@ -63,7 +63,7 @@ Nao avancado para COMANDO 09/10.
 - scripts/dk-bc-vm-telas-08.mjs
 - artifacts/bc-tests/COMANDO-08-10.txt / RESPOSTA-CURSOR-08-10.txt
 - Branch: fix/reduzir-espera-nuvem
-- Commit: (preencher)
+- Commit: 20e0794
 
 12) Componentes PG instalados
 - Status entrega filtrado_escopo/pendente_classificacao
