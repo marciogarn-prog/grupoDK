@@ -125,6 +125,233 @@ function listarRemovidosPorContrato(numeroContrato, opts) {
   return ler(numeroContrato, true, opts);
 }
 
+function ymdValido(ymd) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(ymd || "").trim());
+}
+
+function brParaYmd(br) {
+  const m = String(br || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return "";
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+function ymdParaBr(ymd) {
+  const m = String(ymd || "")
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function normalizarYmdPeriodo(raw) {
+  const s = String(raw || "").trim();
+  if (ymdValido(s)) return s;
+  return brParaYmd(s);
+}
+
+function dataPagamentoEmYmd(pag) {
+  const br = String(pag?.data || pag?.dataPagamento || "").trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(br)) return brParaYmd(br);
+  if (ymdValido(br)) return br;
+  return "";
+}
+
+/**
+ * Lista pagamentos ativos cuja data_pagamento está no intervalo (inclusive).
+ * Fonte: public.dk_pagamento_locacao. Sem fallback para snapshot.
+ */
+async function listarPorPeriodo(inicioRaw, fimRaw, opts) {
+  let inicio = normalizarYmdPeriodo(inicioRaw);
+  let fim = normalizarYmdPeriodo(fimRaw);
+  if (!ymdValido(inicio) || !ymdValido(fim)) {
+    return { ok: false, status: 400, reason: "periodo_invalido", source: FONTE, fallback: false, pagamentos: [] };
+  }
+  if (inicio > fim) {
+    const t = inicio;
+    inicio = fim;
+    fim = t;
+  }
+  const path =
+    "dk_pagamento_locacao?removido=eq.false" +
+    `&data_pagamento=gte.${encodeURIComponent(inicio)}` +
+    `&data_pagamento=lte.${encodeURIComponent(fim)}` +
+    "&select=payload,numero_contrato,data_pagamento,valor,protocolo_lancamento,tipo,id,version,source_position" +
+    "&order=data_pagamento.asc,source_position.asc" +
+    "&limit=5000";
+  const res = await rest(path, opts);
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status || 503,
+      reason: (res.data && res.data.reason) || "postgres_indisponivel",
+      source: FONTE,
+      fallback: false,
+      pagamentos: [],
+      inicio,
+      fim,
+    };
+  }
+  const rows = Array.isArray(res.data) ? res.data : [];
+  const pagamentos = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const payload =
+      row.payload && typeof row.payload === "object" && !Array.isArray(row.payload) ? { ...row.payload } : {};
+    const nc = String(row.numero_contrato || payload.numeroContrato || "").trim();
+    if (!nc) continue;
+    if (!payload.data) {
+      const ymd = String(row.data_pagamento || "").trim();
+      payload.data = ymdValido(ymd) ? ymdParaBr(ymd) : String(payload.dataPagamento || "").trim();
+    }
+    if (payload.valor == null && row.valor != null) payload.valor = Number(row.valor);
+    if (!payload.protocoloLancamento && row.protocolo_lancamento) {
+      payload.protocoloLancamento = String(row.protocolo_lancamento).trim();
+    }
+    const ymd = dataPagamentoEmYmd(payload) || String(row.data_pagamento || "").trim();
+    if (!ymdValido(ymd) || ymd < inicio || ymd > fim) continue;
+    pagamentos.push({
+      ...payload,
+      numeroContrato: nc,
+      data: payload.data || ymdParaBr(ymd),
+    });
+  }
+  return {
+    ok: true,
+    status: 200,
+    source: FONTE,
+    removido: false,
+    pagamentos,
+    quantidade: pagamentos.length,
+    inicio,
+    fim,
+    inicioBr: ymdParaBr(inicio),
+    fimBr: ymdParaBr(fim),
+    fallback: false,
+  };
+}
+
+/**
+ * Complemento: extrai pagamentos do jsonb campos.portalLancamentosAluguel
+ * (mesmo conteúdo que a tela de detalhe mostra quando a tabela fracionada ainda não tem a linha).
+ */
+async function listarPorPeriodoViaCampos(inicioRaw, fimRaw, opts) {
+  let inicio = normalizarYmdPeriodo(inicioRaw);
+  let fim = normalizarYmdPeriodo(fimRaw);
+  if (!ymdValido(inicio) || !ymdValido(fim)) {
+    return { ok: false, status: 400, reason: "periodo_invalido", source: "dk_locacao.campos", fallback: false, pagamentos: [] };
+  }
+  if (inicio > fim) {
+    const t = inicio;
+    inicio = fim;
+    fim = t;
+  }
+  const path =
+    "dk_locacao?deleted_at=is.null" +
+    "&select=numero_contrato,cpf,placa,portalLancamentosAluguel:campos->portalLancamentosAluguel" +
+    "&order=numero_contrato.asc&limit=5000";
+  const res = await rest(path, { ...opts, timeoutMs: 45000 });
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status || 503,
+      reason: (res.data && res.data.reason) || "postgres_indisponivel",
+      source: "dk_locacao.campos",
+      fallback: false,
+      pagamentos: [],
+      inicio,
+      fim,
+    };
+  }
+  const rows = Array.isArray(res.data) ? res.data : [];
+  const pagamentos = [];
+  for (const row of rows) {
+    const nc = String(row?.numero_contrato || "").trim();
+    if (!nc) continue;
+    const arr = Array.isArray(row.portalLancamentosAluguel) ? row.portalLancamentosAluguel : [];
+    for (const raw of arr) {
+      if (!raw || typeof raw !== "object") continue;
+      const ymd = dataPagamentoEmYmd(raw);
+      if (!ymdValido(ymd) || ymd < inicio || ymd > fim) continue;
+      const valor = Number(raw.valor);
+      if (!Number.isFinite(valor) || valor === 0) continue;
+      pagamentos.push({
+        ...raw,
+        numeroContrato: nc,
+        data: String(raw.data || "").trim() || ymdParaBr(ymd),
+        cpfContrato: row.cpf != null ? String(row.cpf) : "",
+        placaContrato: row.placa != null ? String(row.placa) : "",
+      });
+    }
+  }
+  return {
+    ok: true,
+    status: 200,
+    source: "dk_locacao.campos",
+    pagamentos,
+    quantidade: pagamentos.length,
+    inicio,
+    fim,
+    inicioBr: ymdParaBr(inicio),
+    fimBr: ymdParaBr(fim),
+    fallback: false,
+  };
+}
+
+function chavePagamentoRelatorio(p) {
+  const proto = String(p?.protocoloLancamento || "").trim();
+  if (proto) return `p:${proto}`;
+  const nc = String(p?.numeroContrato || "").trim();
+  const data = String(p?.data || "").trim();
+  const valor = Number(p?.valor) || 0;
+  const ca = Number(p?.createdAt) || 0;
+  return `f:${nc}|${data}|${valor}|${ca}`;
+}
+
+/** Une tabela fracionada + campos da locação (sem duplicar protocolo). */
+async function listarPorPeriodoCompleto(inicioRaw, fimRaw, opts) {
+  const tabela = await listarPorPeriodo(inicioRaw, fimRaw, opts);
+  const campos = await listarPorPeriodoViaCampos(inicioRaw, fimRaw, opts);
+  if (!tabela.ok && !campos.ok) {
+    return {
+      ok: false,
+      status: tabela.status || campos.status || 503,
+      reason: tabela.reason || campos.reason || "postgres_indisponivel",
+      source: FONTE,
+      fallback: false,
+      pagamentos: [],
+    };
+  }
+  const map = new Map();
+  for (const p of tabela.ok ? tabela.pagamentos || [] : []) {
+    map.set(chavePagamentoRelatorio(p), p);
+  }
+  for (const p of campos.ok ? campos.pagamentos || [] : []) {
+    const k = chavePagamentoRelatorio(p);
+    if (!map.has(k)) map.set(k, p);
+  }
+  const pagamentos = Array.from(map.values());
+  const inicio = (tabela.ok && tabela.inicio) || (campos.ok && campos.inicio) || normalizarYmdPeriodo(inicioRaw);
+  const fim = (tabela.ok && tabela.fim) || (campos.ok && campos.fim) || normalizarYmdPeriodo(fimRaw);
+  return {
+    ok: true,
+    status: 200,
+    source: tabela.ok && campos.ok ? "dk_pagamento_locacao+campos" : tabela.ok ? FONTE : "dk_locacao.campos",
+    pagamentos,
+    quantidade: pagamentos.length,
+    inicio,
+    fim,
+    inicioBr: ymdParaBr(inicio),
+    fimBr: ymdParaBr(fim),
+    fallback: false,
+    tabelaOk: Boolean(tabela.ok),
+    camposOk: Boolean(campos.ok),
+    quantidadeTabela: tabela.ok ? tabela.quantidade || 0 : 0,
+    quantidadeCampos: campos.ok ? campos.quantidade || 0 : 0,
+  };
+}
+
 const PROTOCOLO_RE = /^\d{14}-\d{3}$/;
 const DATA_RE = /^\d{2}\/\d{2}\/\d{4}$/;
 const CONTRATO_PROBE = "2025111403";
@@ -342,5 +569,11 @@ module.exports = {
   gravarUma,
   listarPorContrato,
   listarRemovidosPorContrato,
+  listarPorPeriodo,
+  listarPorPeriodoViaCampos,
+  listarPorPeriodoCompleto,
+  normalizarYmdPeriodo,
+  brParaYmd,
+  ymdParaBr,
   probeEscrita,
 };

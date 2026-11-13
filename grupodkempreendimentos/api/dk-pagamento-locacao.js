@@ -105,6 +105,12 @@ module.exports = async function handler(req, res) {
       const out = await store.probeEscrita();
       return res.status(out.status || (out.ok ? 200 : 503)).json(out);
     }
+    const inicio = String(q.inicio || q.dataInicio || q.de || "").trim();
+    const fim = String(q.fim || q.dataFim || q.ate || "").trim();
+    if (inicio || fim) {
+      const out = await store.listarPorPeriodoCompleto(inicio || fim, fim || inicio);
+      return res.status(out.ok ? 200 : out.status || 503).json(out);
+    }
     const numero = String(q.numeroContrato || q.numero || "").trim();
     const removidos = String(q.scope || "").trim() === "removidos";
     const out = removidos

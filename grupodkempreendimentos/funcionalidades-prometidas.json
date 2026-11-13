@@ -4062,6 +4062,32 @@
           "portal-manut-cliente-prebusca"
         ]
       }
+    },
+    {
+      "id": "relatorio-pagamento-dia-fonte-oficial",
+      "descricao": "O relatório 2.1/2.2 de pagamento por dia/período lê os pagamentos na nuvem oficial (dk_pagamento_locacao + campos da locação) pela data do pagamento — não depende só da lista leve sem pagamentos nem do instante em que o operador digitou. Texto da tela 2.1 explica o filtro pela data do pagamento na nuvem oficial.",
+      "ficheiros": {
+        "index.html": [
+          "2.1 — Relatório por dia",
+          "data do pagamento",
+          "nuvem oficial"
+        ],
+        "portal-locadora-ui.js": [
+          "portalFetchPagamentosPeriodoOficial",
+          "portalRelPagAggLocsHidratadas",
+          "collectPortalRelPagamentoAgregadoPorProtocolo"
+        ],
+        "lib/dk-pagamento-locacao-store.cjs": [
+          "listarPorPeriodoCompleto",
+          "listarPorPeriodoViaCampos",
+          "listarPorPeriodo"
+        ],
+        "api/dk-pagamento-locacao.js": [
+          "listarPorPeriodoCompleto",
+          "inicio",
+          "fim"
+        ]
+      }
     }
   ]
 }

@@ -18792,7 +18792,110 @@
     return "DK MEU TRANSPORTE-MOTO";
   }
 
-  function collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr) {
+  function portalRelPagApiHeaders() {
+    const base = typeof window.__DK_portalApiHeaders === "function" ? window.__DK_portalApiHeaders() : {};
+    return { Accept: "application/json", ...base };
+  }
+
+  async function portalFetchPagamentosPeriodoOficial(inicioBr, fimBr) {
+    const inicio = String(inicioBr || "").trim();
+    const fim = String(fimBr || "").trim();
+    if (!inicio || !fim) return { ok: false, reason: "periodo_invalido", pagamentos: [] };
+    const url =
+      "/api/dk-pagamento-locacao?inicio=" +
+      encodeURIComponent(inicio) +
+      "&fim=" +
+      encodeURIComponent(fim) +
+      "&nocache=" +
+      Date.now();
+    try {
+      const res = await fetch(url, { method: "GET", cache: "no-store", headers: portalRelPagApiHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!(res.status >= 200 && res.status < 300) || !data || data.ok !== true) {
+        return {
+          ok: false,
+          status: res.status,
+          reason: (data && data.reason) || "leitura",
+          pagamentos: [],
+        };
+      }
+      return data;
+    } catch {
+      return { ok: false, reason: "rede", pagamentos: [] };
+    }
+  }
+
+  async function portalRelPagAggLocsHidratadas(inicioBr, fimBr) {
+    const base =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const byNc = new Map();
+    for (const loc of base || []) {
+      const nc = normPortalNumeroContrato(loc?.numeroContrato || "");
+      if (!nc) continue;
+      byNc.set(nc, loc && typeof loc === "object" ? { ...loc } : loc);
+    }
+    if (window.__DK_LOCACAO_PG !== true) return Array.from(byNc.values());
+
+    const periodo = await portalFetchPagamentosPeriodoOficial(inicioBr, fimBr);
+    const pags = periodo?.ok && Array.isArray(periodo.pagamentos) ? periodo.pagamentos : [];
+    const ncsPeriodo = new Set();
+    const precisaDetalhe = new Set();
+    for (const p of pags) {
+      const nc = normPortalNumeroContrato(p?.numeroContrato || "");
+      if (!nc) continue;
+      ncsPeriodo.add(nc);
+      let loc = byNc.get(nc);
+      const eraResumo = !loc || loc.__dkResumo === true;
+      if (!loc) {
+        loc = {
+          numeroContrato: nc,
+          cpf: p.cpfContrato || "",
+          placa: p.placaContrato || "",
+          portalLancamentosAluguel: [],
+        };
+        byNc.set(nc, loc);
+      }
+      if (!Array.isArray(loc.portalLancamentosAluguel)) loc.portalLancamentosAluguel = [];
+      const proto = String(p.protocoloLancamento || "").trim();
+      const dataBr = String(p.data || "").trim();
+      const valor = Number(p.valor);
+      const existe = loc.portalLancamentosAluguel.some((x) => {
+        const xp = String(x?.protocoloLancamento || "").trim();
+        if (proto && xp && proto === xp) return true;
+        return String(x?.data || "").trim() === dataBr && Number(x?.valor) === valor;
+      });
+      if (!existe) loc.portalLancamentosAluguel.push({ ...p });
+      if (eraResumo) precisaDetalhe.add(nc);
+    }
+
+    const detalheFn = typeof window.__DK_locacaoPgDetalhe === "function" ? window.__DK_locacaoPgDetalhe : null;
+    if (detalheFn && precisaDetalhe.size) {
+      const fila = Array.from(precisaDetalhe);
+      const conc = 6;
+      for (let i = 0; i < fila.length; i += conc) {
+        const fatia = fila.slice(i, i + conc);
+        await Promise.all(
+          fatia.map(async (nc) => {
+            try {
+              const det = await detalheFn(nc);
+              if (det?.ok && det.locacao) {
+                const limpo = { ...det.locacao };
+                delete limpo.__dkResumo;
+                byNc.set(nc, limpo);
+              }
+            } catch {
+              /* mantém o que já foi injectado do período */
+            }
+          })
+        );
+      }
+    }
+    return Array.from(byNc.values());
+  }
+
+  function collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr, locsOpt) {
     const parse = typeof parseBrDate === "function" ? parseBrDate : null;
     const sIn = String(inicioBr || "").trim();
     const sFi = String(fimBr || "").trim();
@@ -18825,8 +18928,9 @@
       startMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate()).getTime();
       endMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), 23, 59, 59, 999).getTime();
     }
-    const locs =
-      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+    const locs = Array.isArray(locsOpt)
+      ? locsOpt
+      : typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
         ? loadCadastro(CAD_LOCACOES_KEY)
         : [];
     const dig =
@@ -18985,8 +19089,8 @@
     </div>`;
   }
 
-  function buildPortalRelPagAggContext(modo, inicioBr, fimBr) {
-    const agg = collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr);
+  function buildPortalRelPagAggContext(modo, inicioBr, fimBr, locsOpt) {
+    const agg = collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr, locsOpt);
     const isDia = modo === "dia";
     const title = isDia
       ? "2.1 — Relatório de pagamento por dia"
@@ -19179,7 +19283,7 @@
     return Boolean(d && !Number.isNaN(d.getTime()));
   }
 
-  function atualizarPortalRelPagAggTela(modo, opts = {}) {
+  async function atualizarPortalRelPagAggTela(modo, opts = {}) {
     const abrirModal = opts.abrirModal === true;
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     let inicio = "";
@@ -19201,7 +19305,19 @@
         return null;
       }
     }
-    const ctx = buildPortalRelPagAggContext(modo, inicio, fim);
+    if (msg) {
+      msg.textContent =
+        window.__DK_LOCACAO_PG === true
+          ? "A ler pagamentos oficiais do período na nuvem…"
+          : "A montar o relatório…";
+    }
+    let locsHidratadas = null;
+    try {
+      locsHidratadas = await portalRelPagAggLocsHidratadas(inicio, fim);
+    } catch {
+      locsHidratadas = null;
+    }
+    const ctx = buildPortalRelPagAggContext(modo, inicio, fim, locsHidratadas);
     renderPortalRelPagAggTable(modo, ctx);
     if (!ctx.ok) {
       if (abrirModal && msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
@@ -19217,20 +19333,20 @@
   }
 
   function gerarPortalRelPagAgg(modo) {
-    atualizarPortalRelPagAggTela(modo, { abrirModal: true });
+    void atualizarPortalRelPagAggTela(modo, { abrirModal: true });
   }
 
   function tentarAtualizarPortalRelPagAggAoMudarData(modo) {
     if (modo === "dia") {
       const v = String(document.getElementById("portalRelPagDiaData")?.value || "").trim();
       if (!dataBrRelPagValida(v)) return;
-      atualizarPortalRelPagAggTela("dia");
+      void atualizarPortalRelPagAggTela("dia");
       return;
     }
     const a = String(document.getElementById("portalRelPagPeriodoInicio")?.value || "").trim();
     const b = String(document.getElementById("portalRelPagPeriodoFim")?.value || "").trim();
     if (!dataBrRelPagValida(a) || !dataBrRelPagValida(b)) return;
-    atualizarPortalRelPagAggTela("periodo");
+    void atualizarPortalRelPagAggTela("periodo");
   }
 
   document.getElementById("portalRelPagDiaGerarBtn")?.addEventListener("click", (e) => {
