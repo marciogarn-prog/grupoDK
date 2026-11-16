@@ -14830,6 +14830,11 @@
       resumo.textContent = tot
         ? `${tot} veículo(s) no cadastro · Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Exportar em PDF ou Excel.`
         : "Nenhum veículo neste navegador. Use Guardar veículo, Carregar da nuvem ou importar backup JSON.";
+    } else if (context.fileSlug === "veiculos-geral" && context.stats) {
+      const tot = context.stats.total || context.rows.length || 0;
+      resumo.textContent = tot
+        ? `${tot} veículo(s) em lista contínua (uma linha por placa, sem grupos). Exportar em PDF ou Excel.`
+        : "Nenhum veículo neste navegador. Use Guardar veículo, Carregar da nuvem ou importar backup JSON.";
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
     }
@@ -16264,6 +16269,118 @@
       },
     };
   }
+
+  /** Lista plana: cada placa uma linha, sem blocos Ativo/Inativo/Carros/Motos. */
+  function buildPortalRelatorioVeiculoGeralLista() {
+    const sections = buildPortalRelatorioVeiculoFrotaSections();
+    const list = [];
+    portalForEachVeiculoEmBlocoRelatorio(sections.inativos, (v) => list.push({ v, ativo: false }));
+    portalForEachVeiculoEmBlocoRelatorio(sections.ativos, (v) => list.push({ v, ativo: true }));
+    list.sort((a, b) => portalCompareVeiculoPorTag(a.v, b.v));
+    return list;
+  }
+
+  function portalVeiculoRowRelatorioGeral(item) {
+    const ativo = Boolean(item?.ativo);
+    const status = ativo ? "Locado" : "Inativo";
+    return [status, ...portalVeiculoRowRelatorio(item.v, { ativo })];
+  }
+
+  function getPortalRelatorioVeiculoGeralContext() {
+    const headers = [
+      "Status",
+      "Tag",
+      "Placa",
+      "Tipo",
+      "Marca",
+      "Modelo",
+      "Protocolo",
+      "Ano/Modelo",
+      "Cor",
+      "Proprietário",
+      "CPF/CNPJ",
+    ];
+    const lista = buildPortalRelatorioVeiculoGeralLista();
+    const rows = lista.map((item) => portalVeiculoRowRelatorioGeral(item));
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const quando = new Date().toLocaleString("pt-BR");
+    const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
+    const bodyRowsHtml = (items) =>
+      items
+        .map((item, idx) => {
+          const cells = portalVeiculoRowRelatorioGeral(item)
+            .map((c) => `<td>${eh(c)}</td>`)
+            .join("");
+          const zebra = idx % 2 === 0 ? "portal-rel-veic-geral-par" : "portal-rel-veic-geral-impar";
+          return `<tr class="${zebra}">${cells}</tr>`;
+        })
+        .join("");
+    const previewHtml = `<div class="portal-relatorio-veiculos-bloco portal-relatorio-veiculos-geral">
+      <table>
+        <thead><tr>${headCells}</tr></thead>
+        <tbody>${
+          lista.length
+            ? bodyRowsHtml(lista)
+            : `<tr><td colspan="${headers.length}">Nenhum veículo cadastrado.</td></tr>`
+        }</tbody>
+      </table>
+    </div>`;
+    const buildTableInner = (freshLista) => {
+      const body = freshLista
+        .map((item, idx) => {
+          const cells = portalVeiculoRowRelatorioGeral(item)
+            .map((c) => `<td>${eh(c)}</td>`)
+            .join("");
+          const bg = idx % 2 === 0 ? "#DDEBF7" : "#FFFFFF";
+          return `<tr style="background:${bg}">${cells}</tr>`;
+        })
+        .join("");
+      return `<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%">
+        <thead><tr style="background:#1F4E79;color:#fff;font-weight:bold">${headers
+          .map((h) => `<th style="background:#1F4E79;color:#fff">${eh(h)}</th>`)
+          .join("")}</tr></thead>
+        <tbody>${
+          freshLista.length
+            ? body
+            : `<tr><td colspan="${headers.length}">Nenhum veículo cadastrado.</td></tr>`
+        }</tbody>
+      </table>`;
+    };
+    return {
+      title: "Relatório geral da frota",
+      headers,
+      rows,
+      fileSlug: "veiculos-geral",
+      textColumns: [1, 2, 6],
+      stats: {
+        total: lista.length,
+        inativos: lista.filter((x) => !x.ativo).length,
+        ativos: lista.filter((x) => x.ativo).length,
+      },
+      previewHtml,
+      buildPdfHtml: () => {
+        const freshLista = buildPortalRelatorioVeiculoGeralLista();
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório geral da frota</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.05rem;margin:0 0 0.35rem}
+      .meta{color:#444;margin:0 0 0.75rem;font-size:11px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      th{background:#1F4E79;color:#fff;font-weight:600}
+      tr:nth-child(even) td{background:#DDEBF7}
+    </style></head><body>
+      <h1>Relatório geral da frota</h1>
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(freshLista.length))} veículo(s) · uma linha por placa (sem grupos)</p>
+      ${buildTableInner(freshLista)}
+    </body></html>`;
+      },
+      buildExcelHtml: () => {
+        const freshLista = buildPortalRelatorioVeiculoGeralLista();
+        return buildTableInner(freshLista);
+      },
+    };
+  }
+  window.__DK_getPortalRelatorioVeiculoGeralContext = getPortalRelatorioVeiculoGeralContext;
 
   function getPortalRelatorioLocacaoContext() {
     const isGhost =
@@ -18530,17 +18647,20 @@
     }
   }
 
-  async function portalAbrirRelatorioVeiculosOficial() {
-    const btn = document.getElementById("operacaoVeiculoGerarRelatorioBtn");
+  async function portalAbrirRelatorioVeiculosOficial(opts = {}) {
+    const geral = Boolean(opts.geral);
+    const btnId = geral ? "operacaoVeiculoGerarRelatorioGeralBtn" : "operacaoVeiculoGerarRelatorioBtn";
+    const btn = document.getElementById(btnId);
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (btn) btn.disabled = true;
     if (msg) msg.textContent = "A alinhar a frota com a nuvem oficial…";
     const sync = await portalSincronizarVeiculosCadastroComNuvemOficial();
-    const ctx = getPortalRelatorioVeiculoContext();
+    const ctx = geral ? getPortalRelatorioVeiculoGeralContext() : getPortalRelatorioVeiculoContext();
     openPortalRelatorioModal(ctx);
     if (msg) {
+      const tipo = geral ? "relatório geral" : "relatório";
       msg.textContent = sync?.ok
-        ? `Frota alinhada à nuvem (${sync.fromCloud} na nuvem · ${ctx.rows.length} no relatório).`
+        ? `Frota alinhada à nuvem (${sync.fromCloud} na nuvem · ${ctx.rows.length} no ${tipo}).`
         : `Não foi possível alinhar à nuvem (${sync?.reason || "erro"}). Relatório com a cópia deste PC (${ctx.rows.length}).`;
     }
     if (btn) btn.disabled = false;
@@ -18572,6 +18692,11 @@
   document.getElementById("operacaoVeiculoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     void portalAbrirRelatorioVeiculosOficial();
+  });
+
+  document.getElementById("operacaoVeiculoGerarRelatorioGeralBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void portalAbrirRelatorioVeiculosOficial({ geral: true });
   });
 
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {

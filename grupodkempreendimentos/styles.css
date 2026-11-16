@@ -3781,6 +3781,21 @@ body.portal-body--admin-ceo {
   background: rgba(200, 230, 201, 0.1);
 }
 
+.portal-relatorio-veiculos-geral thead th {
+  background: #1f4e79;
+  color: #fff;
+}
+
+.portal-relatorio-veiculos-geral tr.portal-rel-veic-geral-par td {
+  background: #ddebf7;
+  color: #111;
+}
+
+.portal-relatorio-veiculos-geral tr.portal-rel-veic-geral-impar td {
+  background: #fff;
+  color: #111;
+}
+
 .portal-relatorio-veiculos-vazio {
   margin: 0.25rem 0 0.5rem;
   color: var(--text-muted, #999);

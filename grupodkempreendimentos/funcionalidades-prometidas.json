@@ -4088,6 +4088,27 @@
           "fim"
         ]
       }
+    },
+    {
+      "id": "veiculo-relatorio-geral-lista-plana",
+      "descricao": "No Cadastro de veículo, além de Gerar relatório (com grupos Ativo/Inativo/Carros/Motos), existe Gerar relatório geral: lista contínua com uma linha por placa, sem separar em grupos, mantendo o relatório atual.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoVeiculoGerarRelatorioBtn",
+          "operacaoVeiculoGerarRelatorioGeralBtn",
+          "Gerar relatório geral"
+        ],
+        "portal-locadora-ui.js": [
+          "getPortalRelatorioVeiculoGeralContext",
+          "buildPortalRelatorioVeiculoGeralLista",
+          "veiculos-geral",
+          "Relatório geral da frota",
+          "geral: true"
+        ],
+        "styles.css": [
+          "portal-relatorio-veiculos-geral"
+        ]
+      }
     }
   ]
 }
