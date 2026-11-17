@@ -16283,7 +16283,10 @@
   function portalVeiculoRowRelatorioGeral(item) {
     const ativo = Boolean(item?.ativo);
     const status = ativo ? "Locado" : "Inativo";
-    return [status, ...portalVeiculoRowRelatorio(item.v, { ativo })];
+    const base = portalVeiculoRowRelatorio(item.v, { ativo });
+    const chassi = String(item?.v?.chassi || "").trim().toUpperCase() || "—";
+    // Status + Tag + Placa + Chassi + restante (Tipo…CPF/CNPJ)
+    return [status, base[0], base[1], chassi, ...base.slice(2)];
   }
 
   function getPortalRelatorioVeiculoGeralContext() {
@@ -16291,6 +16294,7 @@
       "Status",
       "Tag",
       "Placa",
+      "Chassi",
       "Tipo",
       "Marca",
       "Modelo",
@@ -16351,7 +16355,7 @@
       headers,
       rows,
       fileSlug: "veiculos-geral",
-      textColumns: [1, 2, 6],
+      textColumns: [1, 2, 3, 7],
       stats: {
         total: lista.length,
         inativos: lista.filter((x) => !x.ativo).length,
