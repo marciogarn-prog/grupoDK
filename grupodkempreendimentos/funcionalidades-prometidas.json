@@ -4105,7 +4105,9 @@
           "Relatório geral da frota",
           "geral: true",
           "\"Chassi\"",
-          "item?.v?.chassi"
+          "item?.v?.chassi",
+          "portalVeiculoEhTesteFantasmaRelatorio",
+          "portalVeiculoChavesDedupRelatorio"
         ],
         "styles.css": [
           "portal-relatorio-veiculos-geral"

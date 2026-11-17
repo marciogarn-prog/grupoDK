@@ -16054,6 +16054,45 @@
     return portalCountVeiculosGrupos(portal) + portalCountVeiculosGrupos(frota);
   }
 
+  function portalVeiculoEhTesteFantasmaRelatorio(v) {
+    if (!v || typeof v !== "object") return false;
+    if (typeof portalRegistroEhTeste === "function" && portalRegistroEhTeste(v)) return true;
+    const pl =
+      typeof normalizePlate === "function"
+        ? normalizePlate(v.placa)
+        : String(v.placa || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const tag = String(v.tag || "")
+      .toUpperCase()
+      .replace(/\s|-/g, "");
+    const marca = String(v.marca || "").toUpperCase();
+    const modelo = String(v.modelo || "").toUpperCase();
+    const prop = String(v.proprietario || "").toUpperCase();
+    return (
+      pl === "AAA1A11" ||
+      tag === "DKMT184" ||
+      prop === "CURSOR1" ||
+      (marca === "TESTE" && modelo.includes("CURSOR")) ||
+      modelo.includes("CURSOR E2E")
+    );
+  }
+
+  function portalVeiculoChavesDedupRelatorio(v, plateOf) {
+    const keys = [];
+    const pl = plateOf(v);
+    if (pl) keys.push(`P:${pl}`);
+    const chassi = String(v?.chassi || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (chassi.length >= 10) keys.push(`C:${chassi}`);
+    const tag = String(v?.tag || "")
+      .toUpperCase()
+      .replace(/\s|-/g, "");
+    if (/^DK(MT|CR)\d+$/.test(tag)) keys.push(`T:${tag}`);
+    return keys;
+  }
+
   function buildPortalRelatorioVeiculoFrotaSections() {
     /* Cada veículo aparece UMA só vez: ou em «locados» (placa com protocolo ativo) ou em «inativos». */
     const activePlates =
@@ -16069,18 +16108,40 @@
       ativos: { portal: [], frota: [] },
     };
     const vistos = new Set();
+    const escolhidos = [];
+    const score = (v, origem) => {
+      const pl = plateOf(v);
+      let s = 0;
+      if (pl && activePlates.has(pl)) s += 100;
+      if (origem === "portal") s += 10;
+      if (String(v?.chassi || "").trim()) s += 2;
+      if (!portalVeiculoEhTesteFantasmaRelatorio(v)) s += 5;
+      return s;
+    };
     const add = (v, origem) => {
+      if (portalVeiculoEhTesteFantasmaRelatorio(v)) return;
       const pl = plateOf(v);
       const tag = String(v.tag || "").trim();
       if (!pl && !tag) return;
-      const chave = pl || `TAG:${tag.toUpperCase()}`;
-      if (vistos.has(chave)) return;
-      vistos.add(chave);
-      const bloco = pl && activePlates.has(pl) ? buckets.ativos : buckets.inativos;
-      bloco[origem].push(v);
+      const keys = portalVeiculoChavesDedupRelatorio(v, plateOf);
+      if (!keys.length) return;
+      const conflito = escolhidos.find((item) => item.keys.some((k) => keys.includes(k)));
+      if (conflito) {
+        if (score(v, origem) <= conflito.score) return;
+        conflito.keys.forEach((k) => vistos.delete(k));
+        const idx = escolhidos.indexOf(conflito);
+        if (idx >= 0) escolhidos.splice(idx, 1);
+      }
+      keys.forEach((k) => vistos.add(k));
+      escolhidos.push({ v, origem, keys, score: score(v, origem) });
     };
     portalLoadVeiculosFrotaCadastro().forEach((v) => add(v, "portal"));
     portalLoadFrotaPlanilhaVeiculos().forEach((v) => add(v, "frota"));
+    escolhidos.forEach(({ v, origem }) => {
+      const pl = plateOf(v);
+      const bloco = pl && activePlates.has(pl) ? buckets.ativos : buckets.inativos;
+      bloco[origem].push(v);
+    });
     return {
       inativos: {
         portal: portalSortVeiculosCarrosDepoisMotos(buckets.inativos.portal),
@@ -18589,8 +18650,8 @@
   }
 
   /**
-   * O relatório da frota lia só a cópia deste PC. A mensagem «na nuvem» já tinha
-   * conferido o Redis, mas este computador continuava com a lista antiga.
+   * Alinha o cadastro local à frota oficial (PostgreSQL). Não reaproveita
+   * placas locais a mais (ex.: tipografia SOJ/SJO ou AAA1A11 de teste).
    */
   async function portalSincronizarVeiculosCadastroComNuvemOficial() {
     try {
@@ -18598,34 +18659,50 @@
         typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
       const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
       const sep = q ? (String(q).startsWith("?") ? "&" : "?") : "?";
-      const url = `/api/dk-cloud-snapshot${q || ""}${sep}nocache=${Date.now()}`;
-      const res = await fetch(url, { cache: "no-store", headers });
-      const data = await res.json().catch(() => ({}));
-      const cloud = data?.payload?.dk_veiculos_cadastro;
+      let cloud = null;
+      let source = "dk_veiculos";
+      try {
+        const pgUrl = `/api/cadastro-veiculos${q || ""}${sep}nocache=${Date.now()}`;
+        const pgRes = await fetch(pgUrl, { cache: "no-store", headers });
+        const pgJ = await pgRes.json().catch(() => ({}));
+        if (pgRes.ok && Array.isArray(pgJ?.data) && pgJ.data.length) {
+          cloud = pgJ.data;
+          source = pgJ.source || "dk_veiculos";
+        }
+      } catch {
+        cloud = null;
+      }
+      if (!Array.isArray(cloud) || !cloud.length) {
+        const url = `/api/dk-cloud-snapshot${q || ""}${sep}nocache=${Date.now()}`;
+        const res = await fetch(url, { cache: "no-store", headers });
+        const data = await res.json().catch(() => ({}));
+        cloud = data?.payload?.dk_veiculos_cadastro;
+        source = "snapshot";
+      }
       if (!Array.isArray(cloud) || !cloud.length) {
         return { ok: false, reason: "sem_frota_nuvem", total: 0 };
       }
-      const byPlaca = new Map();
+      const byChave = new Map();
+      const plateOf = (v) => portalPlacaRelatorioKey(v);
       cloud.forEach((v) => {
-        const pl = portalPlacaRelatorioKey(v);
+        if (portalVeiculoEhTesteFantasmaRelatorio(v)) return;
+        const pl = plateOf(v);
         if (!pl) return;
-        byPlaca.set(pl, v && v.origemPortal === true ? v : { ...v, origemPortal: true });
+        const row = v && v.origemPortal === true ? v : { ...v, origemPortal: true };
+        const keys = portalVeiculoChavesDedupRelatorio(row, plateOf);
+        const conflito = [...byChave.entries()].find(([, item]) =>
+          item.keys.some((k) => keys.includes(k))
+        );
+        const ativo =
+          typeof getActivePlatesSet === "function" ? getActivePlatesSet().has(pl) : false;
+        const score = (ativo ? 100 : 0) + (String(row.chassi || "").trim() ? 2 : 0);
+        if (conflito) {
+          if (score <= conflito[1].score) return;
+          byChave.delete(conflito[0]);
+        }
+        byChave.set(pl, { row, keys, score });
       });
-      if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
-        (loadCadastro(CAD_VEICULOS_KEY) || []).forEach((v) => {
-          const pl = portalPlacaRelatorioKey(v);
-          if (!pl || byPlaca.has(pl)) return;
-          if (!v || v.origemPortal !== true) return;
-          if (
-            typeof window.__DK_isVeiculoFantasmaCadastro === "function" &&
-            window.__DK_isVeiculoFantasmaCadastro(v)
-          ) {
-            return;
-          }
-          byPlaca.set(pl, v);
-        });
-      }
-      const unified = Array.from(byPlaca.values());
+      const unified = Array.from(byChave.values()).map((item) => item.row);
       const prevSuppress = window.__DK_suppressPortalCadastroPush;
       window.__DK_suppressPortalCadastroPush = true;
       try {
@@ -18645,7 +18722,7 @@
         window.__DK_suppressPortalCadastroPush = prevSuppress;
       }
       if (typeof renderOperacaoVeiculoResumoFrota === "function") renderOperacaoVeiculoResumoFrota();
-      return { ok: true, total: unified.length, fromCloud: cloud.length };
+      return { ok: true, total: unified.length, fromCloud: cloud.length, source };
     } catch (e) {
       return { ok: false, reason: String(e?.message || e || "erro"), total: 0 };
     }
