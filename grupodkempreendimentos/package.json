@@ -4,5 +4,9 @@
   "dependencies": {
     "@upstash/redis": "^1.34.3",
     "bcryptjs": "^2.4.3"
+  },
+  "optionalDependencies": {
+    "serialport": "^13.0.0",
+    "@serialport/parser-readline": "^13.0.0"
   }
 }

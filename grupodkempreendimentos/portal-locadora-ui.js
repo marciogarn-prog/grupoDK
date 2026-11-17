@@ -979,6 +979,7 @@
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
   const panelDocumentos = document.getElementById("panel-documentos-locadora");
   const panelLocalizacao = document.getElementById("panel-localizacao-locadora");
+  const panelLocalizacaoVeiculos = document.getElementById("panel-localizacao-veiculos-locadora");
   const panelFinanceiro = document.getElementById("panel-financeiro-locadora");
   const panelFinanceiroCeo = document.getElementById("panel-financeiro-ceo-locadora");
   const panelEstoque = document.getElementById("panel-estoque-locadora");
@@ -995,6 +996,7 @@
   const btnFinanceiroCeo = document.getElementById("btn-locadora-financeiro-ceo");
   const btnEstoque = document.getElementById("btn-locadora-estoque");
   const btnLocalizacao = document.getElementById("btn-locadora-localizacao");
+  const btnLocalizacaoVeiculos = document.getElementById("btn-locadora-localizacao-veiculos");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
   const logadoSubtextPreparacao = document.getElementById("logado-subtext-preparacao");
@@ -1004,6 +1006,7 @@
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
   const btnVoltarDocumentos = document.getElementById("btn-voltar-documentos-locadora");
   const btnVoltarLocalizacao = document.getElementById("btn-voltar-localizacao-locadora");
+  const btnVoltarLocalizacaoVeiculos = document.getElementById("btn-voltar-localizacao-veiculos-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
@@ -1686,6 +1689,7 @@
     valor: "Valor",
     cor: "Cor",
     chassi: "Chassi",
+    imei: "IMEI do rastreador",
     anoModelo: "Ano/modelo",
     renavam: "Renavam",
     motor: "Motor",
@@ -2789,6 +2793,7 @@
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
     btnLocalizacao?.classList.toggle("hidden", !allowOp);
+    btnLocalizacaoVeiculos?.classList.toggle("hidden", !allowOp);
     btnDocumentos?.classList.toggle("hidden", modo === "cliente" || !isPortalDocumentosAcesso());
     const allowFin = currentUnit === "locadora" && modo !== "cliente" && roleEfetivo === "owner";
     btnLog?.classList.toggle("hidden", !allowFin);
@@ -3354,7 +3359,8 @@
 
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelLog, panelEstoque, panelFinanceiro, panelFinanceiroCeo].forEach(
+    if (typeof window.__DK_veiculoGeoMapaOnHide === "function") window.__DK_veiculoGeoMapaOnHide();
+    [panelLogin, panelPlataforma, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelLocalizacaoVeiculos, panelDocumentos, panelLog, panelEstoque, panelFinanceiro, panelFinanceiroCeo].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -3651,6 +3657,7 @@
       btnOperacao?.classList.add("hidden");
       btnManutencao?.classList.add("hidden");
       btnLocalizacao?.classList.add("hidden");
+      btnLocalizacaoVeiculos?.classList.add("hidden");
       btnDocumentos?.classList.add("hidden");
       btnLog?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
@@ -3702,11 +3709,13 @@
     if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
     if (typeof window.__DK_financeiroCeoReset === "function") window.__DK_financeiroCeoReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
+    if (typeof window.__DK_veiculoGeoMapaOnHide === "function") window.__DK_veiculoGeoMapaOnHide();
     const vinhaFinanceiro = Boolean(viewFinanceiro?.classList.contains("view--active"));
     const vinhaFinanceiroCeo = Boolean(viewFinanceiroCeo?.classList.contains("view--active"));
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
     panelLocalizacao?.classList.add("hidden");
+    panelLocalizacaoVeiculos?.classList.add("hidden");
     panelDocumentos?.classList.add("hidden");
     panelEstoque?.classList.add("hidden");
     panelLog?.classList.add("hidden");
@@ -3752,6 +3761,7 @@
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
+    btnLocalizacaoVeiculos?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
     btnLog?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
@@ -3768,6 +3778,7 @@
     manutencao: "Manutenção",
     estoque: "Estoque",
     localizacao: "Localização de clientes",
+    "localizacao-veiculos": "Localização de veículos",
     documentos: "Documentos",
     financeiro: "Financeiro",
     "financeiro-ceo": "Financeiro CEO",
@@ -4176,6 +4187,7 @@
     }
     if (area === "financeiro-ceo" && viewFinanceiroCeo?.classList.contains("view--active")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
+    if (area === "localizacao-veiculos" && panelLocalizacaoVeiculos && !panelLocalizacaoVeiculos.classList.contains("hidden")) return;
     if (area === "estoque" && panelEstoque && !panelEstoque.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
@@ -4207,6 +4219,9 @@
     } else if (area === "localizacao") {
       panelLocalizacao?.classList.remove("hidden");
       if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
+    } else if (area === "localizacao-veiculos") {
+      panelLocalizacaoVeiculos?.classList.remove("hidden");
+      if (typeof window.__DK_veiculoGeoMapaOnShow === "function") window.__DK_veiculoGeoMapaOnShow();
     } else if (area === "operacao") {
       panelOperacao?.classList.remove("hidden");
       refreshPortalOperacaoNavPorAcessos();
@@ -6286,11 +6301,25 @@
     });
   });
 
+  btnLocalizacaoVeiculos?.addEventListener("click", () => {
+    portalAbrirSeAreaLivre("localizacao-veiculos", () => {
+      portalOperacaoOnScreenChange();
+      hideAllPanels();
+      panelLocalizacaoVeiculos?.classList.remove("hidden");
+      if (typeof window.__DK_veiculoGeoMapaOnShow === "function") window.__DK_veiculoGeoMapaOnShow();
+      portalPersistirAreaAtiva("localizacao-veiculos");
+    });
+  });
+
   btnVoltarDocumentos?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
   btnVoltarLocalizacao?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
+  });
+
+  btnVoltarLocalizacaoVeiculos?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
@@ -12413,6 +12442,7 @@
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
+    btnLocalizacaoVeiculos?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
     btnLog?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
@@ -13982,6 +14012,12 @@
     set("operacaoVeiculoValor", veiculo.valor);
     set("operacaoVeiculoCor", veiculo.cor);
     set("operacaoVeiculoChassi", veiculo.chassi);
+    set(
+      "operacaoVeiculoImei",
+      String(veiculo.imei || "")
+        .replace(/\D/g, "")
+        .slice(0, 15)
+    );
     set("operacaoVeiculoAnoModelo", veiculo.anoModelo);
     set("operacaoVeiculoRenavam", veiculo.renavam);
     set("operacaoVeiculoMotor", veiculo.motor);
@@ -25892,6 +25928,9 @@
     const valor = getVal("operacaoVeiculoValor");
     const cor = getVal("operacaoVeiculoCor");
     const chassi = getVal("operacaoVeiculoChassi");
+    const imei = String(getVal("operacaoVeiculoImei") || "")
+      .replace(/\D/g, "")
+      .slice(0, 15);
     const anoModelo = getVal("operacaoVeiculoAnoModelo");
     const renavam = getVal("operacaoVeiculoRenavam");
     const motor = getVal("operacaoVeiculoMotor");
@@ -25960,6 +25999,7 @@
       valor,
       cor,
       chassi,
+      imei,
       anoModelo,
       renavam,
       motor,
@@ -25980,6 +26020,7 @@
       valor: portalNormDiffVal(v?.valor),
       cor: portalNormDiffVal(v?.cor),
       chassi: portalNormDiffVal(v?.chassi),
+      imei: portalNormDiffVal(v?.imei),
       anoModelo: portalNormDiffVal(v?.anoModelo),
       renavam: portalNormDiffVal(v?.renavam),
       motor: portalNormDiffVal(v?.motor),

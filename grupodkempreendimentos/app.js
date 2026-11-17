@@ -3099,6 +3099,7 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
     "valor",
     "cor",
     "chassi",
+    "imei",
     "anoModelo",
     "renavam",
     "motor",
@@ -4134,6 +4135,33 @@ function upsertPortalVeiculoByPlaca(payload) {
     });
   saveCadastro(CAD_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(veiculos));
   return true;
+}
+
+/** Aplica IMEI EC33 → placa (window.__DK_EC33_VINCULOS) sem apagar IMEI já preenchido. */
+function applyEc33VinculosToVeiculosCadastro() {
+  const lista = window.__DK_EC33_VINCULOS && Array.isArray(window.__DK_EC33_VINCULOS.vinculos)
+    ? window.__DK_EC33_VINCULOS.vinculos
+    : [];
+  if (!lista.length) return 0;
+  const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+  let mudou = 0;
+  for (const vinculo of lista) {
+    const placa = normalizePlate(String(vinculo && vinculo.placa || ""));
+    const imei = String(vinculo && vinculo.imei || "").replace(/\D/g, "").slice(0, 15);
+    if (!placa || imei.length < 14) continue;
+    const idx = veiculos.findIndex((v) => normalizePlate(v && v.placa) === placa);
+    if (idx < 0) continue;
+    const atual = String(veiculos[idx].imei || "").replace(/\D/g, "");
+    if (atual === imei) continue;
+    veiculos[idx] = {
+      ...veiculos[idx],
+      imei,
+      updatedAt: Date.now(),
+    };
+    mudou += 1;
+  }
+  if (mudou) saveCadastro(CAD_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(veiculos));
+  return mudou;
 }
 
 function findClientePendenteValidacaoByCpf(cpf) {
@@ -9397,6 +9425,13 @@ function ensureVeiculosCadastroPopulated() {
     bootstrapVeiculosFromFinanceiro2026({ force: true });
     invalidateCadastroParseCache(CAD_VEICULOS_KEY);
     list = loadCadastro(CAD_VEICULOS_KEY);
+  }
+  try {
+    applyEc33VinculosToVeiculosCadastro();
+    invalidateCadastroParseCache(CAD_VEICULOS_KEY);
+    list = loadCadastro(CAD_VEICULOS_KEY);
+  } catch (_) {
+    /* vínculo EC33 é best-effort */
   }
   return list;
 }

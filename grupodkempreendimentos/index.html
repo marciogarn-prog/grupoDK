@@ -943,6 +943,7 @@
           <button type="button" class="btn-primary hidden" id="btn-locadora-estoque">Controle de Estoque</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao">Localização clientes</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao-veiculos">Localização veículos</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-documentos">Documentos</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-log">Log</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-financeiro">FINANCEIRO</button>
@@ -1348,6 +1349,10 @@
             <label class="portal-field">
               <span>Chassi</span>
               <input type="text" id="operacaoVeiculoChassi" name="chassi" maxlength="24" placeholder="Chassi" aria-label="Chassi">
+            </label>
+            <label class="portal-field">
+              <span>IMEI do rastreador (EC33)</span>
+              <input type="text" id="operacaoVeiculoImei" name="imei" maxlength="15" inputmode="numeric" placeholder="Ex.: 869137082186396" aria-label="IMEI do rastreador EC33" autocomplete="off">
             </label>
             <label class="portal-field">
               <span>Ano/Modelo</span>
@@ -3884,6 +3889,95 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-localizacao-locadora">Voltar</button>
         </div>
       </section>
+
+      <section id="panel-localizacao-veiculos-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Localização dos veículos</h2>
+        <p class="subpage__lead">Rastreadores <strong>EC33</strong> (GT06). Selecione a placa e envie comandos pelo sistema DK (USB no PC ou GPRS no veículo).</p>
+        <div class="dk-geo-mapa-toolbar" role="toolbar" aria-label="Controles do mapa de veículos">
+          <button type="button" class="btn-primary btn-secondary-outline dk-geo-mapa-tool" id="dkVeiculoGeoMapZoomIn" title="Aumentar zoom">+</button>
+          <button type="button" class="btn-primary btn-secondary-outline dk-geo-mapa-tool" id="dkVeiculoGeoMapZoomOut" title="Reduzir zoom">−</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoGeoMapFitAll">Ver todos</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoGeoMapCenterPetrolina">Petrolina</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoGeoMapToggleSat">Satélite</button>
+          <label class="dk-geo-mapa-busca">
+            <span class="hidden">Buscar</span>
+            <input type="search" id="dkVeiculoGeoMapBusca" placeholder="IMEI, placa ou nome…" autocomplete="off">
+          </label>
+        </div>
+        <p id="dkVeiculoGeoMapContador" class="subtext dk-geo-mapa-contador">A carregar…</p>
+        <p id="dkVeiculoGeoMapMsg" class="portal-feedback" role="status"></p>
+        <div class="dk-geo-mapa-layout dk-veiculo-geo-layout">
+          <div class="dk-geo-mapa-canvas-wrap">
+            <div id="dkVeiculoGeoMapCanvas" class="dk-geo-mapa-canvas" aria-label="Mapa de localização de veículos"></div>
+            <button type="button" class="dk-geo-mapa-refresh-overlay btn-primary" id="dkVeiculoGeoMapRefresh" title="Atualizar posições no mapa" aria-label="Atualizar mapa">
+              ↻ Atualizar mapa
+            </button>
+          </div>
+          <aside class="dk-geo-mapa-lista-wrap dk-veiculo-geo-side" aria-label="Veículos e comandos EC33">
+            <h3 class="portal-lanc-aluguel-section__title">Veículos</h3>
+            <div id="dkVeiculoGeoMapLista" class="dk-geo-mapa-lista"></div>
+
+            <h3 class="portal-lanc-aluguel-section__title">Cadastrar rastreador EC33</h3>
+            <div class="dk-veiculo-geo-form">
+              <label class="portal-field">
+                <span>IMEI</span>
+                <input type="text" id="dkVeiculoGeoImei" maxlength="15" inputmode="numeric" placeholder="869137082186396" autocomplete="off">
+              </label>
+              <label class="portal-field">
+                <span>Placa</span>
+                <input type="text" id="dkVeiculoGeoPlaca" maxlength="8" placeholder="SOX2B04" autocomplete="off">
+              </label>
+              <label class="portal-field">
+                <span>Nome / modelo</span>
+                <input type="text" id="dkVeiculoGeoNome" maxlength="80" placeholder="Ex.: Shineray XY 150" autocomplete="off">
+              </label>
+              <button type="button" class="btn-primary" id="dkVeiculoGeoVincularBtn">Cadastrar / vincular</button>
+            </div>
+
+            <h3 class="portal-lanc-aluguel-section__title">Comandos na placa selecionada</h3>
+            <p id="dkVeiculoGeoPlacaSel" class="subtext">Nenhuma placa selecionada.</p>
+            <div class="dk-veiculo-geo-cmds" role="group" aria-label="Comandos EC33">
+              <button type="button" class="btn-primary" id="dkVeiculoCmdStatus">STATUS</button>
+              <button type="button" class="btn-primary" id="dkVeiculoCmdWhere">WHERE (posição)</button>
+              <button type="button" class="btn-primary" id="dkVeiculoCmdParam">PARAM</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoCmdRelayOn">Ativar bloqueio</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoCmdRelayOff">Desativar bloqueio</button>
+            </div>
+            <div class="dk-veiculo-geo-form">
+              <label class="portal-field">
+                <span>Periodicidade ACC ON (seg)</span>
+                <input type="number" id="dkVeiculoTimerOn" min="5" max="60" value="30">
+              </label>
+              <label class="portal-field">
+                <span>Periodicidade ACC OFF (seg)</span>
+                <input type="number" id="dkVeiculoTimerOff" min="5" max="1800" value="1800">
+              </label>
+              <button type="button" class="btn-primary" id="dkVeiculoCmdTimer">Aplicar periodicidade (TIMER)</button>
+            </div>
+            <div class="dk-veiculo-geo-form">
+              <label class="portal-field">
+                <span>Cerca — raio (metros)</span>
+                <input type="number" id="dkVeiculoCercaRaio" min="50" max="50000" value="500">
+              </label>
+              <label class="portal-field">
+                <span>Lat centro (vazio = posição atual)</span>
+                <input type="text" id="dkVeiculoCercaLat" placeholder="Opcional" autocomplete="off">
+              </label>
+              <label class="portal-field">
+                <span>Lng centro (vazio = posição atual)</span>
+                <input type="text" id="dkVeiculoCercaLng" placeholder="Opcional" autocomplete="off">
+              </label>
+              <button type="button" class="btn-primary" id="dkVeiculoCmdCercaOn">Ativar cerca de limite</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="dkVeiculoCmdCercaOff">Desativar cerca</button>
+            </div>
+            <p id="dkVeiculoCmdLog" class="subtext dk-veiculo-geo-log" role="status"></p>
+          </aside>
+        </div>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-localizacao-veiculos-locadora">Voltar</button>
+        </div>
+      </section>
+
       <section id="panel-documentos-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Documentos</h2>
         <p class="subpage__lead">Depósito de ficheiros <strong>sem IA</strong>. CRLV (nome = placa), contratos (nome = protocolo), multas (nome = <code>PLACA-CPF</code>). Vários ficheiros com o mesmo nome ficam guardados — use a pesquisa para ver todos e excluir um a um.</p>
@@ -6547,12 +6641,14 @@
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
   <script src="home-unit-nav.js?v=20261023mobcompact" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
+  <script src="data/ec33-vinculos.js?v=20261117ec33"></script>
   <script type="module" src="supabase-init.js?v=5"></script>
   <script src="dk-lancamento-protocolo.js?v=20261021sync-pag" defer></script>
   <script src="dk-portal-api-auth.js?v=20261109sessaoAtiva"></script>
-  <script src="app.js?v=20261116relgeral4" defer></script>
+  <script src="app.js?v=20261117ec33loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
+  <script src="portal-veiculo-geo-mapa.js?v=20261117ec33" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
@@ -6565,7 +6661,7 @@
   <script src="dk-bg-read.js?v=20261028bg2" defer></script>
   <script src="portal-pagamento-store.js?v=20261103fase7" defer></script>
   <script src="dk-aluguel-ciclo-v2.js?v=20261111mtdesc0" defer></script>
-  <script src="portal-locadora-ui.js?v=20261116relgeral4" defer></script>
+  <script src="portal-locadora-ui.js?v=20261117ec33loc" defer></script>
   <script src="portal-manutencao-cliente.js?v=20261112manutdia1" defer></script>
   <script src="portal-lancamento-multa.js?v=20261112multadia1" defer></script>
   <script src="portal-dk-sync.js?v=20261104rtA1" defer></script>

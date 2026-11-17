@@ -1,0 +1,46 @@
+﻿EC33 acessado via USB
+Data: 2026-11-17
+Porta AT: Quectel USB AT Port (COM9)
+Porta DIAG: Quectel USB DIAG Port (COM10)
+Modem: Quectel USB Modem (OK)
+
+Drivers instalados:
+- Quectel_ASR_Series_UMTS_LTE_Windows_USB_Driver_Customer_V1.0.8
+  (docs/ec33/drivers/Quectel_ASR_Series_UMTS_LTE_Windows_USB_Driver_Customer_V1.0.8.zip)
+- Quectel_Windows_USB_DriverQ_NDIS_V2.8_EN
+  (docs/ec33/drivers/Quectel_Windows_USB_DriverQ_NDIS_V2.8_EN.zip)
+
+Respostas AT (COM9 @ 115200):
+ATI
+  Quectel
+  EG915N
+  Revision: EG915NLAAKR07A01M08_OCPU_QPY_BETA1205A
+
+AT+CGSN / IMEI
+  869137082186396
+
+AT+CGMI
+  ASR
+
+AT+CIMI (IMSI do chip)
+  724320205968464
+  (MCC 724 = Brasil; MNC 32 = Algar)
+
+AT+CPIN?
+  READY
+
+AT+CSQ
+  99,99
+  (sem qualidade de sinal no momento — comum no USB sem antena/rede)
+
+AT+CREG? / AT+CGREG? / AT+CEREG?
+  ainda sem registo de dados estável (0 / searching / denied)
+
+Nota:
+- ECM Network Adapter continua em Error (normal no Windows; Quectel recomenda RNDIS se precisar de rede USB).
+- Firmware OCPU_QPY = QuecPython: a aplicação de rastreio (GT06) corre no módulo; configuração de frota continua por SMS (SERVER# / APN# / TIMER#).
+
+Vínculo frota (2026-11-17):
+- IMEI 869137082186396 → placa SOX2B04
+- Veículo: SHINERAY XY 150-8 JEF S EFI · tag DKMT - 042 · MOTO
+- Ficheiros: data/ec33-vinculos.json · data/ec33-vinculos.js

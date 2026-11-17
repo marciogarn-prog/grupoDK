@@ -1,0 +1,378 @@
+Manual do Usuário
+Rastreador
+EC33
+Quectel
+
+-- 1 of 17 --
+
+Índice
+Pág. 3 - Introdução
+Pág. 4 - Especificações Técnicas
+Pág. 5 - Principais Funções
+Pág. 6 - Leitura LEDS
+Pág. 7 - Instruções de Instalação
+Pág. 9 - Esquema Fiação
+Pág. 12 – Comandos Configuração
+
+-- 2 of 17 --
+
+Introdução
+Muito obrigado por comprar conosco.
+Este é um manual do usuário que
+explicará em detalhes como operar
+este produto. Leia atentamente antes
+de usar para que você possa usá-lo
+corretamente. Algumas funções e
+estruturas do produto estão sujeitas a
+alterações sem aviso prévio, por favor,
+tome o produto real como padrão. O
+fabricante não é legalmente
+responsável por falhas e omissões no
+manual.
+Pág. 3
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 3 of 17 --
+
+Especificações Técnicas	Pág. 4
+Item Especificação
+Dimensões 65x35x15mm
+Peso 32.2g (incluindo a bateria)
+Bateria Interna 300 mAh (3.7V)
+Temperatura (Quando em
+Funcionamento)
+de -20°C até 60°C
+Temperatura de Armazenamento de -20°C até 70°C
+Sensor G-Sensor
+Modelo do Módulo Quectel EG915-LA
+Faixa de Saída Dinâmica -15 ~ -108dBm
+Bandas FDD: B1/B3/B5/B8 TDD: B34/B38/B39/B40/B41 WCDMA: B1/B5/B8 GSM: B3/B8
+Antena GSM Interna
+Antena GPS Interna
+Protocolo de Conexão TCP
+Protocolo de Comunicação gt06
+Importante
+Este produto só suporta instalação e operação dentro da tensão com suporte gama. Qualquer consequência causada
+por má instalação sobre a tensão é de responsabilidade do usuário.
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 4 of 17 --
+
+Principais Funções	Pág. 5
+Itens
+Padrão: Rastreador GPS e chicote de fiação com fusível.
+Descrição
+1. Cerca eletrônica;
+2. Alarme de Alimentação;
+3. Alarme de vibração;
+4. Alarme de deslocamento;
+5. Consulta de posição;
+6. Reprodução de faixa;
+7. Cortar combustível e energia.
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 5 of 17 --
+
+Leitura dos Leds	Pág. 6
+Piscando Intermitente: Inicializando GSM
+Piscando 1x por segundo: Conectado na rede GSM
+Apagado: Em modo Sleep
+Piscando Intermitente: Buscando Satélites
+Piscando 1x por segundo: Satélites Conectados
+Apagado: Em modo Sleep
+Ligado Constante: Alimentação Conectada
+Apagado: Alimentação Desconectada
+Led GSM
+Led Satélites
+Led Alimentação
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 6 of 17 --
+
+Instruções de Instalação	Pág. 7
+Preparação antes da instalação
+1. Abrir a caixa para verificar se o modelo de rastreador GPS está certo ou não, e para ter certeza de que os acessórios estão
+completos, caso contrário, entre em contato com o vendedor;
+2. Para escolher o cartão SIM. O rastreador GPS precisa de um SIM Card M2M;
+3. Para inserir o cartão SIM. Certifique-se de que o SIM Card foi inserido na posição correta e o chip do cartão está voltado
+para a porta USB e, em seguida, trave o cartão no respectivo slot
+Importante:
+1. Antes de instalar ou remover o SIM Card, por favor, certifique-se de que o aparelho está desligado;
+2. O SIM Card usado no rastreador GPS deve ter função GPRS
+Instalação
+Sugerimos que o seu rastreador seja instalado em um local oculto por um profissional especializado.
+Por favor, preste atenção aos seguintes itens:
+1. Instale o J16 em um lugar oculto e protegido da água;
+2. Evite colocar o rastreador perto de fontes de sinal, como radar reverso, dispositivo anti-roubo e outros equipamentos de
+monitoramento de veículos;
+3. O rastreador tem antena GSM integrada a antena GPRS, certifique-se de que o lado da antena GPS do J16 (que está sem
+adesivo) esteja voltado para o céu, e não há nenhum objeto de metal cobrindo o rastreador.
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 7 of 17 --
+
+Instruções de Instalação	Pág. 8
+Local de instalação recomendado
+1. Na estrutura abaixo do para-brisa dianteiro do carro;
+2. Ao redor do painel dianteiro do carro que é coberto com material não metálico;
+3. Na estrutura abaixo do para-brisa traseiro do carro;
+4. Dentro da porta do carro ou pilar central do carro;
+5. Atrás do painel do carro ou da Central Multimídia
+Diagrama Instalação Automóvel
+Painel
+sob o para-brisa dianteiro, sob o
+volante, porta-luvas superior e
+certifique-se de que o lado do
+adesivo do produto esteja voltado
+para baixo.
+Traseira
+dentro da placa de plástico sob o
+para-brisa traseiro e certifique-se
+de que o lado do adesivo do
+produto esteja voltado para baixo
+Porta Malas
+porta-malas (não recomendado) e
+certifique-se de que o lado do
+adesivo do produto esteja voltado
+para baixo
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 8 of 17 --
+
+Esquema Fiação	Pág. 9
+Atenção
+Faça a instalação somente com um
+técnico especializado.
+Orientações para a fiação do relé:
+1. Terminal 85: Ligado no fio amarelo
+do chicote do rastreador
+2. Terminal 30: Ligado na entrada de
+energia da bomba de combustível
+3. Terminal 87A: Ligado na saída de
+energia da bomba de combustível
+4. Terminal 86: Ligado na alimentação
+positiva 12v.
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 9 of 17 --
+
+Esquema Fiação	Pág. 10
+EC33
+ Quectel
+ – Manual do Usuário
+Amarelo: Bloqueio
+Laranja: Pós Chave
+Preto: Negativo (GND)
+Vermelho: Positivo (12V)
+
+-- 10 of 17 --
+
+Precauções Fiação	Pág. 11
+1. Utilize as linhas de energia fornecidas pela fábrica. A linha vermelha é ânodo de fonte de alimentação, e a linha preta é
+um cátodo de alimentação. A fiação, o cátodo da fonte de alimentação deve ser conectado com terra o ferro
+separadamente. por favor, não ligue o cátodo com outras linhas de aterramento;
+2. A linha ACC 5.2 (linha laranja) está ligada com o interruptor ACC dos veículos. Se os usuários precisarem da função
+antirroubo automático ACC, certifique-se de que a linha ACC esteja conectada, e o rastreador determinará iniciar o
+estado de ignição ou não, dependendo do status do ACC. O veículo iniciará o alarme de vibração quando houver
+vibração durante a condução.
+3. Linha de controle (linha amarela) que corta o combustível e a energia, é ligada à fina linha amarela do relé (opcional)
+Passos para usar o produto corretamente:
+instalação -> boot -> configuração -> registro.
+Instalação: quando a instalação, a antena GPS deve estar voltada para o céu. Acima do local de instalação deve ser um
+local que não esteja coberto por materiais de absorção de ondas eletromagnéticas (como metal, filme de isolamento à
+prova de explosão).
+Inicialização: insira o SIM Card no J16 corretamente, linhas de fio de acordo com o diagrama de fiação do produto e, em
+seguida, ligue o interruptor de alimentação.
+Configuração: As formas de cadastro são diferentes dependendo da plataforma, por isso consulte a sua.
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 11 of 17 --
+
+Comandos	Pág. 12
+Especificação do parâmetro Comando Exemplo / Observações
+CONFIGURAÇÃO DE IP / PORTA SERVER,0,SEUIP,PORTA,0# Exemplo:
+SERVER,0,127.0.0.1,5656,0#
+CONFIGURAÇÃO DE DNS / PORTA SERVER,1,DNS,PORTA,0# Exemplo:
+SERVER,1,google.com,5656,0#
+CONSULTA SERVIDOR SERVER#
+CONFIGURAÇÃO DE APN APN,sua_apn,user_apn,senha_apn# Exemplo:
+APN,smart.m2m.vivo.com.br,vivo,vivo#
+INTERVALO DE COMUNICAÇÃO (heartbeat)
+HBT,T1,T2# Observações:
+T1 (1 a 5 min.) Intervalo de Upload em ACC ON
+T2 (60 a 300 min) Intervalor de Upload em ACC OFF
+Exemplo:
+HBT,180,180#
+CONSULTAR INTERVALO DE COMUNICAÇÃO HBT# Resposta
+HBT ACC ON:180s,ACC OFF:180s
+REINICIAR EQUIPAMENTO RESET#
+CONSULTA DE ENDEREÇO
+666#
+URL#
+POSITION#
+CONSULTAR STATUS DO DISPOSITIVO
+STATUS# Resposta:
+Battery:4.23V;GPRS:Offline;GSMSignal
+Level:25;ACC:OFF;
+GPS:OFF;Defense:ON;
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 12 of 17 --
+
+Comandos	Pág. 13
+Especificação do parâmetro Comando Exemplo / Observações
+CONSULTAR VERSÃO DO DISPOSITIVO VERSION# Resposta:
+J16_H18_GT06_54 V4.11 20220312
+CONSULTAR PARÂMETROS DO DISPOSITIVO
+PARAM# Resposta:
+IMEI:123456781911111;TIMER:10,3600;SNEDS:3;
+HBT:180Sec;Defense:2;
+CONSULTAR LATITUDE E LONGITUDE
+WHERE# Resposta:
+LastPosition!
+Lati:N22.601993,E113.832423,Course:169,
+Speed:0,DateTime:2022-03-20 22:48:49
+INTEVALO DE ENVIO DE POSIÇÕES
+TIMER,T1,T2# Observações:
+T1 (5 a 60 segundos) - Posição em ACC ON
+T2 (5 a 1800 segundos) - Posição em ACC OFF
+Exemplo:
+TIMER,30,1800#
+CONSULTAR INTERVALO DE ENVIO DE POSIÇÕES TIMER# Resposta:
+TIMER ACC ON:30s,ACC OFF:1800s
+CORTE DE COMBUSTIVEL
+RELAY,A# Observações:
+A = Enviar 0 ou 1
+1 = BLOQUEAR
+0 = DESBLOQUEAR
+MODO SLEEP
+SZCS#SLPDISCONNECT=A Observações:
+A=0 manter a plataforma conectada após hibernação
+(padrão)
+A=1 Desligue a conexão da plataforma, o SMS está
+disponível
+A=2 Desconecte a plataforma, o SMS não está
+disponível
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 13 of 17 --
+
+Comandos	Pág. 14
+Especificação do parâmetro Comando Exemplo / Observações
+CONSULTAR SLEEP CXCS#SLPDISCONNECT
+CONFIGURAÇÃO DE FUSO HORÁRIO
+GMT,W,A,B# Observações:
+A = 0 a 12
+B = 0/15/30/45 (Padrão 0)
+Exemplo:
+GMT,W,0,0#
+CONSULTAR FUSO HORARIO GMT#
+CONSULTAR ICCID DO SIM CARD ICCID# Resposta
+ICCID:895506801570171000000
+HABILITAR VOLTAGEM BATERIA EXTERNA SZCS#GT06IEXVOL=2
+CONFIGURAR ÂNGULO PARA ENVIO DE POSIÇÃO SZCS#ANGLEVALUE=10-015 Observações:
+Alterar 015 para o ângulo desejado
+CONSULTAR ÂNGULO CONFIGURADO CXCS#ANGLEVALUE Resposta:
+READOK: ANGLEVALUE=10-015,CXCS
+CONFIGURAR ALARME DE ALIMENTAÇÃO
+POWERALM,A,M,T1,T2,# Observações:
+A=ON
+M = 0 a 2 (0= Somente GPRS) (1= SMS + GRPS) (2= SMS+GPRS
+T1 = 0 a 60 (tempo que ele aguarda para verificar a alimentação)
+T2 = 1 a 3600 (tempo mínimo de carregamento)
+Exemplo:
+POWERALM,ON,2,10,10,#
+DESLIGAR O ALARME DE ALIMENTAÇÃO POWERALM,OFF# Resposta:
+POWERALM:OFF
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 14 of 17 --
+
+Comandos	Pág. 15
+Especificação do parâmetro Comando Exemplo / Observações
+CONSULTAR ALARME DE ALIMENTAÇÃO POWERALM# Resposta:
+POWERALM:ON,2,10,10
+ATIVAR IGNIÇÃO VIRTUAL POR ACELERÔMETRO SZCS#ACCLINE=1
+DESATIVAR IGNIÇÃO VIRTUAL POR ACELERÔMETRO SZCS#ACCLINE=0
+RESTAURAÇÃO PARCIAL MODO DE FÁBRICA FACTORY# Observações:
+Restaura as configurações, mas mantém Servidor e APN
+RESTAURAÇÃO TOTAL MODO FÁBRICA FACTORYALL# Observações:
+Restaura todas as configurações para padrão de fábrica
+TEMPO DE ENVIO DE POSIÇÃO COM ACC OFF
+SZCS#ACC_OFF_FREQ=A Observações:
+(A) = Tempo em segundos para mandar uma nova posição
+Exemplo:
+SZCS#ACC_OFF_FREQ=300 - (5 minutos)
+CONSULTAR MEMÓRIA DE POSIÇÕES BLINDINFO#
+LIMPAR MEMÓRIA DE POSIÇÕES BLINDINIT#
+SELEÇÃO DE REDE
+SZCS#SERV2 ADDR=A Observações:
+Trocar o (A) por:
+0 = 4G/2G
+1 = Somente 4G
+2 = Somente 2G
+CONSULTAR SELEÇÃO DE REDE SZCS#SERV2 ADDR
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 15 of 17 --
+
+Comandos	Pág. 16
+Especificação do parâmetro Comando Exemplo / Observações
+MODO DE BLOQUEIO
+SZCS#SOURCE_OFF_TYPE=0/1 Observações:
+0 = Bloqueio com velocidade inferior a 20km/h
+1 = Bloqueio Imediato
+ATIVAR BLOQUEIO DE TROCA DE IP PWDSW,ON#
+BLOQUEIO DE TROCA DE IP
+SETIPLOCK=123456,1# Observações:
+Senha padrão 123456
+Este comando desse ser enviado após a configuração do IP e
+PORTA
+TROCA DE SENHA
+PASSWORD,666666,123456# Observações:
+Substituir 666666 pela senha desejada. Obrigatório 6 dígitos.
+DESATIVAR BLOQUEIO DE TROCA DE IP SETIPLOCK=123456,0#
+PWDSW,OFF#
+ATIVAR ALARME DE VIBRAÇÃO SENALM,ON,0#
+DESATIVAR ALARME DE VIBRAÇÃO SENALM,OFF#
+CONSULTAR ALARME DE VIBRAÇÃO SENALM#
+EC33
+ Quectel
+ – Manual do Usuário
+
+-- 16 of 17 --
+
+RASTREADOR EC33
+Quectel
+Em caso de dúvidas, entre em contato conosco.
+Através dos canais abaixo
+atendimento@mobidrive.com.br
+Whatsapp: (51) 99400-9470
+09993-24-16531
+
+-- 17 of 17 --
+

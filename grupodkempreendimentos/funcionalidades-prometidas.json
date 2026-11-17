@@ -4113,6 +4113,69 @@
           "portal-relatorio-veiculos-geral"
         ]
       }
+    },
+    {
+      "id": "veiculo-imei-ec33-sox2b04",
+      "descricao": "No Cadastro de veículo existe o campo IMEI do rastreador (EC33). O rastreador IMEI 869137082186396 fica vinculado à placa SOX2B04 (data/ec33-vinculos).",
+      "ficheiros": {
+        "index.html": [
+          "operacaoVeiculoImei",
+          "IMEI do rastreador (EC33)"
+        ],
+        "portal-locadora-ui.js": [
+          "operacaoVeiculoImei",
+          "imei: \"IMEI do rastreador\""
+        ],
+        "app.js": [
+          "applyEc33VinculosToVeiculosCadastro",
+          "\"imei\""
+        ],
+        "data/ec33-vinculos.js": [
+          "869137082186396",
+          "SOX2B04"
+        ],
+        "data/ec33-vinculos.json": [
+          "869137082186396",
+          "SOX2B04"
+        ]
+      }
+    },
+    {
+      "id": "localizacao-veiculos-ec33",
+      "descricao": "Na área da equipa existe Localização veículos (mapa EC33): cadastrar rastreador IMEI↔placa, selecionar placa e enviar STATUS/WHERE/PARAM, bloqueio RELAY, TIMER (periodicidade) e cerca de limite; comandos via agente USB local 8787.",
+      "ficheiros": {
+        "index.html": [
+          "btn-locadora-localizacao-veiculos",
+          "panel-localizacao-veiculos-locadora",
+          "Localização dos veículos",
+          "dkVeiculoCmdRelayOn",
+          "dkVeiculoCmdTimer",
+          "dkVeiculoCmdCercaOn",
+          "Ativar bloqueio",
+          "Aplicar periodicidade (TIMER)",
+          "Ativar cerca de limite"
+        ],
+        "portal-locadora-ui.js": [
+          "btn-locadora-localizacao-veiculos",
+          "localizacao-veiculos",
+          "__DK_veiculoGeoMapaOnShow"
+        ],
+        "portal-veiculo-geo-mapa.js": [
+          "dkVeiculoCmdRelayOn",
+          "enviarComando",
+          "127.0.0.1:8787"
+        ],
+        "api/dk-veiculo-geo.js": [
+          "acao === \"comando\"",
+          "acao === \"cerca\"",
+          "enfileirarComando"
+        ],
+        "scripts/ec33-usb-agent.mjs": [
+          "8787",
+          "TIMER,30,1800#",
+          "SOX2B04"
+        ]
+      }
     }
   ]
 }

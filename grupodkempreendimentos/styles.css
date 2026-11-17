@@ -9711,6 +9711,34 @@ table.validados-app .lnk-comprovante {
   background: rgba(220, 38, 38, 0.08);
 }
 
+.dk-geo-lista-item.is-selected {
+  border-color: var(--accent, #dc2626);
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.dk-veiculo-geo-side {
+  max-height: min(78vh, 820px);
+}
+
+.dk-veiculo-geo-form {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.5rem 0 0.85rem;
+}
+
+.dk-veiculo-geo-cmds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.75rem;
+}
+
+.dk-veiculo-geo-log {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 2.5rem;
+}
+
 .dk-geo-lista-item__dot {
   width: 10px;
   height: 10px;
