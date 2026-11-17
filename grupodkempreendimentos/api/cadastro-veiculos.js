@@ -101,6 +101,18 @@ module.exports = async function handler(req, res) {
       }
       const body = lerBody(req);
       if (modo.modo === "pg") {
+        const operacao = String(body.operacao || body.operação || "")
+          .trim()
+          .toLowerCase();
+        if (operacao === "delete" || operacao === "apagar") {
+          const cpfGate = String(gate.cpf || gate.userId || "").replace(/\D/g, "");
+          if (cpfGate !== "03037897430") {
+            return res.status(403).json({ ok: false, success: false, reason: "somente_titular", source: veiculosPg.FONTE });
+          }
+          const alvo = body.veiculo && typeof body.veiculo === "object" ? body.veiculo : body;
+          const apagado = await veiculosPg.softDeleteUm(alvo);
+          return res.status(apagado.status).json(apagado.body);
+        }
         const veiculo = veiculosPg.pedidoUm(body);
         if (!veiculo) return res.status(400).json({ ok: false, success: false, reason: "um_veiculo", source: veiculosPg.FONTE });
         const um = await veiculosPg.upsertUm(veiculo, body.base_revision || body.revision || "", null, {

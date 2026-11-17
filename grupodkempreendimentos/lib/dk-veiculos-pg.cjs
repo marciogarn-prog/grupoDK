@@ -293,6 +293,63 @@ async function upsertUm(veiculo, baseRevision, ioRest, opts) {
   };
 }
 
+async function softDeleteUm(alvo, ioRest) {
+  const pedido = ioRest || rest;
+  const t0 = Date.now();
+  const id = idDe(alvo || {});
+  const placa = placaDe(alvo || {}).trim();
+  let row = null;
+  if (id) {
+    const porId = await lerPorId(id, pedido);
+    if (!porId.ok) {
+      const falha = falhaLeitura(porId);
+      return { ok: false, status: falha.status, body: { ok: false, success: false, reason: falha.reason, source: FONTE } };
+    }
+    row = porId.row && !porId.row.deleted_at ? porId.row : null;
+  }
+  if (!row && placa) {
+    const porPlaca = await lerPorPlaca(placa, pedido);
+    if (!porPlaca.ok) {
+      const falha = falhaLeitura(porPlaca);
+      return { ok: false, status: falha.status, body: { ok: false, success: false, reason: falha.reason, source: FONTE } };
+    }
+    row = porPlaca.linhas[0] || null;
+  }
+  if (!row) {
+    return { ok: true, status: 200, body: { ok: true, success: true, source: FONTE, count: 0, linhas_afetadas: 0, duracao_ms: Date.now() - t0 } };
+  }
+  const agora = new Date().toISOString();
+  const gravado = await pedido(TABELA + "?id=eq." + encodeURIComponent(String(row.id)), {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { deleted_at: agora, updated_at: agora },
+  });
+  if (!gravado.ok) {
+    const falha = falhaLeitura(gravado);
+    return {
+      ok: false,
+      status: falha.status || gravado.status || 502,
+      body: { ok: false, success: false, reason: falha.reason || "gravacao", source: FONTE },
+    };
+  }
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      ok: true,
+      success: true,
+      persistencia: "supabase",
+      source: FONTE,
+      revision: agora,
+      updated_at: agora,
+      count: 1,
+      linhas_afetadas: 1,
+      duracao_ms: Date.now() - t0,
+      veiculo: { id: row.id, placa: row.placa, deleted_at: agora },
+    },
+  };
+}
+
 async function modoOperacional(redis, opts) {
   const channel = opts && opts.channel != null ? String(opts.channel) : "default";
   if (channel === "demo") return { modo: "snapshot", flag: "" };
@@ -323,6 +380,7 @@ module.exports = {
   listar,
   lerVeiculoCompleto,
   upsertUm,
+  softDeleteUm,
   modoOperacional,
   schemaAusente,
 };
