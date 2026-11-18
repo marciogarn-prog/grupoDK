@@ -110,6 +110,54 @@ function buildAck(protocolNumber, serialHi, serialLo) {
 }
 
 /**
+ * Monta pacote GT06 0x80 (comando do servidor → terminal).
+ * O conteúdo ASCII é o mesmo dos comandos SMS/manual (ex.: STATUS#).
+ * @param {string} commandText
+ * @param {number} [serial=1] número de série 0..65535
+ * @param {number} [serverFlag=0] ecoado pelo terminal na resposta 0x15
+ * @param {number} [language=2] 1=chinês, 2=inglês
+ */
+function buildServerCommand(commandText, serial = 1, serverFlag = 0, language = 2) {
+  let cmd = String(commandText || "").trim();
+  if (!cmd) throw new Error("comando GT06 vazio");
+  if (!cmd.endsWith("#")) cmd += "#";
+  const content = Buffer.from(cmd, "ascii");
+  if (content.length > 200) throw new Error("comando GT06 demasiado longo");
+  const flag = Buffer.alloc(4);
+  flag.writeUInt32BE(serverFlag >>> 0, 0);
+  const lang = Buffer.from([0x00, language & 0xff]);
+  // Length of Command = Server Flag Bit + Command Content
+  const lengthOfCommand = 4 + content.length;
+  const info = Buffer.concat([Buffer.from([lengthOfCommand & 0xff]), flag, content, lang]);
+  const serialN = Number(serial) || 1;
+  const serialHi = (serialN >> 8) & 0xff;
+  const serialLo = serialN & 0xff;
+  // packetLen = proto + info + serial + crc
+  const packetLen = 1 + info.length + 2 + 2;
+  if (packetLen > 255) throw new Error("pacote GT06 0x80 excede 255 bytes");
+  const body = Buffer.concat([Buffer.from([packetLen & 0xff, 0x80]), info, Buffer.from([serialHi, serialLo])]);
+  const crc = crc16X25(body, 0, body.length);
+  return Buffer.concat([
+    Buffer.from([0x78, 0x78]),
+    body,
+    Buffer.from([(crc >> 8) & 0xff, crc & 0xff, 0x0d, 0x0a]),
+  ]);
+}
+
+/**
+ * Extrai texto ASCII de info 0x15 (resposta a comando online).
+ * @param {Buffer} info
+ */
+function decodeStringInfo(info) {
+  if (!info || info.length < 5) {
+    return { serverFlag: 0, text: info && info.length ? info.toString("ascii").replace(/[^\x20-\x7E\r\n]/g, "").trim() : "" };
+  }
+  const serverFlag = info.readUInt32BE(1);
+  const text = info.subarray(5).toString("ascii").replace(/[^\x20-\x7E\r\n]/g, "").trim();
+  return { serverFlag, text };
+}
+
+/**
  * Consome bytes de um buffer e devolve pacotes completos + resto.
  * @param {Buffer} buffer
  */
@@ -174,6 +222,13 @@ function parsePacket(packet) {
     out.status = decodeStatus(info.length > 18 ? info.subarray(18) : info);
     return out;
   }
+  if (protocol === 0x15) {
+    out.type = "string";
+    const decoded = decodeStringInfo(info);
+    out.serverFlag = decoded.serverFlag;
+    out.text = decoded.text;
+    return out;
+  }
   out.type = "other";
   return out;
 }
@@ -183,6 +238,8 @@ module.exports = {
   extractPackets,
   parsePacket,
   buildAck,
+  buildServerCommand,
+  decodeStringInfo,
   decodePosition,
   readImei,
 };

@@ -150,11 +150,13 @@
     return `${dd}/${mm}/${yyyy}`;
   }
 
-  function municipioDataLong(dt, municipioUf) {
+  /** Local de lavratura/assinatura dos contratos — sede DK Locadora (nunca a cidade do cliente). */
+  const LOCAL_ASSINATURA_CONTRATO = "PETROLINA/PE";
+
+  function municipioDataLong(dt, _municipioUfIgnorado) {
     const d = dt && !Number.isNaN(dt.getTime()) ? dt : new Date();
-    const mun = String(municipioUf || "Petrolina/PE").trim() || "Petrolina/PE";
     const diaSem = DIAS_SEM[d.getDay()] || "";
-    return `${mun}, ${diaSem}, ${d.getDate()} de ${MESES[d.getMonth()] || ""} de ${d.getFullYear()}`;
+    return `${LOCAL_ASSINATURA_CONTRATO}, ${diaSem}, ${d.getDate()} de ${MESES[d.getMonth()] || ""} de ${d.getFullYear()}`;
   }
 
   function loadCliente(cpfDigits) {
@@ -510,7 +512,9 @@
       dataContrato: formatDataBr(inicioDt),
       dataContratoDt: inicioDt,
       municipioUf: p.municipioUf,
-      municipioData: municipioDataLong(inicioDt, p.municipioUf),
+      /* Assinatura sempre Petrolina-PE (sede); municipioUf do cliente fica só no endereço. */
+      municipioData: municipioDataLong(inicioDt, LOCAL_ASSINATURA_CONTRATO),
+      localAssinatura: LOCAL_ASSINATURA_CONTRATO,
       statusLocacao: p.statusLocacao,
       fim: p.fim,
       proprietario,
@@ -1595,6 +1599,7 @@ ${scriptPreviewInline(dados)}
   window.__DK_contratoLocacaoResolverEndereco = resolverEnderecoContrato;
   window.__DK_resolverEnderecoClienteContrato = resolverEnderecoContrato;
   window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
+  window.__DK_CONTRATO_LOCAL_ASSINATURA = LOCAL_ASSINATURA_CONTRATO;
   window.__DK_contratoLocacaoCssPagina = cssContratoPagina;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
   window.__DK_contratoLocacaoBuildPaginasKit = buildPaginasHtml;

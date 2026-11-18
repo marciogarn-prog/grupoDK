@@ -347,7 +347,7 @@
       }
     } else {
       logCmd(
-        `Comando enfileirado: ${cmd}. ${usb.data?.msg || "Inicie o agente USB (scripts/ec33-usb-agent.mjs) neste PC."}`
+        `Comando enfileirado: ${cmd}. O bridge GT06 envia por GPRS (pacote 0x80) quando o rastreador estiver online no servidor. USB local (${USB_AGENT}) é opcional.`
       );
     }
   }
@@ -419,8 +419,8 @@
       const usb = await enviarUsbLocal(cmd, selected.imei);
       logCmd(
         ativa
-          ? `Cerca ${raioM} m · ${cmd} · ${usb.ok ? "USB OK" : usb.data?.msg || "fila"}`
-          : `Cerca desativada · ${cmd} · ${usb.ok ? "USB OK" : "fila"}`
+          ? `Cerca ${raioM} m · ${cmd} · ${usb.ok ? "USB OK" : "fila GPRS/USB"}`
+          : `Cerca desativada · ${cmd} · ${usb.ok ? "USB OK" : "fila GPRS/USB"}`
       );
     } else {
       logCmd(ativa ? "Cerca ativada no mapa DK." : "Cerca desativada.");

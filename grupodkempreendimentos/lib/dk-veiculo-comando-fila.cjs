@@ -72,6 +72,39 @@ async function listarPendentes(imeiFiltro) {
   return fila.filter((c) => c.status === "pendente" && (!imei || c.imei === imei || !c.imei));
 }
 
+/**
+ * Reserva pendentes (status → enviando) para o bridge GT06 / agente.
+ * Evita envio duplicado USB+GPRS no mesmo ciclo.
+ * @param {string} [imeiFiltro]
+ * @param {number} [limite=20]
+ */
+async function claimPendentes(imeiFiltro, limite = 20) {
+  const imei = normImei(imeiFiltro);
+  const fila = await lerFila();
+  const agora = Date.now();
+  const STALE_MS = 120000;
+  const claimed = [];
+  for (let i = 0; i < fila.length; i++) {
+    const c = fila[i];
+    if (!c) continue;
+    // Recupera "enviando" travado (bridge caiu)
+    if (c.status === "enviando" && agora - Number(c.enviadoEm || 0) > STALE_MS) {
+      fila[i] = { ...c, status: "pendente", enviadoEm: null };
+    }
+  }
+  for (let i = 0; i < fila.length; i++) {
+    if (claimed.length >= Math.max(1, Number(limite) || 20)) break;
+    const c = fila[i];
+    if (!c || c.status !== "pendente") continue;
+    if (imei && c.imei && c.imei !== imei) continue;
+    const row = { ...c, status: "enviando", enviadoEm: agora };
+    fila[i] = row;
+    claimed.push(row);
+  }
+  if (claimed.length) await gravarFila(fila);
+  return claimed;
+}
+
 async function marcarResultado({ id, ok, resposta, via }) {
   const fila = await lerFila();
   const idx = fila.findIndex((c) => String(c.id) === String(id));
@@ -130,6 +163,7 @@ async function gravarCerca(imei, cerca) {
 module.exports = {
   enfileirarComando,
   listarPendentes,
+  claimPendentes,
   marcarResultado,
   lerFila,
   lerCercas,

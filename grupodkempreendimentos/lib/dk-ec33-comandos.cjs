@@ -57,6 +57,12 @@ function montarComandoEc33(tipo, params = {}) {
       return "MOVING,OFF#";
     case "reset":
       return "RESET#";
+    case "apn_claro":
+      return "APN,claro.com.br,claro,claro#";
+    case "apn_consulta":
+      return "APN#";
+    case "gmt_br":
+      return "GMT,W,3,0#";
     case "raw": {
       let cmd = String(p.cmd || p.comando || "").trim();
       if (!cmd) return "";
@@ -80,6 +86,9 @@ function rotuloComando(tipo) {
     cerca_on: "Ativar cerca / MOVING",
     cerca_off: "Desativar cerca / MOVING",
     reset: "Reiniciar rastreador",
+    apn_claro: "APN Claro",
+    apn_consulta: "Consultar APN",
+    gmt_br: "Fuso Brasil (GMT-3)",
     raw: "Comando livre",
   };
   return map[String(tipo || "").toLowerCase()] || String(tipo || "comando");

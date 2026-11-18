@@ -1,7 +1,8 @@
 /**
  * Posições + comandos EC33.
  * GET  /api/dk-veiculo-geo — lista posições
- * GET  /api/dk-veiculo-geo?comandos=1&imei=… — pendentes (agente USB)
+ * GET  /api/dk-veiculo-geo?comandos=1&imei=… — pendentes (agente USB / bridge)
+ * GET  /api/dk-veiculo-geo?comandos=1&claim=1&imei=… — reserva pendentes p/ bridge GPRS 0x80
  * POST — posição (source=ec33_gt06) | vincular | comando | cerca | comando_resultado
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
@@ -16,11 +17,13 @@ const {
 const {
   enfileirarComando,
   listarPendentes,
+  claimPendentes,
   marcarResultado,
   lerCercas,
   gravarCerca,
 } = require("../lib/dk-veiculo-comando-fila.cjs");
-const { normPlaca } = require("../lib/dk-ec33-comandos.cjs");
+const { normPlaca, montarComandoEc33 } = require("../lib/dk-ec33-comandos.cjs");
+const { enviarComandoSms, normMsisdnBr } = require("../lib/dk-veiculo-sms.cjs");
 
 const REDIS_KEY = "dk:portal:veiculo_geo_v1";
 
@@ -122,8 +125,11 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       if (String(req.query?.comandos || "") === "1") {
-        const pendentes = await listarPendentes(req.query?.imei);
-        return res.status(200).json({ ok: true, comandos: pendentes });
+        const claim = String(req.query?.claim || "") === "1";
+        const comandos = claim
+          ? await claimPendentes(req.query?.imei, Number(req.query?.limite) || 20)
+          : await listarPendentes(req.query?.imei);
+        return res.status(200).json({ ok: true, claim, comandos });
       }
       let lista = await listarPosicoes();
       if (!lista.ok) {
@@ -206,6 +212,25 @@ module.exports = async function handler(req, res) {
         origem: gate.service ? "service" : "portal",
       });
       return res.status(out.status).json(out.body);
+    }
+
+    if (acao === "enviar_sms" || acao === "sms") {
+      const tipo = String(body.tipo || "raw").toLowerCase();
+      const cmd =
+        String(body.cmd || body.comando || "").trim() || montarComandoEc33(tipo, body.params || {});
+      const msisdn = normMsisdnBr(body.msisdn || body.telefone || body.numero);
+      const fila = await enfileirarComando({
+        imei: body.imei,
+        placa: body.placa,
+        tipo: tipo === "raw" ? "raw" : tipo,
+        params: tipo === "raw" ? { cmd } : body.params || {},
+        origem: "portal_sms",
+      });
+      const sms = await enviarComandoSms({ msisdn, cmd });
+      return res.status(sms.status).json({
+        ...sms.body,
+        fila: fila.body?.comando || null,
+      });
     }
 
     if (acao === "comando_resultado") {

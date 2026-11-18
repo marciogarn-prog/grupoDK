@@ -525,7 +525,14 @@
       marcaModelo,
       modalidade: base.modalidade || pick(loc, ["plano", "opcaoContrato"], "DK MEU TRANSPORTE"),
       codigoCliente,
-      municipioData: base.municipioData || "",
+      municipioData: (() => {
+        const local = String(window.__DK_CONTRATO_LOCAL_ASSINATURA || "PETROLINA/PE").trim() || "PETROLINA/PE";
+        const md = String(base.municipioData || "").trim();
+        if (/PETROLINA/i.test(md)) return md;
+        if (md.includes(",")) return `${local}${md.slice(md.indexOf(","))}`;
+        return md || local;
+      })(),
+      localAssinatura: String(window.__DK_CONTRATO_LOCAL_ASSINATURA || base.localAssinatura || "PETROLINA/PE").trim() || "PETROLINA/PE",
       chassi: pick(veiculo, ["chassi"], "—").toUpperCase(),
       renavam: pick(veiculo, ["renavam"], "—"),
       cor: corVeiculo,
@@ -1907,21 +1914,22 @@ ${cssOpcao()}
     const d = enriquecerDadosPacote(dados);
     const itens = htmlItensVistoriaMoto();
     const tpl = window.__DK_CONTRATO_PACOTE_VISTORIA || "";
-    const cidade = String(d.cidade || "Petrolina").trim() || "Petrolina";
-    const uf = String(d.uf || "PE").trim() || "PE";
+    const localAssin =
+      String(d.localAssinatura || window.__DK_CONTRATO_LOCAL_ASSINATURA || "PETROLINA/PE").trim() ||
+      "PETROLINA/PE";
     const kmNum = String(d.km || "").replace(/\D/g, "");
     const entrega = substituirPacote(tpl, {
       ...d,
       itensVistoriaHtml: itens,
       fase: "ENTREGA",
-      dataLinha: d.municipioData || `${cidade}/${uf}`,
+      dataLinha: d.municipioData || localAssin,
       kmCampo: kmNum ? kmNum.padStart(6, "0") : "",
     });
     const devolucao = substituirPacote(tpl, {
       ...d,
       itensVistoriaHtml: itens,
       fase: "DEVOLUÇÃO",
-      dataLinha: `${cidade}/${uf}, _______, _______ de _____________________ de _________.`,
+      dataLinha: `${localAssin}, _______, _______ de _____________________ de _________.`,
       kmCampo: "",
     });
     return wrapPaginaVistoria(entrega, 1, 2, "ENTREGA") + wrapPaginaVistoria(devolucao, 2, 2, "DEVOLUÇÃO");

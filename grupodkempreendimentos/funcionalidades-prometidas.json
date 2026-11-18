@@ -1849,6 +1849,21 @@
       }
     },
     {
+      "id": "contrato-local-assinatura-petrolina",
+      "descricao": "Em todos os contratos (Opção Contratada, contrato SISLOC e vistoria), o local de lavratura/assinatura é sempre PETROLINA/PE (sede da DK Locadora), nunca Juazeiro-BA nem a cidade do cadastro do cliente.",
+      "ficheiros": {
+        "portal-contrato-locacao.js": [
+          "LOCAL_ASSINATURA_CONTRATO = \"PETROLINA/PE\"",
+          "__DK_CONTRATO_LOCAL_ASSINATURA",
+          "municipioDataLong(inicioDt, LOCAL_ASSINATURA_CONTRATO)"
+        ],
+        "portal-contrato-pacote.js": [
+          "__DK_CONTRATO_LOCAL_ASSINATURA",
+          "localAssinatura"
+        ]
+      }
+    },
+    {
       "id": "opcao-contratada-sisloc",
       "descricao": "Gerar contrato imprime primeiro a Opção Contratada no modelo SISLOC, seguida de uma página em branco para impressão frente e verso; depois vem o contrato de 10 páginas. A opção contém plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas. Na linha da CNH, cada cabeçalho fica junto do valor (Nº da CNH, Categoria, Validade, EAR?).",
       "ficheiros": {
@@ -4142,7 +4157,7 @@
     },
     {
       "id": "localizacao-veiculos-ec33",
-      "descricao": "Na área da equipa existe Localização veículos (mapa EC33): cadastrar rastreador IMEI↔placa, selecionar placa e enviar STATUS/WHERE/PARAM, bloqueio RELAY, TIMER (periodicidade) e cerca de limite; comandos via agente USB local 8787.",
+      "descricao": "Na área da equipa existe Localização veículos (mapa EC33): cadastrar rastreador IMEI↔placa, selecionar placa e enviar STATUS/WHERE/PARAM, bloqueio RELAY, TIMER (periodicidade) e cerca de limite; comandos via bridge GT06 GPRS (pacote 0x80) e/ou agente USB local 8787.",
       "ficheiros": {
         "index.html": [
           "btn-locadora-localizacao-veiculos",
@@ -4163,17 +4178,29 @@
         "portal-veiculo-geo-mapa.js": [
           "dkVeiculoCmdRelayOn",
           "enviarComando",
-          "127.0.0.1:8787"
+          "127.0.0.1:8787",
+          "GPRS (pacote 0x80)"
         ],
         "api/dk-veiculo-geo.js": [
           "acao === \"comando\"",
           "acao === \"cerca\"",
-          "enfileirarComando"
+          "enfileirarComando",
+          "claim=1"
         ],
         "scripts/ec33-usb-agent.mjs": [
           "8787",
           "TIMER,30,1800#",
           "SOX2B04"
+        ],
+        "scripts/gt06-tcp-bridge.mjs": [
+          "buildServerCommand",
+          "0x80",
+          "gt06_gprs",
+          "claim"
+        ],
+        "lib/dk-gt06-protocol.cjs": [
+          "buildServerCommand",
+          "0x15"
         ]
       }
     }

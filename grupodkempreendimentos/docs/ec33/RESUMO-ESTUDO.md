@@ -7,7 +7,7 @@
 - Módulo: **Quectel EG915-LA** (manual Mobidrive)
 - Bateria: 300 mAh · Alimentação veículo: **9–90 V**
 - Protocolo de servidor: **GT06** sobre **TCP** (não JT808)
-- Configuração operacional: **SMS** (comandos terminados em `#`)
+- Comandos de frota: texto terminado em `#` (manual págs. 12–16)
 
 ## Como a posição chega ao portal
 
@@ -18,7 +18,16 @@ O USB no PC **não** é o canal de frota em tempo real.
 3. O bridge DK (`scripts/gt06-tcp-bridge.mjs`) recebe, decodifica e grava em `/api/dk-veiculo-geo`.
 4. O mapa **Localização dos veículos** lê essa API (igual ao mapa de clientes).
 
-USB Quectel (`VID_2C7C` / `PID_6002`) serve diagnóstico/AT do modem — no PC do titular as interfaces AT/Diag/ECM estavam em **Error** (falta driver). Configuração de frota continua por **SMS**.
+## Comandos sem SMS (GPRS / plataforma)
+
+Depois que o EC33 faz **login** no bridge (`SERVER` apontado):
+
+1. No mapa DK o titular envia STATUS / WHERE / PARAM / RELAY / TIMER / cerca.
+2. A API enfileira o comando (`/api/dk-veiculo-geo` → `acao=comando`).
+3. O bridge faz `claim` da fila e envia o **mesmo texto** no pacote GT06 **`0x80`**.
+4. O aparelho responde em **`0x15`** (string); o bridge grava `comando_resultado` com `via=gt06_gprs`.
+
+A **1ª** configuração (`APN` + `SERVER`) ainda costuma precisar de **SMS** (ou chip com SMS). USB Quectel (`AT…`) é só diagnóstico do modem — não substitui os comandos `#` da app GT06.
 
 ## Comandos SMS essenciais
 

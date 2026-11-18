@@ -3936,6 +3936,17 @@
 
             <h3 class="portal-lanc-aluguel-section__title">Comandos na placa selecionada</h3>
             <p id="dkVeiculoGeoPlacaSel" class="subtext">Nenhuma placa selecionada.</p>
+            <div class="dk-veiculo-geo-form">
+              <label class="portal-field">
+                <span>Número do chip (SMS)</span>
+                <input type="tel" id="dkVeiculoGeoMsisdn" maxlength="20" inputmode="tel" placeholder="5591985505810" value="5591985505810" autocomplete="off">
+              </label>
+              <label class="portal-field portal-field--check">
+                <input type="checkbox" id="dkVeiculoGeoEnviarSms" checked>
+                <span>Enviar comando por SMS pelo sistema DK (chip do rastreador)</span>
+              </label>
+              <button type="button" class="btn-primary" id="dkVeiculoCmdSmsApnClaro">Enviar APN Claro por SMS</button>
+            </div>
             <div class="dk-veiculo-geo-cmds" role="group" aria-label="Comandos EC33">
               <button type="button" class="btn-primary" id="dkVeiculoCmdStatus">STATUS</button>
               <button type="button" class="btn-primary" id="dkVeiculoCmdWhere">WHERE (posição)</button>
@@ -6648,7 +6659,7 @@
   <script src="app.js?v=20261117ec33loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20261007area" defer></script>
-  <script src="portal-veiculo-geo-mapa.js?v=20261117ec33" defer></script>
+  <script src="portal-veiculo-geo-mapa.js?v=20261118gt06gprs" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
@@ -6703,8 +6714,8 @@
   <script src="data/dk-contrato-locacao-texto.js?v=20260901requerimento-padrao" defer></script>
   <script src="data/dk-contrato-pacote-textos.js?v=20261007rigor" defer></script>
   <script src="data/dk-modelos-veiculo.js?v=20260901requerimento-padrao" defer></script>
-  <script src="portal-contrato-locacao.js?v=20261111clientecontrato" defer></script>
-  <script src="portal-contrato-pacote.js?v=20261111clientecontrato" defer></script>
+  <script src="portal-contrato-locacao.js?v=20261118petrolina" defer></script>
+  <script src="portal-contrato-pacote.js?v=20261118petrolina" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="dk-parse-autuacao-transito.js?v=20260904placa-ocr" defer></script>
   <script src="portal-lancamentos-extras.js?v=20261110lancMulta" defer></script>
