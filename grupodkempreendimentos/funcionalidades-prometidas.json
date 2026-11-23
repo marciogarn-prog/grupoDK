@@ -803,6 +803,33 @@
       }
     },
     {
+      "id": "relatorio-rotatividade-receita-real-semana",
+      "descricao": "No Relatório de rotatividade, caixa Receita real por semana (canto ao lado da receita atual): soma dia a dia no período filtrado (valor semanal ÷ 7), contratos ativos naquele dia (entra no dia do início; não conta no dia da finalização), agrupado em semanas domingo→sábado com semanas quebradas no início/fim do mês.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoRotatividadeReceitaRealBox",
+          "operacaoRotatividadeReceitaRealLista",
+          "operacaoRotatividadeReceitaRealTotal",
+          "Receita real por semana"
+        ],
+        "portal-locadora-ui.js": [
+          "portalCalcularReceitaRealSemanalRotatividade",
+          "portalContratoGeraReceitaNoDiaRotatividade",
+          "portalAtualizarReceitaRealSemanalRotatividadeUi",
+          "portalDomingoSemanaRotatividade"
+        ],
+        "styles.css": [
+          "portal-rotatividade-receita-real",
+          "portal-rotatividade-receita-real__semana--quebrada",
+          "portal-rotatividade__receitas-topo"
+        ],
+        "dk-relatorio-operacao-pdf.js": [
+          "caixaRealId",
+          "operacaoRotatividadeReceitaRealBox"
+        ]
+      }
+    },
+    {
       "id": "relatorio-rotatividade-operador-data-hora",
       "descricao": "No Relatório de rotatividade, cada novo contrato e cada finalização tem duas linhas: a 1.ª com protocolo/cliente/veículo/valor; a 2.ª entre parênteses com ( nome do operador - DD/MM/AAAA - HH:mm ).",
       "ficheiros": {

@@ -33,6 +33,17 @@
     const caixaTxt = caixa
       ? `${caixa.querySelector("span")?.textContent || ""}: ${caixa.querySelector("strong")?.textContent || ""}`
       : "";
+    const caixaReal = opts.caixaRealId ? document.getElementById(opts.caixaRealId) : null;
+    let caixaRealTxt = "";
+    if (caixaReal) {
+      const lab = caixaReal.querySelector(".portal-rotatividade-receita-real__lab")?.textContent || "Receita real";
+      const tot = caixaReal.querySelector("strong")?.textContent || "";
+      const linhas = Array.from(caixaReal.querySelectorAll(".portal-rotatividade-receita-real__semana"))
+        .map((el) => el.textContent.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      caixaRealTxt = [`${lab}: ${tot}`, ...linhas].filter(Boolean).join(" · ");
+    }
+    const caixasMeta = [caixaTxt, caixaRealTxt].filter(Boolean).join(" | ");
     if (!lista.trim() && !resumo.trim()) {
       window.alert("Atualize o relatório antes de gerar o PDF.");
       return;
@@ -107,7 +118,7 @@
 </head>
 <body class="${bodyClass}">
   <h1>${esc(titulo)}</h1>
-  <p class="meta">${esc(hint)}${caixaTxt ? ` · ${esc(caixaTxt)}` : ""}</p>
+  <p class="meta">${esc(hint)}${caixasMeta ? ` · ${esc(caixasMeta)}` : ""}</p>
   <div class="folha">
   <div class="portal-rotatividade__resumo">${resumo}</div>
   <div class="portal-rotatividade__lista">${lista}</div>
@@ -151,6 +162,7 @@
       resumoId: "operacaoRotatividadeResumo",
       listaId: "operacaoRotatividadeLista",
       caixaId: "operacaoRotatividadeReceitaAtualBox",
+      caixaRealId: "operacaoRotatividadeReceitaRealBox",
     });
     bind("operacaoInatividadePdfBtn", "operacaoInatividadeAtualizarBtn", {
       titulo: "Relatório de inatividade — Grupo DK",

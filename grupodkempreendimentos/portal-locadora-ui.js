@@ -32579,6 +32579,154 @@
     }
   }
 
+  /** Meia-noite local do dia (ms). */
+  function portalMsInicioDiaRotatividade(ms) {
+    const d = new Date(Number(ms) || 0);
+    if (Number.isNaN(d.getTime())) return NaN;
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  /** Domingo (início da semana civil) do dia. */
+  function portalDomingoSemanaRotatividade(ms) {
+    const ini = portalMsInicioDiaRotatividade(ms);
+    if (!Number.isFinite(ini)) return NaN;
+    const d = new Date(ini);
+    d.setDate(d.getDate() - d.getDay());
+    return d.getTime();
+  }
+
+  function portalMsParaBrRotatividade(ms) {
+    const d = new Date(portalMsInicioDiaRotatividade(ms));
+    if (Number.isNaN(d.getTime())) return "";
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  /**
+   * Contrato conta no dia D se já iniciou e ainda não finalizou nesse dia.
+   * Finalização em D não gera receita em D; início em D gera.
+   * Valor do dia = valor semanal / 7.
+   */
+  function portalContratoGeraReceitaNoDiaRotatividade(loc, dayMs) {
+    const dia = portalMsInicioDiaRotatividade(dayMs);
+    if (!Number.isFinite(dia)) return 0;
+    const iniBr = portalInicioBrRotatividade(loc);
+    const iniMs = portalMsInicioDiaRotatividade(portalBrToMsRotatividade(iniBr));
+    if (!Number.isFinite(iniMs) || dia < iniMs) return 0;
+    const fimBr = portalFormatDataFinalizacaoLocacao(loc);
+    if (fimBr) {
+      const fimMs = portalMsInicioDiaRotatividade(portalBrToMsRotatividade(fimBr));
+      if (Number.isFinite(fimMs) && dia >= fimMs) return 0;
+    }
+    const sem = portalValorSemanalRotatividade(loc);
+    if (!(sem > 0)) return 0;
+    return sem / 7;
+  }
+
+  /**
+   * Receita real do período: soma dia a dia, agrupada em semanas (domingo→sábado),
+   * cortando nas bordas do filtro (semanas quebradas no início/fim do mês).
+   */
+  function portalCalcularReceitaRealSemanalRotatividade(periodo) {
+    const vazio = { semanas: [], total: 0, dias: 0 };
+    if (!periodo?.ok || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return vazio;
+    }
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
+    const locs = (loadCadastro(CAD_LOCACOES_KEY) || []).filter((l) => {
+      if (!l || typeof l !== "object") return false;
+      if (isGhost(l)) return false;
+      if (String(l.numeroContrato || "").replace(/\D/g, "") === "2099010199") return false;
+      if (typeof isPortalLocacaoCancelada === "function" && isPortalLocacaoCancelada(l)) return false;
+      return portalValorSemanalRotatividade(l) > 0;
+    });
+    const firstDay = portalMsInicioDiaRotatividade(periodo.startMs);
+    const lastDay = portalMsInicioDiaRotatividade(periodo.endMs);
+    if (!Number.isFinite(firstDay) || !Number.isFinite(lastDay) || firstDay > lastDay) return vazio;
+
+    const byWeek = new Map();
+    let total = 0;
+    let dias = 0;
+    const cursor = new Date(firstDay);
+    while (cursor.getTime() <= lastDay) {
+      const day = cursor.getTime();
+      let receitaDia = 0;
+      for (const loc of locs) receitaDia += portalContratoGeraReceitaNoDiaRotatividade(loc, day);
+      const domingo = portalDomingoSemanaRotatividade(day);
+      if (!byWeek.has(domingo)) {
+        byWeek.set(domingo, {
+          domingoMs: domingo,
+          iniMs: day,
+          fimMs: day,
+          dias: 0,
+          receita: 0,
+        });
+      }
+      const w = byWeek.get(domingo);
+      w.fimMs = day;
+      w.dias += 1;
+      w.receita += receitaDia;
+      total += receitaDia;
+      dias += 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    const semanas = Array.from(byWeek.values())
+      .sort((a, b) => a.domingoMs - b.domingoMs)
+      .map((w, idx) => ({
+        n: idx + 1,
+        iniBr: portalMsParaBrRotatividade(w.iniMs),
+        fimBr: portalMsParaBrRotatividade(w.fimMs),
+        dias: w.dias,
+        receita: w.receita,
+        quebrada: w.dias < 7,
+      }));
+    return { semanas, total, dias };
+  }
+
+  function portalAtualizarReceitaRealSemanalRotatividadeUi(periodo) {
+    const listaEl = document.getElementById("operacaoRotatividadeReceitaRealLista");
+    const totEl = document.getElementById("operacaoRotatividadeReceitaRealTotal");
+    const metaEl = document.getElementById("operacaoRotatividadeReceitaRealMeta");
+    if (!periodo?.ok) {
+      if (listaEl) listaEl.innerHTML = "";
+      if (totEl) totEl.textContent = "—";
+      if (metaEl) metaEl.textContent = "Informe o período do filtro";
+      return;
+    }
+    const calc = portalCalcularReceitaRealSemanalRotatividade(periodo);
+    if (listaEl) {
+      if (!calc.semanas.length) {
+        listaEl.innerHTML = `<div class="portal-rotatividade-receita-real__semana"><span>Sem dados no período</span><span>—</span></div>`;
+      } else {
+        listaEl.innerHTML = calc.semanas
+          .map((s) => {
+            const cls = s.quebrada ? " portal-rotatividade-receita-real__semana--quebrada" : "";
+            const rotulo = s.quebrada
+              ? `Semana ${s.n} quebrada · ${s.iniBr} a ${s.fimBr} · ${s.dias} dia${s.dias === 1 ? "" : "s"}`
+              : `Semana ${s.n} · ${s.iniBr} a ${s.fimBr}`;
+            return `<div class="portal-rotatividade-receita-real__semana${cls}"><span>${portalEscapeHtml(rotulo)}</span><span>${portalEscapeHtml(portalFmtBrlRotatividade(s.receita))}</span></div>`;
+          })
+          .join("");
+      }
+    }
+    if (totEl) totEl.textContent = portalFmtBrlRotatividade(calc.total);
+    if (metaEl) {
+      metaEl.textContent = calc.dias
+        ? `Soma dia a dia (valor semanal ÷ 7) · ${calc.dias} dia${calc.dias === 1 ? "" : "s"} · ${calc.semanas.length} semana${calc.semanas.length === 1 ? "" : "s"}`
+        : "";
+    }
+    try {
+      window.__DK_ultimaReceitaRealSemanal = calc;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  window.__DK_calcularReceitaRealSemanalRotatividade = portalCalcularReceitaRealSemanalRotatividade;
+
   function portalNomeClienteRotatividade(loc) {
     const nome = String(loc?.nomeCliente || loc?.clienteNome || loc?.nome || loc?.cliente || "").trim();
     if (nome) return nome.toUpperCase();
@@ -32794,6 +32942,7 @@
       if (el) el.textContent = t;
     };
     portalAtualizarReceitaSemanalAtualRotatividadeUi();
+    portalAtualizarReceitaRealSemanalRotatividadeUi(periodo);
     if (!periodo.ok) {
       setTxt("operacaoRotatividadeQtdNovos", "—");
       setTxt("operacaoRotatividadeQtdFim", "—");

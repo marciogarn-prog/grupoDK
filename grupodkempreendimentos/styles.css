@@ -14380,14 +14380,75 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   gap: 0.55rem;
   padding-bottom: 0.15rem;
 }
+.portal-rotatividade__receitas-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.65rem;
+  margin-left: auto;
+  max-width: min(100%, 42rem);
+}
+.portal-rotatividade-receita-real {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 14rem;
+  flex: 1 1 16rem;
+  max-width: 22rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(74, 222, 128, 0.55);
+  background: linear-gradient(135deg, rgba(20, 83, 45, 0.5), rgba(15, 23, 42, 0.8));
+  box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.12);
+}
+.portal-rotatividade-receita-real__lab {
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #86efac;
+  margin-bottom: 0.25rem;
+}
+.portal-rotatividade-receita-real__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 0.35rem;
+  max-height: 9.5rem;
+  overflow: auto;
+}
+.portal-rotatividade-receita-real__semana {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.55rem;
+  font-size: 0.74rem;
+  color: #d1fae5;
+  line-height: 1.25;
+}
+.portal-rotatividade-receita-real__semana span:last-child {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: #bbf7d0;
+}
+.portal-rotatividade-receita-real__semana--quebrada span:first-child {
+  color: #fde68a;
+}
+.portal-rotatividade-receita-real strong {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: #bbf7d0;
+}
+.portal-rotatividade-receita-real__meta {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
 .portal-rotatividade-receita-atual {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 14rem;
-  flex: 0 1 18rem;
-  max-width: 26rem;
-  margin-left: auto;
+  flex: 1 1 16rem;
+  max-width: 22rem;
   padding: 0.55rem 0.85rem;
   border-radius: 8px;
   border: 1px solid rgba(96, 165, 250, 0.55);

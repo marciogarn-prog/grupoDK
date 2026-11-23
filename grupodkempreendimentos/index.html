@@ -1884,10 +1884,18 @@
               <button type="button" class="btn-primary" id="operacaoRotatividadeAtualizarBtn">Atualizar relatório</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoRotatividadePdfBtn">Gerar PDF</button>
             </div>
-            <div class="portal-rotatividade-receita-atual" id="operacaoRotatividadeReceitaAtualBox" aria-live="polite">
-              <span class="portal-rotatividade-receita-atual__lab">Receita semanal atual (contratos ativos)</span>
-              <strong id="operacaoRotatividadeReceitaAtual">—</strong>
-              <span class="portal-rotatividade-receita-atual__meta" id="operacaoRotatividadeReceitaAtualMeta"></span>
+            <div class="portal-rotatividade__receitas-topo">
+              <div class="portal-rotatividade-receita-real" id="operacaoRotatividadeReceitaRealBox" aria-live="polite">
+                <span class="portal-rotatividade-receita-real__lab">Receita real por semana</span>
+                <div id="operacaoRotatividadeReceitaRealLista" class="portal-rotatividade-receita-real__lista"></div>
+                <strong id="operacaoRotatividadeReceitaRealTotal">—</strong>
+                <span class="portal-rotatividade-receita-real__meta" id="operacaoRotatividadeReceitaRealMeta"></span>
+              </div>
+              <div class="portal-rotatividade-receita-atual" id="operacaoRotatividadeReceitaAtualBox" aria-live="polite">
+                <span class="portal-rotatividade-receita-atual__lab">Receita semanal atual (contratos ativos)</span>
+                <strong id="operacaoRotatividadeReceitaAtual">—</strong>
+                <span class="portal-rotatividade-receita-atual__meta" id="operacaoRotatividadeReceitaAtualMeta"></span>
+              </div>
             </div>
           </div>
           <p id="operacaoRotatividadeHint" class="subtext portal-rotatividade__hint" role="status">—</p>
