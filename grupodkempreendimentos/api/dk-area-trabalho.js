@@ -1,8 +1,7 @@
 /**
- * Presença de área de trabalho (aviso). Não grava cadastro.
+ * Presença de área de trabalho. Não grava cadastro.
  * Redis partilhado entre PCs — o mesmo mapa alimenta «OCUPADO POR…» e Usuários ativos.
- * Não bloqueia outros usuários: dois operadores podem usar a mesma área.
- * Concorrência de escrita fica no registro (version/409), não na tela.
+ * Entrada exclusiva: se outro usuário já ocupa a área, responde 409 e a UI não abre a tela.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -278,16 +277,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, livre: true, marca });
     }
 
-    /* Compartilha a área: presença informativa, sem bloquear a UI. */
-    return res.status(200).json({
-      ok: true,
-      livre: true,
-      compartilhada: true,
-      aviso: true,
-      ocupada: false,
+    /* Área exclusiva: outro usuário impede a entrada. */
+    return res.status(409).json({
+      ok: false,
+      livre: false,
+      compartilhada: false,
+      aviso: false,
+      ocupada: true,
       area,
       nome: dono.nome || "outra pessoa",
-      marca,
+      marca: Number(dono.at) || 0,
     });
   } catch (e) {
     const reason = e && e.reason === "cloud_budget" ? "cloud_budget" : "area_indisponivel";

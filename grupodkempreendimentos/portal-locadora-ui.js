@@ -3900,16 +3900,19 @@
       void portalAreaTrabalhoPedido(areaRenovada, "renovar")
         .then(({ res, data }) => {
           if (portalAreaLockIdAtual !== areaRenovada) return;
-          if (data?.expirada) return;
-          if (data?.compartilhada || data?.aviso) {
-            portalRegistrarOcupacaoVista(areaRenovada, data?.nome);
-            portalPintarOcupacaoBotoes(portalOcupacaoCache);
+          if (data?.expirada) {
+            portalPararRenovacaoArea();
+            portalAreaLockIdAtual = "";
+            portalAreaLockMarca = 0;
+            portalBuscarOcupacaoBotoes();
             return;
           }
           if (res.status === 409 || data?.ocupada) {
-            /* Não expulsar: presença é aviso; escrita conflita no registro (409). */
             portalRegistrarOcupacaoVista(areaRenovada, data?.nome);
             portalPintarOcupacaoBotoes(portalOcupacaoCache);
+            portalPararRenovacaoArea();
+            portalAreaLockIdAtual = "";
+            portalAreaLockMarca = 0;
           }
         })
         .catch(() => {});
@@ -3928,28 +3931,36 @@
     const id = portalAreaLockId(area);
     if (!id) return true;
     if (portalAreaLockIdAtual === id) return true;
-    /* Presença Redis é só aviso (OCUPADO POR…). Nunca bloqueia a abertura da aba. */
     try {
       const marca = Date.now();
       const { res, data } = await portalAreaTrabalhoPedido(id, "entrar", marca);
-      if (res && res.ok && data) {
-        if (data.nome && (data.compartilhada || data.aviso || data.ocupada)) {
-          portalRegistrarOcupacaoVista(id, data.nome);
-        }
-        if (data.livre || data.ok !== false) {
-          if (!data.compartilhada) {
-            portalIniciarRenovacaoArea(id, data.marca || marca);
-          } else {
-            portalPintarOcupacaoBotoes(portalOcupacaoCache);
-          }
-        }
-      } else if (data && data.nome) {
-        portalRegistrarOcupacaoVista(id, data.nome);
+      if (res.status === 409 || data?.ocupada) {
+        portalRegistrarOcupacaoVista(id, data?.nome);
+        portalPintarOcupacaoBotoes(portalOcupacaoCache);
+        const btn = document.querySelector(`[data-area-ocupacao="${id}"]`);
+        const jaVisivel = Boolean(btn && btn.classList.contains("is-ocupado"));
+        /* Se o botão já mostra OCUPADO POR…, só pulsa — sem alerta repetido. */
+        if (!jaVisivel) portalAvisarAreaOcupada(id, data?.nome);
+        return false;
       }
+      if (res && res.ok && data && data.livre !== false && !data.compartilhada && data.ok !== false) {
+        portalIniciarRenovacaoArea(id, data.marca || marca);
+        return true;
+      }
+      if (data && data.nome) {
+        portalRegistrarOcupacaoVista(id, data.nome);
+        portalPintarOcupacaoBotoes(portalOcupacaoCache);
+      }
+      if (portalRespostaAreaTransitoria(res?.status) || res?.status === 503) {
+        /* Redis/nuvem indisponível — não trava a operação do dia. */
+        return true;
+      }
+      if (res && res.ok && data && data.livre === false) return false;
     } catch {
       /* Redis/nuvem falhou — a tela abre na mesma */
+      return true;
     }
-    return true;
+    return false;
   }
 
   function portalSairAreaExclusiva() {
