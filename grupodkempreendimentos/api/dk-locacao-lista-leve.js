@@ -1,6 +1,7 @@
 /**
  * Lista leve de locações para pesquisa. Não substitui o GET atual.
  * Não devolve pagamentos nem o jsonb completo.
+ * Se o Postgres não responder (522/504), o Redis assume.
  */
 const {
   applyApiCors,
@@ -10,6 +11,7 @@ const {
   onlyDigits,
 } = require("../lib/dk-portal-auth.cjs");
 const pg = require("../lib/dk-locacao-pg.cjs");
+const { pgComunicacaoFalhou, listarDoRedis } = require("../lib/dk-locacao-redis-fallback.cjs");
 
 function autor(gate) {
   const cpf = onlyDigits(gate && gate.cpf).slice(0, 11);
@@ -32,9 +34,20 @@ module.exports = async function handler(req, res) {
   try {
     const lista = await pg.listarResumo(cpfCliente);
     if (lista.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente", fallback: false });
-    return res.status(lista.ok ? 200 : 502).json(lista);
+    if (lista.ok) return res.status(200).json(lista);
+    if (pgComunicacaoFalhou(lista.status, lista.reason)) {
+      const fb = await listarDoRedis(cpfCliente);
+      if (fb.ok) return res.status(200).json(fb);
+    }
+    return res.status(502).json(lista);
   } catch (err) {
     console.error("[dk-locacao-lista-leve]", err && err.message ? err.message : "erro");
+    try {
+      const fb = await listarDoRedis(cpfCliente);
+      if (fb.ok) return res.status(200).json(fb);
+    } catch {
+      /* ignore */
+    }
     return res.status(500).json({ ok: false, reason: "erro_interno", fallback: false });
   }
 };

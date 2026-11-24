@@ -1,5 +1,6 @@
 /**
  * Uma locação por contrato. Não lista a frota.
+ * Se o Postgres não responder (522/504), o Redis assume.
  */
 const {
   applyApiCors,
@@ -9,6 +10,7 @@ const {
   onlyDigits,
 } = require("../lib/dk-portal-auth.cjs");
 const pg = require("../lib/dk-locacao-pg.cjs");
+const { pgComunicacaoFalhou, detalheDoRedis } = require("../lib/dk-locacao-redis-fallback.cjs");
 
 function autor(gate) {
   const cpf = onlyDigits(gate && gate.cpf).slice(0, 11);
@@ -33,10 +35,20 @@ module.exports = async function handler(req, res) {
   try {
     const detalhe = await pg.lerDetalhe(numero, { cpf: cpfCliente });
     if (detalhe.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente", fallback: false });
-    if (!detalhe.ok) return res.status(detalhe.status || 502).json(detalhe);
-    return res.status(200).json(detalhe);
+    if (detalhe.ok) return res.status(200).json(detalhe);
+    if (pgComunicacaoFalhou(detalhe.status, detalhe.reason)) {
+      const fb = await detalheDoRedis(numero, cpfCliente);
+      if (fb.ok) return res.status(200).json(fb);
+    }
+    return res.status(detalhe.status || 502).json(detalhe);
   } catch (err) {
     console.error("[dk-locacao-detalhe]", err && err.message ? err.message : "erro");
+    try {
+      const fb = await detalheDoRedis(numero, cpfCliente);
+      if (fb.ok) return res.status(200).json(fb);
+    } catch {
+      /* ignore */
+    }
     return res.status(500).json({ ok: false, reason: "erro_interno", fallback: false });
   }
 };

@@ -4213,7 +4213,22 @@
         ],
         "api/dk-locacao.js": [
           "listarLocacoesComFallbackRedis",
+          "gravarNoRedis",
+          "Gravação confirmada no Redis",
           "source: \"redis\""
+        ],
+        "api/dk-locacao-lista-leve.js": [
+          "listarDoRedis",
+          "pgComunicacaoFalhou"
+        ],
+        "api/dk-locacao-detalhe.js": [
+          "detalheDoRedis",
+          "pgComunicacaoFalhou"
+        ],
+        "lib/dk-locacao-redis-fallback.cjs": [
+          "gravarNoRedis",
+          "listarDoRedis",
+          "detalheDoRedis"
         ],
         "lib/dk-manutencao-fonte.cjs": [
           "supabase_timeout",

@@ -1,6 +1,7 @@
 /**
  * Locação e movimento financeiro. Uma operação por vez.
- * PostgreSQL é o juiz quando responde. Se der 522/504, o Redis (snapshot) assume a leitura.
+ * PostgreSQL confirma quando responde. Se der 522/504, o Redis assume leitura e gravação
+ * para o pareamento cliente↔servidor não falhar.
  */
 const {
   applyApiCors,
@@ -11,44 +12,18 @@ const {
   loadOfficialSnapshotPayload,
 } = require("../lib/dk-portal-auth.cjs");
 const pg = require("../lib/dk-locacao-pg.cjs");
-
-function locacaoPgLeituraFalhou(lista) {
-  if (!lista || lista.ok) return false;
-  const status = Number(lista.status || 0);
-  const reason = String(lista.reason || "");
-  return (
-    status === 504 ||
-    status === 522 ||
-    status === 503 ||
-    status === 502 ||
-    reason === "leitura" ||
-    reason === "supabase_timeout" ||
-    reason === "supabase_indisponivel"
-  );
-}
+const {
+  pgComunicacaoFalhou,
+  listarDoRedis,
+  gravarNoRedis,
+} = require("../lib/dk-locacao-redis-fallback.cjs");
 
 async function listarLocacoesComFallbackRedis(cpfCliente) {
   const lista = await pg.listar(cpfCliente);
   if (lista && lista.ok) return lista;
   if (lista && lista.schema === false) return lista;
-  if (!locacaoPgLeituraFalhou(lista)) return lista;
-  const payload = await loadOfficialSnapshotPayload();
-  let locs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
-  const cpf = onlyDigits(cpfCliente).slice(0, 11);
-  if (cpf.length === 11) {
-    locs = locs.filter((l) => onlyDigits(l && l.cpf).slice(0, 11) === cpf);
-  }
-  return {
-    ok: true,
-    schema: true,
-    ativado: true,
-    source: "redis",
-    fallback: true,
-    supabasePendente: true,
-    quantidade: locs.length,
-    locacoes: locs,
-    reason: (lista && lista.reason) || "supabase_timeout",
-  };
+  if (!pgComunicacaoFalhou(lista && lista.status, lista && lista.reason)) return lista;
+  return listarDoRedis(cpfCliente);
 }
 
 function parseBody(req) {
@@ -90,7 +65,15 @@ module.exports = async function handler(req, res) {
         if (cpfCliente) return res.status(200).json({ ok: true, schema: true, selo: "cliente" });
         const rel = await pg.relogio();
         if (rel.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
-        return res.status(rel.ok ? 200 : 502).json(rel);
+        if (rel.ok) return res.status(200).json(rel);
+        /* Relógio PG fora — Redis confirma presença da nuvem. */
+        return res.status(200).json({
+          ok: true,
+          schema: true,
+          selo: "redis",
+          source: "redis",
+          supabasePendente: true,
+        });
       }
       const lista = await listarLocacoesComFallbackRedis(cpfCliente);
       if (lista.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
@@ -101,21 +84,13 @@ module.exports = async function handler(req, res) {
     if (cpfCliente && fonte !== pg.FONTE_LOCACAO) {
       return res.status(403).json({ ok: false, reason: "somente_leitura" });
     }
-    let funcionarios = null;
     if (
       fonte === pg.FONTE_LOCACAO &&
       !(gate.service || String(gate.role || "").trim() === "owner" || cpfCliente)
     ) {
-      const payload = await loadOfficialSnapshotPayload();
-      funcionarios = payload && Array.isArray(payload.dk_funcionarios_access) ? payload.dk_funcionarios_access : [];
+      /* Garante snapshot Redis aquecido para o fallback de gravação. */
+      await loadOfficialSnapshotPayload();
     }
-    const acesso = {
-      ok: true,
-      typ: gate.typ,
-      role: gate.role,
-      service: Boolean(gate.service),
-      cpf: gate.cpf,
-    };
     const body = parseBody(req);
     const acao = String(body.op || op || "").trim();
     if (acao === "excluir") {
@@ -127,7 +102,6 @@ module.exports = async function handler(req, res) {
           hint: "exclusão exige operation_id; caminho legado sem Log foi desativado",
         });
       }
-      /* Exclusão física ainda não tem RPC mutate_with_event — bloquear contorno silencioso. */
       return res.status(501).json({
         ok: false,
         reason: "exclusao_atomica_pendente",
@@ -164,7 +138,35 @@ module.exports = async function handler(req, res) {
         route: "/api/dk-locacao",
         method: "POST",
       });
-      return res.status(atom.status || 400).json(atom.body || atom);
+      if (atom && atom.ok) {
+        return res.status(atom.status || 200).json(atom.body || atom);
+      }
+      const reason = (atom && atom.body && atom.body.reason) || (atom && atom.reason) || "gravacao";
+      const status = (atom && atom.status) || 502;
+      if (pgComunicacaoFalhou(status, reason)) {
+        const fb = await gravarNoRedis(locacao, {
+          operationId: opId,
+          numero: body.numero || locacao.numeroContrato,
+          action,
+        });
+        if (fb && fb.ok) {
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            confirmed: true,
+            source: "redis",
+            supabasePendente: true,
+            persistencia: "redis",
+            locacao: fb.locacao,
+            version: fb.version,
+            record_version: fb.record_version,
+            operation_id: opId,
+            reason: reason,
+            message: "Gravação confirmada no Redis (nuvem principal). Cópia Supabase pendente.",
+          });
+        }
+      }
+      return res.status(status || 400).json((atom && atom.body) || atom || { ok: false, reason: "gravacao" });
     }
     return res.status(400).json({ ok: false, reason: "operacao_desconhecida" });
   } catch (err) {
@@ -172,3 +174,5 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ ok: false, reason: "erro_interno" });
   }
 };
+
+module.exports.listarLocacoesComFallbackRedis = listarLocacoesComFallbackRedis;

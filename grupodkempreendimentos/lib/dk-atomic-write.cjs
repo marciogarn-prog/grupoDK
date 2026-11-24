@@ -128,16 +128,30 @@ async function restRpc(nome, args, io) {
     return { ok: false, status: 503, data: { reason: "doorman_key_missing" } };
   }
   const key = serviceRoleKey();
-  const res = await fetch(supabaseUrl() + "/rest/v1/rpc/" + nome, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: "Bearer " + key,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(args),
-  });
+  const prazo = Number.isFinite(Number(args && args.__timeoutMs)) ? Number(args.__timeoutMs) : 3000;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), prazo);
+  let res;
+  try {
+    res = await fetch(supabaseUrl() + "/rest/v1/rpc/" + nome, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: "Bearer " + key,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (ctrl.signal.aborted || (err && err.name === "AbortError")) {
+      return { ok: false, status: 504, data: { reason: "supabase_timeout" } };
+    }
+    return { ok: false, status: 503, data: { reason: "supabase_indisponivel" } };
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await res.text();
   let data = null;
   try {
@@ -149,7 +163,13 @@ async function restRpc(nome, args, io) {
 }
 
 function classificarErroRpc(data, status) {
-  const msg = String((data && (data.message || data.details || data.hint || data.raw)) || "");
+  const msg = String((data && (data.message || data.details || data.hint || data.raw || data.reason)) || "");
+  if (status === 504 || status === 522 || status === 524 || /supabase_timeout/i.test(msg)) {
+    return { status: 504, reason: "supabase_timeout" };
+  }
+  if (status === 503 && /supabase_indisponivel/i.test(msg)) {
+    return { status: 503, reason: "supabase_indisponivel" };
+  }
   if (/IDEMPOTENCY_CONFLICT/i.test(msg)) return { status: 409, reason: "IDEMPOTENCY_CONFLICT" };
   if (/revisao_conflito/i.test(msg)) return { status: 409, reason: "revisao_conflito" };
   if (/cpf_duplicado|placa_duplicada|cliente_ja_existe|veiculo_ja_existe/i.test(msg)) {
