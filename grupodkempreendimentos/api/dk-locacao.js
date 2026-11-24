@@ -1,6 +1,6 @@
 /**
  * Locação e movimento financeiro. Uma operação por vez.
- * PostgreSQL é o juiz. Redis não é consultado.
+ * PostgreSQL é o juiz quando responde. Se der 522/504, o Redis (snapshot) assume a leitura.
  */
 const {
   applyApiCors,
@@ -11,6 +11,45 @@ const {
   loadOfficialSnapshotPayload,
 } = require("../lib/dk-portal-auth.cjs");
 const pg = require("../lib/dk-locacao-pg.cjs");
+
+function locacaoPgLeituraFalhou(lista) {
+  if (!lista || lista.ok) return false;
+  const status = Number(lista.status || 0);
+  const reason = String(lista.reason || "");
+  return (
+    status === 504 ||
+    status === 522 ||
+    status === 503 ||
+    status === 502 ||
+    reason === "leitura" ||
+    reason === "supabase_timeout" ||
+    reason === "supabase_indisponivel"
+  );
+}
+
+async function listarLocacoesComFallbackRedis(cpfCliente) {
+  const lista = await pg.listar(cpfCliente);
+  if (lista && lista.ok) return lista;
+  if (lista && lista.schema === false) return lista;
+  if (!locacaoPgLeituraFalhou(lista)) return lista;
+  const payload = await loadOfficialSnapshotPayload();
+  let locs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
+  const cpf = onlyDigits(cpfCliente).slice(0, 11);
+  if (cpf.length === 11) {
+    locs = locs.filter((l) => onlyDigits(l && l.cpf).slice(0, 11) === cpf);
+  }
+  return {
+    ok: true,
+    schema: true,
+    ativado: true,
+    source: "redis",
+    fallback: true,
+    supabasePendente: true,
+    quantidade: locs.length,
+    locacoes: locs,
+    reason: (lista && lista.reason) || "supabase_timeout",
+  };
+}
 
 function parseBody(req) {
   let body = req.body;
@@ -53,7 +92,7 @@ module.exports = async function handler(req, res) {
         if (rel.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
         return res.status(rel.ok ? 200 : 502).json(rel);
       }
-      const lista = await pg.listar(cpfCliente);
+      const lista = await listarLocacoesComFallbackRedis(cpfCliente);
       if (lista.schema === false) return res.status(200).json({ ok: false, schema: false, reason: "schema_ausente" });
       return res.status(lista.ok ? 200 : 502).json(lista);
     }

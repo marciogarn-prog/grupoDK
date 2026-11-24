@@ -179,22 +179,23 @@ function ioSnapshotOficial(label) {
 
   return {
     ler: async () => {
-      const row = await withDoormanTimeout(fetchSnapshotByLabel(nome), 8000, "supabase_timeout");
+      /* Redis primeiro — 522 no espelho não atrasa cadastro/presença. */
+      const cached = await lerDoRedis();
+      if (cached) {
+        return {
+          payload: cached.payload,
+          updatedAt: cached.updatedAt,
+          supabasePendente: true,
+          reason: "redis",
+        };
+      }
+      const row = await withDoormanTimeout(fetchSnapshotByLabel(nome), 2000, "supabase_timeout");
       const reason = row && row.reason ? String(row.reason) : "";
       if (
         !row ||
         motivoSupabaseIndisponivel(reason) ||
         reason.startsWith("supabase_http")
       ) {
-        const cached = await lerDoRedis();
-        if (cached) {
-          return {
-            payload: cached.payload,
-            updatedAt: cached.updatedAt,
-            supabasePendente: true,
-            reason: reason || "supabase_indisponivel",
-          };
-        }
         return { indisponivel: true, reason: reason || "supabase_indisponivel" };
       }
       return { payload: row.payload, updatedAt: row.updatedAt || null };

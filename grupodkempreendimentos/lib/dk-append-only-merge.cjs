@@ -662,19 +662,24 @@ function mergeManutencoesRapidas(previousList, incomingList) {
 function mergeManutencoesCadastro(previousList, incomingList) {
   const ativa = (x) => !String(x?.dataRealSaida || "").trim();
   const score = (x) => Number(x?.updatedAt) || Date.parse(x?.updated_at || x?.criadoEm || 0) || 0;
-  const byPlaca = new Map();
+  const catKey = (r) =>
+    String(r?.categoriaManutencao || r?.categoria || "triagem")
+      .trim()
+      .toLowerCase() || "triagem";
+  const byPlacaCat = new Map();
   const byId = new Map();
   const closedSemId = [];
   const putActive = (r) => {
     if (!r || typeof r !== "object") return;
     const pl = normalizePlate(r.placa);
     if (!pl) return;
-    const ex = byPlaca.get(pl);
+    const key = `${pl}:${catKey(r)}`;
+    const ex = byPlacaCat.get(key);
     if (!ex) {
-      byPlaca.set(pl, { ...r });
+      byPlacaCat.set(key, { ...r });
       return;
     }
-    byPlaca.set(pl, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+    byPlacaCat.set(key, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
   };
   const putClosed = (r) => {
     if (!r || typeof r !== "object") return;
@@ -697,7 +702,7 @@ function mergeManutencoesCadastro(previousList, incomingList) {
   };
   (Array.isArray(previousList) ? previousList : []).forEach(add);
   (Array.isArray(incomingList) ? incomingList : []).forEach(add);
-  return [...byPlaca.values(), ...byId.values(), ...closedSemId];
+  return [...byPlacaCat.values(), ...byId.values(), ...closedSemId];
 }
 
 /** União por id (checklist / setor / histórico de movimentação). */

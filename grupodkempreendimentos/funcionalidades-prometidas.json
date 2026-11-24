@@ -4201,16 +4201,27 @@
     },
     {
       "id": "redis-assume-quando-supabase-522",
-      "descricao": "Redundância: se o Supabase não responder (HTTP 522, 524, timeout ou 5xx), o Redis assume e confirma a operação. O circuito abre de imediato em 522/timeout; GET/POST do snapshot e a persistência central não travam à espera do espelho. A faixa continua a dizer que os dados estão no Redis (nuvem principal).",
+      "descricao": "Redundância: se o Supabase não responder (HTTP 522, 524, timeout ou 5xx), o Redis assume e confirma a operação. O circuito abre de imediato em 522/timeout; GET/POST do snapshot e a persistência central não travam à espera do espelho. Overlay de manutenção PG não apaga o Redis nem espera mais de ~2,5s. Listagem de locação cai no snapshot Redis se o PG der 504/522. A faixa continua a dizer que os dados estão no Redis (nuvem principal).",
       "ficheiros": {
         "api/dk-cloud-snapshot.js": [
           "Redis confirma primeiro",
           "supabase_http_522",
           "supabaseBreakerAberto",
-          "responderSoRedis"
+          "responderSoRedis",
+          "_dk_manutencao_supabase_pendente",
+          "Mantém as manutenções do Redis"
+        ],
+        "api/dk-locacao.js": [
+          "listarLocacoesComFallbackRedis",
+          "source: \"redis\""
+        ],
+        "lib/dk-manutencao-fonte.cjs": [
+          "supabase_timeout",
+          "timeoutMs"
         ],
         "lib/dk-persistencia-central.cjs": [
           "Redis é a nuvem principal",
+          "Redis primeiro",
           "motivoSupabaseIndisponivel",
           "supabasePendente"
         ],

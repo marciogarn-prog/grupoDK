@@ -3574,25 +3574,30 @@ function mergeManutencoesCloudManda(localList, cloudList) {
       : String(p || "")
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "");
+  const catKey = (r) =>
+    String(r?.categoriaManutencao || r?.categoria || "triagem")
+      .trim()
+      .toLowerCase() || "triagem";
   const ativa = (x) => !String(x?.dataRealSaida || "").trim();
   const score = (x) => Number(x?.updatedAt) || Date.parse(x?.updated_at || x?.criadoEm || 0) || 0;
   const local = Array.isArray(localList) ? localList : [];
   const cloud = Array.isArray(cloudList) ? cloudList : [];
   if (!cloud.length) return local.slice();
   if (!local.length) return cloud.slice();
-  const byPlaca = new Map();
+  const byPlacaCat = new Map();
   const byId = new Map();
   const closed = [];
   const putActive = (r) => {
     if (!r || typeof r !== "object") return;
     const pl = plateKey(r.placa);
     if (!pl) return;
-    const ex = byPlaca.get(pl);
+    const key = `${pl}:${catKey(r)}`;
+    const ex = byPlacaCat.get(key);
     if (!ex) {
-      byPlaca.set(pl, { ...r });
+      byPlacaCat.set(key, { ...r });
       return;
     }
-    byPlaca.set(pl, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
+    byPlacaCat.set(key, score(r) >= score(ex) ? { ...ex, ...r } : { ...r, ...ex });
   };
   const putClosed = (r) => {
     if (!r || typeof r !== "object") return;
@@ -3618,7 +3623,7 @@ function mergeManutencoesCloudManda(localList, cloudList) {
     if (ativa(r)) putActive(r);
     else putClosed(r);
   });
-  return [...byPlaca.values(), ...byId.values(), ...closed];
+  return [...byPlacaCat.values(), ...byId.values(), ...closed];
 }
 try {
   window.__DK_mergeManutencoesCloudManda = mergeManutencoesCloudManda;

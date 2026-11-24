@@ -77,17 +77,31 @@ function serviceRoleKey() {
 async function rest(path, opts = {}) {
   if (!isSupabaseDoormanConfigured()) return { ok: false, status: 503, data: { reason: "doorman_key_missing" } };
   const key = serviceRoleKey();
-  const res = await fetch(supabaseUrl() + "/rest/v1/" + path, {
-    method: opts.method || "GET",
-    headers: {
-      apikey: key,
-      Authorization: "Bearer " + key,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(opts.prefer ? { Prefer: opts.prefer } : {}),
-    },
-    body: opts.body == null ? undefined : JSON.stringify(opts.body),
-  });
+  const prazo = Number.isFinite(Number(opts.timeoutMs)) ? Number(opts.timeoutMs) : 2000;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), prazo);
+  let res;
+  try {
+    res = await fetch(supabaseUrl() + "/rest/v1/" + path, {
+      method: opts.method || "GET",
+      headers: {
+        apikey: key,
+        Authorization: "Bearer " + key,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(opts.prefer ? { Prefer: opts.prefer } : {}),
+      },
+      body: opts.body == null ? undefined : JSON.stringify(opts.body),
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (ctrl.signal.aborted || (err && err.name === "AbortError")) {
+      return { ok: false, status: 504, data: { reason: "supabase_timeout" } };
+    }
+    return { ok: false, status: 503, data: { reason: "supabase_indisponivel" } };
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await res.text();
   let data = null;
   try {

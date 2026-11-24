@@ -1650,14 +1650,47 @@ async function handler(req, res) {
       async function overlayManutencaoRelacional(payload) {
         if (!payload || typeof payload !== "object") return payload;
         if (!(await manutencaoUnificadaAtiva(redis))) return payload;
-        const hist = await listarManutencoes("historico");
-        const rap = await listarManutencoes("rapida");
-        const out = { ...payload };
-        if (!hist.ok || !rap.ok) {
-          out.dk_manutencoes_cadastro = [];
-          out.dk_manutencoes_rapidas_v1 = [];
+        /* Com Supabase em 522 o overlay não pode travar o GET do Redis (~40s). */
+        if (supabaseBreakerAberto()) {
+          const out = { ...payload };
           out._dk_manutencao_pg_erro = true;
-          out._dk_manutencao_fonte = FONTE_MANUT_UNIFICADA;
+          out._dk_manutencao_fonte = "redis";
+          out._dk_manutencao_supabase_pendente = true;
+          return out;
+        }
+        let hist;
+        let rap;
+        try {
+          const leitor = Promise.all([listarManutencoes("historico"), listarManutencoes("rapida")]);
+          const timed = await Promise.race([
+            leitor,
+            new Promise((resolve) =>
+              setTimeout(() => resolve([{ ok: false, reason: "supabase_timeout" }, { ok: false, reason: "supabase_timeout" }]), 2500)
+            ),
+          ]);
+          hist = timed[0];
+          rap = timed[1];
+        } catch {
+          hist = { ok: false, reason: "supabase_indisponivel" };
+          rap = { ok: false, reason: "supabase_indisponivel" };
+        }
+        const out = { ...payload };
+        if (!hist || !hist.ok || !rap || !rap.ok) {
+          /* Mantém as manutenções do Redis — não apaga o cadastro quando o PG falha. */
+          out._dk_manutencao_pg_erro = true;
+          out._dk_manutencao_fonte = "redis";
+          out._dk_manutencao_supabase_pendente = true;
+          const st = Number((hist && hist.status) || (rap && rap.status) || 0);
+          if (st === 522 || st === 524 || st === 504 || st >= 500) {
+            notarSupabase({ ok: false, reason: `supabase_http_${st || 522}` });
+          } else if (
+            falhaSupabaseComunicacao(hist) ||
+            falhaSupabaseComunicacao(rap) ||
+            String((hist && hist.reason) || "").includes("timeout") ||
+            String((rap && rap.reason) || "").includes("timeout")
+          ) {
+            notarSupabase({ ok: false, reason: "supabase_timeout" });
+          }
           return out;
         }
         out.dk_manutencoes_cadastro = hist.data;

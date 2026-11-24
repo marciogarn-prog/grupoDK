@@ -324,7 +324,8 @@ function assinaturaLocacao(loc) {
   return `${JSON.stringify(campos)}#${pays}#${rems}`;
 }
 
-const LEITURA_MS = 15000;
+/* Com Cloudflare 522, 15s travava o portal; leitura curta libera o fallback Redis. */
+const LEITURA_MS = 3000;
 
 async function rest(path, opts = {}) {
   if (!isSupabaseDoormanConfigured()) {
