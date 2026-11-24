@@ -1,11 +1,11 @@
 /**
- * Snapshot DK. Supabase é a fonte que confirma a gravação.
- * Redis só recebe a cópia depois dessa confirmação e não decide o sucesso.
+ * Snapshot DK. Redis é a nuvem principal (confirma a gravação).
+ * Supabase é espelho: se devolver 522/timeout/5xx, o Redis assume e o sistema segue.
  *
- * GET  /api/dk-cloud-snapshot → { success, payload, revision, updated_at, source: "supabase" }
- *      A revisão (updated_at) confirma o Redis. O payload grande só é lido se o cache não servir.
+ * GET  /api/dk-cloud-snapshot → { success, payload, revision, updated_at, source: "redis"|"supabase" }
+ *      Serve o Redis primeiro quando o espelho falha ou o circuito está aberto.
  * POST /api/dk-cloud-snapshot → body { payload, updated_at?, base_revision? }
- *      Usa o Redis só se a revisão for a mesma. Sem mudança real não faz upsert.
+ *      Grava no Redis primeiro; o espelho Supabase tenta depois (curto) sem travar a operação.
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const {
@@ -24,7 +24,7 @@ const {
   upsertSnapshotByLabel,
   withDoormanTimeout,
 } = require("../lib/dk-supabase-doorman.cjs");
-const { revisaoConflita } = require("../lib/dk-persistencia-central.cjs");
+const { revisaoConflita, motivoSupabaseIndisponivel } = require("../lib/dk-persistencia-central.cjs");
 const {
   manutencaoUnificadaAtiva,
   listarManutencoes,
@@ -1143,6 +1143,13 @@ function notarSupabase(result) {
     return;
   }
   if (!falhaSupabaseComunicacao(result)) return;
+  const reason = String((result && result.reason) || "");
+  /* 522 Cloudflare / timeout: origem caída — abre o circuito já, sem esperar 3 falhas. */
+  if (reason === "supabase_timeout" || reason === "supabase_http_522" || reason === "supabase_http_524") {
+    supabaseBreaker.openUntil = Date.now() + 60000;
+    supabaseBreaker.fails = 0;
+    return;
+  }
   supabaseBreaker.fails += 1;
   if (supabaseBreaker.fails >= 3) {
     supabaseBreaker.openUntil = Date.now() + 60000;
@@ -1150,11 +1157,12 @@ function notarSupabase(result) {
   }
 }
 
-async function consultarSupabase(fn) {
+async function consultarSupabase(fn, timeoutMs) {
   if (supabaseBreakerAberto()) {
     return { ok: false, reason: "supabase_circuit_open", payload: null, updatedAt: null };
   }
-  const result = await withDoormanTimeout(fn(), 8000, "supabase_timeout");
+  const ms = Number(timeoutMs) > 0 ? Number(timeoutMs) : 8000;
+  const result = await withDoormanTimeout(fn(), ms, "supabase_timeout");
   notarSupabase(result);
   return result;
 }
@@ -1402,20 +1410,72 @@ function enfileirarGravacaoSnapshot(label, fn) {
 }
 
 /**
- * Base do POST. Lê só updated_at. O payload grande sai do Redis quando a revisão é a mesma.
+ * Base do POST. Redis é a base oficial; o espelho Supabase só atualiza se responder rápido.
+ * Em 522/timeout o Redis assume sem bloquear a gravação.
  */
 async function lerBaseOficialParaPost(redis, redisKey, label, deps) {
   const revisar = deps && deps.revisar
     ? deps.revisar
-    : () => consultarSupabase(() => fetchSnapshotRevisionByLabel(label));
+    : () => consultarSupabase(() => fetchSnapshotRevisionByLabel(label), 2000);
   const buscarPayload = deps && deps.buscarPayload
     ? deps.buscarPayload
-    : () => consultarSupabase(() => fetchSnapshotByLabel(label));
+    : () => consultarSupabase(() => fetchSnapshotByLabel(label), 8000);
+  let cached = null;
+  if (redis) {
+    cached = await lerSnapshotRedisOficial(redis, redisKey);
+  }
+  const cacheOk = Boolean(cached && cached.payload && typeof cached.payload === "object");
+
   if (!deps && !isSupabaseDoormanConfigured()) {
+    if (cacheOk) {
+      return {
+        ok: true,
+        reason: "redis",
+        payload: cached.payload,
+        updatedAt: cached.updated_at || null,
+        leiturasPayload: 0,
+        cache: "fallback",
+        supabasePendente: true,
+      };
+    }
     return { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null, leiturasPayload: 0, cache: "ausente" };
   }
+
+  if (!deps && supabaseBreakerAberto()) {
+    if (cacheOk) {
+      return {
+        ok: true,
+        reason: "redis",
+        payload: cached.payload,
+        updatedAt: cached.updated_at || null,
+        leiturasPayload: 0,
+        cache: "fallback",
+        supabasePendente: true,
+      };
+    }
+    return {
+      ok: false,
+      reason: "supabase_circuit_open",
+      payload: null,
+      updatedAt: null,
+      leiturasPayload: 0,
+      cache: "ausente",
+    };
+  }
+
   const revisao = await revisar();
   if (!revisao || !revisao.ok || !revisao.updatedAt) {
+    if (cacheOk) {
+      return {
+        ok: true,
+        reason: "redis",
+        payload: cached.payload,
+        updatedAt: cached.updated_at || null,
+        leiturasPayload: 0,
+        cache: "fallback",
+        supabasePendente: true,
+      };
+    }
     return {
       ok: false,
       reason: (revisao && revisao.reason) || "supabase_indisponivel",
@@ -1425,20 +1485,7 @@ async function lerBaseOficialParaPost(redis, redisKey, label, deps) {
       cache: "ausente",
     };
   }
-  let cached = null;
-  if (redis) {
-    let revCurta = null;
-    try {
-      const bruto = await redis.get(`${redisKey}:rev`);
-      revCurta = bruto == null ? null : String(bruto);
-    } catch {
-      revCurta = null;
-    }
-    if (revCurta == null || mesmaRevisaoSnapshot(revCurta, revisao.updatedAt)) {
-      cached = await lerSnapshotRedisOficial(redis, redisKey);
-    }
-  }
-  if (cached && cached.payload && mesmaRevisaoSnapshot(cached.updated_at, revisao.updatedAt)) {
+  if (cacheOk && mesmaRevisaoSnapshot(cached.updated_at, revisao.updatedAt)) {
     return {
       ok: true,
       reason: "ok",
@@ -1448,8 +1495,38 @@ async function lerBaseOficialParaPost(redis, redisKey, label, deps) {
       cache: "valido",
     };
   }
+  if (cacheOk && redis) {
+    let revCurta = null;
+    try {
+      const bruto = await redis.get(`${redisKey}:rev`);
+      revCurta = bruto == null ? null : String(bruto);
+    } catch {
+      revCurta = null;
+    }
+    if (revCurta != null && mesmaRevisaoSnapshot(revCurta, revisao.updatedAt) && mesmaRevisaoSnapshot(cached.updated_at, revCurta)) {
+      return {
+        ok: true,
+        reason: "ok",
+        payload: cached.payload,
+        updatedAt: String(revisao.updatedAt),
+        leiturasPayload: 0,
+        cache: "valido",
+      };
+    }
+  }
   const oficial = await buscarPayload();
   if (snapshotLeituraFalhou(oficial)) {
+    if (cacheOk) {
+      return {
+        ok: true,
+        reason: "redis",
+        payload: cached.payload,
+        updatedAt: cached.updated_at || null,
+        leiturasPayload: 1,
+        cache: "fallback",
+        supabasePendente: true,
+      };
+    }
     return {
       ok: false,
       reason: (oficial && oficial.reason) || "supabase_indisponivel",
@@ -1557,25 +1634,6 @@ async function handler(req, res) {
     if (req.method === "GET") {
       const metaOnly = req.query?.meta === "1" || req.query?.meta === "true";
       const etagPedido = etagNormalizado(req.headers["if-none-match"]);
-      const revisao = isSupabaseDoormanConfigured()
-        ? await consultarSupabase(() => fetchSnapshotRevisionByLabel(LABEL))
-        : { ok: false, reason: "doorman_key_missing", payload: null, updatedAt: null };
-      const revisaoOk = Boolean(revisao && revisao.ok && revisao.updatedAt);
-      if (revisaoOk) {
-        const etag = etagDeRevisao(revisao.updatedAt);
-        if (etag && etagPedido && etagPedido === etag) return responderSnapshot304(res, etag);
-        if (metaOnly) {
-          return res.status(200).json({
-            ok: true,
-            success: true,
-            meta: true,
-            label: LABEL,
-            revision: revisao.updatedAt,
-            updated_at: revisao.updatedAt,
-            source: "supabase",
-          });
-        }
-      }
 
       let cached = null;
       async function lerCacheCompleto() {
@@ -1626,7 +1684,7 @@ async function handler(req, res) {
         });
       }
 
-      if (!revisaoOk) {
+      async function responderSoRedis(reason) {
         await lerCacheCompleto();
         const etagRedis = etagDeRevisao(cached && cached.updated_at);
         if (etagRedis && etagPedido && etagPedido === etagRedis) return responderSnapshot304(res, etagRedis);
@@ -1643,15 +1701,49 @@ async function handler(req, res) {
           });
         }
         if (metaOnly || !cached || !cached.payload) {
-          console.error("[dk-snapshot] leitura supabase", revisao && revisao.reason);
+          console.error("[dk-snapshot] leitura supabase", reason);
           return res.status(503).json({
             ok: false,
             success: false,
-            reason: (revisao && revisao.reason) || "supabase_indisponivel",
-            source: "supabase",
+            reason: reason || "supabase_indisponivel",
+            source: "redis",
           });
         }
         return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
+      }
+
+      /* Redis primeiro: se o circuito está aberto (ex.: 522), não espera o espelho. */
+      if (supabaseBreakerAberto() || !isSupabaseDoormanConfigured()) {
+        return await responderSoRedis(
+          isSupabaseDoormanConfigured() ? "supabase_circuit_open" : "doorman_key_missing"
+        );
+      }
+
+      await lerCacheCompleto();
+      const temCache = Boolean(cached && cached.payload);
+      const revisao = await consultarSupabase(
+        () => fetchSnapshotRevisionByLabel(LABEL),
+        temCache ? 2000 : 8000
+      );
+      const revisaoOk = Boolean(revisao && revisao.ok && revisao.updatedAt);
+      if (revisaoOk) {
+        const etag = etagDeRevisao(revisao.updatedAt);
+        if (etag && etagPedido && etagPedido === etag) return responderSnapshot304(res, etag);
+        if (metaOnly) {
+          return res.status(200).json({
+            ok: true,
+            success: true,
+            meta: true,
+            label: LABEL,
+            revision: revisao.updatedAt,
+            updated_at: revisao.updatedAt,
+            source: "supabase",
+          });
+        }
+      }
+
+      if (!revisaoOk) {
+        return await responderSoRedis((revisao && revisao.reason) || "supabase_indisponivel");
       }
 
       const revCurta = redis
@@ -1669,20 +1761,11 @@ async function handler(req, res) {
       }
 
       const oficial = await lerPayloadOficialUnico(LABEL, redis, REDIS_KEY, revisao.updatedAt, () =>
-        consultarSupabase(() => fetchSnapshotByLabel(LABEL))
+        consultarSupabase(() => fetchSnapshotByLabel(LABEL), 8000)
       );
       if (snapshotLeituraFalhou(oficial)) {
         console.error("[dk-snapshot] leitura supabase", oficial && oficial.reason);
-        await lerCacheCompleto();
-        if (cached && cached.payload) {
-          return await responderPayloadGet(cached.payload, cached.updated_at || null, "redis", true);
-        }
-        return res.status(503).json({
-          ok: false,
-          success: false,
-          reason: (oficial && oficial.reason) || "supabase_indisponivel",
-          source: "supabase",
-        });
+        return await responderSoRedis((oficial && oficial.reason) || "supabase_indisponivel");
       }
       const revisaoPayload = (oficial && oficial.updatedAt) || revisao.updatedAt;
       if (!oficial.payload || typeof oficial.payload !== "object") {
@@ -1747,17 +1830,11 @@ async function handler(req, res) {
         if (!nc) {
           return res.status(400).json({ ok: false, reason: "protocolo_obrigatorio", message: "Informe o protocolo da locação." });
         }
-        let gravarLocSoRedis = false;
         let oficialAtualLoc = await lerBaseOficialParaPost(redis, REDIS_KEY, LABEL);
-        if (
-          !oficialAtualLoc ||
-          oficialAtualLoc.reason === "supabase_timeout" ||
-          oficialAtualLoc.reason === "supabase_circuit_open" ||
-          oficialAtualLoc.reason === "doorman_key_missing" ||
-          oficialAtualLoc.reason === "cloud_budget" ||
-          (oficialAtualLoc.reason && String(oficialAtualLoc.reason).startsWith("supabase_http")) ||
-          oficialAtualLoc.reason === "supabase_indisponivel"
-        ) {
+        let gravarLocSoRedis =
+          Boolean(oficialAtualLoc && oficialAtualLoc.supabasePendente) ||
+          motivoSupabaseIndisponivel(oficialAtualLoc && oficialAtualLoc.reason);
+        if (!oficialAtualLoc || !oficialAtualLoc.ok || !oficialAtualLoc.payload) {
           const cachedLoc = await lerSnapshotRedisOficial(redis, REDIS_KEY);
           if (!cachedLoc || !cachedLoc.payload) {
             return res.status(503).json({
@@ -1773,6 +1850,7 @@ async function handler(req, res) {
             reason: "redis",
             payload: cachedLoc.payload,
             updatedAt: cachedLoc.updated_at || null,
+            supabasePendente: true,
           };
         }
         const existingLocPayload =
@@ -1826,43 +1904,7 @@ async function handler(req, res) {
             locacao: nc,
           });
         }
-        let supabaseLoc = { ok: false, reason: "supabase_pendente" };
-        if (!gravarLocSoRedis) {
-          try {
-            supabaseLoc = await enfileirarGravacaoSnapshot(LABEL, () =>
-              withDoormanTimeout(
-                upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc),
-                8000,
-                "supabase_timeout"
-              )
-            );
-          } catch (err) {
-            supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
-          }
-          if (!supabaseLoc || supabaseLoc.ok !== true) {
-            const cachedDepois = await lerSnapshotRedisOficial(redis, REDIS_KEY);
-            if (!cachedDepois || !cachedDepois.payload || !redis) {
-              return res.status(502).json({
-                ok: false,
-                success: false,
-                reason: (supabaseLoc && supabaseLoc.reason) || "supabase_falhou",
-                message: "A nuvem não confirmou a locação. Tente de novo.",
-              });
-            }
-            gravarLocSoRedis = true;
-          }
-        }
-        if (!gravarLocSoRedis) {
-          const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
-          if (confirmedLoc !== true) {
-            return res.status(409).json({
-              ok: false,
-              success: false,
-              reason: "locacao_nao_confirmada",
-              message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
-            });
-          }
-        }
+        /* Redis confirma primeiro — 522 no espelho não trava o cadastro. */
         let redisLocOk = false;
         let redisLocErr = "";
         if (redis) {
@@ -1874,7 +1916,7 @@ async function handler(req, res) {
             redisLocErr = String(err && err.message ? err.message : err);
           }
         }
-        if (gravarLocSoRedis && !redisLocOk) {
+        if (!redisLocOk) {
           return res.status(503).json({
             ok: false,
             success: false,
@@ -1882,18 +1924,42 @@ async function handler(req, res) {
             message: "A nuvem não respondeu. Tente cadastrar de novo.",
           });
         }
+        const confirmedLoc = probeCadastroConfirmado(payloadLoc, { probe: "locacao", nc, value: nc });
+        if (confirmedLoc !== true) {
+          return res.status(409).json({
+            ok: false,
+            success: false,
+            reason: "locacao_nao_confirmada",
+            message: "A nuvem não guardou data, cliente e placa deste protocolo. Confira o cadastro e tente de novo.",
+          });
+        }
+        let supabaseLoc = { ok: false, reason: "supabase_pendente" };
+        if (!gravarLocSoRedis && !supabaseBreakerAberto()) {
+          try {
+            supabaseLoc = await enfileirarGravacaoSnapshot(LABEL, () =>
+              consultarSupabase(() => upsertSnapshotByLabel(LABEL, payloadLoc, storedAtLoc), 2000)
+            );
+          } catch (err) {
+            supabaseLoc = { ok: false, reason: String(err && err.message ? err.message : err) };
+          }
+          if (!supabaseLoc || supabaseLoc.ok !== true) gravarLocSoRedis = true;
+        } else {
+          gravarLocSoRedis = true;
+        }
         return res.status(200).json({
           ok: true,
           success: true,
           label: LABEL,
           revision: storedAtLoc,
           updated_at: storedAtLoc,
-          source: gravarLocSoRedis ? "redis" : redisLocOk ? "both" : "supabase",
-          persistencia: gravarLocSoRedis ? "redis" : redisLocOk ? "supabase+redis" : "supabase",
-          supabase: gravarLocSoRedis ? { ok: false, reason: "supabase_pendente" } : { ok: true },
+          source: gravarLocSoRedis ? "redis" : "both",
+          persistencia: gravarLocSoRedis ? "redis" : "supabase+redis",
+          supabase: gravarLocSoRedis
+            ? { ok: false, reason: (supabaseLoc && supabaseLoc.reason) || "supabase_pendente" }
+            : { ok: true },
           supabasePendente: gravarLocSoRedis,
-          redis: redisLocOk ? { ok: true } : { ok: false, reason: redisLocErr || "redis_indisponivel" },
-          confirmed: !gravarLocSoRedis,
+          redis: { ok: true },
+          confirmed: true,
           locacao: nc,
         });
       }
@@ -1907,16 +1973,10 @@ async function handler(req, res) {
       const oficialAtual = await lerBaseOficialParaPost(redis, REDIS_KEY, LABEL);
       let existingPayload = oficialAtual.payload && typeof oficialAtual.payload === "object" ? oficialAtual.payload : null;
       let existingUpdatedAt = oficialAtual.updatedAt ? String(oficialAtual.updatedAt) : null;
-      let gravarSoRedis = false;
-      if (
-        !oficialAtual ||
-        oficialAtual.reason === "supabase_timeout" ||
-        oficialAtual.reason === "supabase_circuit_open" ||
-        oficialAtual.reason === "doorman_key_missing" ||
-        oficialAtual.reason === "cloud_budget" ||
-        oficialAtual.reason === "supabase_indisponivel" ||
-        (oficialAtual.reason && String(oficialAtual.reason).startsWith("supabase_http"))
-      ) {
+      let gravarSoRedis =
+        Boolean(oficialAtual && oficialAtual.supabasePendente) ||
+        motivoSupabaseIndisponivel(oficialAtual && oficialAtual.reason);
+      if (!oficialAtual || !oficialAtual.ok || !existingPayload) {
         const cached = await lerSnapshotRedisOficial(redis, REDIS_KEY);
         if (!cached || !cached.payload) {
           return res.status(503).json({
@@ -2102,67 +2162,31 @@ async function handler(req, res) {
         });
       }
       const storedAt = new Date().toISOString();
-      if (gravarSoRedis) {
-        try {
-          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
-          await redis.set(`${REDIS_KEY}:rev`, storedAt);
-        } catch (err) {
-          return res.status(503).json({
-            ok: false,
-            success: false,
-            reason: "kv_write_failed",
-            message: "Não foi possível guardar no Redis oficial. Tente de novo.",
-          });
-        }
-        return res.status(200).json({
-          ok: true,
-          success: true,
-          label: LABEL,
-          revision: storedAt,
-          updated_at: storedAt,
-          source: "redis",
-          supabasePendente: true,
-          persistencia: "redis",
-          supabase: { ok: false, reason: (oficialAtual && oficialAtual.reason) || "supabase_indisponivel" },
-          redis: { ok: true },
-          replace,
-          keys: Object.keys(payload).length,
+      /* Redis confirma primeiro; espelho Supabase em até 2s — 522 não trava. */
+      let redisOk = false;
+      let redisErr = "";
+      if (!redis) {
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: "kv_not_configured",
+          message: "Redis oficial não configurado.",
         });
       }
-      let supabase;
       try {
-        supabase = await enfileirarGravacaoSnapshot(LABEL, () =>
-          consultarSupabase(() => upsertSnapshotByLabel(LABEL, payload, storedAt))
-        );
+        await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
+        await redis.set(`${REDIS_KEY}:rev`, storedAt);
+        redisOk = true;
       } catch (err) {
-        supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
+        redisErr = String(err && err.message ? err.message : err);
       }
-      if (!supabase || supabase.ok !== true) {
-        try {
-          await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
-          await redis.set(`${REDIS_KEY}:rev`, storedAt);
-        } catch (err) {
-          return res.status(502).json({
-            ok: false,
-            success: false,
-            reason: (supabase && supabase.reason) || "supabase_falhou",
-            message: "O Supabase não confirmou e o Redis também não guardou. Tente de novo.",
-            supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
-          });
-        }
-        return res.status(200).json({
-          ok: true,
-          success: true,
-          label: LABEL,
-          revision: storedAt,
-          updated_at: storedAt,
-          source: "redis",
-          supabasePendente: true,
-          persistencia: "redis",
-          supabase: { ok: false, reason: (supabase && supabase.reason) || "supabase_falhou" },
-          redis: { ok: true },
-          replace,
-          keys: Object.keys(payload).length,
+      if (!redisOk) {
+        return res.status(503).json({
+          ok: false,
+          success: false,
+          reason: "kv_write_failed",
+          message: "Não foi possível guardar no Redis oficial. Tente de novo.",
+          redis: { ok: false, reason: redisErr },
         });
       }
       let confirmed;
@@ -2177,29 +2201,33 @@ async function handler(req, res) {
           value,
         });
       }
-      let redisOk = true;
-      let redisErr = "";
-      try {
-        await redis.set(REDIS_KEY, JSON.stringify({ label: LABEL, payload, updated_at: storedAt }));
-        await redis.set(`${REDIS_KEY}:rev`, storedAt);
-      } catch (err) {
-        redisOk = false;
-        redisErr = String(err && err.message ? err.message : err);
-        console.error("[DK cloud] cache redis apos supabase", redisErr);
+      let supabase = { ok: false, reason: "supabase_pendente" };
+      if (!gravarSoRedis && !supabaseBreakerAberto()) {
+        try {
+          supabase = await enfileirarGravacaoSnapshot(LABEL, () =>
+            consultarSupabase(() => upsertSnapshotByLabel(LABEL, payload, storedAt), 2000)
+          );
+        } catch (err) {
+          supabase = { ok: false, reason: String(err && err.message ? err.message : err) };
+        }
       }
+      const espelhoOk = Boolean(supabase && supabase.ok === true);
       return res.status(200).json({
         ok: true,
         success: true,
         label: LABEL,
         revision: storedAt,
         updated_at: storedAt,
-        source: "supabase",
-        persistencia: redisOk ? "supabase+redis" : "supabase",
-        supabase: { ok: true },
-        redis: { ok: redisOk, reason: redisErr },
+        source: espelhoOk ? "both" : "redis",
+        persistencia: espelhoOk ? "supabase+redis" : "redis",
+        supabasePendente: !espelhoOk,
+        supabase: espelhoOk
+          ? { ok: true }
+          : { ok: false, reason: (supabase && supabase.reason) || (oficialAtual && oficialAtual.reason) || "supabase_pendente" },
+        redis: { ok: true },
         replace,
         keys: Object.keys(payload).length,
-        ...(typeof confirmed === "boolean" ? { confirmed } : {}),
+        ...(typeof confirmed === "boolean" ? { confirmed } : { confirmed: true }),
       });
       } finally {
         await releaseLocacoesWriteLock(redis, locacoesLockToken);

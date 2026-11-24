@@ -32,8 +32,13 @@ const payload = {
   dk_clientes_cadastro: [{ cpf: "123", nome: "Ana" }],
 };
 
-ok("GET pede a revisão antes do payload", getSrc.indexOf("fetchSnapshotRevisionByLabel") !== -1 && getSrc.indexOf("fetchSnapshotRevisionByLabel") < getSrc.indexOf("fetchSnapshotByLabel"));
+ok(
+  "GET pede a revisão antes do payload (quando o circuito está fechado)",
+  getSrc.indexOf("fetchSnapshotRevisionByLabel") !== -1 &&
+    getSrc.indexOf("fetchSnapshotRevisionByLabel") < getSrc.indexOf("fetchSnapshotByLabel")
+);
 ok("GET lê o payload do Supabase uma vez", getSrc.split("fetchSnapshotByLabel").length === 2);
+ok("GET com circuito aberto serve Redis sem esperar o espelho", getSrc.includes("supabaseBreakerAberto") && getSrc.includes("responderSoRedis"));
 ok("POST lê o payload só quando a base pede", fonte.includes("fetchSnapshotByLabel(label)") && postSrc.includes("lerBaseOficialParaPost"));
 ok("pacote=dia usa o corpo já resolvido", getSrc.includes("corpoDaConsulta") && !getSrc.includes("extrairPacoteDia"));
 

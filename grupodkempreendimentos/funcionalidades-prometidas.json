@@ -4200,6 +4200,26 @@
       }
     },
     {
+      "id": "redis-assume-quando-supabase-522",
+      "descricao": "Redundância: se o Supabase não responder (HTTP 522, 524, timeout ou 5xx), o Redis assume e confirma a operação. O circuito abre de imediato em 522/timeout; GET/POST do snapshot e a persistência central não travam à espera do espelho. A faixa continua a dizer que os dados estão no Redis (nuvem principal).",
+      "ficheiros": {
+        "api/dk-cloud-snapshot.js": [
+          "Redis confirma primeiro",
+          "supabase_http_522",
+          "supabaseBreakerAberto",
+          "responderSoRedis"
+        ],
+        "lib/dk-persistencia-central.cjs": [
+          "Redis é a nuvem principal",
+          "motivoSupabaseIndisponivel",
+          "supabasePendente"
+        ],
+        "portal-supabase-sync.js": [
+          "Os dados estão no Redis (nuvem principal)."
+        ]
+      }
+    },
+    {
       "id": "localizacao-veiculos-ec33",
       "descricao": "Na área da equipa existe Localização veículos (mapa EC33): cadastrar rastreador IMEI↔placa, selecionar placa e enviar STATUS/WHERE/PARAM, bloqueio RELAY, TIMER (periodicidade) e cerca de limite; comandos via bridge GT06 GPRS (pacote 0x80) e/ou agente USB local 8787.",
       "ficheiros": {

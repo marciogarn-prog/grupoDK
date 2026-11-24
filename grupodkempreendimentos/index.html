@@ -953,7 +953,7 @@
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" hidden data-equipa-nuvem="1" aria-live="polite">
           <p class="subtext portal-cloud-sync-bar__lead">
-            Nuvem <strong>redundante</strong>: cada guardar grava em <strong>Supabase</strong> e numa <strong>cópia Redis</strong> (Vercel). Se um falhar, o outro atende no carregar.
+            Nuvem <strong>redundante</strong>: cada guardar confirma no <strong>Redis</strong> (nuvem principal) e espelha no <strong>Supabase</strong>. Se o Supabase cair (ex.: 522), o Redis assume e o sistema segue.
             Use <strong>Carregar da nuvem</strong> noutro PC. Backup por e-mail → <strong>marciogarn@gmail.com</strong>; <strong>Importar backup</strong> restaura .json/.json.gz.
           </p>
           <p id="portal-cloud-supabase-status" class="portal-cloud-supabase-status hidden" role="alert"></p>

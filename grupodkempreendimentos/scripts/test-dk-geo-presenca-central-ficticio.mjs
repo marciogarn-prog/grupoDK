@@ -50,7 +50,14 @@ const cpfPresenca = "00000000000";
 async function provarRota(nome, gravar, ler, entrada, campo, conferir) {
   const base = memoria("2026-10-06T12:00:00.000Z");
   const a = await gravar(base.io, { ...entrada, baseRevision: base.mem.updatedAt }, base.cache);
-  ok(`${nome} A supabase e redis`, a.status === 200 && a.body.success === true && a.body.revision && a.body.updated_at && base.mem.ordem.join(",") === "supabase,redis");
+  ok(
+    `${nome} A redis e supabase`,
+    a.status === 200 &&
+      a.body.success === true &&
+      a.body.revision &&
+      a.body.updated_at &&
+      base.mem.ordem.join(",") === "redis,supabase"
+  );
 
   const redisFora = memoria("2026-10-06T12:00:00.000Z");
   const b = await gravar(
@@ -61,7 +68,14 @@ async function provarRota(nome, gravar, ler, entrada, campo, conferir) {
       throw new Error("redis fora");
     }
   );
-  ok(`${nome} B redis falha depois`, b.status === 200 && b.body.success === true && b.body.persistencia === "supabase" && b.body.redis.ok === false && redisFora.mem.gravou === 1);
+  ok(
+    `${nome} B redis falha — supabase ainda salva`,
+    b.status === 200 &&
+      b.body.success === true &&
+      b.body.persistencia === "supabase" &&
+      b.body.redis.ok === false &&
+      redisFora.mem.gravou === 1
+  );
 
   const supaFora = memoria("2026-10-06T12:00:00.000Z");
   let cacheRodou = false;
@@ -70,20 +84,30 @@ async function provarRota(nome, gravar, ler, entrada, campo, conferir) {
       ler: supaFora.io.ler,
       gravar: async () => {
         supaFora.mem.ordem.push("supabase");
-        return { ok: false, reason: "supabase_http_500" };
+        return { ok: false, reason: "supabase_http_522" };
       },
     },
     { ...entrada, baseRevision: supaFora.mem.updatedAt },
-    async () => {
+    async (payload) => {
       cacheRodou = true;
       supaFora.mem.ordem.push("redis");
+      supaFora.mem.payload = JSON.parse(JSON.stringify(payload));
     }
   );
-  ok(`${nome} C supabase falha`, c.status === 502 && c.body.success !== true && cacheRodou === false && supaFora.mem.payload[campo] == null);
+  ok(
+    `${nome} C supabase 522 — Redis assume`,
+    c.status === 200 &&
+      c.body.success === true &&
+      c.body.persistencia === "redis" &&
+      c.body.supabasePendente === true &&
+      c.body.confirmed === true &&
+      cacheRodou === true &&
+      supaFora.mem.payload[campo] != null
+  );
 
-  ok(`${nome} D sem fallback local`, c.body.success !== true && c.body.ok !== true && !("local" in (c.body || {})));
+  ok(`${nome} D sem fallback local inventado`, !("local" in (c.body || {})));
 
-  ok(`${nome} E supabase antes do redis`, a.body.success === true && base.mem.ordem[0] === "supabase" && base.mem.ordem[1] === "redis");
+  ok(`${nome} E redis antes do espelho supabase`, a.body.success === true && base.mem.ordem[0] === "redis" && base.mem.ordem[1] === "supabase");
 
   const leitura = await ler(base.io);
   const redisDivergente = { marca: "so-redis" };

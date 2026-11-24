@@ -123,15 +123,6 @@ function mergeLocacoesPorAtualidade(redisList, mirrorList) {
 
 async function gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirrorPayload, list) {
   const storedAt = new Date().toISOString();
-  const mirrorNext = { ...(mirrorPayload || {}), dk_locacoes_cadastro: list };
-  const saved = await withDoormanTimeout(
-    upsertSnapshotByLabel("default", mirrorNext, storedAt),
-    20000,
-    "supabase_timeout"
-  );
-  if (!saved || saved.ok !== true) {
-    return { ok: false, reason: String(saved?.reason || "supabase_falhou") };
-  }
   const canonicalNext = { ...(canonicalPayload || {}), dk_locacoes_cadastro: list };
   const envelope = {
     ...(row && typeof row === "object" ? row : {}),
@@ -139,8 +130,23 @@ async function gravarLocacoesAlinhadas(redis, row, canonicalPayload, mirrorPaylo
     payload: canonicalNext,
     updated_at: storedAt,
   };
+  /* Redis (oficial) primeiro — 522 no espelho não impede o alinhamento. */
   await redis.set(CANONICAL_SNAPSHOT_KEY, JSON.stringify(envelope));
   await redis.set(`${CANONICAL_SNAPSHOT_KEY}:rev`, storedAt);
+  const mirrorNext = { ...(mirrorPayload || {}), dk_locacoes_cadastro: list };
+  const saved = await withDoormanTimeout(
+    upsertSnapshotByLabel("default", mirrorNext, storedAt),
+    2000,
+    "supabase_timeout"
+  );
+  if (!saved || saved.ok !== true) {
+    return {
+      ok: true,
+      storedAt,
+      supabasePendente: true,
+      reason: String(saved?.reason || "supabase_falhou"),
+    };
+  }
   return { ok: true, storedAt };
 }
 

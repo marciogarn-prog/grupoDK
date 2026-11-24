@@ -27,6 +27,7 @@ const payload = { b: 1, a: [{ nome: "Ana" }] };
 ok("GET continua pedindo a revisão antes do payload", getSrc.indexOf("fetchSnapshotRevisionByLabel") < getSrc.indexOf("fetchSnapshotByLabel"));
 ok("POST não baixa o payload direto", !postSrc.includes("fetchSnapshotByLabel"));
 ok("POST passa pela base com revisão", postSrc.includes("lerBaseOficialParaPost"));
+ok("POST grava Redis antes do espelho", postSrc.includes("Redis confirma primeiro"));
 ok("sem mudança fica antes do upsert", postSrc.indexOf("inalterado") < postSrc.indexOf("upsertSnapshotByLabel"));
 
 let leituras = 0;
@@ -61,6 +62,22 @@ const cheio = await api.lerBaseOficialParaPost(redisCheio, "dk:portal:cloud_snap
   },
 });
 ok("cache válido não lê o payload", cheio.cache === "valido" && cheio.leiturasPayload === 0 && leituras === 1 && cheio.payload.b === 1);
+
+const queda522 = await api.lerBaseOficialParaPost(redisCheio, "dk:portal:cloud_snapshot:v1", "default", {
+  revisar: async () => ({ ok: false, reason: "supabase_http_522", updatedAt: null }),
+  buscarPayload: async () => {
+    leituras += 1;
+    return { ok: false, reason: "supabase_http_522", payload: null, updatedAt: null };
+  },
+});
+ok(
+  "supabase 522 — Redis assume a base do POST",
+  queda522.ok === true &&
+    queda522.cache === "fallback" &&
+    queda522.supabasePendente === true &&
+    queda522.payload.b === 1 &&
+    leituras === 1
+);
 
 ok("objetos iguais com chaves trocadas", api.payloadSnapshotIgual({ b: 1, a: [1] }, { a: [1], b: 1 }));
 ok("mudança real é diferente", api.payloadSnapshotIgual(payload, { ...payload, b: 2 }) === false);
