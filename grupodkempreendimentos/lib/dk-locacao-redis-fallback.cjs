@@ -3,7 +3,12 @@
  * leitura e gravação de locação para o portal continuar a trabalhar.
  */
 const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
-const { mergeLocacoesCadastro, mergePortalLancamentosAluguelEmbutidos } = require("./dk-append-only-merge.cjs");
+const {
+  mergeLocacoesCadastro,
+  mergePortalLancamentosAluguelEmbutidos,
+  mergePortalLancamentosRemovidos,
+  filtrarPortalLancamentosPorRemovidos,
+} = require("./dk-append-only-merge.cjs");
 const { acquireLocacoesWriteLock, releaseLocacoesWriteLock } = require("./dk-locacoes-integrity.cjs");
 
 const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
@@ -82,16 +87,37 @@ async function listarDoRedis(cpfCliente) {
   };
 }
 
+function protocoloPagamento(p) {
+  return String(p?.protocoloLancamento || p?.protocolo || "").trim();
+}
+
+function aplicarTombstonesPagamentos(locacao) {
+  if (!locacao || typeof locacao !== "object") return locacao;
+  const rem = Array.isArray(locacao.portalLancamentosAluguelRemovidos)
+    ? locacao.portalLancamentosAluguelRemovidos
+    : [];
+  const pays = Array.isArray(locacao.portalLancamentosAluguel) ? locacao.portalLancamentosAluguel : [];
+  if (!rem.length || !pays.length) return locacao;
+  const filtrados = filtrarPortalLancamentosPorRemovidos(pays, rem);
+  if (filtrados.length === pays.length) return locacao;
+  return { ...locacao, portalLancamentosAluguel: filtrados };
+}
+
 async function hidratarPagamentosDaFilaRedis(locacao, nc) {
   if (!locacao || typeof locacao !== "object" || !isRedisKvConfigured()) return locacao;
   try {
     const redis = createRedisClient();
     const all = await redis.hgetall("dk:portal:lancamentos_fila:v1");
     const mapa = all && typeof all === "object" ? all : {};
+    const rem = Array.isArray(locacao.portalLancamentosAluguelRemovidos)
+      ? locacao.portalLancamentosAluguelRemovidos
+      : [];
+    const remSet = new Set(rem.map((r) => protocoloPagamento(r)).filter(Boolean));
     const porProto = new Map();
     const atuais = Array.isArray(locacao.portalLancamentosAluguel) ? locacao.portalLancamentosAluguel : [];
     for (const p of atuais) {
-      const id = String(p?.protocoloLancamento || p?.protocolo || "").trim();
+      const id = protocoloPagamento(p);
+      if (id && remSet.has(id)) continue;
       if (id) porProto.set(id, p);
       else porProto.set(`anon:${atuais.indexOf(p)}`, p);
     }
@@ -106,15 +132,15 @@ async function hidratarPagamentosDaFilaRedis(locacao, nc) {
       }
       if (!item || !item.pagamento) continue;
       if (digitos(item.nc) !== digitos(nc)) continue;
-      const id = String(item.pagamento.protocoloLancamento || item.pagamento.protocolo || "").trim();
-      if (!id) continue;
+      const id = protocoloPagamento(item.pagamento);
+      if (!id || remSet.has(id)) continue;
       const prev = porProto.get(id);
       porProto.set(id, prev ? { ...prev, ...item.pagamento } : { ...item.pagamento });
     }
-    const merged = Array.from(porProto.values());
+    const merged = filtrarPortalLancamentosPorRemovidos(Array.from(porProto.values()), rem);
     return { ...locacao, portalLancamentosAluguel: merged };
   } catch {
-    return locacao;
+    return aplicarTombstonesPagamentos(locacao);
   }
 }
 
@@ -133,6 +159,7 @@ async function detalheDoRedis(numero, cpfCliente) {
     return { ok: false, status: 404, reason: "nao_encontrada", ativado: true, fallback: false };
   }
   locacao = await hidratarPagamentosDaFilaRedis(locacao, nc);
+  locacao = aplicarTombstonesPagamentos(locacao);
   return {
     ok: true,
     schema: true,
@@ -173,10 +200,17 @@ async function gravarNoRedis(locacao, opts) {
     const prevVer = Number(prev && prev.pgVersion) || 0;
     const incomingVer = Number(locacao && locacao.pgVersion) || 0;
     const nextVer = Math.max(prevVer, incomingVer) + 1;
-    const pagamentosUnidos = mergePortalLancamentosAluguelEmbutidos([
-      prev && prev.portalLancamentosAluguel,
-      locacao && locacao.portalLancamentosAluguel,
+    const remUnidos = mergePortalLancamentosRemovidos([
+      prev && prev.portalLancamentosAluguelRemovidos,
+      locacao && locacao.portalLancamentosAluguelRemovidos,
     ]);
+    const pagamentosUnidos = filtrarPortalLancamentosPorRemovidos(
+      mergePortalLancamentosAluguelEmbutidos([
+        prev && prev.portalLancamentosAluguel,
+        locacao && locacao.portalLancamentosAluguel,
+      ]),
+      remUnidos
+    );
     const saved = {
       ...(prev || {}),
       ...(locacao && typeof locacao === "object" ? locacao : {}),
@@ -189,12 +223,17 @@ async function gravarNoRedis(locacao, opts) {
       _dkRedisPendente: true,
       _dkOperationId: (opts && opts.operationId) || null,
     };
-    /* Nunca gravar locação Redis com menos pagamentos do que já existia. */
-    const nPrev = Array.isArray(prev?.portalLancamentosAluguel) ? prev.portalLancamentosAluguel.length : 0;
-    if (pagamentosUnidos.length < nPrev) {
-      saved.portalLancamentosAluguel = Array.isArray(prev.portalLancamentosAluguel)
-        ? prev.portalLancamentosAluguel.slice()
-        : pagamentosUnidos;
+    if (remUnidos.length) saved.portalLancamentosAluguelRemovidos = remUnidos;
+    /* Nunca encolher pagamentos vivos sem tombstone — apagados oficiais podem reduzir a lista. */
+    const nPrevVivos = filtrarPortalLancamentosPorRemovidos(
+      Array.isArray(prev?.portalLancamentosAluguel) ? prev.portalLancamentosAluguel : [],
+      remUnidos
+    ).length;
+    if (pagamentosUnidos.length < nPrevVivos) {
+      saved.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(
+        Array.isArray(prev.portalLancamentosAluguel) ? prev.portalLancamentosAluguel.slice() : pagamentosUnidos,
+        remUnidos
+      );
     }
     payload.dk_locacoes_cadastro = mergeLocacoesCadastro(base, [saved]);
     payload.dk_dados_seguros_v1 = true;

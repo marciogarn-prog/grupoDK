@@ -4247,7 +4247,7 @@
     },
     {
       "id": "lancamentos-nunca-desaparecem-redis",
-      "descricao": "Lançamentos de aluguel não podem desaparecer: cada pagamento confirmado espelha no Redis (snapshot + fila); se o Postgres falhar (522/504) o Redis confirma; o detalhe Redis hidrata a fila; merge por protocolo de lançamento nunca colapsa pagamentos distintos; gravação Redis de locação nunca reduz a lista de pagamentos já existente.",
+      "descricao": "Lançamentos de aluguel não podem desaparecer sozinhos: cada pagamento confirmado espelha no Redis (snapshot + fila); se o Postgres falhar (522/504) o Redis confirma; o detalhe Redis hidrata a fila; merge por protocolo de lançamento nunca colapsa pagamentos distintos; apagado oficial (tombstone) não volta pela fila nem na leitura; gravação Redis só reduz lista viva quando o tombstone cobre o protocolo.",
       "ficheiros": {
         "api/dk-lancamento-nuvem.js": [
           "Pagamento confirmado no Redis",
@@ -4256,11 +4256,14 @@
         ],
         "lib/dk-locacao-redis-fallback.cjs": [
           "hidratarPagamentosDaFilaRedis",
-          "Nunca gravar locação Redis com menos pagamentos"
+          "aplicarTombstonesPagamentos",
+          "filtrarPortalLancamentosPorRemovidos",
+          "Nunca encolher pagamentos vivos sem tombstone"
         ],
         "lib/dk-append-only-merge.cjs": [
           "Protocolo único = lançamento único",
-          "p:${proto}"
+          "p:${proto}",
+          "filtrarPortalLancamentosPorRemovidos"
         ],
         "lib/dk-pagamento-locacao-store.cjs": [
           "lerDoRedisSnapshot",
