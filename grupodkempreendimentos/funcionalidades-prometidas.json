@@ -4246,6 +4246,29 @@
       }
     },
     {
+      "id": "lancamentos-nunca-desaparecem-redis",
+      "descricao": "Lançamentos de aluguel não podem desaparecer: cada pagamento confirmado espelha no Redis (snapshot + fila); se o Postgres falhar (522/504) o Redis confirma; o detalhe Redis hidrata a fila; merge por protocolo de lançamento nunca colapsa pagamentos distintos; gravação Redis de locação nunca reduz a lista de pagamentos já existente.",
+      "ficheiros": {
+        "api/dk-lancamento-nuvem.js": [
+          "Pagamento confirmado no Redis",
+          "gravarPagamentoNoRedisOficial",
+          "Sempre espelha no snapshot"
+        ],
+        "lib/dk-locacao-redis-fallback.cjs": [
+          "hidratarPagamentosDaFilaRedis",
+          "Nunca gravar locação Redis com menos pagamentos"
+        ],
+        "lib/dk-append-only-merge.cjs": [
+          "Protocolo único = lançamento único",
+          "p:${proto}"
+        ],
+        "lib/dk-pagamento-locacao-store.cjs": [
+          "lerDoRedisSnapshot",
+          "fallback: true"
+        ]
+      }
+    },
+    {
       "id": "localizacao-veiculos-ec33",
       "descricao": "Na área da equipa existe Localização veículos (mapa EC33): cadastrar rastreador IMEI↔placa, selecionar placa e enviar STATUS/WHERE/PARAM, bloqueio RELAY, TIMER (periodicidade) e cerca de limite; comandos via bridge GT06 GPRS (pacote 0x80) e/ou agente USB local 8787.",
       "ficheiros": {

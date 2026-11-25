@@ -3,7 +3,7 @@
  * leitura e gravação de locação para o portal continuar a trabalhar.
  */
 const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
-const { mergeLocacoesCadastro } = require("./dk-append-only-merge.cjs");
+const { mergeLocacoesCadastro, mergePortalLancamentosAluguelEmbutidos } = require("./dk-append-only-merge.cjs");
 const { acquireLocacoesWriteLock, releaseLocacoesWriteLock } = require("./dk-locacoes-integrity.cjs");
 
 const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
@@ -82,6 +82,42 @@ async function listarDoRedis(cpfCliente) {
   };
 }
 
+async function hidratarPagamentosDaFilaRedis(locacao, nc) {
+  if (!locacao || typeof locacao !== "object" || !isRedisKvConfigured()) return locacao;
+  try {
+    const redis = createRedisClient();
+    const all = await redis.hgetall("dk:portal:lancamentos_fila:v1");
+    const mapa = all && typeof all === "object" ? all : {};
+    const porProto = new Map();
+    const atuais = Array.isArray(locacao.portalLancamentosAluguel) ? locacao.portalLancamentosAluguel : [];
+    for (const p of atuais) {
+      const id = String(p?.protocoloLancamento || p?.protocolo || "").trim();
+      if (id) porProto.set(id, p);
+      else porProto.set(`anon:${atuais.indexOf(p)}`, p);
+    }
+    for (const raw of Object.values(mapa)) {
+      let item = raw;
+      if (typeof raw === "string") {
+        try {
+          item = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+      }
+      if (!item || !item.pagamento) continue;
+      if (digitos(item.nc) !== digitos(nc)) continue;
+      const id = String(item.pagamento.protocoloLancamento || item.pagamento.protocolo || "").trim();
+      if (!id) continue;
+      const prev = porProto.get(id);
+      porProto.set(id, prev ? { ...prev, ...item.pagamento } : { ...item.pagamento });
+    }
+    const merged = Array.from(porProto.values());
+    return { ...locacao, portalLancamentosAluguel: merged };
+  } catch {
+    return locacao;
+  }
+}
+
 async function detalheDoRedis(numero, cpfCliente) {
   const nc = digitos(numero);
   if (!nc) return { ok: false, status: 400, reason: "contrato_obrigatorio", ativado: true, fallback: false };
@@ -92,10 +128,11 @@ async function detalheDoRedis(numero, cpfCliente) {
   let locs = locacoesDoPayload(env.payload);
   const cpf = digitos(cpfCliente).slice(0, 11);
   if (cpf.length === 11) locs = filtrarCpf(locs, cpf);
-  const locacao = locs.find((l) => digitos(l && (l.numeroContrato || l.protocolo)) === nc) || null;
+  let locacao = locs.find((l) => digitos(l && (l.numeroContrato || l.protocolo)) === nc) || null;
   if (!locacao) {
     return { ok: false, status: 404, reason: "nao_encontrada", ativado: true, fallback: false };
   }
+  locacao = await hidratarPagamentosDaFilaRedis(locacao, nc);
   return {
     ok: true,
     schema: true,
@@ -136,6 +173,10 @@ async function gravarNoRedis(locacao, opts) {
     const prevVer = Number(prev && prev.pgVersion) || 0;
     const incomingVer = Number(locacao && locacao.pgVersion) || 0;
     const nextVer = Math.max(prevVer, incomingVer) + 1;
+    const pagamentosUnidos = mergePortalLancamentosAluguelEmbutidos([
+      prev && prev.portalLancamentosAluguel,
+      locacao && locacao.portalLancamentosAluguel,
+    ]);
     const saved = {
       ...(prev || {}),
       ...(locacao && typeof locacao === "object" ? locacao : {}),
@@ -144,9 +185,17 @@ async function gravarNoRedis(locacao, opts) {
       pgId: (locacao && locacao.pgId) || (prev && prev.pgId) || `redis-${nc}`,
       pgVersion: nextVer,
       updatedAt: Date.now(),
+      portalLancamentosAluguel: pagamentosUnidos,
       _dkRedisPendente: true,
       _dkOperationId: (opts && opts.operationId) || null,
     };
+    /* Nunca gravar locação Redis com menos pagamentos do que já existia. */
+    const nPrev = Array.isArray(prev?.portalLancamentosAluguel) ? prev.portalLancamentosAluguel.length : 0;
+    if (pagamentosUnidos.length < nPrev) {
+      saved.portalLancamentosAluguel = Array.isArray(prev.portalLancamentosAluguel)
+        ? prev.portalLancamentosAluguel.slice()
+        : pagamentosUnidos;
+    }
     payload.dk_locacoes_cadastro = mergeLocacoesCadastro(base, [saved]);
     payload.dk_dados_seguros_v1 = true;
     const storedAt = new Date().toISOString();

@@ -229,8 +229,17 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       if (!Number.isFinite(valor)) continue;
       if (isDev ? valor >= 0 : valor <= 0) continue;
       const ca = Number(raw.createdAt || raw.id || 0);
-      const key = `${data}|${valor}|${ca}|${isDev ? "DEV" : isCred ? "CRED" : isCau ? "CAU" : "PAG"}`;
-      if (byKey.has(key)) continue;
+      const proto = String(raw.protocoloLancamento || raw.protocolo || "").trim();
+      /* Protocolo único = lançamento único — nunca sobrescreve outro pagamento. */
+      const key = proto
+        ? `p:${proto}`
+        : `${data}|${valor}|${ca}|${isDev ? "DEV" : isCred ? "CRED" : isCau ? "CAU" : "PAG"}`;
+      if (byKey.has(key)) {
+        const prev = byKey.get(key);
+        const prevCa = Number(prev?.createdAt || prev?.id || 0);
+        if (ca >= prevCa) byKey.set(key, { ...prev, ...raw, data, valor, createdAt: ca || prevCa || Date.now() });
+        continue;
+      }
       const row = { ...raw, data, valor, createdAt: ca || Date.now() };
       row.registradoPorCpf = onlyDigits(raw.registradoPorCpf).slice(0, 11);
       row.registradoPorNome = String(raw.registradoPorNome || "").trim();
@@ -400,12 +409,25 @@ function momentoLancamentoAluguel(row) {
   return Math.max(Number(row?.updatedAt || 0), Number(row?.createdAt || 0), Number(row?.id || 0));
 }
 
-/** Mesmo dia e mesmo valor de aluguel: fica o lançamento com a data/hora mais recente. */
+/**
+ * Deduplica lançamentos sem apagar pagamentos distintos.
+ * Protocolo de lançamento único nunca colapsa com outro.
+ * Só junta o mesmo dia+valor quando NÃO há protocolo (legado).
+ */
 function escolherLancamentoAluguelMaisRecente(list) {
+  const byProto = new Map();
   const by = new Map();
   const outros = [];
   for (const row of list || []) {
     if (!row || typeof row !== "object") continue;
+    const proto = String(row.protocoloLancamento || row.protocolo || "").trim();
+    if (proto) {
+      const prev = byProto.get(proto);
+      if (!prev || momentoLancamentoAluguel(row) >= momentoLancamentoAluguel(prev)) {
+        byProto.set(proto, row);
+      }
+      continue;
+    }
     const tipo = String(row.tipoMovimento || "").trim().toUpperCase();
     const valor = Number(row.valor);
     const especial =
@@ -425,7 +447,7 @@ function escolherLancamentoAluguelMaisRecente(list) {
     const prev = by.get(chave);
     if (!prev || momentoLancamentoAluguel(row) >= momentoLancamentoAluguel(prev)) by.set(chave, row);
   }
-  return [...by.values(), ...outros];
+  return [...byProto.values(), ...by.values(), ...outros];
 }
 
 function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {

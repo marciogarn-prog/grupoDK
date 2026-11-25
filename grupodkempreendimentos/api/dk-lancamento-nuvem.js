@@ -218,10 +218,15 @@ function itemDePayload(payload) {
 async function cacheRedis(item, protocolo) {
   if (!isRedisKvConfigured()) return;
   try {
-    const redis = createRedisClient();
-    await redis.hset(FILA_KEY, { [protocolo]: JSON.stringify(item) });
+    /* Sempre espelha no snapshot + fila — se o PG cair, o detalhe Redis ainda tem o pagamento. */
+    await gravarPagamentoNoRedisOficial(item, protocolo);
   } catch {
-    /* Redis é cache. A linha já está no Supabase. */
+    try {
+      const redis = createRedisClient();
+      await redis.hset(FILA_KEY, { [protocolo]: JSON.stringify(item) });
+    } catch {
+      /* Redis é espelho; falha aqui não desfaz a gravação já confirmada. */
+    }
   }
 }
 
@@ -249,36 +254,49 @@ async function lerFilaRedis() {
 async function gravarPagamentoNoRedisOficial(item, protocolo) {
   if (!isRedisKvConfigured()) return { ok: false, reason: "kv_not_configured" };
   const redis = createRedisClient();
-  const fila = await lerFilaRedis();
-  const repetidoFila = fila.some((outro) => {
-    if (!outro || String(outro?.pagamento?.protocoloLancamento || "") === protocolo) return false;
-    return onlyDigits(outro.nc) === onlyDigits(item.nc) && mesmaCobranca(outro.pagamento, item.pagamento);
-  });
-  if (repetidoFila) return { ok: false, duplicado: true };
+  const proto = String(protocolo || item?.pagamento?.protocoloLancamento || "").trim();
+  if (!proto) return { ok: false, reason: "protocolo_obrigatorio" };
   const row = lerSnapshot(await redis.get(CANONICAL_SNAPSHOT_KEY));
-  const payload = row && row.payload && typeof row.payload === "object" ? row.payload : null;
-  const locs = Array.isArray(payload?.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : null;
-  if (locs) {
-    const idx = locs.findIndex((loc) => onlyDigits(loc?.numeroContrato || loc?.protocolo) === onlyDigits(item.nc));
-    if (idx >= 0) {
-      const loc = locs[idx];
-      const atuais = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
-      const repetido = atuais.some((pag) => mesmaCobranca(pag, item.pagamento));
-      if (repetido) return { ok: false, duplicado: true };
-      locs[idx] = {
-        ...loc,
-        portalLancamentosAluguel: atuais.concat([item.pagamento]),
-        updatedAt: Date.now(),
-      };
-      payload.dk_locacoes_cadastro = locs;
-      await redis.set(
-        CANONICAL_SNAPSHOT_KEY,
-        JSON.stringify({ ...row, payload, updated_at: new Date().toISOString() })
-      );
+  const payload = row && row.payload && typeof row.payload === "object" ? { ...row.payload } : {};
+  const locs = Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro.slice() : [];
+  const nc = onlyDigits(item.nc);
+  let idx = locs.findIndex((loc) => onlyDigits(loc?.numeroContrato || loc?.protocolo) === nc);
+  if (idx < 0 && nc) {
+    locs.push({
+      numeroContrato: nc,
+      protocolo: nc,
+      cpf: onlyDigits(item.cpf).slice(0, 11),
+      placa: String(item.placa || "").trim().toUpperCase(),
+      portalLancamentosAluguel: [],
+      statusLocacao: "ATIVO",
+    });
+    idx = locs.length - 1;
+  }
+  if (idx >= 0) {
+    const loc = locs[idx];
+    const atuais = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.slice() : [];
+    const iProto = atuais.findIndex(
+      (pag) => String(pag?.protocoloLancamento || pag?.protocolo || "").trim() === proto
+    );
+    if (iProto >= 0) {
+      atuais[iProto] = { ...atuais[iProto], ...item.pagamento, protocoloLancamento: proto };
+    } else {
+      atuais.push({ ...item.pagamento, protocoloLancamento: proto });
     }
+    locs[idx] = {
+      ...loc,
+      portalLancamentosAluguel: atuais,
+      updatedAt: Date.now(),
+      _dkRedisPendente: true,
+    };
+    payload.dk_locacoes_cadastro = locs;
+    payload.dk_dados_seguros_v1 = true;
+    const storedAt = new Date().toISOString();
+    await redis.set(CANONICAL_SNAPSHOT_KEY, JSON.stringify({ ...row, label: "default", payload, updated_at: storedAt }));
+    await redis.set(`${CANONICAL_SNAPSHOT_KEY}:rev`, storedAt);
   }
   await redis.hset(FILA_KEY, {
-    [protocolo]: JSON.stringify({ ...item, supabasePendente: true }),
+    [proto]: JSON.stringify({ ...item, supabasePendente: true }),
   });
   return { ok: true };
 }
@@ -378,12 +396,39 @@ module.exports = async function handler(req, res) {
             .toUpperCase(),
           pagamento,
         };
+        const itemComAt = {
+          ...item,
+          at: new Date().toISOString(),
+        };
         const gravou = await gravarPagamentoNoPg(item, {
           actorUserId: gate.cpf || pagamento.registradoPorCpf,
           actorSessionId: gate.sid,
           route: "/api/dk-lancamento-nuvem",
         });
         if (!gravou.ok) {
+          /* PG/522: Redis confirma — lançamento não pode desaparecer. */
+          const guardou = await gravarPagamentoNoRedisOficial(itemComAt, protocolo);
+          if (guardou.duplicado) {
+            return res.status(409).json({
+              ok: false,
+              success: false,
+              reason: "duplicate_payment_same_day_value",
+              protocolo: nc,
+              message: "JÁ EXISTE UM PAGAMENTO IGUAL NESTE PROTOCOLO. O NOVO LANÇAMENTO NÃO FOI GRAVADO NA NUVEM.",
+            });
+          }
+          if (guardou.ok) {
+            return res.status(200).json({
+              ok: true,
+              success: true,
+              confirmed: true,
+              fonte: "redis",
+              supabasePendente: true,
+              protocolo,
+              reason: gravou.reason || "pg_write_fail",
+              message: "Pagamento confirmado no Redis (nuvem principal). Cópia Postgres pendente.",
+            });
+          }
           return res.status(gravou.status || 503).json({
             ok: false,
             success: false,
@@ -391,13 +436,7 @@ module.exports = async function handler(req, res) {
             detalhe: gravou.body || null,
           });
         }
-        await cacheRedis(
-          {
-            ...item,
-            at: new Date().toISOString(),
-          },
-          protocolo
-        );
+        await cacheRedis(itemComAt, protocolo);
         return res.status(200).json({
           ok: true,
           success: true,

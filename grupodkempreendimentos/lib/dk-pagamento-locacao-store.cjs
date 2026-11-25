@@ -71,6 +71,39 @@ function caminho(numeroContrato, removido) {
   return `dk_pagamento_locacao?numero_contrato=eq.${nc}&removido=eq.${removido ? "true" : "false"}&select=${colunas}&order=source_position.asc`;
 }
 
+async function lerDoRedisSnapshot(numeroContrato, removido) {
+  try {
+    const { detalheDoRedis } = require("./dk-locacao-redis-fallback.cjs");
+    const det = await detalheDoRedis(numeroContrato, "");
+    if (!det || !det.ok || !det.locacao) {
+      return { ok: false, reason: (det && det.reason) || "redis_indisponivel" };
+    }
+    const loc = det.locacao;
+    if (removido) {
+      const rem = Array.isArray(loc.portalLancamentosAluguelRemovidos) ? loc.portalLancamentosAluguelRemovidos : [];
+      return {
+        ok: true,
+        source: "redis",
+        fallback: true,
+        supabasePendente: true,
+        pagamentos: rem,
+        quantidade: rem.length,
+      };
+    }
+    const pagamentos = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    return {
+      ok: true,
+      source: "redis",
+      fallback: true,
+      supabasePendente: true,
+      pagamentos,
+      quantidade: pagamentos.length,
+    };
+  } catch (err) {
+    return { ok: false, reason: String(err && err.message ? err.message : err) };
+  }
+}
+
 async function ler(numeroContrato, removido, opts) {
   const nc = String(numeroContrato || "").trim();
   if (!contratoValido(nc)) {
@@ -78,6 +111,22 @@ async function ler(numeroContrato, removido, opts) {
   }
   const res = await rest(caminho(nc, removido), opts);
   if (!res.ok) {
+    const fb = await lerDoRedisSnapshot(nc, removido);
+    if (fb.ok) {
+      return {
+        ok: true,
+        status: 200,
+        source: "redis",
+        fallback: true,
+        supabasePendente: true,
+        numeroContrato: nc,
+        removido: Boolean(removido),
+        pagamentos: fb.pagamentos,
+        records: [],
+        quantidade: fb.quantidade,
+        reason: (res.data && res.data.reason) || "postgres_indisponivel",
+      };
+    }
     return {
       ok: false,
       status: res.status || 503,
@@ -160,7 +209,7 @@ function dataPagamentoEmYmd(pag) {
 
 /**
  * Lista pagamentos ativos cuja data_pagamento está no intervalo (inclusive).
- * Fonte: public.dk_pagamento_locacao. Sem fallback para snapshot.
+ * Fonte: public.dk_pagamento_locacao. Se o Postgres falhar, usa o snapshot Redis.
  */
 async function listarPorPeriodo(inicioRaw, fimRaw, opts) {
   let inicio = normalizarYmdPeriodo(inicioRaw);
